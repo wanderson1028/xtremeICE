@@ -8,10 +8,11 @@ import {
   LineChart, Line, BarChart, Bar,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
+import { Link } from "react-router-dom";
 import {
   BookOpen, Award, ShieldCheck, Clock, CheckCircle2, XCircle,
   Flame, Target, ArrowRight, Network, Monitor, Swords, FlaskConical,
-  Play, Zap, TrendingUp, AlertCircle, LogIn, Timer
+  Play, Zap, TrendingUp, AlertCircle, LogIn, Timer, Library
 } from "lucide-react";
 import { format, subDays, parseISO, formatDistanceToNow } from "date-fns";
 
@@ -271,6 +272,14 @@ export default function UserDashboard({ userEmail, assignedKeys = [], isAdmin = 
       <div className="flex items-center gap-3">
         <h2 className="text-xs font-semibold text-red-500 uppercase tracking-widest whitespace-nowrap">{t("dashboard.title")}</h2>
         <div className="flex-1 border-t border-red-900/30" />
+        <Link
+          to="/training-catalog"
+          className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-400 transition-colors whitespace-nowrap"
+        >
+          <Library className="h-3.5 w-3.5" />
+          Browse Catalog
+          <ArrowRight className="h-3 w-3" />
+        </Link>
       </div>
 
       {/* KPI stat cards — always visible */}

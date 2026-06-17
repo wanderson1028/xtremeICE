@@ -65,6 +65,7 @@ import LabPSNetworking from './pages/windows-labs/LabPSNetworking'
 import LabPSRemoting from './pages/windows-labs/LabPSRemoting'
 import EigrpLab from './pages/EigrpLab'
 import FirewallLab from './pages/FirewallLab'
+import TrainingCatalog from './pages/TrainingCatalog'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
@@ -185,6 +186,7 @@ const AuthenticatedApp = () => {
       <Route path="/windows-labs/ps-remoting" element={<LabPSRemoting />} />
       <Route path="/EigrpLab" element={<LayoutWrapper currentPageName="EigrpLab"><EigrpLab /></LayoutWrapper>} />
       <Route path="/FirewallLab" element={<LayoutWrapper currentPageName="FirewallLab"><FirewallLab /></LayoutWrapper>} />
+      <Route path="/training-catalog" element={<LayoutWrapper currentPageName="TrainingCatalog"><TrainingCatalog /></LayoutWrapper>} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
