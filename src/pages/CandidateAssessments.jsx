@@ -162,6 +162,7 @@ export default function CandidateAssessments() {
       await base44.entities.CandidateInvitation.delete(invId);
     },
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["my-assessments"] });
       qc.invalidateQueries({ queryKey: ["my-invitations"] });
       qc.invalidateQueries({ queryKey: ["my-sessions"] });
       qc.invalidateQueries({ queryKey: ["my-scorecards"] });
@@ -369,7 +370,7 @@ export default function CandidateAssessments() {
                       </div>
 
                       {/* Action */}
-                      <div className="col-span-1 flex justify-center">
+                      <div className="col-span-1 flex justify-center items-center gap-1">
                         {scorecard ? (
                           <Link to={`/scorecard?scorecard_id=${scorecard.id}`} className="text-[10px] px-2 py-1 bg-green-900/30 border border-green-700/40 text-green-400 rounded-lg hover:bg-green-900/50 transition-colors whitespace-nowrap">
                             Report
@@ -379,6 +380,9 @@ export default function CandidateAssessments() {
                             Resend
                           </Link>
                         )}
+                        <button onClick={() => deleteInvitationMutation.mutate(inv.id)} className="p-1 text-gray-600 hover:text-red-400 transition-colors" title="Delete">
+                          <Trash2 className="h-3 w-3" />
+                        </button>
                       </div>
                     </div>
                   );
