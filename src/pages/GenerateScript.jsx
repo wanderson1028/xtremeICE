@@ -1,0 +1,805 @@
+import React, { useState, useEffect } from "react";
+import { allocateIPs, getNodeInterfaces } from "@/components/diagram/ipAllocator";
+import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { base44 } from "@/api/base44Client";
+import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, Download, Copy, Check, Loader2, FileCode, ChevronDown, ChevronRight, Terminal, Sparkles } from "lucide-react";
+import { toast } from "sonner";
+
+const PLATFORMS = [
+  { id: "eveng", label: "EVE-NG", ext: "py", description: "Python lab script via EVE-NG REST API" },
+  { id: "gns3", label: "GNS3", ext: "py", description: "Python lab script via GNS3 API" },
+  { id: "cisco_ios", label: "Cisco IOS", ext: "txt", description: "IOS device configuration scripts" },
+  { id: "juniper_junos", label: "Juniper JunOS", ext: "conf", description: "JunOS device configuration scripts" },
+  { id: "device_configs", label: "Device Configs", ext: "cfg", description: "Full per-device CLI configs (no LLM)" },
+  { id: "ai_device_configs", label: "Intelligent Config", ext: "cfg", description: "Intelligent-generated per-device configs (best practices)", ai: true },
+];
+
+function buildPrompt(platform, design) {
+  const base = `Network Design:\n${JSON.stringify(design, null, 2)}`;
+  switch (platform) {
+    case "eveng":
+      return `You are an expert EVE-NG network engineer. Generate a complete, production-ready EVE-NG Python lab script using the EVE-NG REST API for this enterprise network design.
+
+${base}
+
+Requirements:
+1. Create a Python script using the EVE-NG REST API (http://eveng-host/api/) to build the lab
+2. Include ALL devices matching the topology: routers, switches, firewalls, servers
+3. Node image mapping: Cisco ISR→"vios", Cisco CSR1000v→"csr1000v", Cisco ASA→"asav", Palo Alto→"paloalto", Fortinet→"fortinet", VyOS→"vyos", Cisco Catalyst→"viosl2", Arista→"veos"
+4. Configure all connections matching the topology
+5. Set up IP addressing per the design scheme
+6. Include startup configs per device
+7. Include error handling and comments
+8. Script must be self-contained and executable
+
+Generate the complete Python script.`;
+
+    case "gns3":
+      return `You are an expert GNS3 network engineer. Generate a complete Python script using the GNS3 REST API (gns3fy library) to build this network topology.
+
+${base}
+
+Requirements:
+1. Use gns3fy or direct GNS3 v2 REST API calls
+2. Create a new project and add all devices
+3. Use appropriate GNS3 appliance templates based on vendor (Cisco IOS, VyOS, etc.)
+4. Wire all connections exactly as per the topology
+5. Set node positions in a logical layout
+6. Include startup configurations for each node
+7. Add error handling and clear comments
+
+Generate the complete Python script.`;
+
+    case "cisco_ios":
+      return `You are an expert Cisco network engineer. Generate complete Cisco IOS/IOS-XE configuration scripts for every router, switch, and firewall in this network design.
+
+${base}
+
+Requirements:
+1. For each device, produce a full configuration block starting with "! === Device: <hostname> ==="
+2. Include: hostname, interface IPs, routing protocol (${design.routing_protocol}), VLANs (${design.num_vlans_per_site} per site), NTP, DNS, AAA, SSH, enable/secret passwords
+3. Configure WAN interfaces for ${design.wan_technology}
+4. Apply ACLs and NAT where appropriate
+5. Use the domain name ${design.domain_name || "corp.local"} and NTP server ${design.ntp_server || "pool.ntp.org"}
+6. Add interface descriptions
+
+Generate all device configurations, separated by device.`;
+
+    case "juniper_junos":
+      return `You are an expert Juniper network engineer. Generate complete JunOS configuration scripts for every device in this network design.
+
+${base}
+
+Requirements:
+1. For each device, produce a full JunOS set-format configuration block starting with "# === Device: <hostname> ==="
+2. Include: system identity, interfaces, routing-options or protocols (${design.routing_protocol}), VLANs, NTP, DNS, firewall filters, SSH
+3. Configure WAN for ${design.wan_technology}
+4. Use hierarchical JunOS syntax (set commands format)
+5. Include commit-confirmed and rollback guidance comments
+
+Generate all device configurations, separated by device.`;
+
+    default:
+      return "";
+  }
+}
+
+// Per-device config generation (same logic as StepConfigScripts / DeviceDetailPanel)
+function generateCiscoIOSFull(device, data, interfaces = []) {
+  const hostname = device.name.replace(/\s+/g, "-");
+  const domain = data.domain_name || "corp.local";
+  const ntp = data.ntp_server || "pool.ntp.org";
+  const dns = (data.dns_servers || ["8.8.8.8"]).join(" ");
+  const username = data.device_username || "admin";
+  const password = data.device_password || "cisco";
+  const enable = data.enable_password || "enable123";
+
+  let config = `! ${device.label} — Cisco IOS Configuration
+! Generated by Xtreme I.C.E. Network Designer
+! ============================================
+!
+hostname ${hostname}
+ip domain-name ${domain}
+!
+enable secret ${enable}
+username ${username} privilege 15 secret ${password}
+service password-encryption
+no ip http server
+no ip http secure-server
+!
+crypto key generate rsa modulus 2048
+ip ssh version 2
+ip ssh time-out 60
+ip ssh authentication-retries 3
+!
+aaa new-model
+aaa authentication login default local
+aaa authorization exec default local
+!
+line con 0
+ login local
+ logging synchronous
+line vty 0 4
+ login local
+ transport input ssh
+ exec-timeout 10 0
+!
+ntp server ${ntp}
+clock timezone UTC 0
+ip name-server ${dns}
+!
+`;
+  if (device.type === "router") {
+    if (data.routing_protocol === "OSPF" || !data.routing_protocol)
+      config += `router ospf 1\n auto-cost reference-bandwidth 10000\n passive-interface default\n!\n`;
+    else if (data.routing_protocol === "BGP")
+      config += `router bgp 65001\n bgp log-neighbor-changes\n no auto-summary\n!\n`;
+    else if (data.routing_protocol === "EIGRP")
+      config += `router eigrp 100\n no auto-summary\n!\n`;
+    if (data.wan_technology === "IPSec VPN") {
+      config += `crypto isakmp policy 10\n encr aes 256\n hash sha256\n authentication pre-share\n group 14\n!\ncrypto ipsec transform-set TS esp-aes 256 esp-sha256-hmac\n mode tunnel\n!\n`;
+    }
+  }
+  if (device.type === "switch") {
+    const vlans = data.vlan_names || [];
+    vlans.forEach((vlan, i) => { config += `vlan ${i + 10}\n name ${vlan.replace(/\s+/g, "_")}\n!\n`; });
+    config += `spanning-tree mode rapid-pvst\nspanning-tree portfast default\n!\n`;
+  }
+  if (device.type === "firewall") {
+    config += `access-list OUTSIDE-IN extended permit tcp any any established\naccess-list OUTSIDE-IN extended deny ip any any log\n!\n`;
+    if (data.dmz_required) config += `! DMZ interface configured on GigabitEthernet0/2\n!\n`;
+  }
+  // Interface configurations with IP addresses
+  if (interfaces.length > 0) {
+    config += `! === Interface Configurations ===\n`;
+    interfaces.forEach((iface, idx) => {
+      const [ip, cidr] = iface.ip.split("/");
+      // Convert CIDR to subnet mask
+      const mask = cidrToMask(parseInt(cidr || "30"));
+      config += `interface ${iface.interfaceName}\n`;
+      config += ` description Link-to-${iface.peerNode}${iface.label ? `-${iface.label}` : ""}\n`;
+      config += ` ip address ${ip} ${mask}\n`;
+      config += ` no shutdown\n!\n`;
+    });
+  }
+
+  config += `logging buffered 16384 informational\nsnmp-server community public RO\nsnmp-server contact admin@${domain}\n!\nend`;
+  return config;
+}
+
+function cidrToMask(cidr) {
+  const mask = ~(0xffffffff >>> cidr) >>> 0;
+  return [(mask >>> 24) & 0xff, (mask >>> 16) & 0xff, (mask >>> 8) & 0xff, mask & 0xff].join(".");
+}
+
+function generateJuniperFull(device, data, interfaces = []) {
+  const hostname = device.name.replace(/\s+/g, "-");
+  const domain = data.domain_name || "corp.local";
+  const ntp = data.ntp_server || "pool.ntp.org";
+  const username = data.device_username || "admin";
+  const password = data.device_password || "Juniper1!";
+
+  let config = `## ${device.label} — Juniper JunOS Configuration
+system {
+    host-name ${hostname};
+    domain-name ${domain};
+    time-zone UTC;
+    name-server { ${(data.dns_servers || ["8.8.8.8"]).join("; ")}; }
+    ntp { server ${ntp}; }
+    login {
+        user ${username} { class super-user; authentication { encrypted-password "${password}"; } }
+    }
+    services { ssh { protocol-version v2; } netconf { ssh; } }
+    syslog { file messages { any notice; } }
+}
+`;
+  if (device.type === "router") {
+    config += `protocols {\n`;
+    if (data.routing_protocol === "OSPF" || !data.routing_protocol) config += `    ospf { area 0.0.0.0 { interface all; } }\n`;
+    else if (data.routing_protocol === "BGP") config += `    bgp { group IBGP { type internal; local-as 65001; } }\n`;
+    config += `}\n`;
+  }
+  if (device.type === "switch") {
+    const vlans = data.vlan_names || [];
+    config += `vlans {\n`;
+    vlans.forEach((vlan, i) => { config += `    ${vlan.replace(/\s+/g, "_")} { vlan-id ${i + 10}; }\n`; });
+    config += `}\nprotocols { rstp; }\n`;
+  }
+  if (device.type === "firewall") {
+    config += `security {
+    policies {
+        from-zone trust to-zone untrust {
+            policy permit-all {
+                match { source-address any; destination-address any; application any; }
+                then { permit; }
+            }
+        }
+    }
+    zones {
+        security-zone trust { interfaces { ge-0/0/0.0; } }
+        security-zone untrust { interfaces { ge-0/0/1.0; } }
+    }
+}\n`;
+  }
+  // Interface configurations with IP addresses
+  if (interfaces.length > 0) {
+    config += `interfaces {\n`;
+    interfaces.forEach((iface, idx) => {
+      const ifShort = `ge-0/0/${idx}`;
+      const [ip, cidr] = iface.ip.split("/");
+      config += `    ${ifShort} {\n        description "${iface.peerNode}${iface.label ? `-${iface.label}` : ""}";\n        unit 0 {\n            family inet {\n                address ${ip}/${cidr || "30"};\n            }\n        }\n    }\n`;
+    });
+    config += `}\n`;
+  }
+
+  config += `## End of configuration`;
+  return config;
+}
+
+function buildDeviceList(data) {
+  const devices = [];
+  const sites = data.site_names?.filter(Boolean).length
+    ? data.site_names.filter(Boolean)
+    : Array.from({ length: data.num_sites || 1 }, (_, i) => `Site${i + 1}`);
+  sites.forEach(site => {
+    devices.push({ name: `${site}-Router`, label: `${site} Router`, type: "router" });
+    devices.push({ name: `${site}-Switch`, label: `${site} Switch`, type: "switch" });
+    if (data.firewall_enabled) devices.push({ name: `${site}-Firewall`, label: `${site} Firewall`, type: "firewall" });
+    if (data.wireless_enabled) devices.push({ name: `${site}-WAP`, label: `${site} WAP`, type: "wireless" });
+  });
+  if (data.server_farm) {
+    devices.push({ name: "DC-CoreRouter", label: "DC Core Router", type: "router" });
+    devices.push({ name: "DC-CoreSwitch", label: "DC Core Switch", type: "switch" });
+  }
+  return devices;
+}
+
+// Only generate configs for core network devices
+const CONFIGURABLE_TYPES = new Set(["router","switch","firewall","loadbalancer"]);
+
+function generateSimpleConfig(device, design) {
+  const hostname = device.name.replace(/\s+/g, "-");
+  const typeConfigs = {
+    workstation: `! ${device.label} — Workstation\nhostname ${hostname}\n! Configure via DHCP or static:\nip address dhcp\n! Windows: netsh interface ip set address "Ethernet" dhcp\n! Linux: dhclient eth0\n`,
+    wireless: `! ${device.label} — Wireless Access Point\nhostname ${hostname}\nssid Corporate-WiFi\nwpa-psk enterprise\nchannel auto\n! Configure management IP:\ninterface BVI1\n ip address dhcp\n no shutdown\n`,
+    loadbalancer: `! ${device.label} — Load Balancer\nhostname ${hostname}\n! Backend pool:\npool SERVERS\n  member server1:80\n  member server2:80\n  monitor http\nvirtual-server VS_HTTP 0.0.0.0:80\n  pool SERVERS\n  snat automap\n`,
+    plc: `! ${device.label} — Programmable Logic Controller\n! Vendor: ${device.vendor || "Generic PLC"}\n! Network config (vendor-specific panel):\n! IP: (assign static)\n! Subnet: 255.255.255.0\n! Gateway: (upstream switch/router)\n! Protocols: Modbus TCP / EtherNet/IP\n! Ensure VLAN isolation from IT network\n`,
+    scada: `! ${device.label} — SCADA Server\nhostname ${hostname}\n! OS: Windows Server (typically)\n! Static IP assignment required\n! Firewall rules: allow OPC-UA (4840), Modbus (502) from OT VLAN only\n! Deny all inbound from IT VLAN except historian replication\n! Antivirus: OT-compatible only (Claroty/Dragos whitelist)\n`,
+    hmi: `! ${device.label} — Human Machine Interface\nhostname ${hostname}\n! Static IP on OT network segment\n! Restrict to local VLAN, no internet access\n! VNC/RDP allowed from engineering workstation only\n`,
+    iot: `! ${device.label} — IoT Device\nhostname ${hostname}\n! Assign to dedicated IoT VLAN\n! DHCP from IoT pool\n! Firewall: deny IoT VLAN to corporate LAN\n! Allow only required cloud endpoints\n`,
+  };
+  return typeConfigs[device.type] || `! ${device.label}\nhostname ${hostname}\n! Configure as needed\n`;
+}
+
+function generateAllDeviceConfigs(design, diagramData) {
+  const isJuniper = (design?.router_model || design?.switch_model || "").match(/Juniper|vMX|EX/i);
+  
+  let allNodes = [];
+  let allLinks = [];
+  let linkIps = {};
+
+  if (diagramData?.nodes && diagramData?.nodes.length > 0) {
+    allNodes = diagramData.nodes;
+    allLinks = diagramData.links || [];
+    linkIps = diagramData._linkIps || {};
+  } else {
+    const deviceList = buildDeviceList(design);
+    allNodes = deviceList.map((d, i) => ({ id: `n${i}`, label: d.label, type: d.type }));
+    allLinks = [];
+  }
+
+  const devices = allNodes
+    .filter(n => CONFIGURABLE_TYPES.has(n.type))
+    .map(n => ({ name: n.label.replace(/\n/g, "-").replace(/\s+/g, "-"), label: n.label.replace(/\n/g, " "), type: n.type, id: n.id }));
+
+  return devices.map(device => {
+    let interfaces = [];
+    if (device.id && allLinks.length > 0 && Object.keys(linkIps).length > 0) {
+      interfaces = getNodeInterfaces(device.id, allLinks, linkIps, allNodes);
+    }
+    const isOT = ["plc","scada","hmi","iot"].includes(device.type);
+    const isEndpoint = ["workstation","wireless","loadbalancer"].includes(device.type);
+    const config = (isOT || isEndpoint)
+      ? generateSimpleConfig(device, design)
+      : isJuniper ? generateJuniperFull(device, design, interfaces) : generateCiscoIOSFull(device, design, interfaces);
+    return { ...device, vendor: isOT ? "ot" : isJuniper ? "juniper" : "cisco", config };
+  });
+}
+
+function buildIntelligentDevicePrompt(device, design, interfaces) {
+  const isWanConnected = interfaces.some(i => i.isWan);
+  const isInternetFacing = interfaces.some(i =>
+    (i.peerNode || "").toLowerCase().match(/internet|wan|isp|provider|upstream/i) || i.isWan
+  );
+  const vendor = (design?.router_model || design?.switch_model || "").match(/Juniper|vMX|EX/i)
+    ? "Juniper JunOS" : "Cisco IOS/IOS-XE";
+  const domain = design?.domain_name || "corp.local";
+  const username = design?.device_username || "admin";
+  const password = design?.device_password || "cisco";
+  const enable = design?.enable_password || "enable123";
+  const ntp = design?.ntp_server || "pool.ntp.org";
+  const dns = (design?.dns_servers || ["8.8.8.8"]).join(", ");
+
+  const ifaceDesc = interfaces.length > 0
+    ? interfaces.map(i => `  - ${i.interfaceName}: IP ${i.ip}, peer ${i.peerNode} (${i.isWan ? "WAN" : "LAN"})`).join("\n")
+    : "  - No pre-allocated interfaces";
+
+  return `You are an expert network engineer specializing in ${vendor}. Generate a complete, production-ready CLI configuration for the following device.
+
+Device Details:
+- Hostname: ${device.name.replace(/\s+/g, "-")}
+- Role: ${device.type} (${device.label})
+- Vendor/OS: ${vendor}
+- WAN-connected: ${isWanConnected}
+- Internet-facing: ${isInternetFacing}
+
+Network Design Context:
+- Routing Protocol: ${design?.routing_protocol || "OSPF"}
+- WAN Technology: ${design?.wan_technology || "MPLS"}
+- VLANs per site: ${design?.num_vlans_per_site || 2}, VLAN names: ${(design?.vlan_names || []).join(", ") || "none defined"}
+- Firewall enabled: ${design?.firewall_enabled || false}
+- DMZ required: ${design?.dmz_required || false}
+- Redundancy: ${design?.redundancy_enabled || false}
+- Domain: ${domain}
+- NTP: ${ntp}, DNS: ${dns}
+- Credentials: username=${username}, password=${password}, enable=${enable}
+
+Pre-allocated Interfaces:
+${ifaceDesc}
+
+Requirements:
+1. Generate COMPLETE, paste-ready ${vendor} CLI configuration
+2. Configure ALL pre-allocated interfaces with correct IP addresses, masks, and descriptions
+3. ${device.type === "router" && isInternetFacing ? `Configure BGP toward the upstream ISP/WAN provider with appropriate route filters and prefix lists` : `Configure ${design?.routing_protocol || "OSPF"} routing with proper area design`}
+4. ${device.type === "router" && isWanConnected && design?.wan_technology === "IPSec VPN" ? "Configure IPSec VPN tunnels with IKEv2, AES-256, SHA-256" : ""}
+5. ${device.type === "router" && design?.wan_technology === "DMVPN" ? "Configure DMVPN (Phase 3) with NHRP and mGRE" : ""}
+6. Apply security hardening: SSH v2 only, disable telnet, AAA with local fallback, password encryption, control plane policing
+7. Add interface descriptions, logging, NTP, DNS, SNMP v3
+8. ${device.type === "switch" ? `Configure all VLANs (${(design?.vlan_names || []).join(", ")}), STP rapid-PVST with root guard, port security on access ports, Layer 3 SVIs` : ""}
+9. ${device.type === "firewall" ? `Configure zone-based security policies: trust/untrust/DMZ, stateful inspection, NAT overload on WAN, anti-spoofing ACLs` : ""}
+10. Include QoS policies for voice/video if WAN is connected
+11. Add helpful inline comments explaining each section
+
+Output the configuration ONLY — no explanations outside the config, just pure CLI commands ready to paste.`;
+}
+
+export default function GenerateScript() {
+  const navigate = useNavigate();
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get("id");
+  const [script, setScript] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [platform, setPlatform] = useState("device_configs");
+  const [deviceConfigs, setDeviceConfigs] = useState([]);
+  const [expandedDevice, setExpandedDevice] = useState({});
+  const [generatingDeviceIdx, setGeneratingDeviceIdx] = useState(null);
+  const [downloadingDevice, setDownloadingDevice] = useState(null);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [cancelGeneration, setCancelGeneration] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState({ current: 0, total: 0 });
+
+  const { data: design, isLoading } = useQuery({
+    queryKey: ["design", id],
+    queryFn: () => base44.entities.NetworkDesign.filter({ id }),
+    select: (d) => d[0],
+    enabled: !!id,
+  });
+
+  useEffect(() => {
+    if (design?.eve_ng_script) setScript(design.eve_ng_script);
+  }, [design]);
+
+  const selectedPlatform = PLATFORMS.find(p => p.id === platform);
+
+  const handleGenerate = async () => {
+    if (platform === "ai_device_configs") {
+      // Build diagram / allocate IPs
+      let diagramData = null;
+      if (design?.diagram_data) {
+        try { diagramData = JSON.parse(design.diagram_data); } catch (_) {}
+      }
+      let allNodes = [], allLinks = [], linkIps = {};
+      if (diagramData?.nodes && diagramData?.links) {
+        allNodes = diagramData.nodes;
+        allLinks = diagramData.links;
+        linkIps = diagramData._linkIps || {};
+      } else {
+        const deviceList = buildDeviceList(design);
+        const stubNodes = deviceList.map((d, i) => ({ id: `n${i}`, label: d.label, type: d.type }));
+        const stubLinks = [];
+        for (let i = 1; i < stubNodes.length; i++) {
+          stubLinks.push({ from: stubNodes[0].id, to: stubNodes[i].id, wan: i < 3 });
+        }
+        const { nodeIps, linkIps: sLinkIps } = allocateIPs(stubNodes, stubLinks, design.ip_scheme);
+        allNodes = stubNodes.map(n => ({ ...n, ip: nodeIps[n.id] }));
+        allLinks = stubLinks;
+        linkIps = sLinkIps;
+      }
+
+      const devices = buildDeviceList(design);
+      // Seed empty configs to show loading state
+      const seedConfigs = devices.map(d => ({ ...d, vendor: "cisco", config: "", generating: true }));
+      setDeviceConfigs(seedConfigs);
+      setExpandedDevice({ [devices[0]?.name]: true });
+      setGenerating(true);
+      setCancelGeneration(false);
+      setGenerationProgress({ current: 0, total: devices.length });
+
+      // Generate AI config per device sequentially
+      const results = [...seedConfigs];
+      for (let i = 0; i < devices.length; i++) {
+        if (cancelGeneration) {
+          setGenerating(false);
+          setGeneratingDeviceIdx(null);
+          setGenerationProgress({ current: 0, total: 0 });
+          toast.info("Generation cancelled");
+          return;
+        }
+        setGeneratingDeviceIdx(i);
+        setGenerationProgress({ current: i, total: devices.length });
+        const device = devices[i];
+        const diagNode = allNodes.find(n =>
+          n.label.replace(/\n/g, " ").toLowerCase().includes(device.label.toLowerCase()) ||
+          device.label.toLowerCase().includes(n.label.replace(/\n/g, " ").toLowerCase())
+        );
+        let interfaces = [];
+        if (diagNode) {
+          interfaces = getNodeInterfaces(diagNode.id, allLinks, linkIps, allNodes);
+        }
+        const prompt = buildIntelligentDevicePrompt(device, design, interfaces);
+        const intelligentConfig = await base44.integrations.Core.InvokeLLM({ prompt });
+        results[i] = { ...device, vendor: "cisco", config: typeof intelligentConfig === "string" ? intelligentConfig : JSON.stringify(intelligentConfig), generating: false };
+        setDeviceConfigs([...results]);
+        setGenerationProgress({ current: i + 1, total: devices.length });
+      }
+      setGenerating(false);
+      setGeneratingDeviceIdx(null);
+      setGenerationProgress({ current: 0, total: 0 });
+      toast.success("All configurations generated!");
+      return;
+    }
+
+    if (platform === "device_configs") {
+      // Load diagram data with IPs — try from saved design, otherwise build & allocate
+      let diagramData = null;
+      if (design?.diagram_data) {
+        try { diagramData = JSON.parse(design.diagram_data); } catch (_) {}
+      }
+      if (!diagramData) {
+        // Build diagram and allocate IPs on the fly
+        const { buildDeviceList: _, ...rest } = {};
+        // We need to build a minimal diagram — re-use the same logic from DiagramPreview
+        // Instead, allocate IPs directly from the device list
+        const deviceList = buildDeviceList(design);
+        // Create stub nodes/links for IP allocation
+        const stubNodes = deviceList.map((d, i) => ({ id: `n${i}`, label: d.label, type: d.type }));
+        const stubLinks = [];
+        // Wire sequentially as a simple topology for IP purposes
+        for (let i = 1; i < stubNodes.length; i++) {
+          stubLinks.push({ from: stubNodes[0].id, to: stubNodes[i].id, wan: i < 3 });
+        }
+        const { nodeIps, linkIps } = allocateIPs(stubNodes, stubLinks, design.ip_scheme);
+        diagramData = { nodes: stubNodes.map(n => ({ ...n, ip: nodeIps[n.id] })), links: stubLinks, _linkIps: linkIps };
+      }
+      const configs = generateAllDeviceConfigs(design, diagramData);
+      setDeviceConfigs(configs);
+      if (configs.length > 0) setExpandedDevice({ [configs[0].name]: true });
+      return;
+    }
+    setGenerating(true);
+    const result = await base44.integrations.Core.InvokeLLM({ prompt: buildPrompt(platform, design) });
+    const generatedScript = typeof result === "string" ? result : JSON.stringify(result);
+    setScript(generatedScript);
+    await base44.entities.NetworkDesign.update(design.id, { eve_ng_script: generatedScript, status: "generated" });
+    setGenerating(false);
+  };
+
+  const handleDownloadDevice = async (device) => {
+    setDownloadingDevice(device.name);
+    setDownloadProgress(0);
+    
+    // Simulate progress
+    const interval = setInterval(() => {
+      setDownloadProgress(prev => {
+        if (prev >= 90) clearInterval(interval);
+        return Math.min(prev + Math.random() * 40, 90);
+      });
+    }, 100);
+    
+    // Trigger actual download
+    const ext = device.vendor === "juniper" ? "conf" : "cfg";
+    const blob = new Blob([device.config], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${device.name}.${ext}`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    // Complete progress
+    clearInterval(interval);
+    setDownloadProgress(100);
+    setTimeout(() => {
+      setDownloadingDevice(null);
+      setDownloadProgress(0);
+    }, 500);
+  };
+
+  const handleDownloadAllDevices = () => {
+    deviceConfigs.forEach(d => handleDownloadDevice(d));
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(script);
+    setCopied(true);
+    toast.success("Script copied to clipboard");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownload = () => {
+    const ext = selectedPlatform?.ext || "txt";
+    const blob = new Blob([script], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(design?.name || "network").replace(/\s+/g, "_")}_${platform}.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    URL.revokeObjectURL(url);
+    a.remove();
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen py-10 px-4">
+      <div className="max-w-5xl mx-auto">
+        <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Xtreme I.C.E. Script Generator</h1>
+            <p className="text-muted-foreground text-sm mt-1">{design?.name}</p>
+          </div>
+          <Button variant="outline" onClick={() => navigate(`/VisualDesignEditor?id=${id}`)} className="gap-2">
+            <ArrowLeft className="h-4 w-4" /> Back to Design
+          </Button>
+        </div>
+
+        {/* Platform selector */}
+        <div className="bg-card border border-border rounded-xl p-4 mb-6">
+          <p className="text-xs text-muted-foreground mb-3 font-medium uppercase tracking-wider">Target Platform / OS</p>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            {PLATFORMS.map(p => (
+              <button
+                key={p.id}
+                onClick={() => { setPlatform(p.id); setScript(""); setDeviceConfigs([]); }}
+                className={`flex flex-col items-start rounded-lg border px-3 py-2.5 text-xs text-left transition-all
+                  ${platform === p.id
+                    ? "bg-primary/20 border-primary/50 text-primary"
+                    : "bg-secondary border-border text-muted-foreground hover:text-foreground"}`}
+              >
+                <span className="font-semibold">{p.label}</span>
+                <span className="text-[10px] opacity-70 mt-0.5 leading-tight">{p.description}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Intelligent Device Configs - Initial State */}
+          {platform === "ai_device_configs" && deviceConfigs.length === 0 && !generating && (
+            <div className="bg-card border border-border rounded-2xl p-12 text-center">
+              <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6 border border-primary/20">
+                <Sparkles className="h-8 w-8 text-primary" />
+              </div>
+              <h2 className="text-xl font-semibold text-foreground mb-2">Intelligent-Generated Device Configurations</h2>
+              <p className="text-muted-foreground max-w-md mx-auto mb-8">
+                The system will generate a detailed, best-practice CLI configuration for each device based on its role, connections, and your design settings. Includes BGP for WAN, zone-based firewalls, VLAN SVIs, QoS, and more.
+              </p>
+              <Button onClick={handleGenerate} size="lg" className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
+                <Sparkles className="h-5 w-5" /> Generate Intelligent Configs
+              </Button>
+            </div>
+          )}
+
+        {/* Intelligent Generation Progress */}
+        {platform === "ai_device_configs" && generating && generationProgress.total > 0 && (
+          <div className="bg-card border border-border rounded-2xl p-8">
+            <div className="flex items-center gap-4 mb-6">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-foreground">Generating configurations…</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {generationProgress.current} of {generationProgress.total} devices
+                </p>
+              </div>
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                onClick={() => setCancelGeneration(true)}
+                className="gap-1.5"
+              >
+                Cancel
+              </Button>
+            </div>
+            <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+              <div 
+                className="h-full bg-primary transition-all duration-300"
+                style={{ width: `${(generationProgress.current / generationProgress.total) * 100}%` }}
+              />
+            </div>
+            <div className="mt-4 text-xs text-muted-foreground text-center">
+              {Math.round((generationProgress.current / generationProgress.total) * 100)}% complete
+            </div>
+          </div>
+        )}
+
+        {(platform === "ai_device_configs" || platform === "device_configs") && deviceConfigs.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-muted-foreground">{deviceConfigs.length} device configs</p>
+                {generating && (
+                  <span className="text-xs text-primary flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Intelligent generating…
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleDownloadAllDevices} disabled={generating} className="gap-1.5 text-xs">
+                  <Download className="h-3 w-3" /> Download All
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleGenerate} disabled={generating} className="gap-1.5 text-xs">
+                  {platform === "ai_device_configs" ? <Sparkles className="h-3 w-3" /> : <Terminal className="h-3 w-3" />} Regenerate
+                </Button>
+              </div>
+            </div>
+            {deviceConfigs.map((device, idx) => {
+               const isOpen = expandedDevice[device.name];
+               const isGeneratingThis = generatingDeviceIdx === idx;
+               const vendorColor = device.vendor === "juniper" ? "bg-red-600 text-white" : device.vendor === "ot" ? "bg-orange-600 text-white" : "bg-blue-600 text-white";
+               const vendorLabel = device.vendor === "juniper" ? "Juniper JunOS" : device.vendor === "ot" ? "OT / ICS" : "Cisco IOS";
+               const hasConfig = device.config && device.config.length > 0;
+               return (
+                 <div key={device.name} className="border border-border rounded-xl overflow-hidden">
+                   <button
+                     className="w-full flex items-center justify-between px-4 py-3 bg-secondary hover:bg-secondary/80 transition-colors text-left"
+                     onClick={() => setExpandedDevice(prev => ({ ...prev, [device.name]: !prev[device.name] }))}
+                   >
+                     <div className="flex items-center gap-3 flex-1">
+                       {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                       <span className="text-sm font-medium text-foreground">{device.label}</span>
+                       <Badge className={`text-xs ${vendorColor}`}>{vendorLabel}</Badge>
+                       {platform === "ai_device_configs" && (
+                         <Badge className="text-xs bg-purple-600 text-white">Intelligent</Badge>
+                       )}
+                       {isGeneratingThis && <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />}
+                       {!hasConfig && !isGeneratingThis && (
+                         <span className="text-xs text-muted-foreground">Pending…</span>
+                       )}
+                       {hasConfig && (
+                         <Badge variant="outline" className="text-xs text-green-400 border-green-400/30">Ready</Badge>
+                       )}
+                     </div>
+                     <div className="flex items-center gap-2 shrink-0">
+                       {downloadingDevice === device.name && (
+                         <span className="text-xs text-muted-foreground">{Math.round(downloadProgress)}%</span>
+                       )}
+                       <Button
+                         size="sm"
+                         variant="ghost"
+                         className="gap-1 text-xs h-7"
+                         disabled={!device.config || device.generating || downloadingDevice !== null}
+                         onClick={e => { e.stopPropagation(); handleDownloadDevice(device); }}
+                       >
+                         <Download className="h-3 w-3" /> Download
+                       </Button>
+                     </div>
+                   </button>
+                   {isOpen && (
+                     <div className="bg-[#0a0e1a]">
+                       {isGeneratingThis || device.generating ? (
+                         <div className="flex items-center gap-2 px-4 py-6 text-xs text-primary/70">
+                           <Loader2 className="h-4 w-4 animate-spin" /> System is generating configuration…
+                         </div>
+                       ) : hasConfig ? (
+                         <pre className="text-xs text-green-400 font-mono p-4 overflow-x-auto max-h-80 overflow-y-auto whitespace-pre leading-5">
+                           {device.config}
+                         </pre>
+                       ) : (
+                         <div className="px-4 py-6 text-xs text-muted-foreground">No configuration available yet.</div>
+                       )}
+                     </div>
+                   )}
+                 </div>
+               );
+             })}
+          </div>
+        )}
+
+        {platform === "device_configs" && deviceConfigs.length === 0 && (
+          <div className="bg-card border border-border rounded-2xl p-12 text-center">
+            <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6 border border-primary/20">
+              <Terminal className="h-8 w-8 text-primary" />
+            </div>
+            <h2 className="text-xl font-semibold text-foreground mb-2">Per-Device Configurations</h2>
+            <p className="text-muted-foreground max-w-md mx-auto mb-8">
+              Instantly generate full CLI configs for every device in your design — no AI needed. Vendor auto-detected from your selections.
+            </p>
+            <Button onClick={handleGenerate} size="lg" className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
+              <Terminal className="h-5 w-5" /> Generate Device Configs
+            </Button>
+          </div>
+        )}
+
+        {platform !== "device_configs" && platform !== "ai_device_configs" && !script && !generating && (
+          <div className="bg-card border border-border rounded-2xl p-12 text-center">
+            <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6 border border-primary/20">
+              <FileCode className="h-8 w-8 text-primary" />
+            </div>
+            <h2 className="text-xl font-semibold text-foreground mb-2">Ready to Generate</h2>
+            <p className="text-muted-foreground max-w-md mx-auto mb-8">
+              Generate a complete <strong>{selectedPlatform?.label}</strong> script for your network topology.
+              {selectedPlatform?.id === "cisco_ios" || selectedPlatform?.id === "juniper_junos"
+                ? " Each device will have its own configuration block, ready to paste into the CLI."
+                : " The Python script will automatically build your lab environment."}
+            </p>
+            <Button onClick={handleGenerate} size="lg" className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
+              <FileCode className="h-5 w-5" /> Generate {selectedPlatform?.label} Script
+            </Button>
+          </div>
+        )}
+
+        {generating && platform !== "ai_device_configs" && (
+          <div className="bg-card border border-border rounded-2xl p-12 text-center">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+            <h2 className="text-lg font-semibold text-foreground">Generating {selectedPlatform?.label} Script…</h2>
+            <p className="text-muted-foreground text-sm mt-1">This may take a moment</p>
+          </div>
+        )}
+
+        {script && !generating && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-end gap-3 flex-wrap">
+              <Button variant="outline" onClick={handleCopy} className="gap-2">
+                {copied ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
+                {copied ? "Copied!" : "Copy"}
+              </Button>
+              <Button onClick={handleDownload} className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
+                <Download className="h-4 w-4" /> Download .{selectedPlatform?.ext}
+              </Button>
+              <Button variant="outline" onClick={handleGenerate} className="gap-2">
+                <FileCode className="h-4 w-4" /> Regenerate
+              </Button>
+            </div>
+            <div className="bg-[#0a0e1a] border border-border rounded-xl overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/50 bg-secondary/30">
+                <div className="flex gap-1.5">
+                  <div className="h-2.5 w-2.5 rounded-full bg-red-500/50" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-yellow-500/50" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-green-500/50" />
+                </div>
+                <span className="text-xs text-muted-foreground ml-2">
+                  {design?.name?.replace(/\s+/g, "_")}_{platform}.{selectedPlatform?.ext}
+                </span>
+                <span className="ml-auto text-[10px] text-primary/70 border border-primary/20 rounded px-1.5 py-0.5">{selectedPlatform?.label}</span>
+              </div>
+              <pre className="p-5 text-sm text-green-300/90 overflow-x-auto max-h-[600px] overflow-y-auto leading-relaxed font-mono">
+                {script}
+              </pre>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

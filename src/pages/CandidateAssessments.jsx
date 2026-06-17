@@ -21,9 +21,27 @@ function getAssessmentTrackStatus(assessment, invitations) {
 }
 
 const TRACK_STATUS_CONFIG = {
-  draft: { label: "Draft", color: "text-gray-400", bg: "bg-gray-800/60 border-gray-700", dot: "bg-gray-500", desc: "Not yet active" },
-  ready: { label: "Ready for Candidate", color: "text-blue-400", bg: "bg-blue-900/20 border-blue-700/40", dot: "bg-blue-400", desc: "Active — invite candidates" },
-  completed: { label: "Completed", color: "text-green-400", bg: "bg-green-900/20 border-green-700/40", dot: "bg-green-400", desc: "At least one candidate done" },
+  draft: {
+    label: "Draft",
+    color: "text-gray-400",
+    bg: "bg-gray-800/60 border-gray-700",
+    dot: "bg-gray-500",
+    desc: "Not yet active",
+  },
+  ready: {
+    label: "Ready for Candidate",
+    color: "text-blue-400",
+    bg: "bg-blue-900/20 border-blue-700/40",
+    dot: "bg-blue-400",
+    desc: "Active — invite candidates",
+  },
+  completed: {
+    label: "Completed",
+    color: "text-green-400",
+    bg: "bg-green-900/20 border-green-700/40",
+    dot: "bg-green-400",
+    desc: "At least one candidate done",
+  },
 };
 
 function AssessmentStatusPill({ assessment, invitations }) {
@@ -41,9 +59,9 @@ function AssessmentStatusBar({ assessments, invitations }) {
   const counts = { draft: 0, ready: 0, completed: 0 };
   assessments.forEach(a => { counts[getAssessmentTrackStatus(a, invitations)]++; });
   const steps = [
-    { key: "draft", label: "Draft", icon: "✏️", desc: `${counts.draft} assessment${counts.draft !== 1 ? "s" : ""}` },
-    { key: "ready", label: "Ready for Candidate", icon: "🚀", desc: `${counts.ready} assessment${counts.ready !== 1 ? "s" : ""}` },
-    { key: "completed", label: "Completed", icon: "✅", desc: `${counts.completed} assessment${counts.completed !== 1 ? "s" : ""}` },
+    { key: "draft",     label: "Draft",                icon: "✏️", desc: `${counts.draft} assessment${counts.draft !== 1 ? "s" : ""}` },
+    { key: "ready",     label: "Ready for Candidate",  icon: "🚀", desc: `${counts.ready} assessment${counts.ready !== 1 ? "s" : ""}` },
+    { key: "completed", label: "Completed",            icon: "✅", desc: `${counts.completed} assessment${counts.completed !== 1 ? "s" : ""}` },
   ];
   return (
     <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-4 mb-6 flex items-center gap-0">
@@ -111,7 +129,9 @@ export default function CandidateAssessments() {
 
   const deleteAssessmentMutation = useMutation({
     mutationFn: async (assessmentId) => {
+      // Find all related invitations
       const relatedInvites = invitations.filter(i => i.assessment_id === assessmentId);
+      // For each invitation, delete related sessions and scorecards
       for (const inv of relatedInvites) {
         const relatedSessions = sessions.filter(s => s.invitation_id === inv.id);
         for (const session of relatedSessions) {
@@ -157,15 +177,22 @@ export default function CandidateAssessments() {
     pending: invitations.filter(i => i.status === "pending").length,
   };
 
+  // Build tracker rows: one row per invitation, enriched with session + scorecard data
   const trackerRows = invitations.map(inv => {
     const assessment = assessments.find(a => a.id === inv.assessment_id);
     const session = sessions.find(s => s.invitation_id === inv.id);
     const scorecard = scorecards.find(sc => sc.session_id === session?.id);
+    const totalTasks = session?.task_submissions?.length || 0;
+    const taskCount = assessment ? 0 : 0; // tasks loaded separately, use submission count as proxy
+    const progressPct = session && session.task_submissions?.length
+      ? Math.round((session.task_submissions.length / Math.max(session.task_submissions.length, 1)) * 100)
+      : 0;
     return { inv, assessment, session, scorecard };
   });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-red-950/10">
+      {/* Header */}
       <div className="border-b border-gray-800 bg-black/50 px-6 py-5">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div>
@@ -183,6 +210,7 @@ export default function CandidateAssessments() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           {[
             { label: "Total Assessments", value: stats.total, icon: ClipboardList, color: "text-blue-400" },
@@ -201,6 +229,7 @@ export default function CandidateAssessments() {
           ))}
         </div>
 
+        {/* Tabs */}
         <div className="flex gap-1 mb-6 bg-gray-900/40 border border-gray-800 rounded-lg p-1 w-fit">
           {["tracker", "assessments", "candidates", "results"].map(tab => (
             <button
@@ -215,8 +244,10 @@ export default function CandidateAssessments() {
           ))}
         </div>
 
+        {/* Live Tracker Tab */}
         {activeTab === "tracker" && (
           <div>
+            {/* Mini stat strip */}
             <div className="grid grid-cols-4 gap-3 mb-6">
               {[
                 { label: "In Progress", value: stats.in_progress, icon: Activity, color: "text-purple-400", bg: "border-purple-800/40" },
@@ -234,6 +265,7 @@ export default function CandidateAssessments() {
               ))}
             </div>
 
+            {/* Tracker table */}
             {trackerRows.length === 0 ? (
               <div className="text-center py-20 border border-dashed border-gray-800 rounded-xl">
                 <Activity className="h-12 w-12 text-gray-700 mx-auto mb-3" />
@@ -241,6 +273,7 @@ export default function CandidateAssessments() {
               </div>
             ) : (
               <div className="bg-gray-900/40 border border-gray-800 rounded-xl overflow-hidden">
+                {/* Table header */}
                 <div className="grid grid-cols-12 gap-3 px-4 py-2.5 border-b border-gray-800 text-[10px] font-semibold text-gray-300 uppercase tracking-wider">
                   <div className="col-span-2">Candidate</div>
                   <div className="col-span-2">Assessment</div>
@@ -252,20 +285,30 @@ export default function CandidateAssessments() {
 
                 {trackerRows.map(({ inv, assessment, session, scorecard }) => {
                   const statusConfig = {
-                    pending: { label: "Invited", color: "text-yellow-400", bg: "bg-yellow-900/20 border-yellow-700/40", dot: "bg-yellow-400" },
-                    accepted: { label: "Accepted", color: "text-blue-400", bg: "bg-blue-900/20 border-blue-700/40", dot: "bg-blue-400" },
-                    in_progress: { label: "In Progress", color: "text-purple-400", bg: "bg-purple-900/20 border-purple-700/40", dot: "bg-purple-400 animate-pulse" },
-                    submitted: { label: "Submitted", color: "text-orange-400", bg: "bg-orange-900/20 border-orange-700/40", dot: "bg-orange-400" },
-                    completed: { label: "Completed", color: "text-green-400", bg: "bg-green-900/20 border-green-700/40", dot: "bg-green-400" },
-                    expired: { label: "Expired", color: "text-gray-500", bg: "bg-gray-900/40 border-gray-700/40", dot: "bg-gray-600" },
-                    evaluated: { label: "Evaluated", color: "text-green-400", bg: "bg-green-900/20 border-green-700/40", dot: "bg-green-400" },
+                    pending:     { label: "Invited",     color: "text-yellow-400",  bg: "bg-yellow-900/20 border-yellow-700/40",  dot: "bg-yellow-400" },
+                    accepted:    { label: "Accepted",    color: "text-blue-400",    bg: "bg-blue-900/20 border-blue-700/40",      dot: "bg-blue-400" },
+                    in_progress: { label: "In Progress", color: "text-purple-400",  bg: "bg-purple-900/20 border-purple-700/40",  dot: "bg-purple-400 animate-pulse" },
+                    submitted:   { label: "Submitted",   color: "text-orange-400",  bg: "bg-orange-900/20 border-orange-700/40",  dot: "bg-orange-400" },
+                    completed:   { label: "Completed",   color: "text-green-400",   bg: "bg-green-900/20 border-green-700/40",    dot: "bg-green-400" },
+                    expired:     { label: "Expired",     color: "text-gray-500",    bg: "bg-gray-900/40 border-gray-700/40",      dot: "bg-gray-600" },
+                    evaluated:   { label: "Evaluated",   color: "text-green-400",   bg: "bg-green-900/20 border-green-700/40",    dot: "bg-green-400" },
                   };
                   const st = statusConfig[session?.status || inv.status] || statusConfig.pending;
                   const submittedCount = session?.task_submissions?.length || 0;
+                  // We don't have task count here easily, use submitted as "done" indicator
                   const timeElapsed = session?.time_elapsed_minutes || 0;
+                  const duration = assessment?.duration_minutes || 60;
+                  const timePct = session?.started_at ? Math.min(100, Math.round((timeElapsed / duration) * 100)) : 0;
+                  const hireConf = {
+                    strong_hire: { label: "Strong Hire", color: "text-green-400" },
+                    hire:        { label: "Hire",        color: "text-blue-400"  },
+                    borderline:  { label: "Borderline",  color: "text-yellow-400"},
+                    no_hire:     { label: "No Hire",     color: "text-red-400"   },
+                  }[scorecard?.hiring_recommendation] || null;
 
                   return (
                     <div key={inv.id} className="grid grid-cols-12 gap-3 px-4 py-3.5 border-b border-gray-800/60 last:border-0 hover:bg-gray-800/20 transition-colors items-center">
+                      {/* Candidate */}
                       <div className="col-span-2 flex items-center gap-2 min-w-0">
                         <div className="h-7 w-7 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center text-gray-200 font-bold text-xs shrink-0">
                           {inv.candidate_name?.[0]?.toUpperCase() || "?"}
@@ -276,11 +319,13 @@ export default function CandidateAssessments() {
                         </div>
                       </div>
 
+                      {/* Assessment */}
                       <div className="col-span-2 min-w-0">
                         <p className="text-gray-300 text-xs font-normal truncate">{assessment?.position_title || "—"}</p>
                         <p className="text-gray-300 text-[10px] truncate">{assessment?.assessment_type || ""}</p>
                       </div>
 
+                      {/* Status + Date */}
                       <div className="col-span-2">
                         <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-1 rounded-full border ${st.bg} ${st.color}`}>
                           <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${st.dot}`} />
@@ -291,6 +336,7 @@ export default function CandidateAssessments() {
                         )}
                       </div>
 
+                      {/* Progress */}
                       <div className="col-span-3">
                         {session?.started_at ? (
                           <div>
@@ -301,7 +347,7 @@ export default function CandidateAssessments() {
                             <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
                               <div
                                 className={`h-full rounded-full transition-all ${session.status === "submitted" || session.status === "evaluated" ? "bg-green-500" : "bg-purple-500"}`}
-                                style={{ width: `${submittedCount > 0 ? Math.min(100, submittedCount * 15) : timeElapsed > 0 ? Math.min(100, (timeElapsed / (assessment?.duration_minutes || 60)) * 100) : 0}%` }}
+                                style={{ width: `${submittedCount > 0 ? Math.min(100, submittedCount * 15) : timePct}%` }}
                               />
                             </div>
                           </div>
@@ -310,21 +356,19 @@ export default function CandidateAssessments() {
                         )}
                       </div>
 
+                      {/* Score */}
                       <div className="col-span-2 text-center">
                         {scorecard ? (
                           <div>
                             <div className={`text-lg font-bold ${scorecard.passed ? "text-green-400" : "text-red-400"}`}>{scorecard.overall_score}%</div>
-                            {scorecard.hiring_recommendation && (
-                              <div className={`text-[10px] font-semibold ${HIRE_STYLE[scorecard.hiring_recommendation] || "text-gray-400"}`}>
-                                {HIRE_LABEL[scorecard.hiring_recommendation]}
-                              </div>
-                            )}
+                            {hireConf && <div className={`text-[10px] font-semibold ${hireConf.color}`}>{hireConf.label}</div>}
                           </div>
                         ) : (
                           <span className="text-gray-300 text-xs">Pending</span>
                         )}
                       </div>
 
+                      {/* Action */}
                       <div className="col-span-1 flex justify-center">
                         {scorecard ? (
                           <Link to={`/scorecard?scorecard_id=${scorecard.id}`} className="text-[10px] px-2 py-1 bg-green-900/30 border border-green-700/40 text-green-400 rounded-lg hover:bg-green-900/50 transition-colors whitespace-nowrap">
@@ -344,6 +388,7 @@ export default function CandidateAssessments() {
           </div>
         )}
 
+        {/* Assessments Tab */}
         {activeTab === "assessments" && (
           <div className="space-y-3">
             {!isLoading && assessments.length > 0 && (
@@ -411,6 +456,7 @@ export default function CandidateAssessments() {
           </div>
         )}
 
+        {/* Candidates Tab */}
         {activeTab === "candidates" && (
           <div className="space-y-3">
             {invitations.length === 0 && (
@@ -460,6 +506,7 @@ export default function CandidateAssessments() {
           </div>
         )}
 
+        {/* Results Tab */}
         {activeTab === "results" && (
           <div className="space-y-3">
             {scorecards.length === 0 && (

@@ -1,5 +1,5 @@
 {
-  "name": "Xtreme I.C.E.",
+  "name": "Xtreme Designer",
   "site": {
     "installCommand": "npm install",
     "buildCommand": "npm run build",

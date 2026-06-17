@@ -11,11 +11,21 @@ export const AuthProvider = ({ children }) => {
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
   const [authError, setAuthError] = useState(null);
-  const [authChecked, setAuthChecked] = useState(false);
   const [appPublicSettings, setAppPublicSettings] = useState(null); // Contains only { id, public_settings }
 
   useEffect(() => {
     checkAppState();
+
+    // Catch any unhandled "must be logged in" errors from SDK calls anywhere in the app
+    const handleUnhandledRejection = (event) => {
+      const msg = event?.reason?.message || '';
+      if (msg.toLowerCase().includes('you must be logged in')) {
+        event.preventDefault();
+        base44.auth.redirectToLogin(window.location.href);
+      }
+    };
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    return () => window.removeEventListener('unhandledrejection', handleUnhandledRejection);
   }, []);
 
   const checkAppState = async () => {
@@ -44,7 +54,6 @@ export const AuthProvider = ({ children }) => {
         } else {
           setIsLoadingAuth(false);
           setIsAuthenticated(false);
-          setAuthChecked(true);
         }
         setIsLoadingPublicSettings(false);
       } catch (appError) {
@@ -97,12 +106,10 @@ export const AuthProvider = ({ children }) => {
       setUser(currentUser);
       setIsAuthenticated(true);
       setIsLoadingAuth(false);
-      setAuthChecked(true);
     } catch (error) {
       console.error('User auth check failed:', error);
       setIsLoadingAuth(false);
       setIsAuthenticated(false);
-      setAuthChecked(true);
       
       // If user auth fails, it might be an expired token
       if (error.status === 401 || error.status === 403) {
@@ -140,10 +147,8 @@ export const AuthProvider = ({ children }) => {
       isLoadingPublicSettings,
       authError,
       appPublicSettings,
-      authChecked,
       logout,
       navigateToLogin,
-      checkUserAuth,
       checkAppState
     }}>
       {children}
@@ -157,4 +162,20 @@ export const useAuth = () => {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
+};
+
+// Hook to handle Base44 auth errors globally in any component
+export const useHandleAuthError = () => {
+  const { navigateToLogin } = useAuth();
+  return (error) => {
+    if (
+      error?.message?.toLowerCase().includes('you must be logged in') ||
+      error?.status === 401 ||
+      error?.status === 403
+    ) {
+      navigateToLogin();
+      return true;
+    }
+    return false;
+  };
 };
