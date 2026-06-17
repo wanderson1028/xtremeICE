@@ -1,0 +1,109 @@
+{
+  "name": "LabAttempt",
+  "type": "object",
+  "properties": {
+    "scenario_id": {
+      "type": "string",
+      "description": "Reference to the LabScenario"
+    },
+    "user_email": {
+      "type": "string",
+      "description": "Email of the user attempting the scenario"
+    },
+    "network_design_id": {
+      "type": "string",
+      "description": "Reference to the NetworkDesign used for this attempt"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "not_started",
+        "in_progress",
+        "completed",
+        "failed",
+        "abandoned"
+      ],
+      "default": "not_started"
+    },
+    "score": {
+      "type": "number",
+      "description": "Final score out of 100"
+    },
+    "total_points_earned": {
+      "type": "number",
+      "default": 0
+    },
+    "total_points_possible": {
+      "type": "number",
+      "default": 0
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "time_elapsed_minutes": {
+      "type": "number",
+      "description": "Total active time in minutes"
+    },
+    "attempt_number": {
+      "type": "number",
+      "default": 1
+    },
+    "passed": {
+      "type": "boolean",
+      "default": false
+    },
+    "instructor_notes": {
+      "type": "string",
+      "description": "Notes added by an instructor or admin"
+    },
+    "feedback": {
+      "type": "string",
+      "description": "Automated or manual feedback for the user"
+    }
+  },
+  "required": [
+    "scenario_id",
+    "user_email"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "name": "UserService",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Email of the user assigned this service"
+    },
+    "service_key": {
+      "type": "string",
+      "enum": [
+        "network_design_wizard",
+        "visual_design_editor",
+        "cyber_range",
+        "soc_training",
+        "soc_assessments",
+        "lab_scenarios",
+        "course_lab_builder"
+      ],
+      "description": "The service/feature assigned to the user"
+    }
+  },
+  "required": [
+    "user_email",
+    "service_key"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

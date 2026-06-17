@@ -1,0 +1,101 @@
+{
+  "name": "DeviceInventory",
+  "type": "object",
+  "properties": {
+    "device_name": {
+      "type": "string",
+      "description": "Name or hostname of the device"
+    },
+    "model": {
+      "type": "string",
+      "description": "Device model (e.g. Cisco ISR 4331)"
+    },
+    "serial_number": {
+      "type": "string",
+      "description": "Device serial number"
+    },
+    "ip_address": {
+      "type": "string",
+      "description": "Management IP address"
+    },
+    "location": {
+      "type": "string",
+      "description": "Physical location or site name"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "Router",
+        "Switch",
+        "Firewall",
+        "Access Point",
+        "Server",
+        "Load Balancer",
+        "Other"
+      ],
+      "description": "Assigned network role"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Active",
+        "Inactive",
+        "Maintenance",
+        "Decommissioned"
+      ],
+      "default": "Active"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes"
+    }
+  },
+  "required": [
+    "device_name"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "id": {
+          "$exists": true
+        }
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

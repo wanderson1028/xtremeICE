@@ -1,0 +1,60 @@
+{
+  "name": "UserActivity",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string"
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "login",
+        "session_end"
+      ],
+      "description": "login = page load/auth, session_end = tracked usage"
+    },
+    "session_duration_minutes": {
+      "type": "number",
+      "description": "Minutes spent in app (for session_end events)"
+    },
+    "page": {
+      "type": "string",
+      "description": "Page where activity was recorded"
+    }
+  },
+  "required": [
+    "user_email",
+    "event_type"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "id": {
+          "$exists": true
+        }
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "name": "LabScore",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Email of the user who completed the lab"
+    },
+    "user_name": {
+      "type": "string",
+      "description": "Display name of the user"
+    },
+    "lab_title": {
+      "type": "string",
+      "description": "Title of the lab"
+    },
+    "lab_chapter": {
+      "type": "string",
+      "description": "Chapter number"
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": [
+        "Beginner",
+        "Intermediate",
+        "Advanced",
+        "Expert"
+      ]
+    },
+    "total_steps": {
+      "type": "number"
+    },
+    "steps_completed": {
+      "type": "number"
+    },
+    "questions_correct": {
+      "type": "number"
+    },
+    "questions_total": {
+      "type": "number"
+    },
+    "points_earned": {
+      "type": "number"
+    },
+    "points_possible": {
+      "type": "number"
+    },
+    "step_results": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Per-step breakdown: stepLabel, commandCompleted, questionCorrect, pointsEarned"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "user_email",
+    "lab_title"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "id": {
+          "$exists": true
+        }
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "name": "FeatureFlag",
+  "type": "object",
+  "properties": {
+    "key": {
+      "type": "string",
+      "description": "Unique identifier (e.g. 'new_network_wizard')"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable label shown in admin UI"
+    },
+    "description": {
+      "type": "string",
+      "description": "What this flag controls"
+    },
+    "is_enabled": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "key",
+    "name"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

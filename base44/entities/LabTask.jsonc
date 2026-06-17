@@ -1,0 +1,192 @@
+{
+  "name": "LabTask",
+  "type": "object",
+  "properties": {
+    "scenario_id": {
+      "type": "string",
+      "description": "Reference to the parent LabScenario"
+    },
+    "title": {
+      "type": "string",
+      "description": "Task title"
+    },
+    "description": {
+      "type": "string",
+      "description": "Detailed task instructions shown to the user"
+    },
+    "order": {
+      "type": "number",
+      "description": "Display order within the scenario (lower = earlier)"
+    },
+    "task_type": {
+      "type": "string",
+      "enum": [
+        "Configuration",
+        "Verification",
+        "Troubleshooting",
+        "Analysis",
+        "Documentation",
+        "Security Assessment"
+      ],
+      "description": "Type of task"
+    },
+    "branch_type": {
+      "type": "string",
+      "enum": [
+        "standard",
+        "advanced",
+        "remediation"
+      ],
+      "default": "standard",
+      "description": "standard = always shown; advanced = unlocked by high performance; remediation = unlocked by low performance"
+    },
+    "unlock_condition": {
+      "type": "object",
+      "description": "Conditions that must be met to unlock this branching task",
+      "properties": {
+        "depends_on_task_id": {
+          "type": "string",
+          "description": "Task ID whose result triggers this branch"
+        },
+        "trigger": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "failed",
+            "score_above",
+            "score_below"
+          ],
+          "description": "What outcome on the parent task unlocks this one"
+        },
+        "score_threshold": {
+          "type": "number",
+          "description": "Score threshold (0-100) used with score_above / score_below triggers"
+        }
+      }
+    },
+    "points": {
+      "type": "number",
+      "description": "Points awarded for completing this task",
+      "default": 10
+    },
+    "validation_criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "check": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "points": {
+            "type": "number"
+          }
+        }
+      },
+      "description": "Criteria used to automatically validate task completion"
+    },
+    "hints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Optional hints shown progressively to the user"
+    },
+    "expected_commands": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "CLI commands or steps expected to be run"
+    },
+    "reference_config": {
+      "type": "string",
+      "description": "Reference/answer configuration for instructor review"
+    },
+    "is_required": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether this task must be completed to pass the scenario"
+    },
+    "depends_on_task_id": {
+      "type": "string",
+      "description": "Legacy: Task ID that must be completed before this one. Use unlock_condition for branching."
+    }
+  },
+  "required": [
+    "scenario_id",
+    "title",
+    "order",
+    "task_type"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "id": {
+          "$exists": true
+        }
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "data.scenario_id": {
+            "$in": {
+              "entity": "LabScenario",
+              "field": "id",
+              "query": {
+                "$or": [
+                  {
+                    "data.status": "published"
+                  },
+                  {
+                    "user_condition": {
+                      "role": "admin"
+                    }
+                  },
+                  {
+                    "created_by_id": "{{user.id}}"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,162 @@
+{
+  "name": "LabScenario",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Scenario title"
+    },
+    "description": {
+      "type": "string",
+      "description": "Full description of the lab scenario"
+    },
+    "nice_category": {
+      "type": "string",
+      "enum": [
+        "Securely Provision",
+        "Operate and Maintain",
+        "Oversee and Govern",
+        "Protect and Defend",
+        "Analyze",
+        "Collect and Operate",
+        "Investigate"
+      ],
+      "description": "NICE Framework Work Role Category"
+    },
+    "nice_work_role": {
+      "type": "string",
+      "description": "Specific NICE Framework Work Role"
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": [
+        "Beginner",
+        "Intermediate",
+        "Advanced",
+        "Expert"
+      ],
+      "default": "Beginner"
+    },
+    "estimated_duration_minutes": {
+      "type": "number"
+    },
+    "objectives": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "prerequisites": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "topology_requirements": {
+      "type": "object",
+      "properties": {
+        "min_routers": {
+          "type": "number"
+        },
+        "min_switches": {
+          "type": "number"
+        },
+        "min_firewalls": {
+          "type": "number"
+        },
+        "requires_dmz": {
+          "type": "boolean"
+        },
+        "requires_wan": {
+          "type": "boolean"
+        }
+      }
+    },
+    "branching_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "When true, tasks with branch_type advanced/remediation are dynamically unlocked based on student performance"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "published",
+        "archived"
+      ],
+      "default": "draft"
+    },
+    "passing_score": {
+      "type": "number",
+      "default": 70
+    },
+    "max_attempts": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "required": [
+    "title",
+    "nice_category",
+    "difficulty"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "data.status": "published"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "id": {
+              "$exists": true
+            }
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

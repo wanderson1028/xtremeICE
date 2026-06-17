@@ -1,0 +1,122 @@
+{
+  "name": "Scorecard",
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string"
+    },
+    "assessment_id": {
+      "type": "string"
+    },
+    "candidate_email": {
+      "type": "string"
+    },
+    "candidate_name": {
+      "type": "string"
+    },
+    "overall_score": {
+      "type": "number"
+    },
+    "passed": {
+      "type": "boolean"
+    },
+    "hiring_recommendation": {
+      "type": "string",
+      "enum": [
+        "strong_hire",
+        "hire",
+        "borderline",
+        "no_hire"
+      ]
+    },
+    "category_scores": {
+      "type": "object"
+    },
+    "task_results": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "strengths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "weaknesses": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "missed_steps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "nice_alignment_score": {
+      "type": "object"
+    },
+    "follow_up_questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "evaluator_notes": {
+      "type": "string"
+    },
+    "ai_summary": {
+      "type": "string"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "session_id",
+    "assessment_id",
+    "candidate_email"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "id": {
+          "$exists": true
+        }
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.candidate_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.candidate_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -1,0 +1,239 @@
+{
+  "name": "CyberEvent",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "scenario_prompt": {
+      "type": "string"
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": [
+        "Beginner",
+        "Intermediate",
+        "Advanced",
+        "Expert"
+      ],
+      "default": "Intermediate"
+    },
+    "duration_minutes": {
+      "type": "number",
+      "default": 120
+    },
+    "red_team_size": {
+      "type": "number",
+      "default": 2
+    },
+    "blue_team_size": {
+      "type": "number",
+      "default": 2
+    },
+    "white_team_size": {
+      "type": "number",
+      "default": 1
+    },
+    "red_team_objectives": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "blue_team_objectives": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "white_team_objectives": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "red_team_directions": {
+      "type": "string"
+    },
+    "blue_team_directions": {
+      "type": "string"
+    },
+    "white_team_directions": {
+      "type": "string"
+    },
+    "ingress_points": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "team": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "system": {
+            "type": "string"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "credentials": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "network_design_id": {
+      "type": "string"
+    },
+    "topology_summary": {
+      "type": "string"
+    },
+    "rules_of_engagement": {
+      "type": "string"
+    },
+    "scoring_criteria": {
+      "type": "string"
+    },
+    "flags": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "team": {
+            "type": "string"
+          },
+          "points": {
+            "type": "number"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "financial_impact": {
+      "type": "object",
+      "description": "Financial impact mapping for red team objectives \u2014 downtime costs, revenue loss, regulatory fines, recovery costs",
+      "properties": {
+        "scenario_downtime_cost_per_hour": {
+          "type": "number"
+        },
+        "scenario_revenue_loss_percent": {
+          "type": "number"
+        },
+        "scenario_regulatory_fine": {
+          "type": "number"
+        },
+        "scenario_recovery_cost": {
+          "type": "number"
+        },
+        "scenario_total_exposure": {
+          "type": "number"
+        },
+        "scenario_notes": {
+          "type": "string"
+        },
+        "objective_mappings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "downtime_cost_per_hour": {
+                "type": "number"
+              },
+              "revenue_loss_percent": {
+                "type": "number"
+              },
+              "regulatory_fine": {
+                "type": "number"
+              },
+              "recovery_cost": {
+                "type": "number"
+              },
+              "rationale": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "published",
+        "archived"
+      ],
+      "default": "draft"
+    },
+    "generated_full_scenario": {
+      "type": "string"
+    },
+    "export_bundle": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "id": {
+          "$exists": true
+        }
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "data.status": "published"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

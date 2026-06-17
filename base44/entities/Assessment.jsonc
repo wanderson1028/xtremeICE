@@ -1,0 +1,159 @@
+{
+  "name": "Assessment",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "company_name": {
+      "type": "string"
+    },
+    "position_title": {
+      "type": "string"
+    },
+    "organization_id": {
+      "type": "string",
+      "description": "Organization this assessment belongs to"
+    },
+    "created_by_email": {
+      "type": "string",
+      "description": "Email of the user who created this assessment"
+    },
+    "seniority_level": {
+      "type": "string",
+      "enum": [
+        "entry",
+        "intermediate",
+        "senior",
+        "lead"
+      ],
+      "default": "intermediate"
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": [
+        "Beginner",
+        "Intermediate",
+        "Advanced",
+        "Expert"
+      ],
+      "default": "Intermediate"
+    },
+    "duration_minutes": {
+      "type": "number",
+      "default": 60
+    },
+    "assessment_type": {
+      "type": "string",
+      "enum": [
+        "SOC Analyst",
+        "Cybersecurity Analyst",
+        "Incident Responder",
+        "Vulnerability Analyst",
+        "Systems Administrator",
+        "Network Defender",
+        "Penetration Tester",
+        "Cloud Security Analyst",
+        "GRC / Risk Analyst",
+        "Digital Forensics",
+        "Custom"
+      ]
+    },
+    "job_description_raw": {
+      "type": "string"
+    },
+    "required_tools": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "custom_tasks": {
+      "type": "string"
+    },
+    "nice_category": {
+      "type": "string"
+    },
+    "nice_work_role": {
+      "type": "string"
+    },
+    "role_summary": {
+      "type": "string"
+    },
+    "nice_alignment": {
+      "type": "object"
+    },
+    "scenario_narrative": {
+      "type": "string"
+    },
+    "objectives": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "pass_threshold": {
+      "type": "number",
+      "default": 70
+    },
+    "scoring_weights": {
+      "type": "object"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "active",
+        "archived"
+      ],
+      "default": "draft"
+    },
+    "generated": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "position_title",
+    "assessment_type"
+  ],
+  "rls": {
+    "create": true,
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

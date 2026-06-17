@@ -1,0 +1,65 @@
+{
+  "name": "NiceAppSettings",
+  "type": "object",
+  "properties": {
+    "setting_key": {
+      "type": "string",
+      "default": "global",
+      "description": "Unique key \u2014 always 'global'"
+    },
+    "active_version_id": {
+      "type": "string",
+      "description": "Active NiceFrameworkVersion ID"
+    },
+    "default_session_duration_hours": {
+      "type": "number",
+      "default": 4
+    },
+    "max_concurrent_instances": {
+      "type": "number",
+      "default": 10
+    },
+    "auto_terminate_idle_minutes": {
+      "type": "number",
+      "default": 60
+    },
+    "branding_name": {
+      "type": "string",
+      "default": "Course Lab Builder"
+    },
+    "enable_ai_generation": {
+      "type": "boolean",
+      "default": true
+    },
+    "kasm_base_url": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "setting_key"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "id": {
+          "$exists": true
+        }
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

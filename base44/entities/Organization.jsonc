@@ -1,0 +1,96 @@
+{
+  "name": "Organization",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Organization display name"
+    },
+    "slug": {
+      "type": "string",
+      "description": "URL-safe unique identifier for the organization"
+    },
+    "logo_url": {
+      "type": "string",
+      "description": "URL to the organization's logo image"
+    },
+    "primary_color": {
+      "type": "string",
+      "description": "Hex color for branding (e.g. #0ea5e9)"
+    },
+    "description": {
+      "type": "string",
+      "description": "Short description of the organization"
+    },
+    "contact_email": {
+      "type": "string",
+      "description": "Primary contact email for the organization"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "suspended",
+        "trial"
+      ],
+      "default": "active"
+    },
+    "max_users": {
+      "type": "number",
+      "description": "Maximum number of users allowed (0 = unlimited)",
+      "default": 0
+    },
+    "plan": {
+      "type": "string",
+      "enum": [
+        "free",
+        "pro",
+        "enterprise"
+      ],
+      "default": "free"
+    },
+    "owner_email": {
+      "type": "string",
+      "description": "Email of the organization owner/admin"
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -1,0 +1,99 @@
+{
+  "name": "CandidateSession",
+  "type": "object",
+  "properties": {
+    "invitation_id": {
+      "type": "string"
+    },
+    "assessment_id": {
+      "type": "string"
+    },
+    "candidate_email": {
+      "type": "string"
+    },
+    "candidate_name": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "not_started",
+        "in_progress",
+        "submitted",
+        "evaluated"
+      ],
+      "default": "not_started"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "submitted_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "time_elapsed_minutes": {
+      "type": "number",
+      "default": 0
+    },
+    "task_submissions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "activity_log": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "current_task_index": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "required": [
+    "invitation_id",
+    "assessment_id",
+    "candidate_email"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "id": {
+          "$exists": true
+        }
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.candidate_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.candidate_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

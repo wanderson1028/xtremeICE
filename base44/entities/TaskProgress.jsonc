@@ -1,0 +1,137 @@
+{
+  "name": "TaskProgress",
+  "type": "object",
+  "properties": {
+    "attempt_id": {
+      "type": "string",
+      "description": "Reference to the parent LabAttempt"
+    },
+    "task_id": {
+      "type": "string",
+      "description": "Reference to the LabTask"
+    },
+    "scenario_id": {
+      "type": "string",
+      "description": "Reference to the LabScenario (for easy querying)"
+    },
+    "user_email": {
+      "type": "string",
+      "description": "Email of the user"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "locked",
+        "not_started",
+        "in_progress",
+        "submitted",
+        "passed",
+        "failed",
+        "skipped"
+      ],
+      "default": "not_started"
+    },
+    "points_earned": {
+      "type": "number",
+      "default": 0
+    },
+    "hints_used": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of hints the user revealed"
+    },
+    "submission": {
+      "type": "string",
+      "description": "User's submitted answer, config, or notes"
+    },
+    "validation_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "check": {
+            "type": "string"
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "points_awarded": {
+            "type": "number"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Results of each validation criteria check"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "submitted_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "time_spent_minutes": {
+      "type": "number",
+      "default": 0
+    },
+    "instructor_override_score": {
+      "type": "number",
+      "description": "Admin can manually override points for a task"
+    },
+    "instructor_notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "attempt_id",
+    "task_id",
+    "scenario_id",
+    "user_email"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

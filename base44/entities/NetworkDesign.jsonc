@@ -1,0 +1,246 @@
+{
+  "name": "NetworkDesign",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "reviewed",
+        "previewed",
+        "generated"
+      ],
+      "default": "draft"
+    },
+    "is_public": {
+      "type": "boolean",
+      "default": false
+    },
+    "company_name": {
+      "type": "string"
+    },
+    "num_sites": {
+      "type": "number"
+    },
+    "site_names": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "topology_type": {
+      "type": "string",
+      "enum": [
+        "hub-and-spoke",
+        "full-mesh",
+        "partial-mesh",
+        "ring",
+        "star"
+      ]
+    },
+    "routing_protocol": {
+      "type": "string",
+      "enum": [
+        "OSPF",
+        "EIGRP",
+        "BGP",
+        "Static",
+        "IS-IS",
+        "RIP"
+      ]
+    },
+    "wan_technology": {
+      "type": "string",
+      "enum": [
+        "MPLS",
+        "SD-WAN",
+        "IPSec VPN",
+        "DMVPN",
+        "Metro Ethernet",
+        "Leased Line"
+      ]
+    },
+    "num_vlans_per_site": {
+      "type": "number"
+    },
+    "vlan_names": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "firewall_enabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "firewall_vendor": {
+      "type": "string",
+      "enum": [
+        "Cisco ASA",
+        "Palo Alto",
+        "Fortinet",
+        "pfSense",
+        "None"
+      ]
+    },
+    "switch_model": {
+      "type": "string",
+      "enum": [
+        "Cisco Catalyst",
+        "Cisco Nexus",
+        "Arista",
+        "Juniper EX",
+        "Generic L2/L3"
+      ]
+    },
+    "router_model": {
+      "type": "string",
+      "enum": [
+        "Cisco ISR",
+        "Cisco CSR1000v",
+        "Juniper vMX",
+        "VyOS",
+        "Generic Router"
+      ]
+    },
+    "ip_scheme": {
+      "type": "string"
+    },
+    "dmz_required": {
+      "type": "boolean",
+      "default": false
+    },
+    "redundancy_enabled": {
+      "type": "boolean",
+      "default": false
+    },
+    "load_balancer": {
+      "type": "boolean",
+      "default": false
+    },
+    "wireless_enabled": {
+      "type": "boolean",
+      "default": false
+    },
+    "server_farm": {
+      "type": "boolean",
+      "default": false
+    },
+    "num_servers": {
+      "type": "number"
+    },
+    "cloud_server_farm": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether a cloud-hosted server farm is included"
+    },
+    "cloud_provider": {
+      "type": "string",
+      "description": "Cloud provider: AWS, Azure, GCP, Oracle Cloud"
+    },
+    "num_cloud_instances": {
+      "type": "number",
+      "description": "Number of cloud server instances"
+    },
+    "cloud_connectivity": {
+      "type": "string",
+      "description": "Connectivity type: VPN Gateway, Direct Connect, SD-WAN"
+    },
+    "device_username": {
+      "type": "string"
+    },
+    "device_password": {
+      "type": "string"
+    },
+    "enable_password": {
+      "type": "string"
+    },
+    "domain_name": {
+      "type": "string"
+    },
+    "ntp_server": {
+      "type": "string"
+    },
+    "dns_servers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "num_user_devices": {
+      "type": "number"
+    },
+    "user_device_types": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "diagram_data": {
+      "type": "string"
+    },
+    "eve_ng_script": {
+      "type": "string"
+    },
+    "change_history": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "id": {
+          "$exists": true
+        }
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "data.is_public": true
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

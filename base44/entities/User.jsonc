@@ -1,0 +1,44 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string",
+      "enum": [
+        "admin",
+        "user"
+      ],
+      "default": "user",
+      "description": "Platform-level role. 'admin' = full platform access."
+    },
+    "organization_id": {
+      "type": "string",
+      "description": "Reference to the Organization this user belongs to (null = individual user)"
+    },
+    "org_role": {
+      "type": "string",
+      "enum": [
+        "org_admin",
+        "member"
+      ],
+      "default": "member",
+      "description": "Role within the organization. 'org_admin' can manage their org's users and settings."
+    },
+    "is_individual": {
+      "type": "boolean",
+      "default": true,
+      "description": "True if the user is not under any organization"
+    },
+    "avatar_url": {
+      "type": "string",
+      "description": "Profile picture URL"
+    },
+    "job_title": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    }
+  },
+  "required": []
+}

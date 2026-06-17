@@ -1,0 +1,111 @@
+{
+  "name": "DeviceTemplate",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Template name (e.g., Cisco ISR 4331 Router)"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of the template"
+    },
+    "device_role": {
+      "type": "string",
+      "enum": [
+        "Router",
+        "Switch",
+        "Firewall",
+        "Access Point",
+        "Server",
+        "Load Balancer",
+        "Other"
+      ],
+      "description": "Device role"
+    },
+    "model": {
+      "type": "string",
+      "description": "Device model"
+    },
+    "default_properties": {
+      "type": "object",
+      "description": "Default properties to apply when creating from template",
+      "properties": {
+        "ip_address": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "built-in",
+        "custom"
+      ],
+      "default": "custom",
+      "description": "Whether this is a built-in or custom template"
+    }
+  },
+  "required": [
+    "name",
+    "device_role",
+    "model"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "id": {
+          "$exists": true
+        }
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "data.category": "built-in"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

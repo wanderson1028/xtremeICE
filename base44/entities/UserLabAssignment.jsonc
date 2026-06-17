@@ -1,0 +1,67 @@
+{
+  "name": "UserLabAssignment",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Email of the user assigned this lab"
+    },
+    "lab_id": {
+      "type": "string",
+      "description": "ID of the lab/scenario being assigned"
+    },
+    "lab_type": {
+      "type": "string",
+      "enum": [
+        "lab_course",
+        "virtual_lab",
+        "soc_scenario"
+      ],
+      "description": "Type of lab"
+    },
+    "service_key": {
+      "type": "string",
+      "enum": [
+        "soc_training",
+        "soc_assessments",
+        "lab_scenarios"
+      ],
+      "description": "Parent service this lab belongs to"
+    }
+  },
+  "required": [
+    "user_email",
+    "lab_id",
+    "lab_type",
+    "service_key"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
