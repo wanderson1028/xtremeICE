@@ -90,8 +90,11 @@ const AuthenticatedApp = () => {
     );
   }
 
+  // Allow candidate assessment route to bypass auth gate — candidates self-register via the portal
+  const isCandidateRoute = window.location.pathname.startsWith('/candidate-assessment');
+
   // Handle authentication errors
-  if (authError) {
+  if (authError && !isCandidateRoute) {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
     } else if (authError.type === 'auth_required') {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Shield, Clock, CheckCircle2, ChevronRight, Loader2, Send, AlertCircle, BarChart2 } from "lucide-react";
+import { Shield, Clock, CheckCircle2, ChevronRight, Loader2, Send, AlertCircle, BarChart2, UserPlus, LogIn } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export default function CandidatePortal() {
@@ -181,6 +181,8 @@ export default function CandidatePortal() {
 
   // Splash / start screen
   if (!session) {
+    const emailMismatch = user && user.email !== invitation.candidate_email;
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-red-950/20 flex items-center justify-center p-6">
         <div className="max-w-2xl w-full">
@@ -221,9 +223,36 @@ export default function CandidatePortal() {
             </div>
 
             {!user ? (
-              <button onClick={() => base44.auth.redirectToLogin(window.location.href)} className="w-full py-4 bg-red-700 hover:bg-red-600 text-white rounded-xl font-bold text-lg transition-colors">
-                Sign In to Begin
-              </button>
+              <div className="space-y-3">
+                <p className="text-center text-gray-400 text-sm mb-4">
+                  You'll need an account to take this assessment. Create one using the same email this invitation was sent to.
+                </p>
+                <button
+                  onClick={() => base44.auth.redirectToLogin(window.location.href)}
+                  className="w-full py-4 bg-red-700 hover:bg-red-600 text-white rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2"
+                >
+                  <UserPlus className="h-5 w-5" /> Create Account / Sign In
+                </button>
+                <p className="text-center text-gray-600 text-[11px]">
+                  Your account will only give you access to assessments you've been invited to.
+                </p>
+              </div>
+            ) : emailMismatch ? (
+              <div className="space-y-3">
+                <div className="bg-orange-950/30 border border-orange-800/40 rounded-lg p-4 text-center">
+                  <AlertCircle className="h-6 w-6 text-orange-400 mx-auto mb-2" />
+                  <p className="text-orange-300 text-sm">
+                    You're signed in as <strong>{user.email}</strong>, but this invitation was sent to <strong>{invitation.candidate_email}</strong>.
+                  </p>
+                  <p className="text-orange-400/70 text-xs mt-1">Please sign in with the invited email address to continue.</p>
+                </div>
+                <button
+                  onClick={() => base44.auth.redirectToLogin(window.location.href)}
+                  className="w-full py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-xl font-semibold transition-colors flex items-center justify-center gap-2"
+                >
+                  <LogIn className="h-4 w-4" /> Switch Account
+                </button>
+              </div>
             ) : (
               <button onClick={handleStart} className="w-full py-4 bg-red-700 hover:bg-red-600 text-white rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2">
                 Start Assessment <ChevronRight className="h-5 w-5" />
