@@ -34,6 +34,14 @@ import LabNetworkSecurityMonitoring from './pages/labs/LabNetworkSecurityMonitor
 import LabVulnerabilityAssessment from './pages/labs/LabVulnerabilityAssessment'
 import LabSIEM from './pages/labs/LabSIEM'
 import LabFirewallEvasion from './pages/labs/LabFirewallEvasion'
+import LabEndpointDetection from './pages/labs/LabEndpointDetection'
+import LabCloudIncidentResponse from './pages/labs/LabCloudIncidentResponse'
+import LabLinuxHardening from './pages/labs/LabLinuxHardening'
+import LabDevSecOps from './pages/labs/LabDevSecOps'
+import LabWirelessExploitation from './pages/labs/LabWirelessExploitation'
+import LabLogCorrelation from './pages/labs/LabLogCorrelation'
+import LabBGP from './pages/labs/LabBGP'
+import LabZeroTrust from './pages/labs/LabZeroTrust'
 import CandidateAssessments from './pages/CandidateAssessments'
 import CreateAssessment from './pages/CreateAssessment'
 import AssessmentDetail from './pages/AssessmentDetail'
@@ -156,6 +164,14 @@ const AuthenticatedApp = () => {
       <Route path="/labs/vulnerability-assessment" element={<LayoutWrapper currentPageName="LabVulnerabilityAssessment"><LabVulnerabilityAssessment /></LayoutWrapper>} />
       <Route path="/labs/siem" element={<LayoutWrapper currentPageName="LabSIEM"><LabSIEM /></LayoutWrapper>} />
       <Route path="/labs/firewall-evasion" element={<LayoutWrapper currentPageName="LabFirewallEvasion"><LabFirewallEvasion /></LayoutWrapper>} />
+      <Route path="/labs/endpoint-detection" element={<LayoutWrapper currentPageName="LabEndpointDetection"><LabEndpointDetection /></LayoutWrapper>} />
+      <Route path="/labs/cloud-incident-response" element={<LayoutWrapper currentPageName="LabCloudIncidentResponse"><LabCloudIncidentResponse /></LayoutWrapper>} />
+      <Route path="/labs/linux-hardening" element={<LayoutWrapper currentPageName="LabLinuxHardening"><LabLinuxHardening /></LayoutWrapper>} />
+      <Route path="/labs/devsecops" element={<LayoutWrapper currentPageName="LabDevSecOps"><LabDevSecOps /></LayoutWrapper>} />
+      <Route path="/labs/wireless-exploitation" element={<LayoutWrapper currentPageName="LabWirelessExploitation"><LabWirelessExploitation /></LayoutWrapper>} />
+      <Route path="/labs/log-correlation" element={<LayoutWrapper currentPageName="LabLogCorrelation"><LabLogCorrelation /></LayoutWrapper>} />
+      <Route path="/labs/bgp" element={<LayoutWrapper currentPageName="LabBGP"><LabBGP /></LayoutWrapper>} />
+      <Route path="/labs/zero-trust" element={<LayoutWrapper currentPageName="LabZeroTrust"><LabZeroTrust /></LayoutWrapper>} />
       <Route path="/CandidateAssessments" element={<LayoutWrapper currentPageName="CandidateAssessments"><FeatureGate flagKey="soc_assessments"><CandidateAssessments /></FeatureGate></LayoutWrapper>} />
       <Route path="/create-assessment" element={<LayoutWrapper currentPageName="CreateAssessment"><CreateAssessment /></LayoutWrapper>} />
       <Route path="/assessment-detail" element={<LayoutWrapper currentPageName="AssessmentDetail"><AssessmentDetail /></LayoutWrapper>} />
