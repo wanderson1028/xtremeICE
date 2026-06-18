@@ -54,11 +54,11 @@ const DEVICE_PRICING = {
   security_appliance: 0.25, load_balancer: 0.16, monitoring: 0.12,
 };
 
-export default function TopologyBuilder({ topology, onChange, cloudProvider = "aws", isAdmin = false, isLabApproved = false }) {
+export default function TopologyBuilder({ topology, onChange, cloudProvider = "aws", isAdmin = false, isLabApproved = false, region = "us-west-2" }) {
   const devices = topology?.devices || [];
   const vpcConfig = topology?.vpcConfig || {
     cidr: "10.0.0.0/16",
-    subnets: [{ name: "public", cidr: "10.0.1.0/24", zone: "us-east-1a" }, { name: "private", cidr: "10.0.2.0/24", zone: "us-east-1b" }],
+    subnets: [{ name: "public", cidr: "10.0.1.0/24", zone: `${region}a` }, { name: "private", cidr: "10.0.2.0/24", zone: `${region}b` }],
     securityGroups: [{ name: "lab-sg", description: "Default lab security group", rules: [
       { protocol: "tcp", port: 22, source: "0.0.0.0/0", desc: "SSH" },
       { protocol: "tcp", port: 443, source: "0.0.0.0/0", desc: "HTTPS" },
@@ -73,7 +73,52 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [connectingFrom, setConnectingFrom] = useState(null);
   const [rightPanel, setRightPanel] = useState(null); // 'properties' | 'network' | null
+  const [cidrSuggestion, setCidrSuggestion] = useState(null);
+  const [cidrConflict, setCidrConflict] = useState(null);
+  const [suggestingCidr, setSuggestingCidr] = useState(false);
   const canvasRef = useRef(null);
+
+  // CIDR conflict check
+  const checkCidrConflict = async (cidr) => {
+    if (!cidr) return;
+    try {
+      const res = await base44.functions.invoke("cloudProviderAWS", {
+        action: "suggestCidr",
+        params: { proposed_cidr: cidr, region },
+      });
+      const data = res.data;
+      if (data?.check?.conflict) {
+        setCidrConflict({ conflict: true, existingVpcs: data.existing_vpcs || [], suggested: data.suggested_cidr });
+      } else {
+        setCidrConflict({ conflict: false });
+      }
+    } catch { /* ignore */ }
+  };
+
+  const fetchCidrSuggestion = async () => {
+    setSuggestingCidr(true);
+    try {
+      const res = await base44.functions.invoke("cloudProviderAWS", {
+        action: "suggestCidr",
+        params: { region },
+      });
+      const data = res.data;
+      setCidrSuggestion(data);
+      if (data?.suggested_cidr) {
+        updateVpcConfig({ cidr: data.suggested_cidr });
+        setCidrConflict(null);
+      }
+    } catch { /* ignore */ }
+    setSuggestingCidr(false);
+  };
+
+  // Re-check conflict when CIDR or region changes
+  useEffect(() => {
+    if (vpcConfig?.cidr) {
+      const timer = setTimeout(() => checkCidrConflict(vpcConfig.cidr), 600);
+      return () => clearTimeout(timer);
+    }
+  }, [vpcConfig?.cidr, region]);
 
   // Fetch available AMI images
   const { data: availableImages = [] } = useQuery({
@@ -129,7 +174,7 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
   };
 
   const addSubnet = () => {
-    const subnets = [...vpcConfig.subnets, { name: `subnet-${vpcConfig.subnets.length + 1}`, cidr: `10.0.${vpcConfig.subnets.length + 3}.0/24`, zone: "us-east-1a" }];
+    const subnets = [...vpcConfig.subnets, { name: `subnet-${vpcConfig.subnets.length + 1}`, cidr: `10.0.${vpcConfig.subnets.length + 3}.0/24`, zone: `${region}a` }];
     updateVpcConfig({ subnets });
   };
 
@@ -524,9 +569,28 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
 
                   <div>
                     <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">VPC CIDR Block</label>
-                    <input value={vpcConfig.cidr}
-                      onChange={(e) => updateVpcConfig({ cidr: e.target.value })}
-                      className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white text-xs px-2.5 py-2 font-mono focus:border-cyan-500/50 outline-none" />
+                    <div className="flex gap-1.5">
+                      <input value={vpcConfig.cidr}
+                        onChange={(e) => updateVpcConfig({ cidr: e.target.value })}
+                        className={`flex-1 bg-gray-800 border rounded-lg text-white text-xs px-2.5 py-2 font-mono outline-none ${
+                          cidrConflict?.conflict ? "border-red-500/60 focus:border-red-500" : "border-gray-700 focus:border-cyan-500/50"
+                        }`} />
+                      <button onClick={fetchCidrSuggestion} disabled={suggestingCidr}
+                        className="text-[10px] font-mono px-2.5 py-2 rounded-lg bg-cyan-900/30 border border-cyan-700/40 text-cyan-400 hover:bg-cyan-800/40 transition-colors disabled:opacity-50 whitespace-nowrap">
+                        {suggestingCidr ? "..." : "Suggest"}
+                      </button>
+                    </div>
+                    {cidrConflict?.conflict && (
+                      <div className="mt-1.5 p-2 rounded-lg bg-red-950/30 border border-red-800/40 text-red-300 text-[9px] font-mono">
+                        <p className="flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> CIDR conflicts with existing VPCs</p>
+                        {cidrConflict.suggested && (
+                          <button onClick={() => updateVpcConfig({ cidr: cidrConflict.suggested })}
+                            className="mt-1 text-cyan-400 hover:text-cyan-300 underline">
+                            Use suggested: {cidrConflict.suggested}
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div>

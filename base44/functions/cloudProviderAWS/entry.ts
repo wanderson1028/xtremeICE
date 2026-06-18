@@ -367,6 +367,52 @@ Deno.serve(async (req) => {
         });
       }
 
+      case "suggestCidr": {
+        // List all VPCs in region and suggest a non-conflicting CIDR
+        const xml = await ec2Call("DescribeVpcs", {}, region);
+        const existingCidrs = [];
+        for (const m of xml.matchAll(/<cidrBlock>([^<]+)<\/cidrBlock>/g)) {
+          existingCidrs.push(m[1]);
+        }
+
+        // Pool of candidate /16 CIDRs sorted by preference
+        const candidates = [
+          "10.0.0.0/16", "10.1.0.0/16", "10.2.0.0/16", "10.3.0.0/16",
+          "10.10.0.0/16", "10.20.0.0/16", "10.30.0.0/16",
+          "172.16.0.0/16", "172.17.0.0/16", "172.18.0.0/16",
+          "172.20.0.0/16", "172.21.0.0/16", "172.22.0.0/16",
+          "192.168.0.0/16", "192.168.1.0/16", "192.168.10.0/16",
+          "172.31.0.0/16",
+        ];
+
+        // Simple CIDR overlap check: compare network prefix
+        const conflicts = (cidr) => existingCidrs.some(existing => {
+          const [a, maskA] = cidr.split("/");
+          const [b, maskB] = existing.split("/");
+          const aParts = a.split(".").map(Number);
+          const bParts = b.split(".").map(Number);
+          const minMask = Math.min(parseInt(maskA), parseInt(maskB));
+          const shiftBits = 32 - minMask;
+          const aNet = ((aParts[0] << 24) | (aParts[1] << 16) | (aParts[2] << 8) | aParts[3]) >>> shiftBits;
+          const bNet = ((bParts[0] << 24) | (bParts[1] << 16) | (bParts[2] << 8) | bParts[3]) >>> shiftBits;
+          return aNet === bNet;
+        });
+
+        const { proposed_cidr } = params;
+        const checkResult = proposed_cidr
+          ? { proposed_cidr, conflict: conflicts(proposed_cidr) }
+          : null;
+
+        const suggested = candidates.find(c => !conflicts(c)) || "10.100.0.0/16";
+
+        return Response.json({
+          region,
+          suggested_cidr: suggested,
+          existing_vpcs: existingCidrs.map(c => ({ cidr: c })),
+          check: checkResult,
+        });
+      }
+
       case "listNetworks": {
         // List VPCs tagged by XtremeICE
         const xml = await ec2Call("DescribeVpcs", {

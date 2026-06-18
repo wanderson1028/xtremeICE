@@ -424,6 +424,7 @@ export default function LabCreationWizard() {
                   cloudProvider={form.cloud_provider}
                   isAdmin={isAdmin}
                   isLabApproved={!!form.admin_approved_cost}
+                  region={form.region || "us-west-2"}
                 />
               </div>
             )}
