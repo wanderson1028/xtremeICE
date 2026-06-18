@@ -1,0 +1,109 @@
+{
+  "name": "LiveFireCloudAccount",
+  "type": "object",
+  "properties": {
+    "provider": {
+      "type": "string",
+      "enum": [
+        "aws",
+        "azure",
+        "gcp"
+      ]
+    },
+    "account_name": {
+      "type": "string"
+    },
+    "account_id": {
+      "type": "string",
+      "description": "Cloud provider account ID"
+    },
+    "region": {
+      "type": "string",
+      "default": "us-east-1"
+    },
+    "is_default": {
+      "type": "boolean",
+      "default": false
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "inactive",
+        "error",
+        "provisioning"
+      ],
+      "default": "active"
+    },
+    "quota_max_instances": {
+      "type": "number",
+      "default": 50
+    },
+    "quota_max_vcpus": {
+      "type": "number",
+      "default": 100
+    },
+    "quota_max_storage_gb": {
+      "type": "number",
+      "default": 1000
+    },
+    "current_instances": {
+      "type": "number",
+      "default": 0
+    },
+    "current_vcpus": {
+      "type": "number",
+      "default": 0
+    },
+    "current_storage_gb": {
+      "type": "number",
+      "default": 0
+    },
+    "organization_id": {
+      "type": "string"
+    },
+    "dedicated_vpc_id": {
+      "type": "string"
+    },
+    "shared_vpc_id": {
+      "type": "string"
+    },
+    "monthly_budget": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "required": [
+    "provider",
+    "account_name"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.organization_id": "{{user.organization_id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

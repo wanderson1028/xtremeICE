@@ -1,0 +1,241 @@
+{
+  "name": "LiveFireImage",
+  "type": "object",
+  "properties": {
+    "vendor": {
+      "type": "string",
+      "enum": [
+        "Cisco",
+        "Juniper",
+        "Fortinet",
+        "Palo Alto",
+        "Sophos",
+        "Arista",
+        "VMware",
+        "Linux",
+        "Windows",
+        "F5",
+        "Check Point",
+        "MikroTik",
+        "pfSense",
+        "VyOS",
+        "Ubuntu",
+        "Kali",
+        "Debian",
+        "Custom"
+      ]
+    },
+    "product": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "image_type": {
+      "type": "string",
+      "enum": [
+        "router",
+        "switch",
+        "firewall",
+        "server",
+        "workstation",
+        "container",
+        "appliance"
+      ],
+      "default": "server"
+    },
+    "description": {
+      "type": "string"
+    },
+    "cpu_requirement": {
+      "type": "number",
+      "default": 2
+    },
+    "ram_requirement_mb": {
+      "type": "number",
+      "default": 4096
+    },
+    "storage_requirement_gb": {
+      "type": "number",
+      "default": 20
+    },
+    "license_type": {
+      "type": "string",
+      "enum": [
+        "open_source",
+        "free_tier",
+        "bring_your_own",
+        "paid",
+        "trial",
+        "enterprise"
+      ],
+      "default": "open_source"
+    },
+    "cloud_compatibility": {
+      "type": "object",
+      "properties": {
+        "aws": {
+          "type": "boolean",
+          "default": false
+        },
+        "azure": {
+          "type": "boolean",
+          "default": false
+        },
+        "gcp": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "deployment_method": {
+      "type": "string",
+      "enum": [
+        "ami",
+        "vm_import",
+        "marketplace",
+        "container",
+        "manual",
+        "iso"
+      ],
+      "default": "ami"
+    },
+    "ami_id": {
+      "type": "string",
+      "description": "AWS AMI ID"
+    },
+    "azure_image_id": {
+      "type": "string"
+    },
+    "gcp_image_id": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "available",
+        "offline",
+        "uploading",
+        "validating",
+        "deprecated"
+      ],
+      "default": "available"
+    },
+    "image_url": {
+      "type": "string"
+    },
+    "thumbnail_url": {
+      "type": "string"
+    },
+    "default_username": {
+      "type": "string",
+      "default": "admin"
+    },
+    "default_password": {
+      "type": "string"
+    },
+    "default_access_method": {
+      "type": "string",
+      "enum": [
+        "ssh",
+        "rdp",
+        "vnc",
+        "novnc",
+        "web_terminal",
+        "serial_console"
+      ],
+      "default": "ssh"
+    },
+    "default_access_port": {
+      "type": "number",
+      "default": 22
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "approval_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "rejected"
+      ],
+      "default": "approved"
+    },
+    "approved_by_id": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "Routers",
+        "Switches",
+        "Firewalls",
+        "Servers",
+        "Workstations",
+        "Cloud Resources",
+        "Containers",
+        "Security Appliances",
+        "Monitoring Tools",
+        "Load Balancers"
+      ],
+      "default": "Servers"
+    }
+  },
+  "required": [
+    "vendor",
+    "product",
+    "version"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "id": {
+          "$exists": true
+        }
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "data.status": "available"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

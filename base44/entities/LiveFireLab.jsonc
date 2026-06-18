@@ -1,0 +1,201 @@
+{
+  "name": "LiveFireLab",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Lab display name"
+    },
+    "description": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "CCNA",
+        "CCNP",
+        "CCIE",
+        "Network+",
+        "Security+",
+        "AWS",
+        "Azure",
+        "Fortinet",
+        "Palo Alto",
+        "SOC",
+        "Blue Team",
+        "Red Team",
+        "Purple Team",
+        "Active Directory",
+        "Cloud Security",
+        "Zero Trust",
+        "Custom"
+      ]
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": [
+        "Beginner",
+        "Intermediate",
+        "Advanced",
+        "Expert"
+      ],
+      "default": "Intermediate"
+    },
+    "visibility": {
+      "type": "string",
+      "enum": [
+        "private",
+        "shared",
+        "organization",
+        "public"
+      ],
+      "default": "private"
+    },
+    "cloud_provider": {
+      "type": "string",
+      "enum": [
+        "aws",
+        "azure",
+        "gcp"
+      ],
+      "default": "aws"
+    },
+    "topology_data": {
+      "type": "object",
+      "description": "Canvas topology: devices, connections, positions"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "building",
+        "deploying",
+        "running",
+        "paused",
+        "completed",
+        "failed",
+        "archived"
+      ],
+      "default": "draft"
+    },
+    "estimated_cost_hourly": {
+      "type": "number",
+      "default": 0
+    },
+    "actual_cost": {
+      "type": "number",
+      "default": 0
+    },
+    "organization_id": {
+      "type": "string"
+    },
+    "template_id": {
+      "type": "string",
+      "description": "Source template if created from one"
+    },
+    "collaboration_enabled": {
+      "type": "boolean",
+      "default": false
+    },
+    "max_devices": {
+      "type": "number",
+      "default": 20
+    },
+    "vpc_id": {
+      "type": "string"
+    },
+    "subnet_id": {
+      "type": "string"
+    },
+    "region": {
+      "type": "string",
+      "default": "us-east-1"
+    },
+    "auto_shutdown_minutes": {
+      "type": "number",
+      "default": 0,
+      "description": "Auto-shutdown after idle minutes (0=disabled)"
+    },
+    "shared_with": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "User emails this lab is shared with"
+    },
+    "device_count": {
+      "type": "number",
+      "default": 0
+    },
+    "version": {
+      "type": "string",
+      "default": "1.0"
+    }
+  },
+  "required": [
+    "name",
+    "cloud_provider"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "id": {
+          "$exists": true
+        }
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "data.visibility": "public"
+        },
+        {
+          "data.visibility": "organization"
+        },
+        {
+          "data.shared_with": {
+            "$contains": "{{user.email}}"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

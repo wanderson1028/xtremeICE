@@ -74,6 +74,16 @@ import LabPSRemoting from './pages/windows-labs/LabPSRemoting'
 import EigrpLab from './pages/EigrpLab'
 import FirewallLab from './pages/FirewallLab'
 import TrainingCatalog from './pages/TrainingCatalog'
+import LiveFireDashboard from './pages/LiveFireDashboard'
+import MyLabs from './pages/MyLabs'
+import SharedLabs from './pages/SharedLabs'
+import LFTemplates from './pages/LFTemplates'
+import RunningLabs from './pages/RunningLabs'
+import ImageRepository from './pages/ImageRepository'
+import MarketplacePage from './pages/MarketplacePage'
+import CloudResources from './pages/CloudResources'
+import LFAdministration from './pages/LFAdministration'
+import LabCreationWizard from './pages/LabCreationWizard'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
@@ -203,6 +213,17 @@ const AuthenticatedApp = () => {
       <Route path="/EigrpLab" element={<LayoutWrapper currentPageName="EigrpLab"><EigrpLab /></LayoutWrapper>} />
       <Route path="/FirewallLab" element={<LayoutWrapper currentPageName="FirewallLab"><FirewallLab /></LayoutWrapper>} />
       <Route path="/training-catalog" element={<LayoutWrapper currentPageName="TrainingCatalog"><TrainingCatalog /></LayoutWrapper>} />
+      {/* Live Fire Cyber Range Module */}
+      <Route path="/LiveFireDashboard" element={<LayoutWrapper currentPageName="LiveFireDashboard"><LiveFireDashboard /></LayoutWrapper>} />
+      <Route path="/my-labs" element={<LayoutWrapper currentPageName="MyLabs"><MyLabs /></LayoutWrapper>} />
+      <Route path="/shared-labs" element={<LayoutWrapper currentPageName="SharedLabs"><SharedLabs /></LayoutWrapper>} />
+      <Route path="/lf-templates" element={<LayoutWrapper currentPageName="LFTemplates"><LFTemplates /></LayoutWrapper>} />
+      <Route path="/running-labs" element={<LayoutWrapper currentPageName="RunningLabs"><RunningLabs /></LayoutWrapper>} />
+      <Route path="/image-repository" element={<LayoutWrapper currentPageName="ImageRepository"><ImageRepository /></LayoutWrapper>} />
+      <Route path="/marketplace" element={<LayoutWrapper currentPageName="MarketplacePage"><MarketplacePage /></LayoutWrapper>} />
+      <Route path="/cloud-resources" element={<LayoutWrapper currentPageName="CloudResources"><CloudResources /></LayoutWrapper>} />
+      <Route path="/lf-administration" element={<LayoutWrapper currentPageName="LFAdministration"><LFAdministration /></LayoutWrapper>} />
+      <Route path="/lab-creation-wizard" element={<LayoutWrapper currentPageName="LabCreationWizard"><LabCreationWizard /></LayoutWrapper>} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

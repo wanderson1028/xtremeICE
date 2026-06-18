@@ -1,0 +1,162 @@
+{
+  "name": "LiveFireCollaborationSession",
+  "type": "object",
+  "properties": {
+    "lab_id": {
+      "type": "string"
+    },
+    "participants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string"
+          },
+          "user_email": {
+            "type": "string"
+          },
+          "user_name": {
+            "type": "string"
+          },
+          "cursor_x": {
+            "type": "number"
+          },
+          "cursor_y": {
+            "type": "number"
+          },
+          "is_active": {
+            "type": "boolean",
+            "default": true
+          },
+          "joined_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "chat_messages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string"
+          },
+          "user_name": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "ended"
+      ],
+      "default": "active"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ended_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "lab_id"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "id": {
+          "$exists": true
+        }
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.lab_id": {
+            "$in": {
+              "entity": "LiveFireLab",
+              "field": "id",
+              "query": {
+                "$or": [
+                  {
+                    "created_by_id": "{{user.id}}"
+                  },
+                  {
+                    "data.shared_with": {
+                      "$contains": "{{user.email}}"
+                    }
+                  },
+                  {
+                    "user_condition": {
+                      "role": "admin"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.lab_id": {
+            "$in": {
+              "entity": "LiveFireLab",
+              "field": "id",
+              "query": {
+                "$or": [
+                  {
+                    "created_by_id": "{{user.id}}"
+                  },
+                  {
+                    "data.shared_with": {
+                      "$contains": "{{user.email}}"
+                    }
+                  },
+                  {
+                    "user_condition": {
+                      "role": "admin"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

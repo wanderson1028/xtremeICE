@@ -1,0 +1,96 @@
+{
+  "name": "LiveFireCostRecord",
+  "type": "object",
+  "properties": {
+    "lab_id": {
+      "type": "string"
+    },
+    "device_id": {
+      "type": "string"
+    },
+    "deployment_id": {
+      "type": "string"
+    },
+    "resource_type": {
+      "type": "string",
+      "enum": [
+        "instance",
+        "storage",
+        "network",
+        "ip_address",
+        "vpn",
+        "load_balancer",
+        "other"
+      ]
+    },
+    "provider": {
+      "type": "string",
+      "enum": [
+        "aws",
+        "azure",
+        "gcp"
+      ]
+    },
+    "cost_amount": {
+      "type": "number",
+      "default": 0
+    },
+    "currency": {
+      "type": "string",
+      "default": "USD"
+    },
+    "billing_period": {
+      "type": "string",
+      "description": "YYYY-MM format"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "user_email": {
+      "type": "string"
+    },
+    "organization_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "lab_id",
+    "cost_amount",
+    "provider"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "id": {
+          "$exists": true
+        }
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "data.organization_id": "{{user.organization_id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

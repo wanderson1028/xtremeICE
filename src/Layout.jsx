@@ -74,8 +74,9 @@ function DesignDropdown({ currentPageName, access }) {
 function CollaborationDropdown({ currentPageName, access }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const [liveFireOpen, setLiveFireOpen] = useState(false);
   const ref = useRef(null);
-  const isActive = ["CyberEventBuilder", "LiveFire"].includes(currentPageName);
+  const isActive = ["CyberEventBuilder", "LiveFire", "LiveFireDashboard", "MyLabs", "SharedLabs", "LFTemplates", "RunningLabs", "ImageRepository", "MarketplacePage", "CloudResources", "LFAdministration", "LabCreationWizard"].includes(currentPageName);
 
   useEffect(() => {
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -95,16 +96,59 @@ function CollaborationDropdown({ currentPageName, access }) {
         <ChevronDown className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-52 bg-gray-950 border border-red-900/40 rounded-xl shadow-xl z-50 py-1 overflow-hidden">
+        <div className="absolute right-0 top-full mt-1 w-56 bg-gray-950 border border-red-900/40 rounded-xl shadow-xl z-50 py-1 overflow-hidden">
           <Link to={createPageUrl("CyberEventBuilder")} onClick={() => setOpen(false)}
             className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors">
             {t("nav.redVsBlue")}
           </Link>
           <div className="border-t border-red-900/30" />
-          <Link to="/LiveFire" onClick={() => setOpen(false)}
-            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors">
-            {t("nav.liveFire")}
-          </Link>
+          <button
+            onClick={() => setLiveFireOpen(v => !v)}
+            className="flex items-center justify-between w-full px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors"
+          >
+            <span>{t("nav.liveFire")}</span>
+            <ChevronDown className={`h-3 w-3 text-gray-400 transition-transform ${liveFireOpen ? "rotate-180" : ""}`} />
+          </button>
+          {liveFireOpen && (
+            <>
+              <Link to="/LiveFireDashboard" onClick={() => setOpen(false)}
+                className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
+                Live Fire Dashboard
+              </Link>
+              <Link to="/my-labs" onClick={() => setOpen(false)}
+                className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
+                My Labs
+              </Link>
+              <Link to="/shared-labs" onClick={() => setOpen(false)}
+                className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
+                Shared Labs
+              </Link>
+              <Link to="/lf-templates" onClick={() => setOpen(false)}
+                className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
+                Templates
+              </Link>
+              <Link to="/running-labs" onClick={() => setOpen(false)}
+                className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
+                Running Labs
+              </Link>
+              <Link to="/image-repository" onClick={() => setOpen(false)}
+                className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
+                Image Repository
+              </Link>
+              <Link to="/marketplace" onClick={() => setOpen(false)}
+                className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
+                Marketplace
+              </Link>
+              <Link to="/cloud-resources" onClick={() => setOpen(false)}
+                className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
+                Cloud Resources
+              </Link>
+              <Link to="/lf-administration" onClick={() => setOpen(false)}
+                className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
+                Administration
+              </Link>
+            </>
+          )}
         </div>
       )}
     </div>

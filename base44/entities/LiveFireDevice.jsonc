@@ -1,0 +1,259 @@
+{
+  "name": "LiveFireDevice",
+  "type": "object",
+  "properties": {
+    "lab_id": {
+      "type": "string"
+    },
+    "image_id": {
+      "type": "string",
+      "description": "Reference to LiveFireImage"
+    },
+    "device_type": {
+      "type": "string",
+      "enum": [
+        "router",
+        "switch",
+        "firewall",
+        "server",
+        "workstation",
+        "cloud_resource",
+        "container",
+        "security_appliance",
+        "monitoring",
+        "load_balancer"
+      ]
+    },
+    "name": {
+      "type": "string"
+    },
+    "hostname": {
+      "type": "string"
+    },
+    "position_x": {
+      "type": "number",
+      "description": "X position on topology canvas"
+    },
+    "position_y": {
+      "type": "number",
+      "description": "Y position on topology canvas"
+    },
+    "connections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "target_device_id": {
+            "type": "string"
+          },
+          "source_interface": {
+            "type": "string"
+          },
+          "target_interface": {
+            "type": "string"
+          },
+          "connection_type": {
+            "type": "string",
+            "enum": [
+              "ethernet",
+              "serial",
+              "fiber",
+              "vpn",
+              "internet",
+              "wan"
+            ]
+          },
+          "bandwidth_mbps": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "instance_id": {
+      "type": "string",
+      "description": "Cloud provider instance ID"
+    },
+    "public_ip": {
+      "type": "string"
+    },
+    "private_ip": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "provisioning",
+        "running",
+        "stopped",
+        "failed",
+        "terminated"
+      ],
+      "default": "pending"
+    },
+    "cpu_cores": {
+      "type": "number",
+      "default": 2
+    },
+    "ram_mb": {
+      "type": "number",
+      "default": 4096
+    },
+    "storage_gb": {
+      "type": "number",
+      "default": 20
+    },
+    "access_method": {
+      "type": "string",
+      "enum": [
+        "ssh",
+        "rdp",
+        "vnc",
+        "novnc",
+        "web_terminal",
+        "serial_console",
+        "none"
+      ],
+      "default": "ssh"
+    },
+    "access_url": {
+      "type": "string",
+      "description": "Browser-based access URL (noVNC, web terminal, etc.)"
+    },
+    "access_port": {
+      "type": "number"
+    },
+    "default_username": {
+      "type": "string"
+    },
+    "default_password": {
+      "type": "string"
+    },
+    "group_id": {
+      "type": "string",
+      "description": "Visual grouping on canvas"
+    },
+    "layer": {
+      "type": "number",
+      "default": 0,
+      "description": "Canvas layer for stacking"
+    },
+    "is_attack_box": {
+      "type": "boolean",
+      "default": false
+    },
+    "is_victim": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "lab_id",
+    "device_type",
+    "name"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "id": {
+          "$exists": true
+        }
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.lab_id": {
+            "$in": {
+              "entity": "LiveFireLab",
+              "field": "id",
+              "query": {
+                "$or": [
+                  {
+                    "created_by_id": "{{user.id}}"
+                  },
+                  {
+                    "data.visibility": "public"
+                  },
+                  {
+                    "data.shared_with": {
+                      "$contains": "{{user.email}}"
+                    }
+                  },
+                  {
+                    "user_condition": {
+                      "role": "admin"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.lab_id": {
+            "$in": {
+              "entity": "LiveFireLab",
+              "field": "id",
+              "query": {
+                "$or": [
+                  {
+                    "created_by_id": "{{user.id}}"
+                  },
+                  {
+                    "user_condition": {
+                      "role": "admin"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.lab_id": {
+            "$in": {
+              "entity": "LiveFireLab",
+              "field": "id",
+              "query": {
+                "$or": [
+                  {
+                    "created_by_id": "{{user.id}}"
+                  },
+                  {
+                    "user_condition": {
+                      "role": "admin"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

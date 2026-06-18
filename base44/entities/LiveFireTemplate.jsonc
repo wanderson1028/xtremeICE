@@ -1,0 +1,176 @@
+{
+  "name": "LiveFireTemplate",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "CCNA",
+        "CCNP",
+        "CCIE",
+        "Network+",
+        "Security+",
+        "AWS",
+        "Azure",
+        "Fortinet",
+        "Palo Alto",
+        "SOC",
+        "Blue Team",
+        "Red Team",
+        "Purple Team",
+        "Active Directory",
+        "Cloud Security",
+        "Zero Trust",
+        "Custom"
+      ]
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": [
+        "Beginner",
+        "Intermediate",
+        "Advanced",
+        "Expert"
+      ],
+      "default": "Intermediate"
+    },
+    "cloud_provider": {
+      "type": "string",
+      "enum": [
+        "aws",
+        "azure",
+        "gcp"
+      ],
+      "default": "aws"
+    },
+    "topology_data": {
+      "type": "object"
+    },
+    "device_specs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "image_id": {
+            "type": "string"
+          },
+          "device_type": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "cpu_cores": {
+            "type": "number"
+          },
+          "ram_mb": {
+            "type": "number"
+          },
+          "storage_gb": {
+            "type": "number"
+          },
+          "position_x": {
+            "type": "number"
+          },
+          "position_y": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "estimated_cost_hourly": {
+      "type": "number",
+      "default": 0
+    },
+    "is_published": {
+      "type": "boolean",
+      "default": false
+    },
+    "is_marketplace": {
+      "type": "boolean",
+      "default": false
+    },
+    "usage_count": {
+      "type": "number",
+      "default": 0
+    },
+    "rating": {
+      "type": "number",
+      "default": 0
+    },
+    "version": {
+      "type": "string",
+      "default": "1.0"
+    },
+    "thumbnail_url": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "category"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "id": {
+          "$exists": true
+        }
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "data.is_published": true
+        },
+        {
+          "data.is_marketplace": true
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "name": "LiveFireAuditLog",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "user_email": {
+      "type": "string"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "lab_created",
+        "lab_deleted",
+        "lab_deployed",
+        "lab_terminated",
+        "device_added",
+        "device_removed",
+        "device_started",
+        "device_stopped",
+        "template_created",
+        "template_published",
+        "image_added",
+        "image_approved",
+        "marketplace_published",
+        "marketplace_cloned",
+        "snapshot_created",
+        "snapshot_restored",
+        "collaboration_started",
+        "collaboration_ended",
+        "cloud_account_added",
+        "cloud_account_removed",
+        "admin_override",
+        "cost_alert"
+      ]
+    },
+    "resource_type": {
+      "type": "string",
+      "enum": [
+        "lab",
+        "device",
+        "template",
+        "image",
+        "deployment",
+        "cloud_account",
+        "marketplace",
+        "snapshot",
+        "collaboration",
+        "cost"
+      ]
+    },
+    "resource_id": {
+      "type": "string"
+    },
+    "details": {
+      "type": "object",
+      "description": "Action-specific metadata"
+    },
+    "ip_address": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "action",
+    "resource_type",
+    "resource_id"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "id": {
+          "$exists": true
+        }
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.user_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {},
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
