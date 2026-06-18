@@ -50,7 +50,16 @@ export default function LabCreationWizard() {
     region: "us-east-1",
     auto_shutdown_minutes: 0,
     collaboration_enabled: false,
-    topology_data: { devices: [], connections: [] },
+    topology_data: {
+      devices: [],
+      connections: [],
+      vpcConfig: {
+        cidr: "10.0.0.0/16",
+        subnets: [{ name: "public", cidr: "10.0.1.0/24", zone: "us-east-1a" }, { name: "private", cidr: "10.0.2.0/24", zone: "us-east-1b" }],
+        securityGroups: [{ name: "lab-sg", description: "Default lab security group", rules: [{ protocol: "tcp", port: 22, source: "0.0.0.0/0", desc: "SSH" }, { protocol: "tcp", port: 443, source: "0.0.0.0/0", desc: "HTTPS" }] }],
+        enableInternetGateway: true,
+      },
+    },
     device_count: 0,
   });
 
@@ -69,6 +78,7 @@ export default function LabCreationWizard() {
 
   React.useEffect(() => {
     if (existingLab) {
+      const existingTopology = existingLab.topology_data || {};
       setForm({
         name: existingLab.name || "",
         description: existingLab.description || "",
@@ -80,7 +90,11 @@ export default function LabCreationWizard() {
         region: existingLab.region || "us-east-1",
         auto_shutdown_minutes: existingLab.auto_shutdown_minutes || 0,
         collaboration_enabled: existingLab.collaboration_enabled || false,
-        topology_data: existingLab.topology_data || { devices: [], connections: [] },
+        topology_data: {
+          devices: existingTopology.devices || [],
+          connections: existingTopology.connections || [],
+          vpcConfig: existingTopology.vpcConfig || { cidr: "10.0.0.0/16", subnets: [{ name: "public", cidr: "10.0.1.0/24", zone: "us-east-1a" }, { name: "private", cidr: "10.0.2.0/24", zone: "us-east-1b" }], securityGroups: [{ name: "lab-sg", description: "Default lab security group", rules: [{ protocol: "tcp", port: 22, source: "0.0.0.0/0", desc: "SSH" }, { protocol: "tcp", port: 443, source: "0.0.0.0/0", desc: "HTTPS" }] }], enableInternetGateway: true },
+        },
         device_count: existingLab.device_count || 0,
       });
     }
@@ -382,6 +396,7 @@ export default function LabCreationWizard() {
                 <TopologyBuilder
                   topology={form.topology_data}
                   onChange={(topology) => update("topology_data", topology)}
+                  cloudProvider={form.cloud_provider}
                 />
               </div>
             )}
