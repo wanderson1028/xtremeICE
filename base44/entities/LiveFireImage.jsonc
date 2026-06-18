@@ -101,8 +101,7 @@
       "default": "ami"
     },
     "ami_id": {
-      "type": "string",
-      "description": "AWS AMI ID"
+      "type": "string"
     },
     "azure_image_id": {
       "type": "string"
@@ -191,13 +190,7 @@
     "version"
   ],
   "rls": {
-    "create": {
-      "user_condition": {
-        "id": {
-          "$exists": true
-        }
-      }
-    },
+    "create": true,
     "read": {
       "$or": [
         {
