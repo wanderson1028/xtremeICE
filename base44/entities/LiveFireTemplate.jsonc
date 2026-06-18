@@ -61,33 +61,7 @@
     "device_specs": {
       "type": "array",
       "items": {
-        "type": "object",
-        "properties": {
-          "image_id": {
-            "type": "string"
-          },
-          "device_type": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "cpu_cores": {
-            "type": "number"
-          },
-          "ram_mb": {
-            "type": "number"
-          },
-          "storage_gb": {
-            "type": "number"
-          },
-          "position_x": {
-            "type": "number"
-          },
-          "position_y": {
-            "type": "number"
-          }
-        }
+        "type": "object"
       }
     },
     "estimated_cost_hourly": {
@@ -123,13 +97,7 @@
     "category"
   ],
   "rls": {
-    "create": {
-      "user_condition": {
-        "id": {
-          "$exists": true
-        }
-      }
-    },
+    "create": true,
     "read": {
       "$or": [
         {
