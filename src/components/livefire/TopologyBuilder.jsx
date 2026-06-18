@@ -6,8 +6,9 @@ import {
   Server, Router, Shield, Monitor, HardDrive, Wifi, Cloud,
   Container, Zap, GitBranch, Trash2, Plus, Move, Maximize2,
   Minimize2, Eye, Copy, Layers, Network, Globe, Lock, Cpu,
-  DollarSign, X, Check, AlertTriangle, Settings
+  DollarSign, X, Check, AlertTriangle, Settings, ShieldAlert
 } from "lucide-react";
+import { getCostTier, COST_TIERS, checkLabDevices } from "@/lib/instanceTiers";
 
 const DEVICE_PALETTE = [
   { type: "router", label: "Router", icon: Router, color: "blue" },
@@ -53,7 +54,7 @@ const DEVICE_PRICING = {
   security_appliance: 0.25, load_balancer: 0.16, monitoring: 0.12,
 };
 
-export default function TopologyBuilder({ topology, onChange, cloudProvider = "aws" }) {
+export default function TopologyBuilder({ topology, onChange, cloudProvider = "aws", isAdmin = false, isLabApproved = false }) {
   const devices = topology?.devices || [];
   const vpcConfig = topology?.vpcConfig || {
     cidr: "10.0.0.0/16",
@@ -202,6 +203,10 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
   const selectedDeviceData = selectedDevice ? devices.find(d => d.id === selectedDevice) : null;
   const totalCost = devices.reduce((sum, d) => sum + (d.cost_per_hour || DEVICE_PRICING[d.type] || 0.15), 0);
 
+  // Cost tier violation check
+  const tierCheck = checkLabDevices(devices, isAdmin, isLabApproved);
+  const hasViolations = tierCheck.hasViolations;
+
   return (
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="flex h-[580px]">
@@ -242,11 +247,42 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
               <span className="font-mono text-gray-500">Est. Cost</span>
               <span className="font-mono text-green-400 font-bold">${totalCost.toFixed(2)}/hr</span>
             </div>
+            {/* Tier indicator */}
+            {devices.length > 0 && !isAdmin && (
+              <div className={`mt-2 text-[9px] font-mono px-2 py-1 rounded-md border ${
+                hasViolations ? "bg-red-950/30 border-red-800/40 text-red-400" : "bg-green-950/30 border-green-800/40 text-green-400"
+              }`}>
+                {hasViolations ? (
+                  <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Admin approval required</span>
+                ) : (
+                  <span className="flex items-center gap-1"><Check className="h-3 w-3" /> Within cost limits</span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
         {/* Center: Canvas */}
         <div className="flex-1 flex flex-col">
+          {/* Cost tier warning banner */}
+          {hasViolations && !isAdmin && (
+            <div className="flex items-center gap-3 px-4 py-2.5 bg-red-950/40 border-b border-red-800/50 text-red-300">
+              <ShieldAlert className="h-4 w-4 shrink-0" />
+              <div className="flex-1">
+                <p className="text-[11px] font-mono font-bold">{tierCheck.violations.length} device{tierCheck.violations.length > 1 ? "s" : ""} exceed{ tierCheck.violations.length === 1 ? "s" : ""} cost limits</p>
+                <p className="text-[9px] text-red-400/70">Reduce vCPU/RAM or request admin approval to deploy</p>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {tierCheck.violations.map(v => (
+                  <button key={v.deviceId}
+                    onClick={() => { setSelectedDevice(v.deviceId); setRightPanel("properties"); }}
+                    className="text-[9px] font-mono bg-red-900/40 border border-red-700/50 text-red-300 px-2 py-1 rounded hover:bg-red-800/40 transition-colors">
+                    {v.deviceName}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="flex items-center gap-2 px-3 py-2 border-b border-red-900/20 bg-black/20 shrink-0">
             <button onClick={() => setScale(s => Math.max(0.25, s - 0.25))} className="p-1.5 rounded bg-gray-800 border border-gray-700 text-gray-400 hover:text-white transition-colors"><Minimize2 className="h-3.5 w-3.5" /></button>
             <span className="text-[10px] font-mono text-gray-500 w-10 text-center">{Math.round(scale * 100)}%</span>
@@ -302,6 +338,15 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                               <div className="flex items-center gap-1.5 mb-1.5">
                                 <DevIcon className={`h-3.5 w-3.5 ${TYPE_ICON_COLORS[device.type] || "text-gray-400"}`} />
                                 <span className="text-[9px] font-mono text-gray-200 truncate font-bold">{device.name}</span>
+                                {(() => {
+                                  const tier = getCostTier(device.cpu_cores || 2, device.ram_mb || 4096);
+                                  const tc = COST_TIERS[tier];
+                                  return (
+                                    <span className={`text-[7px] font-mono px-1 py-0.5 rounded border ml-auto ${tc.bg} ${tc.color}`}>
+                                      {tc.label}
+                                    </span>
+                                  );
+                                })()}
                               </div>
                               <div className="flex items-center gap-2 text-[8px] font-mono text-gray-500">
                                 <span>{device.cpu_cores || 2} vCPU</span>
@@ -367,7 +412,30 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                   <div className="flex items-center gap-2 pb-2 border-b border-gray-800">
                     <div className={`h-2 w-2 rounded-full ${selectedDeviceData.status === "running" ? "bg-green-400" : "bg-gray-500"}`} />
                     <span className="text-xs font-bold text-white font-mono">{selectedDeviceData.name}</span>
+                    {(() => {
+                      const st = getCostTier(selectedDeviceData.cpu_cores || 2, selectedDeviceData.ram_mb || 4096);
+                      const sc = COST_TIERS[st];
+                      return <span className={`text-[7px] font-mono px-1.5 py-0.5 rounded border ml-auto ${sc.bg} ${sc.color}`}>{sc.label}</span>;
+                    })()}
                   </div>
+
+                  {/* Tier restriction warning */}
+                  {!isAdmin && !isLabApproved && (() => {
+                    const st = getCostTier(selectedDeviceData.cpu_cores || 2, selectedDeviceData.ram_mb || 4096);
+                    const sc = COST_TIERS[st];
+                    if (!sc.requiresApproval) return null;
+                    return (
+                      <div className="flex items-start gap-2 p-2.5 rounded-lg bg-red-950/30 border border-red-800/40 text-red-300">
+                        <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-[10px] font-mono font-bold">Admin Approval Required</p>
+                          <p className="text-[9px] text-red-400/80 mt-0.5">
+                            {sc.label} tier is restricted. Reduce vCPU to ≤{COST_TIERS.performance.maxCpu}/{COST_TIERS.performance.maxRamMB / 1024}GB or request admin approval.
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   <div>
                     <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">Device Name</label>

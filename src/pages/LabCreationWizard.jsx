@@ -7,7 +7,7 @@ import {
   ArrowLeft, ArrowRight, Check, Save, Cloud, Layers,
   Shield, Globe, Lock, Users, Building2, Plus, Trash2,
   Monitor, Server, Wifi, HardDrive, Network, Router, Zap,
-  Eye, EyeOff, Settings, Cpu
+  Eye, EyeOff, Settings, Cpu, ShieldAlert, DollarSign
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -118,6 +118,7 @@ export default function LabCreationWizard() {
         topology_data: form.topology_data,
         device_count: form.topology_data?.devices?.length || 0,
         status: existingLab?.status || "draft",
+        admin_approved_cost: !!form.admin_approved_cost,
       };
       if (existingLabId) {
         return base44.entities.LiveFireLab.update(existingLabId, payload);
@@ -299,6 +300,30 @@ export default function LabCreationWizard() {
                         </button>
                       </div>
                     </div>
+                    {/* Cost approval — allows expensive instances */}
+                    <div className="pt-3 border-t border-red-900/20">
+                      <button
+                        onClick={() => update("admin_approved_cost", !form.admin_approved_cost)}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-xs font-mono transition-all w-full text-left ${
+                          form.admin_approved_cost
+                            ? "bg-red-900/30 border-red-600/60 text-red-300"
+                            : "bg-gray-800/40 border-gray-700 text-gray-500 hover:text-gray-300"
+                        }`}
+                      >
+                        <ShieldAlert className={`h-5 w-5 ${form.admin_approved_cost ? "text-red-400" : "text-gray-600"}`} />
+                        <div>
+                          <span className="font-bold block text-[11px]">
+                            {form.admin_approved_cost ? "High-Cost Instances Approved" : "Approve High-Cost Instances"}
+                          </span>
+                          <span className="text-[9px] text-gray-500">
+                            {form.admin_approved_cost
+                              ? "Enterprise and Extreme tier instances allowed for this lab"
+                              : "Allow users to select enterprise/extreme instance types for this lab"
+                            }
+                          </span>
+                        </div>
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -397,6 +422,8 @@ export default function LabCreationWizard() {
                   topology={form.topology_data}
                   onChange={(topology) => update("topology_data", topology)}
                   cloudProvider={form.cloud_provider}
+                  isAdmin={isAdmin}
+                  isLabApproved={!!form.admin_approved_cost}
                 />
               </div>
             )}
@@ -436,9 +463,16 @@ export default function LabCreationWizard() {
                 <div className="bg-green-950/20 border border-green-700/30 rounded-xl p-4">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-mono text-gray-400">Estimated Cost</span>
-                    <span className="text-sm font-bold text-green-400 font-mono">
-                      ${((form.topology_data?.devices?.length || 0) * 0.15).toFixed(2)}/hr
-                    </span>
+                    <div className="flex items-center gap-3">
+                      {form.admin_approved_cost && (
+                        <span className="text-[9px] font-mono bg-red-900/30 text-red-400 border border-red-700/40 px-2 py-0.5 rounded-full">
+                          High-Cost Approved
+                        </span>
+                      )}
+                      <span className="text-sm font-bold text-green-400 font-mono">
+                        ${((form.topology_data?.devices?.length || 0) * 0.15).toFixed(2)}/hr
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>

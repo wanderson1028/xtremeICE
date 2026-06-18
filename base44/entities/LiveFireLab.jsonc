@@ -107,6 +107,11 @@
       "type": "number",
       "default": 20
     },
+    "admin_approved_cost": {
+      "type": "boolean",
+      "default": false,
+      "description": "Admin flag allowing Enterprise/Extreme tier instances for this lab"
+    },
     "vpc_id": {
       "type": "string"
     },

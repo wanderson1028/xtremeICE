@@ -1,5 +1,40 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 
+// ── Instance cost tier enforcement ──
+const COST_TIERS = {
+  standard:  { maxCpu: 2,  maxRamMB: 4096,  label: "Standard" },
+  performance: { maxCpu: 4,  maxRamMB: 16384, label: "Performance" },
+  enterprise: { maxCpu: 16, maxRamMB: 65536, label: "Enterprise", adminOnly: true },
+  extreme:   { maxCpu: Infinity, maxRamMB: Infinity, label: "Extreme", adminOnly: true },
+};
+
+function getCostTier(cpu, ram) {
+  if (cpu > 16 || ram > 65536) return "extreme";
+  if (cpu > 4 || ram > 16384) return "enterprise";
+  if (cpu > 2 || ram > 4096) return "performance";
+  return "standard";
+}
+
+async function checkInstanceAllowed(base44, labId, cpu, ram, userId) {
+  const tier = getCostTier(cpu, ram);
+  const tierConfig = COST_TIERS[tier];
+  if (!tierConfig.adminOnly) return { allowed: true, tier };
+
+  // Admin users can always deploy
+  const user = await base44.asServiceRole.entities.User.filter({ id: userId }).then(r => r[0]);
+  if (user?.role === "admin") return { allowed: true, tier };
+
+  // Check if lab has admin approval for high-cost instances
+  const lab = await base44.asServiceRole.entities.LiveFireLab.filter({ id: labId }).then(r => r[0]);
+  if (lab?.admin_approved_cost) return { allowed: true, tier };
+
+  return {
+    allowed: false,
+    tier,
+    reason: `${tierConfig.label} tier (${cpu} vCPU / ${(ram / 1024).toFixed(1)} GB RAM) requires admin approval. Max allowed: ${COST_TIERS.performance.maxCpu} vCPU / ${COST_TIERS.performance.maxRamMB / 1024} GB RAM.`,
+  };
+}
+
 // ── AWS Signature V4 implementation (lightweight, no SDK needed) ──
 
 function sha256Hex(data) {
@@ -150,6 +185,17 @@ Deno.serve(async (req) => {
 
       case "createVM": {
         const { lab_id, device_name, device_type, cpu_cores = 2, ram_mb = 4096, storage_gb = 20, subnet_id, security_group_ids = [], ami_image_id } = params;
+
+        // Enforce cost tier limits
+        const tierCheck = await checkInstanceAllowed(base44, lab_id, cpu_cores, ram_mb, user.id);
+        if (!tierCheck.allowed) {
+          return Response.json({
+            error: "INSTANCE_TIER_BLOCKED",
+            message: tierCheck.reason,
+            tier: tierCheck.tier,
+          }, { status: 403 });
+        }
+
         const amiId = ami_image_id || AMI_MAP[device_type] || "ami-0c55b159cbfafe1f0";
         const instanceType = selectInstanceType(cpu_cores, ram_mb);
 
