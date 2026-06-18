@@ -367,6 +367,24 @@ Deno.serve(async (req) => {
         });
       }
 
+      case "listNetworks": {
+        // List VPCs tagged by XtremeICE
+        const xml = await ec2Call("DescribeVpcs", {
+          Filter: [{ Name: "tag:ManagedBy", Value: ["XtremeICE"] }],
+        }, region);
+        const vpcs = [];
+        for (const m of xml.matchAll(/<item>\s*<vpcId>([^<]+)<\/vpcId>[\s\S]*?<cidrBlock>([^<]+)<\/cidrBlock>[\s\S]*?<state>([^<]+)<\/state>[\s\S]*?<tagSet>([\s\S]*?)<\/tagSet>/g)) {
+          vpcs.push({
+            vpcId: m[1],
+            cidrBlock: m[2],
+            state: m[3],
+            name: extractTag(m[4], "Name") || m[1],
+            labId: extractTag(m[4], "LabId") || null,
+          });
+        }
+        return Response.json({ region, vpcs, totalCount: vpcs.length });
+      }
+
       case "listInstances": {
         const { lab_id } = params;
         const filters = lab_id

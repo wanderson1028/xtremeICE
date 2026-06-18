@@ -5,7 +5,8 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   Activity, Search, ArrowLeft, Play, Pause, Square, Trash2,
   Monitor, Server, Globe, ExternalLink, Terminal, Shield,
-  DollarSign, AlertTriangle, XCircle, RefreshCw, BarChart3
+  DollarSign, AlertTriangle, XCircle, RefreshCw, BarChart3,
+  Network, Save, Layers
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,11 @@ export default function RunningLabs() {
   const [search, setSearch] = useState("");
   const [confirmTerminate, setConfirmTerminate] = useState(null);
   const [terminatingLabs, setTerminatingLabs] = useState(new Set());
+  const [activeTab, setActiveTab] = useState("labs");
+  const [confirmDeleteNetwork, setConfirmDeleteNetwork] = useState(null);
+  const [deletingNetworks, setDeletingNetworks] = useState(new Set());
+  const [saveDialogOpen, setSaveDialogOpen] = useState(null);
+  const [savingNetworks, setSavingNetworks] = useState(new Set());
 
   const { data: labs = [], isLoading } = useQuery({
     queryKey: ["running-livefire-labs"],
@@ -39,6 +45,73 @@ export default function RunningLabs() {
     queryKey: ["running-devices"],
     queryFn: () => base44.entities.LiveFireDevice.filter({}, "-updated_date", 200),
     refetchInterval: 15000,
+  });
+
+  const { data: networksData, isLoading: networksLoading, refetch: refetchNetworks } = useQuery({
+    queryKey: ["livefire-networks"],
+    queryFn: async () => {
+      const res = await base44.functions.invoke("cloudProviderAWS", {
+        action: "listNetworks",
+        params: {},
+      });
+      return res.data?.vpcs || [];
+    },
+    refetchInterval: 30000,
+    enabled: activeTab === "networks",
+  });
+
+  const deleteNetworkMutation = useMutation({
+    mutationFn: async (vpcId) => {
+      setDeletingNetworks(prev => new Set([...prev, vpcId]));
+      const res = await base44.functions.invoke("cloudProviderAWS", {
+        action: "deleteNetwork",
+        params: { vpc_id: vpcId },
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      refetchNetworks();
+      queryClient.invalidateQueries(["running-livefire-labs"]);
+      setDeletingNetworks(prev => { const n = new Set(prev); n.delete(confirmDeleteNetwork); return n; });
+      setConfirmDeleteNetwork(null);
+    },
+    onError: () => {
+      setDeletingNetworks(prev => { const n = new Set(prev); n.delete(confirmDeleteNetwork); return n; });
+    },
+  });
+
+  const saveNetworkMutation = useMutation({
+    mutationFn: async ({ vpcId, name, cidrBlock }) => {
+      setSavingNetworks(prev => new Set([...prev, vpcId]));
+      // Create or update a deployment record to persist the VPC
+      const existing = await base44.entities.LiveFireDeployment.filter({ vpc_id: vpcId });
+      if (existing.length > 0) {
+        await base44.entities.LiveFireDeployment.update(existing[0].id, {
+          status: "running",
+          vpc_cidr: cidrBlock,
+        });
+      } else {
+        await base44.entities.LiveFireDeployment.create({
+          lab_id: saveDialogOpen?.labId || "standalone",
+          provider: "aws",
+          region: "us-east-1",
+          status: "running",
+          vpc_id: vpcId,
+          vpc_cidr: cidrBlock,
+          estimated_cost_hourly: 0.05,
+        });
+      }
+      return { success: true };
+    },
+    onSuccess: () => {
+      refetchNetworks();
+      queryClient.invalidateQueries(["livefire-deployments"]);
+      setSavingNetworks(prev => { const n = new Set(prev); n.delete(saveDialogOpen?.vpcId); return n; });
+      setSaveDialogOpen(null);
+    },
+    onError: () => {
+      setSavingNetworks(prev => { const n = new Set(prev); n.delete(saveDialogOpen?.vpcId); return n; });
+    },
   });
 
   const terminateMutation = useMutation({
@@ -89,7 +162,7 @@ export default function RunningLabs() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-red-950/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-4">
           <Link to="/LiveFireDashboard" className="text-gray-400 hover:text-white transition-colors">
             <ArrowLeft className="h-5 w-5" />
           </Link>
@@ -109,6 +182,25 @@ export default function RunningLabs() {
             </div>
           </div>
         </div>
+
+        {/* Tab Switcher */}
+        <div className="flex gap-1 mb-6 bg-gray-900/60 rounded-xl p-1 border border-red-900/20 w-fit">
+          {[
+            { key: "labs", label: "Lab Deployments", icon: Server },
+            { key: "networks", label: "VPC Networks", icon: Network },
+          ].map(t => (
+            <button key={t.key} onClick={() => setActiveTab(t.key)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-mono transition-all ${
+                activeTab === t.key ? "bg-red-900/40 text-red-300 border border-red-700/30" : "text-gray-500 hover:text-gray-300"
+              }`}>
+              <t.icon className="h-4 w-4" />
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Labs Tab Content */}
+        {activeTab === "labs" && (<>
 
         {/* Cost & Resource Summary */}
         {filtered.length > 0 && (
@@ -259,6 +351,119 @@ export default function RunningLabs() {
                 </div>
               );
             })}
+          </div>
+        )}
+        </>)}
+
+        {/* Networks Tab Content */}
+        {activeTab === "networks" && (
+          <div className="space-y-4">
+            {networksLoading ? (
+              <div className="flex justify-center py-20">
+                <div className="w-8 h-8 border-2 border-cyan-600/30 border-t-cyan-500 rounded-full animate-spin" />
+              </div>
+            ) : (networksData || []).length === 0 ? (
+              <div className="text-center py-20">
+                <Network className="h-12 w-12 text-gray-700 mx-auto mb-4" />
+                <p className="text-gray-500 font-mono text-sm mb-4">No VPC networks found</p>
+                <p className="text-xs text-gray-600 font-mono">Deploy a lab to create network infrastructure</p>
+              </div>
+            ) : (
+              (networksData || []).map(vpc => (
+                <div key={vpc.vpcId} className="bg-gray-900/80 border border-red-900/30 rounded-xl overflow-hidden">
+                  <div className="flex items-center justify-between p-4 border-b border-red-900/20">
+                    <div className="flex items-center gap-3">
+                      <div className={`h-3 w-3 rounded-full ${vpc.state === "available" ? "bg-green-500 animate-pulse" : "bg-yellow-500"}`} />
+                      <div>
+                        <h3 className="text-sm font-bold text-white">{vpc.name}</h3>
+                        <p className="text-[10px] font-mono text-gray-500">
+                          {vpc.vpcId} · {vpc.cidrBlock} · {vpc.state}
+                          {vpc.labId && <span className="ml-2 text-cyan-400">· Lab: {vpc.labId}</span>}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+                        vpc.state === "available" ? "bg-green-900/30 text-green-400 border-green-700/30" : "bg-yellow-900/30 text-yellow-400 border-yellow-700/30"
+                      }`}>
+                        {vpc.state}
+                      </span>
+
+                      {/* Save Button */}
+                      {saveDialogOpen?.vpcId === vpc.vpcId ? (
+                        <div className="flex items-center gap-1">
+                          <select
+                            onChange={(e) => setSaveDialogOpen({ vpcId: vpc.vpcId, labId: e.target.value })}
+                            className="text-[10px] font-mono bg-gray-800 border border-gray-700 text-white rounded px-2 py-1"
+                            defaultValue=""
+                          >
+                            <option value="" disabled>Select lab...</option>
+                            <option value="standalone">Standalone</option>
+                            {labs.map(l => (
+                              <option key={l.id} value={l.id}>{l.name}</option>
+                            ))}
+                          </select>
+                          <button onClick={() => saveNetworkMutation.mutate({ vpcId: vpc.vpcId, name: vpc.name, cidrBlock: vpc.cidrBlock })}
+                            disabled={savingNetworks.has(vpc.vpcId)}
+                            className="text-[10px] font-mono px-2 py-1 rounded bg-green-800 border border-green-600 text-green-200 hover:bg-green-700 transition-colors">
+                            {savingNetworks.has(vpc.vpcId) ? "Saving..." : "Save"}
+                          </button>
+                          <button onClick={() => setSaveDialogOpen(null)}
+                            className="text-[10px] font-mono px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-400 hover:text-gray-200 transition-colors">
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setSaveDialogOpen({ vpcId: vpc.vpcId, labId: "standalone" })}
+                          disabled={savingNetworks.has(vpc.vpcId)}
+                          className="p-1.5 rounded-lg bg-gray-800 border border-gray-700 text-gray-400 hover:text-green-400 hover:border-green-700/40 transition-colors" title="Save to deployment">
+                          <Save className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+
+                      {/* Delete Button */}
+                      {confirmDeleteNetwork === vpc.vpcId ? (
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => deleteNetworkMutation.mutate(vpc.vpcId)}
+                            disabled={deletingNetworks.has(vpc.vpcId)}
+                            className="text-[10px] font-mono px-2 py-1 rounded bg-red-800 border border-red-600 text-red-200 hover:bg-red-700 transition-colors">
+                            {deletingNetworks.has(vpc.vpcId) ? "Deleting..." : "Confirm"}
+                          </button>
+                          <button onClick={() => setConfirmDeleteNetwork(null)}
+                            className="text-[10px] font-mono px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-400 hover:text-gray-200 transition-colors">
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setConfirmDeleteNetwork(vpc.vpcId)}
+                          disabled={deletingNetworks.has(vpc.vpcId)}
+                          className={`p-1.5 rounded-lg border transition-colors ${
+                            deletingNetworks.has(vpc.vpcId)
+                              ? "bg-red-900/30 border-red-700/40 text-red-400 animate-pulse"
+                              : "bg-gray-800 border-gray-700 text-gray-400 hover:text-red-400 hover:border-red-700/40"
+                          }`} title="Delete network">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {/* VPC Details */}
+                  <div className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {[
+                      { label: "VPC ID", value: vpc.vpcId },
+                      { label: "CIDR Block", value: vpc.cidrBlock },
+                      { label: "State", value: vpc.state },
+                      { label: "Lab", value: vpc.labId || "Unassigned" },
+                    ].map(d => (
+                      <div key={d.label}>
+                        <p className="text-[9px] font-mono text-gray-600 uppercase">{d.label}</p>
+                        <p className="text-xs font-mono text-white">{d.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         )}
       </div>
