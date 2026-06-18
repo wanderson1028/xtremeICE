@@ -70,21 +70,30 @@ Deno.serve(async (req) => {
           estimated_cost_hourly: (topology_data?.devices?.length || 0) * 0.15,
         });
 
-        // Deploy VPC and network infrastructure
+        // Deploy VPC and network infrastructure using topology's VPC config
+        const vpcConfig = topology_data?.vpcConfig || {};
         const networkResult = await base44.asServiceRole.functions.invoke("cloudProviderAWS", {
           action: "createNetwork",
           params: {
             lab_id,
-            vpc_cidr: "10.0.0.0/16",
+            vpc_cidr: vpcConfig.cidr || "10.0.0.0/16",
+            subnet_configs: vpcConfig.subnets || [],
             region: lab.region || "us-east-1",
           },
         });
+
+        const networkData = networkResult?.data || networkResult;
 
         // Deploy each device
         const devices = topology_data?.devices || [];
         const deployedDevices = [];
         for (const device of devices) {
           try {
+            // Pick the right subnet based on device's subnet assignment
+            const deviceSubnet = device.subnet || "public";
+            const targetSubnet = networkData?.subnets?.find(s => s.name === deviceSubnet) || networkData?.subnets?.[0];
+            const subnetId = targetSubnet?.id || networkData?.subnetId || "subnet-pending";
+
             const result = await base44.asServiceRole.functions.invoke("cloudProviderAWS", {
               action: "createVM",
               params: {
@@ -94,21 +103,23 @@ Deno.serve(async (req) => {
                 cpu_cores: device.cpu_cores || 2,
                 ram_mb: device.ram_mb || 4096,
                 storage_gb: device.storage_gb || 20,
-                subnet_id: networkResult?.subnetId || "subnet-pending",
-                vpc_id: networkResult?.vpcId || "vpc-pending",
+                subnet_id: subnetId,
+                security_group_ids: networkData?.securityGroupIds || [],
                 region: lab.region || "us-east-1",
+                ami_image_id: device.ami_image_id || null,
               },
             });
-            deployedDevices.push(result);
+            deployedDevices.push(result?.data || result);
 
+            const deviceData = result?.data || result;
             // Update device record in database
             await base44.asServiceRole.entities.LiveFireDevice.create({
               lab_id,
               name: device.name,
               device_type: device.type,
-              instance_id: result?.instanceId || `i-pending-${device.id}`,
-              public_ip: result?.publicIp || "",
-              private_ip: result?.privateIp || "",
+              instance_id: deviceData?.instanceId || `i-pending-${device.id}`,
+              public_ip: deviceData?.publicIp || "",
+              private_ip: deviceData?.privateIp || "",
               status: "provisioning",
               cpu_cores: device.cpu_cores || 2,
               ram_mb: device.ram_mb || 4096,
@@ -116,6 +127,7 @@ Deno.serve(async (req) => {
               position_x: device.position_x,
               position_y: device.position_y,
               connections: device.connections || [],
+              access_method: device.access_method || "ssh",
             });
           } catch (deviceError) {
             console.error(`Failed to deploy device ${device.name}:`, deviceError);
@@ -126,8 +138,9 @@ Deno.serve(async (req) => {
         await base44.asServiceRole.entities.LiveFireDeployment.update(deployment.id, {
           status: "running",
           instance_ids: deployedDevices.map(d => d.instanceId).filter(Boolean),
-          vpc_id: networkResult?.vpcId,
-          subnet_ids: networkResult?.subnetId ? [networkResult.subnetId] : [],
+          vpc_id: networkData?.vpcId,
+          subnet_ids: networkData?.subnets?.map(s => s.id) || [],
+          security_group_ids: networkData?.securityGroupIds || [],
           completed_at: new Date().toISOString(),
         });
 
@@ -136,6 +149,8 @@ Deno.serve(async (req) => {
           status: "running",
           device_count: deployedDevices.length,
           estimated_cost_hourly: deployedDevices.length * 0.15,
+          vpc_id: networkData?.vpcId,
+          subnet_id: networkData?.subnets?.[0]?.id || null,
         });
 
         // Log audit
@@ -164,7 +179,9 @@ Deno.serve(async (req) => {
           status: "success",
           deployment_id: deployment.id,
           devices_deployed: deployedDevices.length,
-          vpc_id: networkResult?.vpcId,
+          vpc_id: networkData?.vpcId,
+          subnet_ids: networkData?.subnets,
+          security_group_id: networkData?.securityGroupId,
           estimated_cost_hourly: deployedDevices.length * 0.15,
         });
       }

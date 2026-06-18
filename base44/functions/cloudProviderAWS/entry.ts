@@ -1,26 +1,140 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 
-/**
- * AWS Cloud Provider Implementation
- * 
- * Handles AWS-specific infrastructure operations for the cyber range platform.
- * Maps topology devices to EC2 instances, networks to VPCs, etc.
- * 
- * Device-to-AWS Mapping:
- *   Virtual Machine  → EC2 Instance
- *   Network          → VPC
- *   Subnet           → AWS Subnet
- *   Firewall Rules   → Security Groups
- *   Routing          → Route Tables
- *   Internet         → Internet Gateway
- *   Site-to-Site     → VPN Gateway
- *   Storage          → EBS Volumes
- *   Snapshots        → AMI Snapshots
- */
+// ── AWS Signature V4 implementation (lightweight, no SDK needed) ──
 
-// Simulated AWS operations (in production, these would use AWS SDK)
-// For MVP: provides the abstraction layer structure with simulated responses
-// that mirror real AWS API patterns.
+function sha256Hex(data) {
+  const encoder = new TextEncoder();
+  return crypto.subtle.digest("SHA-256", typeof data === "string" ? encoder.encode(data) : data)
+    .then(buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join(""));
+}
+
+async function hmacSha256(key, data) {
+  const encoder = new TextEncoder();
+  const cryptoKey = await crypto.subtle.importKey("raw", typeof key === "string" ? encoder.encode(key) : key, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", cryptoKey, typeof data === "string" ? encoder.encode(data) : data);
+  return new Uint8Array(sig);
+}
+
+async function getSignatureKey(key, dateStamp, region, service) {
+  let k = await hmacSha256(("AWS4" + key), dateStamp);
+  k = await hmacSha256(k, region);
+  k = await hmacSha256(k, service);
+  k = await hmacSha256(k, "aws4_request");
+  return k;
+}
+
+async function signRequest(method, host, region, service, canonicalUri, queryParams, payload, accessKey, secretKey) {
+  const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, "");
+  const dateStamp = amzDate.slice(0, 8);
+
+  // Build canonical query string
+  const sortedParams = Object.keys(queryParams).sort().map(k => `${encodeURIComponent(k)}=${encodeURIComponent(queryParams[k])}`).join("&");
+  const canonicalQueryString = sortedParams ? sortedParams : "";
+
+  const payloadHash = await sha256Hex(payload || "");
+  const canonicalHeaders = `host:${host}\nx-amz-date:${amzDate}\n`;
+  const signedHeaders = "host;x-amz-date";
+  const canonicalRequest = `${method}\n${canonicalUri}\n${canonicalQueryString}\n${canonicalHeaders}\n${signedHeaders}\n${payloadHash}`;
+
+  const credentialScope = `${dateStamp}/${region}/${service}/aws4_request`;
+  const stringToSign = `AWS4-HMAC-SHA256\n${amzDate}\n${credentialScope}\n${await sha256Hex(canonicalRequest)}`;
+
+  const signingKey = await getSignatureKey(secretKey, dateStamp, region, service);
+  const signature = Array.from(new Uint8Array(await hmacSha256(signingKey, stringToSign)))
+    .map(b => b.toString(16).padStart(2, "0")).join("");
+
+  return {
+    authorization: `AWS4-HMAC-SHA256 Credential=${accessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
+    amzDate,
+  };
+}
+
+function getEC2Host(region) {
+  return `ec2.${region || "us-east-1"}.amazonaws.com`;
+}
+
+function flattenParams(obj, prefix = "") {
+  const result = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const fullKey = prefix ? `${prefix}.${key}` : key;
+    if (value === undefined || value === null) continue;
+    if (Array.isArray(value)) {
+      value.forEach((item, i) => {
+        if (typeof item === "object" && item !== null) {
+          Object.assign(result, flattenParams(item, `${fullKey}.${i + 1}`));
+        } else {
+          result[`${fullKey}.${i + 1}`] = String(item);
+        }
+      });
+    } else if (typeof value === "object" && value !== null) {
+      Object.assign(result, flattenParams(value, fullKey));
+    } else {
+      result[fullKey] = String(value);
+    }
+  }
+  return result;
+}
+
+async function ec2Call(action, paramsObj, region) {
+  const accessKey = Deno.env.get("AWS_ACCESS_KEY_ID");
+  const secretKey = Deno.env.get("AWS_SECRET_ACCESS_KEY");
+  const r = region || Deno.env.get("AWS_REGION") || "us-east-1";
+  const host = getEC2Host(r);
+
+  const queryParams = { Action: action, Version: "2016-11-15", ...flattenParams(paramsObj) };
+
+  const { authorization, amzDate } = await signRequest(
+    "GET", host, r, "ec2", "/", queryParams, "",
+    accessKey, secretKey,
+  );
+
+  const qs = Object.entries(queryParams)
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join("&");
+
+  const resp = await fetch(`https://${host}/?${qs}`, {
+    headers: { "Host": host, "X-Amz-Date": amzDate, "Authorization": authorization },
+  });
+
+  const text = await resp.text();
+
+  // Parse XML response
+  if (!resp.ok) {
+    const codeMatch = text.match(/<Code>([^<]+)<\/Code>/);
+    const msgMatch = text.match(/<Message>([^<]+)<\/Message>/);
+    throw new Error(`${codeMatch?.[1] || resp.status}: ${msgMatch?.[1] || text.slice(0, 200)}`);
+  }
+
+  return text;
+}
+
+function extractTag(tags, key) {
+  for (const m of (tags || []).matchAll(/<item>\s*<key>([^<]+)<\/key>\s*<value>([^<]*)<\/value>\s*<\/item>/g)) {
+    if (m[1] === key) return m[2];
+  }
+  return null;
+}
+
+// AMI mapping for common device types
+const AMI_MAP = {
+  router: "ami-0c55b159cbfafe1f0",
+  switch: "ami-0c55b159cbfafe1f0",
+  firewall: "ami-0c55b159cbfafe1f0",
+  server: "ami-0c55b159cbfafe1f0",
+  workstation: "ami-0c7213e0f0840f9e8",
+  cloud_resource: "ami-0c55b159cbfafe1f0",
+  container: "ami-0c55b159cbfafe1f0",
+  security_appliance: "ami-0c55b159cbfafe1f0",
+  load_balancer: "ami-0c55b159cbfafe1f0",
+  monitoring: "ami-0c55b159cbfafe1f0",
+};
+
+function selectInstanceType(cpu, ram) {
+  if (cpu >= 8 || ram >= 32768) return "c5.2xlarge";
+  if (cpu >= 4 || ram >= 16384) return "t3.xlarge";
+  if (cpu >= 2 || ram >= 8192) return "t3.large";
+  return "t3.medium";
+}
 
 Deno.serve(async (req) => {
   try {
@@ -30,67 +144,126 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const { action, params = {} } = body;
+    const region = params.region || Deno.env.get("AWS_REGION") || "us-east-1";
 
     switch (action) {
-      case "createVM": {
-        const {
-          lab_id, device_name, device_type, cpu_cores = 2,
-          ram_mb = 4096, storage_gb = 20, subnet_id, vpc_id, region = "us-east-1",
-        } = params;
 
-        // Simulated EC2 instance creation
-        // In production: AWS SDK ec2.runInstances({...})
-        const instanceId = `i-${Date.now().toString(16)}${Math.random().toString(16).slice(2, 8)}`;
-        const privateIp = `10.0.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
-        const publicIp = `54.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
+      case "createVM": {
+        const { lab_id, device_name, device_type, cpu_cores = 2, ram_mb = 4096, storage_gb = 20, subnet_id, security_group_ids = [], ami_image_id } = params;
+        const amiId = ami_image_id || AMI_MAP[device_type] || "ami-0c55b159cbfafe1f0";
+        const instanceType = selectInstanceType(cpu_cores, ram_mb);
+
+        const xml = await ec2Call("RunInstances", {
+          ImageId: amiId,
+          InstanceType: instanceType,
+          MinCount: "1",
+          MaxCount: "1",
+          SubnetId: subnet_id,
+          SecurityGroupId: security_group_ids,
+          BlockDeviceMapping: [
+            { DeviceName: "/dev/xvda", Ebs: { VolumeSize: String(storage_gb), VolumeType: "gp3", DeleteOnTermination: "true" } },
+          ],
+          TagSpecification: [
+            { ResourceType: "instance", Tag: [
+              { Key: "Name", Value: device_name || `lab-${lab_id}` },
+              { Key: "LabId", Value: lab_id || "" },
+              { Key: "ManagedBy", Value: "XtremeICE-LiveFire" },
+            ]},
+          ],
+        }, region);
+
+        const instId = xml.match(/<instanceId>([^<]+)<\/instanceId>/)?.[1] || "unknown";
+        const privIp = xml.match(/<privateIpAddress>([^<]+)<\/privateIpAddress>/)?.[1] || null;
 
         return Response.json({
-          instanceId,
-          publicIp,
-          privateIp,
+          instanceId: instId,
+          publicIp: null,
+          privateIp: privIp,
           status: "provisioning",
           region,
-          instanceType: "t3.medium",
-          amiId: "ami-0c55b159cbfafe1f0", // Placeholder AMI
+          instanceType,
+          amiId,
           launchTime: new Date().toISOString(),
-          // Simulated browser-based access URL (noVNC/Guacamole)
-          accessUrl: `https://console.xtremeice.io/terminal/${instanceId}`,
-          accessPort: device_type === "workstation" ? 3389 : 22,
-          defaultUsername: device_type === "workstation" ? "Administrator" : "ubuntu",
+          accessUrl: null,
         });
       }
 
       case "deleteVM": {
-        const { instance_id, region = "us-east-1" } = params;
-
-        // Simulated EC2 instance termination
-        // In production: AWS SDK ec2.terminateInstances({InstanceIds: [instance_id]})
-        return Response.json({
-          success: true,
-          instanceId: instance_id,
-          previousState: "running",
-          currentState: "shutting-down",
-        });
+        const { instance_id } = params;
+        await ec2Call("TerminateInstances", { InstanceId: [instance_id] }, region);
+        return Response.json({ success: true, instanceId: instance_id, currentState: "shutting-down" });
       }
 
       case "createNetwork": {
-        const { lab_id, vpc_cidr = "10.0.0.0/16", region = "us-east-1" } = params;
+        const { lab_id, vpc_cidr = "10.0.0.0/16", subnet_configs = [] } = params;
 
-        // Simulated VPC creation
-        // In production: AWS SDK ec2.createVpc({CidrBlock: vpc_cidr})
-        const vpcId = `vpc-${Date.now().toString(16)}`;
-        const subnetId = `subnet-${Date.now().toString(16)}`;
-        const securityGroupId = `sg-${Date.now().toString(16)}`;
-        const routeTableId = `rtb-${Date.now().toString(16)}`;
-        const igwId = `igw-${Date.now().toString(16)}`;
+        // Step 1: Create VPC
+        let xml = await ec2Call("CreateVpc", {
+          CidrBlock: vpc_cidr,
+          TagSpecification: [{ ResourceType: "vpc", Tag: [{ Key: "Name", Value: `livefire-${lab_id}` }, { Key: "LabId", Value: lab_id || "" }, { Key: "ManagedBy", Value: "XtremeICE" }] }],
+        }, region);
+        const vpcId = xml.match(/<vpcId>([^<]+)<\/vpcId>/)?.[1] || "";
 
+        // Step 2: Create Internet Gateway
+        xml = await ec2Call("CreateInternetGateway", {}, region);
+        const igwId = xml.match(/<internetGatewayId>([^<]+)<\/internetGatewayId>/)?.[1] || "";
+        await ec2Call("AttachInternetGateway", { InternetGatewayId: igwId, VpcId: vpcId }, region);
+
+        // Step 3: Create Subnets
+        const subs = subnet_configs.length > 0 ? subnet_configs : [
+          { name: "public", cidr: "10.0.1.0/24", zone: `${region}a` },
+          { name: "private", cidr: "10.0.2.0/24", zone: `${region}b` },
+        ];
+        const createdSubnets = [];
+        for (const s of subs) {
+          xml = await ec2Call("CreateSubnet", { VpcId: vpcId, CidrBlock: s.cidr, AvailabilityZone: s.zone }, region);
+          const sid = xml.match(/<subnetId>([^<]+)<\/subnetId>/)?.[1] || "";
+          if (s.name === "public") {
+            await ec2Call("ModifySubnetAttribute", { SubnetId: sid, MapPublicIpOnLaunch: { Value: "true" } }, region);
+          }
+          createdSubnets.push({ id: sid, name: s.name, cidr: s.cidr, zone: s.zone, isPublic: s.name === "public" });
+        }
+
+        // Step 4: Create Route Table + route to IGW
+        xml = await ec2Call("CreateRouteTable", { VpcId: vpcId }, region);
+        const rtId = xml.match(/<routeTableId>([^<]+)<\/routeTableId>/)?.[1] || "";
+        await ec2Call("CreateRoute", { RouteTableId: rtId, DestinationCidrBlock: "0.0.0.0/0", GatewayId: igwId }, region);
+
+        // Associate public subnets with route table
+        for (const s of createdSubnets) {
+          if (s.isPublic) {
+            await ec2Call("AssociateRouteTable", { RouteTableId: rtId, SubnetId: s.id }, region);
+          }
+        }
+
+        // Step 5: Create Security Group
+        xml = await ec2Call("CreateSecurityGroup", {
+          GroupName: `livefire-sg-${lab_id}-${Date.now()}`,
+          GroupDescription: `Live Fire lab ${lab_id}`,
+          VpcId: vpcId,
+        }, region);
+        const sgId = xml.match(/<groupId>([^<]+)<\/groupId>/)?.[1] || "";
+
+        await ec2Call("AuthorizeSecurityGroupIngress", {
+          GroupId: sgId,
+          IpPermissions: [
+            { IpProtocol: "tcp", FromPort: "22", ToPort: "22", IpRanges: [{ CidrIp: "0.0.0.0/0", Description: "SSH" }] },
+            { IpProtocol: "tcp", FromPort: "443", ToPort: "443", IpRanges: [{ CidrIp: "0.0.0.0/0", Description: "HTTPS" }] },
+            { IpProtocol: "tcp", FromPort: "80", ToPort: "80", IpRanges: [{ CidrIp: "0.0.0.0/0", Description: "HTTP" }] },
+            { IpProtocol: "tcp", FromPort: "3389", ToPort: "3389", IpRanges: [{ CidrIp: "0.0.0.0/0", Description: "RDP" }] },
+          ],
+        }, region);
+
+        const publicSub = createdSubnets.find(s => s.isPublic);
         return Response.json({
           vpcId,
           vpcCidr: vpc_cidr,
-          subnetId,
-          subnetCidr: "10.0.1.0/24",
-          securityGroupId,
-          routeTableId,
+          subnetId: publicSub?.id || createdSubnets[0]?.id,
+          privateSubnetId: createdSubnets.find(s => !s.isPublic)?.id || null,
+          subnets: createdSubnets,
+          securityGroupId: sgId,
+          securityGroupIds: [sgId],
+          routeTableId: rtId,
           internetGatewayId: igwId,
           region,
           state: "available",
@@ -98,145 +271,88 @@ Deno.serve(async (req) => {
       }
 
       case "deleteNetwork": {
-        const { vpc_id, region = "us-east-1" } = params;
+        const { vpc_id } = params;
+        try {
+          // Find and delete IGWs
+          let xml = await ec2Call("DescribeInternetGateways", { Filter: [{ Name: "attachment.vpc-id", Value: [vpc_id] }] }, region);
+          const igwMatches = [...xml.matchAll(/<internetGatewayId>([^<]+)<\/internetGatewayId>/g)];
+          for (const m of igwMatches) {
+            await ec2Call("DetachInternetGateway", { InternetGatewayId: m[1], VpcId: vpc_id }, region).catch(() => {});
+            await ec2Call("DeleteInternetGateway", { InternetGatewayId: m[1] }, region).catch(() => {});
+          }
 
-        // Simulated VPC deletion
-        return Response.json({
-          success: true,
-          vpcId: vpc_id,
-          previousState: "available",
-          currentState: "deleting",
-        });
-      }
+          // Delete subnets
+          xml = await ec2Call("DescribeSubnets", { Filter: [{ Name: "vpc-id", Value: [vpc_id] }] }, region);
+          for (const m of xml.matchAll(/<subnetId>([^<]+)<\/subnetId>/g)) {
+            await ec2Call("DeleteSubnet", { SubnetId: m[1] }, region).catch(() => {});
+          }
 
-      case "createStorage": {
-        const { lab_id, size_gb = 20, region = "us-east-1" } = params;
+          // Delete non-default security groups
+          xml = await ec2Call("DescribeSecurityGroups", { Filter: [{ Name: "vpc-id", Value: [vpc_id] }] }, region);
+          for (const m of xml.matchAll(/<groupId>([^<]+)<\/groupId>/g)) {
+            await ec2Call("DeleteSecurityGroup", { GroupId: m[1] }, region).catch(() => {});
+          }
 
-        // Simulated EBS volume creation
-        const volumeId = `vol-${Date.now().toString(16)}`;
+          // Delete non-main route tables
+          xml = await ec2Call("DescribeRouteTables", { Filter: [{ Name: "vpc-id", Value: [vpc_id] }] }, region);
+          for (const m of xml.matchAll(/<routeTableId>([^<]+)<\/routeTableId>/g)) {
+            await ec2Call("DeleteRouteTable", { RouteTableId: m[1] }, region).catch(() => {});
+          }
 
-        return Response.json({
-          volumeId,
-          sizeGb: size_gb,
-          region,
-          state: "creating",
-          volumeType: "gp3",
-        });
-      }
-
-      case "deleteStorage": {
-        const { volume_id } = params;
-
-        return Response.json({
-          success: true,
-          volumeId: volume_id,
-          previousState: "in-use",
-          currentState: "deleting",
-        });
-      }
-
-      case "assignPublicIP": {
-        const { instance_id } = params;
-
-        const publicIp = `54.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
-
-        return Response.json({
-          success: true,
-          instanceId: instance_id,
-          publicIp,
-          allocationId: `eipalloc-${Date.now().toString(16)}`,
-        });
-      }
-
-      case "removePublicIP": {
-        const { instance_id } = params;
-
-        return Response.json({
-          success: true,
-          instanceId: instance_id,
-          previousPublicIp: "54.x.x.x",
-        });
-      }
-
-      case "createVPN": {
-        const { vpc_id, customer_gateway_ip, region = "us-east-1" } = params;
-
-        const vpnId = `vpn-${Date.now().toString(16)}`;
-        const cgwId = `cgw-${Date.now().toString(16)}`;
-
-        return Response.json({
-          vpnId,
-          customerGatewayId: cgwId,
-          vpcId: vpc_id,
-          state: "pending",
-          tunnelOptions: [
-            { outsideIpAddress: `3.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}` },
-            { outsideIpAddress: `3.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}` },
-          ],
-        });
-      }
-
-      case "deleteVPN": {
-        const { vpn_id } = params;
-
-        return Response.json({
-          success: true,
-          vpnId: vpn_id,
-          previousState: "available",
-          currentState: "deleting",
-        });
-      }
-
-      case "createSecurityGroup": {
-        const { vpc_id, name, description, region = "us-east-1" } = params;
-
-        const sgId = `sg-${Date.now().toString(16)}`;
-
-        return Response.json({
-          securityGroupId: sgId,
-          name,
-          description,
-          vpcId: vpc_id,
-          inboundRules: [
-            { protocol: "tcp", port: 22, source: "0.0.0.0/0", description: "SSH" },
-            { protocol: "tcp", port: 443, source: "0.0.0.0/0", description: "HTTPS" },
-          ],
-          outboundRules: [
-            { protocol: "-1", port: "-1", destination: "0.0.0.0/0", description: "All traffic" },
-          ],
-        });
+          await ec2Call("DeleteVpc", { VpcId: vpc_id }, region);
+          return Response.json({ success: true, vpcId: vpc_id, status: "deleted" });
+        } catch (err) {
+          return Response.json({ success: false, vpcId: vpc_id, error: err.message }, { status: 500 });
+        }
       }
 
       case "getInstanceStatus": {
-        const { instance_id, region = "us-east-1" } = params;
-
+        const { instance_id } = params;
+        const xml = await ec2Call("DescribeInstances", { InstanceId: [instance_id] }, region);
+        const stateMatch = xml.match(/<name>([^<]+)<\/name>/);
+        const ipMatch = xml.match(/<ipAddress>([^<]+)<\/ipAddress>/);
+        const privIpMatch = xml.match(/<privateIpAddress>([^<]+)<\/privateIpAddress>/);
         return Response.json({
           instanceId: instance_id,
-          state: "running",
-          publicIp: `54.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
-          privateIp: `10.0.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
-          instanceType: "t3.medium",
-          launchTime: new Date().toISOString(),
-          cpuUtilization: Math.floor(Math.random() * 50),
-          networkIn: Math.floor(Math.random() * 1000000),
-          networkOut: Math.floor(Math.random() * 500000),
+          state: stateMatch?.[1] || "unknown",
+          publicIp: ipMatch?.[1] || null,
+          privateIp: privIpMatch?.[1] || null,
+          region,
         });
       }
 
       case "listInstances": {
-        const { region = "us-east-1" } = params;
+        const { lab_id } = params;
+        const filters = lab_id
+          ? [{ Name: "tag:LabId", Value: [lab_id] }]
+          : [{ Name: "tag:ManagedBy", Value: ["XtremeICE-LiveFire"] }];
 
-        return Response.json({
-          region,
-          instances: [],
-          totalCount: 0,
-        });
+        const xml = await ec2Call("DescribeInstances", { Filter: filters }, region);
+        const instances = [];
+        const reservationBlocks = xml.split("</reservationSet>")[0]?.split("<item>") || [];
+        for (let i = 1; i < reservationBlocks.length; i++) {
+          const block = reservationBlocks[i];
+          const idMatch = block.match(/<instanceId>([^<]+)<\/instanceId>/);
+          const stateMatch = block.match(/<name>([^<]+)<\/name>/);
+          const ipMatch = block.match(/<ipAddress>([^<]+)<\/ipAddress>/);
+          const privMatch = block.match(/<privateIpAddress>([^<]+)<\/privateIpAddress>/);
+          if (idMatch && stateMatch?.[1] !== "terminated") {
+            instances.push({
+              instanceId: idMatch[1],
+              state: stateMatch[1],
+              publicIp: ipMatch?.[1] || null,
+              privateIp: privMatch?.[1] || null,
+            });
+          }
+        }
+        return Response.json({ region, instances, totalCount: instances.length });
       }
 
       default:
-        return Response.json({ error: `Unknown AWS action: ${action}` }, { status: 400 });
+        return Response.json({ error: `Unknown action: ${action}` }, { status: 400 });
     }
   } catch (error) {
+    console.error("AWS Provider Error:", error.message);
     return Response.json({ error: error.message }, { status: 500 });
   }
 });
