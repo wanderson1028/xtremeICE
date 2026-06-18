@@ -47,18 +47,60 @@ export default function RunningLabs() {
     refetchInterval: 15000,
   });
 
-  const { data: networksData, isLoading: networksLoading, refetch: refetchNetworks } = useQuery({
+  // Fetch deployments (saved VPCs from DB) — always available
+  const { data: deployments = [] } = useQuery({
+    queryKey: ["livefire-deployments-vpc"],
+    queryFn: () => base44.entities.LiveFireDeployment.list("-updated_date", 50),
+    refetchInterval: 15000,
+  });
+
+  // Live AWS VPC scan (may fail if region/creds mismatch)
+  const { data: liveVpcs = [], isLoading: networksLoading, refetch: refetchNetworks } = useQuery({
     queryKey: ["livefire-networks"],
     queryFn: async () => {
-      const res = await base44.functions.invoke("cloudProviderAWS", {
-        action: "listNetworks",
-        params: {},
-      });
-      return res.data?.vpcs || [];
+      try {
+        const res = await base44.functions.invoke("cloudProviderAWS", {
+          action: "listNetworks",
+          params: {},
+        });
+        return (res.data?.vpcs || []).map(v => ({ ...v, source: "aws" }));
+      } catch {
+        return [];
+      }
     },
     refetchInterval: 30000,
     enabled: activeTab === "networks",
   });
+
+  // Merge deployed VPCs from DB with live AWS results
+  const networksData = (() => {
+    const seen = new Set();
+    const merged = [];
+    // Add DB deployments with VPC IDs
+    for (const dep of deployments) {
+      if (dep.vpc_id && !seen.has(dep.vpc_id)) {
+        seen.add(dep.vpc_id);
+        merged.push({
+          vpcId: dep.vpc_id,
+          cidrBlock: dep.vpc_cidr || "—",
+          state: dep.status === "running" ? "available" : dep.status,
+          name: dep.vpc_id,
+          labId: dep.lab_id,
+          source: "deployment",
+          deploymentId: dep.id,
+          region: dep.region,
+        });
+      }
+    }
+    // Add live AWS VPCs not already in DB
+    for (const v of liveVpcs) {
+      if (!seen.has(v.vpcId)) {
+        seen.add(v.vpcId);
+        merged.push(v);
+      }
+    }
+    return merged;
+  })();
 
   const deleteNetworkMutation = useMutation({
     mutationFn: async (vpcId) => {
@@ -358,7 +400,17 @@ export default function RunningLabs() {
         {/* Networks Tab Content */}
         {activeTab === "networks" && (
           <div className="space-y-4">
-            {networksLoading ? (
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-gray-500 font-mono">
+                {networksData.length} network{networksData.length !== 1 ? "s" : ""} found
+                {liveVpcs.length > 0 && <span className="text-green-500 ml-1">({liveVpcs.length} live)</span>}
+              </p>
+              <button onClick={() => { refetchNetworks(); queryClient.invalidateQueries(["livefire-deployments-vpc"]); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 border border-gray-700 text-gray-400 hover:text-white rounded-lg text-[10px] font-mono transition-colors">
+                <RefreshCw className="h-3 w-3" /> Refresh
+              </button>
+            </div>
+            {networksLoading && liveVpcs.length === 0 ? (
               <div className="flex justify-center py-20">
                 <div className="w-8 h-8 border-2 border-cyan-600/30 border-t-cyan-500 rounded-full animate-spin" />
               </div>
@@ -375,10 +427,15 @@ export default function RunningLabs() {
                     <div className="flex items-center gap-3">
                       <div className={`h-3 w-3 rounded-full ${vpc.state === "available" ? "bg-green-500 animate-pulse" : "bg-yellow-500"}`} />
                       <div>
-                        <h3 className="text-sm font-bold text-white">{vpc.name}</h3>
+                        <h3 className="text-sm font-bold text-white">
+                          {vpc.name}
+                          {vpc.source === "aws" && <span className="ml-2 text-[9px] font-mono text-green-500 bg-green-900/20 px-1.5 py-0.5 rounded">LIVE</span>}
+                          {vpc.source === "deployment" && <span className="ml-2 text-[9px] font-mono text-blue-400 bg-blue-900/20 px-1.5 py-0.5 rounded">SAVED</span>}
+                        </h3>
                         <p className="text-[10px] font-mono text-gray-500">
                           {vpc.vpcId} · {vpc.cidrBlock} · {vpc.state}
-                          {vpc.labId && <span className="ml-2 text-cyan-400">· Lab: {vpc.labId}</span>}
+                          {vpc.region && <span className="ml-1">· {vpc.region}</span>}
+                          {vpc.labId && vpc.labId !== "standalone" && <span className="ml-2 text-cyan-400">· Lab: {vpc.labId}</span>}
                         </p>
                       </div>
                     </div>
