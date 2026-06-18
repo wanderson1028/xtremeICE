@@ -28,6 +28,7 @@ export default function RunningLabs() {
   const [deletingNetworks, setDeletingNetworks] = useState(new Set());
   const [saveDialogOpen, setSaveDialogOpen] = useState(null);
   const [savingNetworks, setSavingNetworks] = useState(new Set());
+  const [selectedRegion, setSelectedRegion] = useState("us-west-2");
 
   const { data: labs = [], isLoading } = useQuery({
     queryKey: ["running-livefire-labs"],
@@ -61,7 +62,7 @@ export default function RunningLabs() {
       try {
         const res = await base44.functions.invoke("cloudProviderAWS", {
           action: "listNetworks",
-          params: {},
+          params: { region: selectedRegion },
         });
         return (res.data?.vpcs || []).map(v => ({ ...v, source: "aws" }));
       } catch {
@@ -107,7 +108,7 @@ export default function RunningLabs() {
       setDeletingNetworks(prev => new Set([...prev, vpcId]));
       const res = await base44.functions.invoke("cloudProviderAWS", {
         action: "deleteNetwork",
-        params: { vpc_id: vpcId },
+        params: { vpc_id: vpcId, region: selectedRegion },
       });
       return res.data;
     },
@@ -213,7 +214,16 @@ export default function RunningLabs() {
             <p className="text-sm text-gray-400 font-mono">Active cloud deployments and live devices</p>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => { queryClient.invalidateQueries(["running-livefire-labs"]); queryClient.invalidateQueries(["running-devices"]); }}
+            <select
+              value={selectedRegion}
+              onChange={(e) => setSelectedRegion(e.target.value)}
+              className="text-xs font-mono bg-gray-800 border border-gray-700 text-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-red-700/50"
+            >
+              {["us-east-1", "us-east-2", "us-west-1", "us-west-2", "eu-west-1", "eu-central-1", "ap-southeast-1", "ap-northeast-1"].map(r => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+            <button onClick={() => { queryClient.invalidateQueries(["running-livefire-labs"]); queryClient.invalidateQueries(["running-devices"]); refetchNetworks(); }}
               className="p-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-400 hover:text-white transition-colors">
               <RefreshCw className="h-4 w-4" />
             </button>
