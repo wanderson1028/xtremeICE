@@ -69,7 +69,7 @@ export default function MyLabs() {
         difficulty: "Intermediate",
         visibility: "private",
         status: "draft",
-        topology_data: { devices: [], connections: [], vpcConfig: { cidr: "10.1.0.0/16", subnets: [{ name: "public", cidr: "10.1.1.0/24", zone: "us-west-2a" }, { name: "private", cidr: "10.1.2.0/24", zone: "us-west-2b" }], securityGroups: [{ name: "lab-sg", description: "Default lab security group", rules: [{ protocol: "tcp", port: 22, source: "0.0.0.0/0", desc: "SSH" }, { protocol: "tcp", port: 443, source: "0.0.0.0/0", desc: "HTTPS" }] }], enableInternetGateway: true } },
+        topology_data: { devices: [], connections: [] },
         device_count: 0,
       });
     },
@@ -99,10 +99,10 @@ export default function MyLabs() {
           </div>
           <button
             onClick={() => createMutation.mutate()}
-            disabled={createMutation.isLoading}
+            disabled={createMutation.isPending}
             className="flex items-center gap-2 px-4 py-2 bg-red-700 hover:bg-red-600 disabled:bg-red-800 disabled:cursor-wait text-white rounded-lg font-mono text-sm font-bold transition-colors shadow-lg shadow-red-900/30 min-w-[110px] justify-center"
           >
-            {createMutation.isLoading ? (
+            {createMutation.isPending ? (
               <><Loader2 className="h-4 w-4 animate-spin" /> Creating...</>
             ) : (
               <><Plus className="h-4 w-4" /> New Lab</>
@@ -147,10 +147,10 @@ export default function MyLabs() {
             <p className="text-gray-500 font-mono text-sm mb-4">No labs found</p>
             <button
               onClick={() => createMutation.mutate()}
-              disabled={createMutation.isLoading}
+              disabled={createMutation.isPending}
               className="inline-flex items-center gap-2 px-4 py-2 bg-red-700 hover:bg-red-600 disabled:bg-red-800 disabled:cursor-wait text-white rounded-lg font-mono text-sm font-bold transition-colors shadow-lg shadow-red-900/30 min-w-[140px] justify-center"
             >
-              {createMutation.isLoading ? (
+              {createMutation.isPending ? (
                 <><Loader2 className="h-4 w-4 animate-spin" /> Creating...</>
               ) : (
                 <><Plus className="h-4 w-4" /> Create First Lab</>

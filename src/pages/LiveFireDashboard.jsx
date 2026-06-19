@@ -96,7 +96,7 @@ export default function LiveFireDashboard() {
         difficulty: "Intermediate",
         visibility: "private",
         status: "draft",
-        topology_data: { devices: [], connections: [], vpcConfig: { cidr: "10.1.0.0/16", subnets: [{ name: "public", cidr: "10.1.1.0/24", zone: "us-west-2a" }, { name: "private", cidr: "10.1.2.0/24", zone: "us-west-2b" }], securityGroups: [{ name: "lab-sg", description: "Default lab security group", rules: [{ protocol: "tcp", port: 22, source: "0.0.0.0/0", desc: "SSH" }, { protocol: "tcp", port: 443, source: "0.0.0.0/0", desc: "HTTPS" }] }], enableInternetGateway: true } },
+        topology_data: { devices: [], connections: [] },
         device_count: 0,
       });
     },
@@ -138,10 +138,10 @@ export default function LiveFireDashboard() {
           </div>
           <button
             onClick={() => createMutation.mutate()}
-            disabled={createMutation.isLoading}
+            disabled={createMutation.isPending}
             className="flex items-center gap-2 px-4 py-2.5 bg-red-700 hover:bg-red-600 disabled:bg-red-800 disabled:cursor-wait text-white rounded-xl font-mono text-sm font-bold transition-colors shadow-lg shadow-red-900/30 min-w-[120px] justify-center"
           >
-            {createMutation.isLoading ? (
+            {createMutation.isPending ? (
               <><Loader2 className="h-4 w-4 animate-spin" /> Creating...</>
             ) : (
               <><Plus className="h-4 w-4" /> New Lab</>
@@ -269,7 +269,7 @@ export default function LiveFireDashboard() {
               </h2>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { label: "New Lab", icon: Plus, action: () => createMutation.mutate(), color: "red", loading: createMutation.isLoading },
+                  { label: "New Lab", icon: Plus, action: () => createMutation.mutate(), color: "red", loading: createMutation.isPending },
                   { label: "Templates", icon: BookOpen, path: "/lf-templates", color: "blue" },
                   { label: "Running Labs", icon: Activity, path: "/running-labs", color: "green" },
                   { label: "Images", icon: HardDrive, path: "/image-repository", color: "purple" },
