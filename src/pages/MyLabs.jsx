@@ -130,9 +130,9 @@ export default function MyLabs() {
   const handleDeployClose = () => {
     const deployment = activeDeployment;
     setActiveDeployment(null);
-    // If success, navigate to wizard
+    // If success, navigate to live topology view
     if (deployment?.deployState === "success") {
-      navigate(`/lab-creation-wizard?lab=${deployment.lab.id}`);
+      navigate(`/live-lab-topology?lab=${deployment.lab.id}`);
     }
   };
 
@@ -252,7 +252,13 @@ export default function MyLabs() {
               <div
                 key={lab.id}
                 className="bg-gray-900/80 border border-red-900/30 hover:border-red-500/30 rounded-xl overflow-hidden transition-all group cursor-pointer"
-                onClick={() => navigate(`/lab-creation-wizard?lab=${lab.id}`)}
+                onClick={() => {
+                  if (lab.status === "running" || lab.status === "deploying") {
+                    navigate(`/live-lab-topology?lab=${lab.id}`);
+                  } else {
+                    navigate(`/lab-creation-wizard?lab=${lab.id}`);
+                  }
+                }}
               >
                 {/* Top bar */}
                 <div className={`h-1.5 bg-gradient-to-r ${lab.status === "deploying" ? "from-yellow-600 to-yellow-400 animate-pulse" : lab.status === "running" ? "from-green-600 to-green-400" : lab.status === "failed" ? "from-red-600 to-red-400" : "from-red-700 to-orange-600"}`} />

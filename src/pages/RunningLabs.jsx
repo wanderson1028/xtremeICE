@@ -307,8 +307,8 @@ export default function RunningLabs() {
                       }`}>
                         {lab.status}
                       </span>
-                      <button onClick={(e) => { e.stopPropagation(); navigate(`/lab-creation-wizard?lab=${lab.id}`); }}
-                        className="p-1.5 rounded-lg bg-gray-800 border border-gray-700 text-gray-400 hover:text-cyan-400 hover:border-cyan-700/40 transition-colors" title="Edit topology">
+                      <button onClick={(e) => { e.stopPropagation(); navigate(`/live-lab-topology?lab=${lab.id}`); }}
+                        className="p-1.5 rounded-lg bg-gray-800 border border-gray-700 text-gray-400 hover:text-cyan-400 hover:border-cyan-700/40 transition-colors" title="View live topology">
                         <BarChart3 className="h-3.5 w-3.5" />
                       </button>
                       {confirmTerminate === lab.id ? (
