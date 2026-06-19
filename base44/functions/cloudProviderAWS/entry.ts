@@ -305,11 +305,18 @@ Deno.serve(async (req) => {
         const igwId = xml.match(/<internetGatewayId>([^<]+)<\/internetGatewayId>/)?.[1] || "";
         await ec2Call("AttachInternetGateway", { InternetGatewayId: igwId, VpcId: vpcId }, region);
 
-        // Step 3: Create Subnets
-        const subs = subnet_configs.length > 0 ? subnet_configs : [
-          { name: "public", cidr: "10.0.1.0/24", zone: `${region}a` },
-          { name: "private", cidr: "10.0.2.0/24", zone: `${region}b` },
-        ];
+        // Step 3: Create Subnets — derive subnet CIDRs from VPC CIDR
+        const deriveSubnets = (vpcCidr) => {
+          const parts = vpcCidr.split("/");
+          const ipParts = parts[0].split(".").map(Number);
+          // Replace the 3rd octet for /16 VPCs, 3rd-4th for others
+          const prefix = `${ipParts[0]}.${ipParts[1]}`;
+          return [
+            { name: "public", cidr: `${prefix}.1.0/24`, zone: `${region}a` },
+            { name: "private", cidr: `${prefix}.2.0/24`, zone: `${region}b` },
+          ];
+        };
+        const subs = subnet_configs.length > 0 ? subnet_configs : deriveSubnets(vpc_cidr);
         const createdSubnets = [];
         for (const s of subs) {
           xml = await ec2Call("CreateSubnet", { VpcId: vpcId, CidrBlock: s.cidr, AvailabilityZone: s.zone }, region);
