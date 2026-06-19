@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
 
         // Deploy VPC and network infrastructure using topology's VPC config
         const vpcConfig = topology_data?.vpcConfig || {};
-        const deployRegion = lab.region || "us-west-2";
+        const deployRegion = lab.region || "us-east-1";
         const deployCidr = vpcConfig.cidr || "10.1.0.0/16";
 
         // Pre-flight CIDR conflict check — auto-resolve if conflict
