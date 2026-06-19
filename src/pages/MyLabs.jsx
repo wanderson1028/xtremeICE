@@ -34,6 +34,7 @@ export default function MyLabs() {
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
+  const [creating, setCreating] = useState(false);
 
   const { data: currentUser } = useQuery({
     queryKey: ["me"],
@@ -58,10 +59,11 @@ export default function MyLabs() {
     onSuccess: () => queryClient.invalidateQueries(["my-livefire-labs"]),
   });
 
-  const createMutation = useMutation({
-    mutationFn: async () => {
+  const handleCreateLab = async () => {
+    setCreating(true);
+    try {
       const count = labs.length + 1;
-      return base44.entities.LiveFireLab.create({
+      const newLab = await base44.entities.LiveFireLab.create({
         name: `New Lab ${count}`,
         cloud_provider: "aws",
         region: "us-west-2",
@@ -72,12 +74,12 @@ export default function MyLabs() {
         topology_data: { devices: [], connections: [] },
         device_count: 0,
       });
-    },
-    onSuccess: (newLab) => {
       queryClient.invalidateQueries(["my-livefire-labs"]);
       navigate(`/lab-creation-wizard?lab=${newLab.id}`);
-    },
-  });
+    } catch (err) {
+      setCreating(false);
+    }
+  };
 
   const filtered = labs.filter(l => {
     if (filter !== "all" && l.status !== filter) return false;
@@ -98,11 +100,11 @@ export default function MyLabs() {
             <p className="text-sm text-gray-400 font-mono">Manage your cloud cyber range labs</p>
           </div>
           <button
-            onClick={() => createMutation.mutate()}
-            disabled={createMutation.isPending}
+            onClick={handleCreateLab}
+            disabled={creating}
             className="flex items-center gap-2 px-4 py-2 bg-red-700 hover:bg-red-600 disabled:bg-red-800 disabled:cursor-wait text-white rounded-lg font-mono text-sm font-bold transition-colors shadow-lg shadow-red-900/30 min-w-[110px] justify-center"
           >
-            {createMutation.isPending ? (
+            {creating ? (
               <><Loader2 className="h-4 w-4 animate-spin" /> Creating...</>
             ) : (
               <><Plus className="h-4 w-4" /> New Lab</>
@@ -146,11 +148,11 @@ export default function MyLabs() {
             <Layers className="h-12 w-12 text-gray-700 mx-auto mb-4" />
             <p className="text-gray-500 font-mono text-sm mb-4">No labs found</p>
             <button
-              onClick={() => createMutation.mutate()}
-              disabled={createMutation.isPending}
+              onClick={handleCreateLab}
+              disabled={creating}
               className="inline-flex items-center gap-2 px-4 py-2 bg-red-700 hover:bg-red-600 disabled:bg-red-800 disabled:cursor-wait text-white rounded-lg font-mono text-sm font-bold transition-colors shadow-lg shadow-red-900/30 min-w-[140px] justify-center"
             >
-              {createMutation.isPending ? (
+              {creating ? (
                 <><Loader2 className="h-4 w-4 animate-spin" /> Creating...</>
               ) : (
                 <><Plus className="h-4 w-4" /> Create First Lab</>

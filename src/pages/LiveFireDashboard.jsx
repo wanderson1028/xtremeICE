@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Link, useNavigate } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Flame, Activity, Server, Cloud, DollarSign, Users, Clock,
   BookOpen, MessageSquare, Plus, TrendingUp, Zap, Shield,
@@ -56,6 +56,9 @@ function ActivityItem({ icon: Icon, text, time, color = "gray" }) {
 
 export default function LiveFireDashboard() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [creating, setCreating] = useState(false);
+
   const { data: currentUser } = useQuery({
     queryKey: ["me"],
     queryFn: () => base44.auth.me(),
@@ -84,11 +87,11 @@ export default function LiveFireDashboard() {
   const estCost = activeLabs.reduce((sum, l) => sum + (l.estimated_cost_hourly || 0), 0);
   const sharedLabs = myLabs.filter(l => l.visibility === "shared" || l.visibility === "public");
 
-  const queryClient = useQueryClient();
-  const createMutation = useMutation({
-    mutationFn: async () => {
+  const handleCreateLab = async () => {
+    setCreating(true);
+    try {
       const count = myLabs.length + 1;
-      return base44.entities.LiveFireLab.create({
+      const newLab = await base44.entities.LiveFireLab.create({
         name: `New Lab ${count}`,
         cloud_provider: "aws",
         region: "us-west-2",
@@ -99,12 +102,12 @@ export default function LiveFireDashboard() {
         topology_data: { devices: [], connections: [] },
         device_count: 0,
       });
-    },
-    onSuccess: (newLab) => {
       queryClient.invalidateQueries(["livefire-labs"]);
       navigate(`/lab-creation-wizard?lab=${newLab.id}`);
-    },
-  });
+    } catch (err) {
+      setCreating(false);
+    }
+  };
 
   const recentActivity = myLabs.slice(0, 8).map(l => ({
     icon: l.status === "running" ? Activity : l.status === "draft" ? BookOpen : Server,
@@ -137,11 +140,11 @@ export default function LiveFireDashboard() {
             </div>
           </div>
           <button
-            onClick={() => createMutation.mutate()}
-            disabled={createMutation.isPending}
+            onClick={handleCreateLab}
+            disabled={creating}
             className="flex items-center gap-2 px-4 py-2.5 bg-red-700 hover:bg-red-600 disabled:bg-red-800 disabled:cursor-wait text-white rounded-xl font-mono text-sm font-bold transition-colors shadow-lg shadow-red-900/30 min-w-[120px] justify-center"
           >
-            {createMutation.isPending ? (
+            {creating ? (
               <><Loader2 className="h-4 w-4 animate-spin" /> Creating...</>
             ) : (
               <><Plus className="h-4 w-4" /> New Lab</>
@@ -269,7 +272,7 @@ export default function LiveFireDashboard() {
               </h2>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { label: "New Lab", icon: Plus, action: () => createMutation.mutate(), color: "red", loading: createMutation.isPending },
+                  { label: "New Lab", icon: Plus, action: handleCreateLab, color: "red", loading: creating },
                   { label: "Templates", icon: BookOpen, path: "/lf-templates", color: "blue" },
                   { label: "Running Labs", icon: Activity, path: "/running-labs", color: "green" },
                   { label: "Images", icon: HardDrive, path: "/image-repository", color: "purple" },
