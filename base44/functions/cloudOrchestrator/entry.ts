@@ -75,31 +75,23 @@ Deno.serve(async (req) => {
         const deployRegion = lab.region || "us-west-2";
         const deployCidr = vpcConfig.cidr || "10.1.0.0/16";
 
-        // Pre-flight CIDR conflict check
+        // Pre-flight CIDR conflict check — auto-resolve if conflict
         const cidrCheck = await base44.asServiceRole.functions.invoke("cloudProviderAWS", {
           action: "suggestCidr",
           params: { proposed_cidr: deployCidr, region: deployRegion },
         });
         const cidrCheckData = cidrCheck?.data || cidrCheck;
+        let effectiveCidr = deployCidr;
         if (cidrCheckData?.check?.conflict) {
-          // Update lab status to failed with reason
-          await base44.asServiceRole.entities.LiveFireLab.update(lab_id, { status: "failed" });
-          await base44.asServiceRole.entities.LiveFireDeployment.update(deployment.id, {
-            status: "failed",
-            error_message: `CIDR ${deployCidr} conflicts with existing VPCs in ${deployRegion}. Suggested: ${cidrCheckData.suggested_cidr}`,
-          });
-          return Response.json({
-            error: "CIDR_CONFLICT",
-            message: `CIDR ${deployCidr} conflicts with existing VPCs. Suggested: ${cidrCheckData.suggested_cidr}`,
-            suggested_cidr: cidrCheckData.suggested_cidr,
-          }, { status: 409 });
+          effectiveCidr = cidrCheckData.suggested_cidr || "10.100.0.0/16";
+          console.log(`CIDR ${deployCidr} conflicts — auto-selected ${effectiveCidr}`);
         }
 
         const networkResult = await base44.asServiceRole.functions.invoke("cloudProviderAWS", {
           action: "createNetwork",
           params: {
             lab_id,
-            vpc_cidr: vpcConfig.cidr || "10.0.0.0/16",
+            vpc_cidr: effectiveCidr,
             subnet_configs: vpcConfig.subnets || [],
             region: lab.region || "us-east-1",
           },
@@ -203,6 +195,8 @@ Deno.serve(async (req) => {
           deployment_id: deployment.id,
           devices_deployed: deployedDevices.length,
           vpc_id: networkData?.vpcId,
+          vpc_cidr: effectiveCidr,
+          cidr_auto_resolved: effectiveCidr !== deployCidr,
           subnet_ids: networkData?.subnets,
           security_group_id: networkData?.securityGroupId,
           estimated_cost_hourly: deployedDevices.length * 0.15,

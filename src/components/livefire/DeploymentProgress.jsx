@@ -193,7 +193,18 @@ export default function DeploymentProgress({ lab, deployState, deployResult, dep
               <p className="text-[9px] font-mono text-green-400 uppercase tracking-wider mb-2">Deployment Summary</p>
               <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
                 {deployResult.vpc_id && (
-                  <div><span className="text-gray-500">VPC:</span> <span className="text-green-300">{deployResult.vpc_id}</span></div>
+                  <div><span className="text-gray-500">VPC:</span> <span className="text-green-300 truncate">{deployResult.vpc_id}</span></div>
+                )}
+                {deployResult.vpc_cidr && (
+                  <div>
+                    <span className="text-gray-500">CIDR:</span>{" "}
+                    <span className={`${deployResult.cidr_auto_resolved ? "text-yellow-300" : "text-green-300"}`}>
+                      {deployResult.vpc_cidr}
+                    </span>
+                    {deployResult.cidr_auto_resolved && (
+                      <span className="text-yellow-600 ml-1">(auto)</span>
+                    )}
+                  </div>
                 )}
                 {deployResult.devices_deployed != null && (
                   <div><span className="text-gray-500">Devices:</span> <span className="text-green-300">{deployResult.devices_deployed}</span></div>
