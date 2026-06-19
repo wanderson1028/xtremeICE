@@ -9,6 +9,16 @@ import {
   DollarSign, X, Check, AlertTriangle, Settings, ShieldAlert,
   Link2, Unlink
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { getCostTier, COST_TIERS, checkLabDevices } from "@/lib/instanceTiers";
 
 const DEVICE_PALETTE = [
@@ -77,6 +87,8 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
   const [cidrSuggestion, setCidrSuggestion] = useState(null);
   const [cidrConflict, setCidrConflict] = useState(null);
   const [suggestingCidr, setSuggestingCidr] = useState(false);
+  const [confirmDeleteDevice, setConfirmDeleteDevice] = useState(null);
+  const [confirmClearCanvas, setConfirmClearCanvas] = useState(false);
   const canvasRef = useRef(null);
 
   const checkCidrConflict = async (cidr) => {
@@ -484,7 +496,7 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
               }`}>
               <Network className="h-3 w-3 inline mr-1" />VPC
             </button>
-            <button onClick={() => { onChange({ ...topology, devices: [] }); setSelectedDevice(null); setRightPanel(null); cancelConnection(); }}
+            <button onClick={() => setConfirmClearCanvas(true)}
               className="text-[10px] font-mono px-2 py-1 rounded border border-gray-700 text-gray-500 hover:text-red-400 transition-colors">Clear</button>
           </div>
 
@@ -588,8 +600,9 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                             </div>
 
                             {/* Delete button */}
-                            <button onClick={(e) => { e.stopPropagation(); removeDevice(device.id); }}
-                              className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-red-800/90 border border-red-600 text-red-300 hover:bg-red-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={(e) => { e.stopPropagation(); setConfirmDeleteDevice(device); }}
+                              className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-red-800/90 border border-red-600 text-red-300 hover:bg-red-700 flex items-center justify-center group-hover:opacity-100 transition-opacity"
+                              style={{ opacity: isSelected ? 1 : undefined }}>
                               <X className="h-2.5 w-2.5" />
                             </button>
                           </div>
@@ -848,6 +861,66 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
           </div>
         )}
       </div>
+
+      {/* Delete Device Confirmation */}
+      <AlertDialog open={!!confirmDeleteDevice} onOpenChange={(open) => { if (!open) setConfirmDeleteDevice(null); }}>
+        <AlertDialogContent className="bg-gray-900 border border-red-800/40 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white text-lg">Delete Device</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-400">
+              Are you sure you want to remove <span className="text-red-400 font-bold font-mono">{confirmDeleteDevice?.name}</span> from the topology?
+              {confirmDeleteDevice?.connections?.length > 0 && (
+                <span className="block mt-2 text-amber-400 font-mono text-xs">
+                  ⚠ {confirmDeleteDevice.connections.length} connection{confirmDeleteDevice.connections.length !== 1 ? "s" : ""} will also be removed.
+                </span>
+              )}
+              <span className="block mt-2">This action cannot be undone.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-700 hover:bg-red-600 text-white"
+              onClick={() => {
+                if (confirmDeleteDevice) {
+                  removeDevice(confirmDeleteDevice.id);
+                  setConfirmDeleteDevice(null);
+                }
+              }}
+            >
+              Remove Device
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Clear Canvas Confirmation */}
+      <AlertDialog open={confirmClearCanvas} onOpenChange={setConfirmClearCanvas}>
+        <AlertDialogContent className="bg-gray-900 border border-red-800/40 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white text-lg">Clear Canvas</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-400">
+              Are you sure you want to remove <span className="text-red-400 font-bold">{devices.length} device{devices.length !== 1 ? "s" : ""}</span> and all connections from the canvas?
+              <span className="block mt-2">This action cannot be undone.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-700 hover:bg-red-600 text-white"
+              onClick={() => {
+                onChange({ ...topology, devices: [] });
+                setSelectedDevice(null);
+                setRightPanel(null);
+                cancelConnection();
+                setConfirmClearCanvas(false);
+              }}
+            >
+              Clear All Devices
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DragDropContext>
   );
 }

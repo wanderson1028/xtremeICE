@@ -7,6 +7,16 @@ import {
   Trash2, Copy, Share2, Eye, Edit3, Cloud, Clock, Users,
   ArrowLeft, Flame, Download, Upload, Tag, Loader2, CheckCircle, XCircle
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import DeploymentProgress from "@/components/livefire/DeploymentProgress";
@@ -40,6 +50,7 @@ export default function MyLabs() {
   const [deployingLabs, setDeployingLabs] = useState(new Set());
   const [deployError, setDeployError] = useState(null);
   const [activeDeployment, setActiveDeployment] = useState(null); // { lab, state, result, errorMsg }
+  const [deleteConfirmLab, setDeleteConfirmLab] = useState(null); // lab object to confirm deletion
 
   const { data: currentUser } = useQuery({
     queryKey: ["me"],
@@ -329,7 +340,7 @@ export default function MyLabs() {
                       <Copy className="h-3 w-3" /> Clone
                     </button>
                     <button
-                      onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(lab.id); }}
+                      onClick={(e) => { e.stopPropagation(); setDeleteConfirmLab(lab); }}
                       className="flex items-center gap-1 px-2 py-1.5 bg-gray-800 border border-gray-700 text-gray-400 hover:text-red-400 rounded-lg text-[10px] font-mono transition-colors ml-auto"
                     >
                       <Trash2 className="h-3 w-3" />
@@ -352,6 +363,36 @@ export default function MyLabs() {
           onClose={handleDeployClose}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteConfirmLab} onOpenChange={(open) => { if (!open) setDeleteConfirmLab(null); }}>
+        <AlertDialogContent className="bg-gray-900 border border-red-800/40 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white text-lg">Delete Lab</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-400">
+              Are you sure you want to delete <span className="text-red-400 font-bold font-mono">{deleteConfirmLab?.name}</span>?
+              {deleteConfirmLab?.status === "running" && (
+                <span className="block mt-2 text-red-400 font-mono text-xs">⚠ This lab is currently running — its cloud resources will remain active and continue to incur costs unless terminated first.</span>
+              )}
+              <span className="block mt-2">This action cannot be undone.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-700 hover:bg-red-600 text-white"
+              onClick={() => {
+                if (deleteConfirmLab) {
+                  deleteMutation.mutate(deleteConfirmLab.id);
+                  setDeleteConfirmLab(null);
+                }
+              }}
+            >
+              Delete Permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

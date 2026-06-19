@@ -8,6 +8,16 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const CATEGORIES = [
   "CCNA", "CCNP", "CCIE", "Network+", "Security+",
@@ -21,6 +31,7 @@ export default function LFTemplates() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ["livefire-templates-all"],
@@ -162,7 +173,7 @@ export default function LFTemplates() {
                     </button>
                     {t.created_by_id === currentUser?.id && (
                       <button
-                        onClick={() => deleteMutation.mutate(t.id)}
+                        onClick={() => setDeleteConfirm(t)}
                         className="flex items-center gap-1 px-2 py-1.5 bg-gray-800 border border-gray-700 text-gray-400 hover:text-red-400 rounded-lg text-[10px] font-mono transition-colors"
                       >
                         <Trash2 className="h-3 w-3" />
@@ -175,6 +186,36 @@ export default function LFTemplates() {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}>
+        <AlertDialogContent className="bg-gray-900 border border-red-800/40 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white text-lg">Delete Template</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-400">
+              Are you sure you want to delete <span className="text-red-400 font-bold font-mono">{deleteConfirm?.name}</span>?
+              {deleteConfirm?.is_published && (
+                <span className="block mt-2 text-amber-400 font-mono text-xs">⚠ This template is published — anyone using it will lose access.</span>
+              )}
+              <span className="block mt-2">This action cannot be undone.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-700 hover:bg-red-600 text-white"
+              onClick={() => {
+                if (deleteConfirm) {
+                  deleteMutation.mutate(deleteConfirm.id);
+                  setDeleteConfirm(null);
+                }
+              }}
+            >
+              Delete Permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
