@@ -150,12 +150,26 @@ function extractTag(tags, key) {
   return null;
 }
 
+// Hardcoded default AMIs per region — used when DescribeImages isn't available
+// These are Amazon Linux 2023 AMIs. Update periodically.
+const DEFAULT_AMIS = {
+  "us-east-1": "ami-0df8c184d5f6ae949",
+  "us-east-2": "ami-0b8f5f2c5f9c3058f",
+  "us-west-1": "ami-0ec5329b1b08b0bf6",
+  "us-west-2": "ami-0cf2b4e0242b3d4c1",
+  "eu-west-1": "ami-0c1c30571d2dae5c9",
+  "eu-central-1": "ami-0e203247f3f3d418b",
+  "ap-southeast-1": "ami-0c802847a0f4ca68c",
+  "ap-northeast-1": "ami-0d9793a4b2e5d7ecb",
+};
+
 // Cache AMI per region to avoid repeated DescribeImages calls
 const amiCache = {};
 
 async function resolveAMI(region) {
   if (amiCache[region]) return amiCache[region];
 
+  // Try DescribeImages first — will fail if IAM lacks ec2:DescribeImages
   try {
     const xml = await ec2Call("DescribeImages", {
       Owner: ["amazon"],
@@ -167,7 +181,6 @@ async function resolveAMI(region) {
       ],
     }, region);
 
-    // Parse images sorted by creation date, pick latest
     const images = [];
     const itemRegex = /<item>([\s\S]*?)<\/item>/g;
     let match;
@@ -181,27 +194,18 @@ async function resolveAMI(region) {
     }
 
     images.sort((a, b) => b.creationDate.localeCompare(a.creationDate));
-    const amiId = images[0]?.imageId;
-
-    if (!amiId) {
-      // Fallback: try broader filter with "amzn2-ami-hvm-*-x86_64-gp2"
-      const fallbackXml = await ec2Call("DescribeImages", {
-        Owner: ["amazon"],
-        Filter: [
-          { Name: "name", Value: ["amzn2-ami-hvm-*-x86_64-gp2"] },
-          { Name: "state", Value: ["available"] },
-        ],
-      }, region);
-      const fbMatch = fallbackXml.match(/<imageId>([^<]+)<\/imageId>/);
-      amiCache[region] = fbMatch?.[1] || null;
-    } else {
-      amiCache[region] = amiId;
+    if (images[0]?.imageId) {
+      amiCache[region] = images[0].imageId;
+      return amiCache[region];
     }
-
-    return amiCache[region];
-  } catch {
-    return null;
+  } catch (err) {
+    console.log(`DescribeImages failed for ${region}: ${err.message}. Falling back to hardcoded AMI.`);
   }
+
+  // Fallback to hardcoded AMI per region
+  const defaultAmi = DEFAULT_AMIS[region] || DEFAULT_AMIS["us-east-1"];
+  amiCache[region] = defaultAmi;
+  return defaultAmi;
 }
 
 function selectInstanceType(cpu, ram) {
@@ -525,7 +529,20 @@ Deno.serve(async (req) => {
         ];
 
         const results = [];
+        let describeImagesAvailable = true;
+
+        // Try DescribeImages for the first filter — if it fails with AuthFailure,
+        // all subsequent calls will fail too, so skip and return hardcoded AMIs
         for (const group of filters) {
+          if (!describeImagesAvailable) {
+            results.push({
+              group: group.name,
+              owner: group.owner,
+              images: [{ imageId: DEFAULT_AMIS[region] || DEFAULT_AMIS["us-east-1"], description: "Default (DescribeImages unavailable)", architecture: "x86_64", creationDate: "N/A" }],
+              _fallback: true,
+            });
+            continue;
+          }
           try {
             const xml = await ec2Call("DescribeImages", {
               Owner: [group.owner],
@@ -554,7 +571,17 @@ Deno.serve(async (req) => {
             }
           } catch (e) {
             console.error(`Failed to list AMIs for ${group.name}:`, e.message);
-            results.push({ group: group.name, error: e.message });
+            if (e.message.includes("AuthFailure")) {
+              describeImagesAvailable = false;
+              results.push({
+                group: group.name,
+                owner: group.owner,
+                images: [{ imageId: DEFAULT_AMIS[region] || DEFAULT_AMIS["us-east-1"], description: "Default (permission issue)", architecture: "x86_64", creationDate: "N/A" }],
+                _fallback: true,
+              });
+            } else {
+              results.push({ group: group.name, error: e.message });
+            }
           }
         }
         return Response.json({ region, groups: results });
