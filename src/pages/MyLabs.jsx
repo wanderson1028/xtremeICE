@@ -35,13 +35,14 @@ export default function MyLabs() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState(null);
 
   const { data: currentUser } = useQuery({
     queryKey: ["me"],
     queryFn: () => base44.auth.me(),
   });
 
-  const { data: labs = [], isLoading } = useQuery({
+  const { data: labs = [], isLoading, refetch } = useQuery({
     queryKey: ["my-livefire-labs"],
     queryFn: () => base44.entities.LiveFireLab.list("-updated_date", 100),
   });
@@ -60,9 +61,11 @@ export default function MyLabs() {
   });
 
   const handleCreateLab = async () => {
+    if (creating) return;
     setCreating(true);
+    setCreateError(null);
     try {
-      const count = labs.length + 1;
+      const count = (labs.length || 0) + 1;
       const newLab = await base44.entities.LiveFireLab.create({
         name: `New Lab ${count}`,
         cloud_provider: "aws",
@@ -74,9 +77,9 @@ export default function MyLabs() {
         topology_data: { devices: [], connections: [] },
         device_count: 0,
       });
-      queryClient.invalidateQueries(["my-livefire-labs"]);
       navigate(`/lab-creation-wizard?lab=${newLab.id}`);
     } catch (err) {
+      setCreateError(err?.message || "Create lab failed");
       setCreating(false);
     }
   };
@@ -111,6 +114,14 @@ export default function MyLabs() {
             )}
           </button>
         </div>
+
+        {/* Error state */}
+        {createError && (
+          <div className="mb-4 p-3 bg-red-900/30 border border-red-700/50 rounded-lg flex items-center justify-between">
+            <span className="text-red-300 text-sm font-mono">{createError}</span>
+            <button onClick={() => setCreateError(null)} className="text-red-400 hover:text-red-300 text-lg leading-none">&times;</button>
+          </div>
+        )}
 
         {/* Filters */}
         <div className="flex items-center gap-3 mb-6 flex-wrap">
