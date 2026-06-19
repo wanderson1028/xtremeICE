@@ -334,7 +334,19 @@ Deno.serve(async (req) => {
         const subs = subnet_configs.length > 0 ? subnet_configs : deriveSubnets(vpc_cidr);
         const createdSubnets = [];
         for (const s of subs) {
-          xml = await ec2Call("CreateSubnet", { VpcId: vpcId, CidrBlock: s.cidr, AvailabilityZone: s.zone }, region);
+          try {
+            xml = await ec2Call("CreateSubnet", { VpcId: vpcId, CidrBlock: s.cidr, AvailabilityZone: s.zone }, region);
+          } catch (err) {
+            const awsMsg = err.message || String(err);
+            // Improve AWS error messages for common subnet failures
+            if (awsMsg.includes("InvalidSubnet.Range")) {
+              throw new Error(`Subnet CIDR ${s.cidr} is not within the VPC range ${vpc_cidr}. This can happen when the topology subnet CIDRs don't match the deployed VPC range. Rebuild the topology or try with a different VPC CIDR.`);
+            }
+            if (awsMsg.includes("InvalidSubnet.Conflict")) {
+              throw new Error(`Subnet CIDR ${s.cidr} conflicts with an existing subnet in VPC ${vpcId}. Choose a different CIDR range for this lab.`);
+            }
+            throw err;
+          }
           const sid = xml.match(/<subnetId>([^<]+)<\/subnetId>/)?.[1] || "";
           if (s.name === "public") {
             await ec2Call("ModifySubnetAttribute", { SubnetId: sid, MapPublicIpOnLaunch: { Value: "true" } }, region);

@@ -90,17 +90,38 @@ Deno.serve(async (req) => {
         }
         const cidrCheckData = cidrCheck?.data || cidrCheck;
         let effectiveCidr = deployCidr;
-        if (cidrCheckData?.check?.conflict) {
+        const cidrChanged = cidrCheckData?.check?.conflict;
+        if (cidrChanged) {
           effectiveCidr = cidrCheckData.suggested_cidr || "10.100.0.0/16";
           console.log(`CIDR ${deployCidr} conflicts — auto-selected ${effectiveCidr}`);
         }
 
-        // Fix subnet zones to match deployment region (topology may have different region zones)
-        const rawSubnets = vpcConfig.subnets || [];
-        const fixedSubnets = rawSubnets.map(s => ({
-          ...s,
-          zone: s.zone?.replace(/^[a-z]+-[a-z]+-\d+/, deployRegion) || `${deployRegion}a`,
-        }));
+        // Build subnet configs — when CIDR changed, derive fresh subnets from the new VPC range
+        // so subnets actually fall within the VPC (old subnets would be invalid)
+        let fixedSubnets = [];
+        if (cidrChanged) {
+          // Derive subnets from new CIDR — match the original subnet names/zones pattern
+          const parts = effectiveCidr.split("/")[0].split(".").map(Number);
+          const prefix = `${parts[0]}.${parts[1]}`;
+          const origSubnets = vpcConfig.subnets || [];
+          fixedSubnets = origSubnets.length > 0
+            ? origSubnets.map((s, i) => ({
+                name: s.name,
+                cidr: `${prefix}.${i + 1}.0/24`,
+                zone: `${deployRegion}${String.fromCharCode(97 + i)}`,
+              }))
+            : [
+                { name: "public", cidr: `${prefix}.1.0/24`, zone: `${deployRegion}a` },
+                { name: "private", cidr: `${prefix}.2.0/24`, zone: `${deployRegion}b` },
+              ];
+        } else {
+          // Fix subnet zones to match deployment region (topology may have different region zones)
+          const rawSubnets = vpcConfig.subnets || [];
+          fixedSubnets = rawSubnets.map(s => ({
+            ...s,
+            zone: s.zone?.replace(/^[a-z]+-[a-z]+-\d+/, deployRegion) || `${deployRegion}a`,
+          }));
+        }
 
         console.log("[deployLab] Step 2: createNetwork with cidr=" + effectiveCidr);
         let networkResult;
