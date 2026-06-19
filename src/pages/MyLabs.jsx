@@ -95,7 +95,18 @@ export default function MyLabs() {
         setActiveDeployment({ lab, deployState: "success", deployResult: res.data, deployErrorMsg: null });
       }
     } catch (err) {
-      const errMsg = err?.message || "Deployment failed";
+      // Extract human-readable message from Axios error (4xx/5xx responses have body in err.response.data)
+      const body = err?.response?.data;
+      let errMsg;
+      if (body?.error === "CIDR_CONFLICT") {
+        errMsg = `CIDR Conflict: ${body.message || "VPC address range overlaps with existing networks."}` + (body.suggested_cidr ? ` Try: ${body.suggested_cidr}` : "");
+      } else if (body?.message) {
+        errMsg = body.message;
+      } else if (body?.error) {
+        errMsg = body.error;
+      } else {
+        errMsg = err?.message || "Deployment failed";
+      }
       setDeployError(errMsg);
       try { await base44.entities.LiveFireLab.update(lab.id, { status: "failed" }); } catch {}
       setActiveDeployment({ lab, deployState: "error", deployResult: null, deployErrorMsg: errMsg });
