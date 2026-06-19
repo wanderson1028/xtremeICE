@@ -3,10 +3,11 @@ import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Link, useNavigate } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Flame, Activity, Server, Cloud, DollarSign, Users, Clock,
   BookOpen, MessageSquare, Plus, TrendingUp, Zap, Shield,
-  ArrowRight, Layers, Wifi, Monitor, HardDrive
+  ArrowRight, Layers, Wifi, Monitor, HardDrive, Loader2
 } from "lucide-react";
 
 function StatCard({ icon: Icon, label, value, sub, color = "red", trend }) {
@@ -83,6 +84,28 @@ export default function LiveFireDashboard() {
   const estCost = activeLabs.reduce((sum, l) => sum + (l.estimated_cost_hourly || 0), 0);
   const sharedLabs = myLabs.filter(l => l.visibility === "shared" || l.visibility === "public");
 
+  const queryClient = useQueryClient();
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const count = myLabs.length + 1;
+      return base44.entities.LiveFireLab.create({
+        name: `New Lab ${count}`,
+        cloud_provider: "aws",
+        region: "us-west-2",
+        category: "Custom",
+        difficulty: "Intermediate",
+        visibility: "private",
+        status: "draft",
+        topology_data: { devices: [], connections: [], vpcConfig: { cidr: "10.1.0.0/16", subnets: [{ name: "public", cidr: "10.1.1.0/24", zone: "us-west-2a" }, { name: "private", cidr: "10.1.2.0/24", zone: "us-west-2b" }], securityGroups: [{ name: "lab-sg", description: "Default lab security group", rules: [{ protocol: "tcp", port: 22, source: "0.0.0.0/0", desc: "SSH" }, { protocol: "tcp", port: 443, source: "0.0.0.0/0", desc: "HTTPS" }] }], enableInternetGateway: true } },
+        device_count: 0,
+      });
+    },
+    onSuccess: (newLab) => {
+      queryClient.invalidateQueries(["livefire-labs"]);
+      navigate(`/lab-creation-wizard?lab=${newLab.id}`);
+    },
+  });
+
   const recentActivity = myLabs.slice(0, 8).map(l => ({
     icon: l.status === "running" ? Activity : l.status === "draft" ? BookOpen : Server,
     text: `${l.status === "running" ? "Lab running" : l.status === "draft" ? "Draft created" : "Lab updated"}: ${l.name}`,
@@ -113,11 +136,17 @@ export default function LiveFireDashboard() {
               <p className="text-sm text-gray-400 font-mono">Cloud-Native Cyber Range & Network Emulation</p>
             </div>
           </div>
-          <Link to="/lab-creation-wizard"
-            className="flex items-center gap-2 px-4 py-2.5 bg-red-700 hover:bg-red-600 text-white rounded-xl font-mono text-sm font-bold transition-colors shadow-lg shadow-red-900/30 no-underline"
+          <button
+            onClick={() => createMutation.mutate()}
+            disabled={createMutation.isLoading}
+            className="flex items-center gap-2 px-4 py-2.5 bg-red-700 hover:bg-red-600 disabled:bg-red-800 disabled:cursor-wait text-white rounded-xl font-mono text-sm font-bold transition-colors shadow-lg shadow-red-900/30 min-w-[120px] justify-center"
           >
-            <Plus className="h-4 w-4" /> New Lab
-          </Link>
+            {createMutation.isLoading ? (
+              <><Loader2 className="h-4 w-4 animate-spin" /> Creating...</>
+            ) : (
+              <><Plus className="h-4 w-4" /> New Lab</>
+            )}
+          </button>
         </motion.div>
 
         {/* Stats Grid */}
@@ -240,18 +269,23 @@ export default function LiveFireDashboard() {
               </h2>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { label: "New Lab", icon: Plus, path: "/lab-creation-wizard", color: "red" },
+                  { label: "New Lab", icon: Plus, action: () => createMutation.mutate(), color: "red", loading: createMutation.isLoading },
                   { label: "Templates", icon: BookOpen, path: "/lf-templates", color: "blue" },
                   { label: "Running Labs", icon: Activity, path: "/running-labs", color: "green" },
                   { label: "Images", icon: HardDrive, path: "/image-repository", color: "purple" },
                 ].map((btn) => (
                   <button
                     key={btn.label}
-                    onClick={() => navigate(btn.path)}
-                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl bg-gray-800/60 border border-gray-700/50 hover:border-${btn.color}-700/50 hover:bg-${btn.color}-950/20 transition-all text-center`}
+                    disabled={btn.loading}
+                    onClick={() => btn.action ? btn.action() : navigate(btn.path)}
+                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl bg-gray-800/60 border border-gray-700/50 hover:border-${btn.color}-700/50 hover:bg-${btn.color}-950/20 transition-all text-center disabled:opacity-60`}
                   >
-                    <btn.icon className={`h-5 w-5 text-${btn.color}-400`} />
-                    <span className="text-[10px] font-mono text-gray-300">{btn.label}</span>
+                    {btn.loading ? (
+                      <Loader2 className={`h-5 w-5 text-${btn.color}-400 animate-spin`} />
+                    ) : (
+                      <btn.icon className={`h-5 w-5 text-${btn.color}-400`} />
+                    )}
+                    <span className="text-[10px] font-mono text-gray-300">{btn.loading ? "Creating..." : btn.label}</span>
                   </button>
                 ))}
               </div>

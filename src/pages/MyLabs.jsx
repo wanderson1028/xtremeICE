@@ -5,7 +5,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Layers, Plus, Search, Filter, MoreVertical, Play, Pause,
   Trash2, Copy, Share2, Eye, Edit3, Cloud, Clock, Users,
-  ArrowLeft, Flame, Download, Upload, Tag
+  ArrowLeft, Flame, Download, Upload, Tag, Loader2
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +58,27 @@ export default function MyLabs() {
     onSuccess: () => queryClient.invalidateQueries(["my-livefire-labs"]),
   });
 
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const count = labs.length + 1;
+      return base44.entities.LiveFireLab.create({
+        name: `New Lab ${count}`,
+        cloud_provider: "aws",
+        region: "us-west-2",
+        category: "Custom",
+        difficulty: "Intermediate",
+        visibility: "private",
+        status: "draft",
+        topology_data: { devices: [], connections: [], vpcConfig: { cidr: "10.1.0.0/16", subnets: [{ name: "public", cidr: "10.1.1.0/24", zone: "us-west-2a" }, { name: "private", cidr: "10.1.2.0/24", zone: "us-west-2b" }], securityGroups: [{ name: "lab-sg", description: "Default lab security group", rules: [{ protocol: "tcp", port: 22, source: "0.0.0.0/0", desc: "SSH" }, { protocol: "tcp", port: 443, source: "0.0.0.0/0", desc: "HTTPS" }] }], enableInternetGateway: true } },
+        device_count: 0,
+      });
+    },
+    onSuccess: (newLab) => {
+      queryClient.invalidateQueries(["my-livefire-labs"]);
+      navigate(`/lab-creation-wizard?lab=${newLab.id}`);
+    },
+  });
+
   const filtered = labs.filter(l => {
     if (filter !== "all" && l.status !== filter) return false;
     if (search && !l.name?.toLowerCase().includes(search.toLowerCase()) && !l.category?.toLowerCase().includes(search.toLowerCase())) return false;
@@ -76,9 +97,17 @@ export default function MyLabs() {
             <h1 className="text-2xl font-bold text-white">My Labs</h1>
             <p className="text-sm text-gray-400 font-mono">Manage your cloud cyber range labs</p>
           </div>
-          <Link to="/lab-creation-wizard" className="flex items-center gap-2 px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded-lg font-mono text-sm font-bold transition-colors shadow-lg shadow-red-900/30">
-            <Plus className="h-4 w-4" /> New Lab
-          </Link>
+          <button
+            onClick={() => createMutation.mutate()}
+            disabled={createMutation.isLoading}
+            className="flex items-center gap-2 px-4 py-2 bg-red-700 hover:bg-red-600 disabled:bg-red-800 disabled:cursor-wait text-white rounded-lg font-mono text-sm font-bold transition-colors shadow-lg shadow-red-900/30 min-w-[110px] justify-center"
+          >
+            {createMutation.isLoading ? (
+              <><Loader2 className="h-4 w-4 animate-spin" /> Creating...</>
+            ) : (
+              <><Plus className="h-4 w-4" /> New Lab</>
+            )}
+          </button>
         </div>
 
         {/* Filters */}
@@ -116,9 +145,17 @@ export default function MyLabs() {
           <div className="text-center py-20">
             <Layers className="h-12 w-12 text-gray-700 mx-auto mb-4" />
             <p className="text-gray-500 font-mono text-sm mb-4">No labs found</p>
-            <Link to="/lab-creation-wizard" className="inline-flex items-center gap-2 px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded-lg font-mono text-sm font-bold transition-colors shadow-lg shadow-red-900/30">
-              <Plus className="h-4 w-4" /> Create First Lab
-            </Link>
+            <button
+              onClick={() => createMutation.mutate()}
+              disabled={createMutation.isLoading}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-red-700 hover:bg-red-600 disabled:bg-red-800 disabled:cursor-wait text-white rounded-lg font-mono text-sm font-bold transition-colors shadow-lg shadow-red-900/30 min-w-[140px] justify-center"
+            >
+              {createMutation.isLoading ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Creating...</>
+              ) : (
+                <><Plus className="h-4 w-4" /> Create First Lab</>
+              )}
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
