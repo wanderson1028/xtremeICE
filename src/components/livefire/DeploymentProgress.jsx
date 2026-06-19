@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   Server, Network, Shield, Globe, CheckCircle, XCircle,
-  Loader2, Zap, Cloud, Layers, X
+  Loader2, Zap, Cloud, Layers, X, Download, Terminal
 } from "lucide-react";
 
 const TYPE_ICONS = {
@@ -189,34 +189,59 @@ export default function DeploymentProgress({ lab, deployState, deployResult, dep
 
           {/* Deployment Summary (on success) */}
           {deployResult && status === "success" && (
-            <div className="bg-green-950/20 border border-green-700/30 rounded-xl p-3">
-              <p className="text-[9px] font-mono text-green-400 uppercase tracking-wider mb-2">Deployment Summary</p>
-              <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
-                {deployResult.vpc_id && (
-                  <div><span className="text-gray-500">VPC:</span> <span className="text-green-300 truncate">{deployResult.vpc_id}</span></div>
-                )}
-                {deployResult.vpc_cidr && (
-                  <div>
-                    <span className="text-gray-500">CIDR:</span>{" "}
-                    <span className={`${deployResult.cidr_auto_resolved ? "text-yellow-300" : "text-green-300"}`}>
-                      {deployResult.vpc_cidr}
-                    </span>
-                    {deployResult.cidr_auto_resolved && (
-                      <span className="text-yellow-600 ml-1">(auto)</span>
-                    )}
-                  </div>
-                )}
-                {deployResult.devices_deployed != null && (
-                  <div><span className="text-gray-500">Devices:</span> <span className="text-green-300">{deployResult.devices_deployed}</span></div>
-                )}
-                {deployResult.estimated_cost_hourly != null && (
-                  <div><span className="text-gray-500">Cost:</span> <span className="text-green-300">${deployResult.estimated_cost_hourly.toFixed(2)}/hr</span></div>
-                )}
-                {deployResult.subnet_ids && (
-                  <div><span className="text-gray-500">Subnets:</span> <span className="text-green-300">{deployResult.subnet_ids.length}</span></div>
-                )}
+            <>
+              <div className="bg-green-950/20 border border-green-700/30 rounded-xl p-3">
+                <p className="text-[9px] font-mono text-green-400 uppercase tracking-wider mb-2">Deployment Summary</p>
+                <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
+                  {deployResult.vpc_id && (
+                    <div><span className="text-gray-500">VPC:</span> <span className="text-green-300 truncate">{deployResult.vpc_id}</span></div>
+                  )}
+                  {deployResult.vpc_cidr && (
+                    <div>
+                      <span className="text-gray-500">CIDR:</span>{" "}
+                      <span className={`${deployResult.cidr_auto_resolved ? "text-yellow-300" : "text-green-300"}`}>
+                        {deployResult.vpc_cidr}
+                      </span>
+                      {deployResult.cidr_auto_resolved && (
+                        <span className="text-yellow-600 ml-1">(auto)</span>
+                      )}
+                    </div>
+                  )}
+                  {deployResult.devices_deployed != null && (
+                    <div><span className="text-gray-500">Devices:</span> <span className="text-green-300">{deployResult.devices_deployed}</span></div>
+                  )}
+                  {deployResult.estimated_cost_hourly != null && (
+                    <div><span className="text-gray-500">Cost:</span> <span className="text-green-300">${deployResult.estimated_cost_hourly.toFixed(2)}/hr</span></div>
+                  )}
+                  {deployResult.subnet_ids && (
+                    <div><span className="text-gray-500">Subnets:</span> <span className="text-green-300">{deployResult.subnet_ids.length}</span></div>
+                  )}
+                </div>
               </div>
-            </div>
+
+              {/* SSH Connection Instructions */}
+              <div className="bg-amber-950/20 border border-amber-700/30 rounded-xl p-3">
+                <p className="text-[9px] font-mono text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Terminal className="h-3 w-3" /> SSH Access
+                </p>
+                <p className="text-[9px] font-mono text-gray-400 mb-2">
+                  Username: <code className="text-amber-300">ec2-user</code> (Amazon Linux)
+                </p>
+                <p className="text-[9px] font-mono text-gray-500 leading-relaxed mb-2">
+                  1. Download and save your private key (below)<br />
+                  2. Run: <code className="text-amber-500/70">chmod 400 livefire-key.pem</code><br />
+                  3. Connect: <code className="text-amber-500/70">ssh -i livefire-key.pem ec2-user@&lt;public-ip&gt;</code>
+                </p>
+                <button onClick={() => {
+                  onClose();
+                  // Navigate to topology — key download available in device panel
+                }}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-amber-900/30 border border-amber-700/40 text-amber-400 hover:bg-amber-900/50 rounded-lg text-[10px] font-mono transition-colors w-full justify-center"
+                >
+                  <Download className="h-3.5 w-3.5" /> View Topology to Download Key
+                </button>
+              </div>
+            </>
           )}
 
           {/* Error display */}

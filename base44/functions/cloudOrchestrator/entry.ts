@@ -70,6 +70,30 @@ Deno.serve(async (req) => {
           estimated_cost_hourly: (topology_data?.devices?.length || 0) * 0.15,
         });
 
+        // Create SSH key pair for student access
+        let sshKeyMaterial = null;
+        const keyPairName = `livefire-${lab_id}-${Date.now()}`;
+        try {
+          const keyResult = await base44.functions.invoke("cloudProviderAWS", {
+            action: "createKeyPair",
+            params: { key_name: keyPairName, region: lab.region || "us-east-1" },
+          });
+          const keyData = keyResult?.data || keyResult;
+          sshKeyMaterial = keyData?.privateKey || null;
+          console.log(`[deployLab] Key pair created: ${keyPairName}`);
+        } catch (e) {
+          console.error(`[deployLab] Key pair creation failed: ${e.message}`);
+          // Continue without key pair — instances will still boot but SSH won't work
+        }
+
+        // Store key info on lab
+        if (sshKeyMaterial) {
+          await base44.asServiceRole.entities.LiveFireLab.update(lab_id, {
+            ssh_key_name: keyPairName,
+            ssh_private_key: sshKeyMaterial,
+          });
+        }
+
         // Deploy VPC and network infrastructure using topology's VPC config
         const vpcConfig = topology_data?.vpcConfig || {};
         const deployRegion = lab.region || "us-east-1";
@@ -183,6 +207,7 @@ Deno.serve(async (req) => {
                 security_group_ids: networkData?.securityGroupIds || [],
                 region: lab.region || "us-east-1",
                 ami_image_id: resolvedAmiId,
+                key_name: keyPairName,
               },
             });
 
@@ -195,6 +220,7 @@ Deno.serve(async (req) => {
             deployedDevices.push(responseData);
 
             // Update device record in database
+            const defaultUser = device.default_username || (device.type === "workstation" && device.access_method === "rdp" ? "Administrator" : "ec2-user");
             await base44.asServiceRole.entities.LiveFireDevice.create({
               lab_id,
               name: device.name,
@@ -210,6 +236,8 @@ Deno.serve(async (req) => {
               position_y: device.position_y,
               connections: device.connections || [],
               access_method: device.access_method || "ssh",
+              default_username: defaultUser,
+              access_port: device.access_method === "rdp" ? 3389 : 22,
             });
           } catch (deviceError) {
             deviceErrors.push({ device: device.name, error: deviceError.message || String(deviceError) });

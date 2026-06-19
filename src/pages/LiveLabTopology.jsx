@@ -5,7 +5,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, Server, Router, Shield, Monitor, Cloud, Terminal,
   Wifi, Plus, X, Play, Square, RefreshCw, ExternalLink,
-  ChevronRight, Cpu, HardDrive, Network, Globe, Zap
+  ChevronRight, Cpu, HardDrive, Network, Globe, Zap, Download
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,15 +92,27 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices }) {
   const [connecting, setConnecting] = useState(false);
   const status = deployed?.status || "pending";
 
+  const handleDownloadKey = () => {
+    if (!lab?.ssh_private_key) return;
+    const blob = new Blob([lab.ssh_private_key], { type: "application/x-pem-file" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${lab.ssh_key_name || "livefire-key"}.pem`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleConnect = async () => {
     if (!deployed?.public_ip) return;
     setConnecting(true);
 
     const method = deployed.access_method || device.access_method || "ssh";
     const port = deployed.access_port || (method === "rdp" ? 3389 : 22);
-    const user = deployed.default_username || "admin";
+    const user = deployed.default_username || (method === "rdp" ? "Administrator" : "ec2-user");
 
     if (method === "ssh") {
+      // Open SSH connection — user must download the key first
       window.open(`ssh://${user}@${deployed.public_ip}:${port}`, "_blank");
     } else if (method === "rdp") {
       window.open(`rdp://${user}@${deployed.public_ip}:${port}`, "_blank");
@@ -170,6 +182,14 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices }) {
           </div>
         )}
 
+        {/* Username hint */}
+        {deployed?.default_username && (
+          <div className="flex items-center justify-between bg-gray-800/60 rounded-lg px-3 py-2">
+            <span className="text-[9px] font-mono text-gray-500">User</span>
+            <code className="text-[10px] font-mono text-amber-400">{deployed.default_username}</code>
+          </div>
+        )}
+
         {/* Connect */}
         <Button
           onClick={handleConnect}
@@ -185,6 +205,25 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices }) {
             <><Wifi className="h-3.5 w-3.5 mr-1.5" /> No public IP</>
           )}
         </Button>
+
+        {/* Download SSH Key */}
+        {lab?.ssh_private_key && (
+          <Button
+            onClick={handleDownloadKey}
+            size="sm"
+            variant="outline"
+            className="w-full border-amber-700/40 text-amber-400 hover:bg-amber-950/30 hover:text-amber-300 text-xs"
+          >
+            <Download className="h-3.5 w-3.5 mr-1.5" /> Download SSH Key (.pem)
+          </Button>
+        )}
+
+        {lab?.ssh_private_key && (
+          <p className="text-[8px] text-gray-600 font-mono text-center leading-relaxed">
+            Save the key and run: <code className="text-amber-500/70">chmod 400 key.pem</code><br />
+            then <code className="text-amber-500/70">ssh -i key.pem {deployed?.default_username || "ec2-user"}@{deployed?.public_ip || "&lt;ip&gt;"}</code>
+          </p>
+        )}
       </div>
     </div>
   );
@@ -375,25 +414,29 @@ export default function LiveLabTopology() {
       if (!dep?.subnet_ids?.length) throw new Error("No subnet found for this lab");
 
       // Step 2: Deploy via cloud provider
+      const createParams = {
+        lab_id: labId,
+        device_name: deviceSpec.name,
+        device_type: deviceSpec.type,
+        cpu_cores: deviceSpec.cpu_cores,
+        ram_mb: deviceSpec.ram_mb,
+        storage_gb: deviceSpec.storage_gb,
+        subnet_id: dep.subnet_ids[0],
+        security_group_ids: dep.security_group_ids || [],
+        region: lab?.region || "us-east-1",
+      };
+      if (lab?.ssh_key_name) createParams.key_name = lab.ssh_key_name;
+
       const res = await base44.functions.invoke("cloudProviderAWS", {
         action: "createVM",
-        params: {
-          lab_id: labId,
-          device_name: deviceSpec.name,
-          device_type: deviceSpec.type,
-          cpu_cores: deviceSpec.cpu_cores,
-          ram_mb: deviceSpec.ram_mb,
-          storage_gb: deviceSpec.storage_gb,
-          subnet_id: dep.subnet_ids[0],
-          security_group_ids: dep.security_group_ids || [],
-          region: lab?.region || "us-east-1",
-        },
+        params: createParams,
       });
 
       if (res.data?.error) throw new Error(res.data.message || res.data.error);
 
       // Step 3: Create device record
       const instanceId = res.data?.instanceId || `i-${Date.now()}`;
+      const defaultUser = deviceSpec.access_method === "rdp" ? "Administrator" : "ec2-user";
       const newDevice = await base44.entities.LiveFireDevice.create({
         lab_id: labId,
         name: deviceSpec.name,
@@ -409,6 +452,8 @@ export default function LiveLabTopology() {
         position_y: deviceSpec.position_y,
         connections: [],
         access_method: deviceSpec.access_method || "ssh",
+        default_username: defaultUser,
+        access_port: deviceSpec.access_method === "rdp" ? 3389 : 22,
       });
 
       // Step 4: Update topology data in lab
@@ -516,6 +561,21 @@ export default function LiveLabTopology() {
             className="p-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-400 hover:text-white transition-colors disabled:opacity-50" title="Refresh device status">
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
           </button>
+          {lab?.ssh_private_key && (
+            <button onClick={() => {
+              const blob = new Blob([lab.ssh_private_key], { type: "application/x-pem-file" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `${lab.ssh_key_name || "livefire-key"}.pem`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-900/30 border border-amber-700/40 text-amber-400 hover:bg-amber-900/50 rounded-lg text-[10px] font-mono transition-colors"
+              title="Download SSH private key">
+              <Download className="h-3.5 w-3.5" /> Key
+            </button>
+          )}
           {/* Zoom */}
           <div className="flex items-center gap-1 bg-gray-800 rounded-lg border border-gray-700 px-2 py-1">
             <button onClick={() => setZoom(z => Math.max(0.3, z - 0.1))} className="text-gray-400 hover:text-white text-xs px-1">−</button>

@@ -239,7 +239,7 @@ Deno.serve(async (req) => {
     switch (action) {
 
       case "createVM": {
-        const { lab_id, device_name, device_type, cpu_cores = 2, ram_mb = 4096, storage_gb = 20, subnet_id, security_group_ids = [], ami_image_id } = params;
+        const { lab_id, device_name, device_type, cpu_cores = 2, ram_mb = 4096, storage_gb = 20, subnet_id, security_group_ids = [], ami_image_id, key_name } = params;
 
         // Enforce cost tier limits — skip admin check when no user context (called from orchestrator)
         const tierCheck = await checkInstanceAllowed(base44, lab_id, cpu_cores, ram_mb, user?.id || null);
@@ -264,7 +264,7 @@ Deno.serve(async (req) => {
         }
         const instanceType = selectInstanceType(cpu_cores, ram_mb);
 
-        const xml = await ec2Call("RunInstances", {
+        const runParams = {
           ImageId: amiId,
           InstanceType: instanceType,
           MinCount: "1",
@@ -281,7 +281,10 @@ Deno.serve(async (req) => {
               { Key: "ManagedBy", Value: "XtremeICE-LiveFire" },
             ]},
           ],
-        }, region);
+        };
+        if (key_name) runParams.KeyName = key_name;
+
+        const xml = await ec2Call("RunInstances", runParams, region);
 
         const instId = xml.match(/<instanceId>([^<]+)<\/instanceId>/)?.[1] || "unknown";
         const privIp = xml.match(/<privateIpAddress>([^<]+)<\/privateIpAddress>/)?.[1] || null;
@@ -644,6 +647,30 @@ Deno.serve(async (req) => {
           }
         }
         return Response.json({ region, instances, totalCount: instances.length });
+      }
+
+      case "createKeyPair": {
+        const { key_name } = params;
+        const xml = await ec2Call("CreateKeyPair", { KeyName: key_name }, region);
+
+        // AWS returns the private key material — this is the ONLY time it's available
+        const keyMaterial = xml.match(/<keyMaterial>([\s\S]*?)<\/keyMaterial>/)?.[1] || "";
+        const keyFingerprint = xml.match(/<keyFingerprint>([^<]+)<\/keyFingerprint>/)?.[1] || "";
+        const keyPairId = xml.match(/<keyPairId>([^<]+)<\/keyPairId>/)?.[1] || "";
+
+        return Response.json({
+          keyName: key_name,
+          keyPairId,
+          keyFingerprint,
+          privateKey: keyMaterial.replace(/\\n/g, "\n"),  // Demarcate PEM newlines
+          region,
+        });
+      }
+
+      case "deleteKeyPair": {
+        const { key_name } = params;
+        await ec2Call("DeleteKeyPair", { KeyName: key_name }, region);
+        return Response.json({ success: true, keyName: key_name });
       }
 
       default:
