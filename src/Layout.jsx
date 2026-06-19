@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Flame } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useQuery } from "@tanstack/react-query";
@@ -106,7 +106,8 @@ function CollaborationDropdown({ currentPageName, access }) {
             onClick={() => setLiveFireOpen(v => !v)}
             className="flex items-center justify-between w-full px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors"
           >
-            <span>{t("nav.liveFire")}</span>
+            <Flame className="h-4 w-4 text-orange-400 drop-shadow-[0_0_6px_rgba(251,146,60,0.6)]" />
+            <span className="flame-text font-semibold">{t("nav.liveFire")}</span>
             <ChevronDown className={`h-3 w-3 text-gray-400 transition-transform ${liveFireOpen ? "rotate-180" : ""}`} />
           </button>
           {liveFireOpen && (

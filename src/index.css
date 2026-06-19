@@ -95,4 +95,47 @@
   code, pre {
     font-family: 'Space Mono', 'Courier New', monospace;
   }
+
+  .flame-text {
+    background: linear-gradient(to top, #f97316, #ef4444, #facc15);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: flameFlicker 1.2s ease-in-out infinite alternate;
+    text-shadow: none;
+    filter: drop-shadow(0 0 4px rgba(251,146,60,0.5)) drop-shadow(0 0 8px rgba(239,68,68,0.3));
+  }
+
+  @keyframes flameFlicker {
+    0% {
+      background: linear-gradient(to top, #f97316, #ef4444 40%, #facc15 80%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      filter: drop-shadow(0 0 4px rgba(251,146,60,0.5)) drop-shadow(0 0 8px rgba(239,68,68,0.3));
+    }
+    25% {
+      background: linear-gradient(to top, #ea580c, #dc2626 40%, #fde047 80%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      filter: drop-shadow(0 0 5px rgba(251,146,60,0.6)) drop-shadow(0 0 10px rgba(239,68,68,0.4));
+    }
+    50% {
+      background: linear-gradient(to top, #f97316, #ef4444 50%, #fbbf24 85%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      filter: drop-shadow(0 0 3px rgba(251,146,60,0.4)) drop-shadow(0 0 7px rgba(239,68,68,0.25));
+    }
+    75% {
+      background: linear-gradient(to top, #c2410c, #b91c1c 45%, #fef08a 75%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      filter: drop-shadow(0 0 6px rgba(251,146,60,0.7)) drop-shadow(0 0 11px rgba(239,68,68,0.45));
+    }
+    100% {
+      background: linear-gradient(to top, #f97316, #ef4444 35%, #facc15 80%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      filter: drop-shadow(0 0 4px rgba(251,146,60,0.55)) drop-shadow(0 0 9px rgba(239,68,68,0.35));
+    }
+  }
 }
