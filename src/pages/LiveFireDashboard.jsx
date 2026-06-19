@@ -113,12 +113,11 @@ export default function LiveFireDashboard() {
               <p className="text-sm text-gray-400 font-mono">Cloud-Native Cyber Range & Network Emulation</p>
             </div>
           </div>
-          <button
-            onClick={() => navigate("/lab-creation-wizard")}
-            className="flex items-center gap-2 px-4 py-2.5 bg-red-700 hover:bg-red-600 text-white rounded-xl font-mono text-sm font-bold transition-colors shadow-lg shadow-red-900/30"
+          <Link to="/lab-creation-wizard"
+            className="flex items-center gap-2 px-4 py-2.5 bg-red-700 hover:bg-red-600 text-white rounded-xl font-mono text-sm font-bold transition-colors shadow-lg shadow-red-900/30 no-underline"
           >
             <Plus className="h-4 w-4" /> New Lab
-          </button>
+          </Link>
         </motion.div>
 
         {/* Stats Grid */}

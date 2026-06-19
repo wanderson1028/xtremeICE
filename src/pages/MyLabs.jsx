@@ -7,7 +7,6 @@ import {
   Trash2, Copy, Share2, Eye, Edit3, Cloud, Clock, Users,
   ArrowLeft, Flame, Download, Upload, Tag
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
@@ -77,9 +76,9 @@ export default function MyLabs() {
             <h1 className="text-2xl font-bold text-white">My Labs</h1>
             <p className="text-sm text-gray-400 font-mono">Manage your cloud cyber range labs</p>
           </div>
-          <Button onClick={() => navigate("/lab-creation-wizard")} className="bg-red-700 hover:bg-red-600 text-white gap-2">
+          <Link to="/lab-creation-wizard" className="flex items-center gap-2 px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded-lg font-mono text-sm font-bold transition-colors shadow-lg shadow-red-900/30">
             <Plus className="h-4 w-4" /> New Lab
-          </Button>
+          </Link>
         </div>
 
         {/* Filters */}
@@ -117,9 +116,9 @@ export default function MyLabs() {
           <div className="text-center py-20">
             <Layers className="h-12 w-12 text-gray-700 mx-auto mb-4" />
             <p className="text-gray-500 font-mono text-sm mb-4">No labs found</p>
-            <Button onClick={() => navigate("/lab-creation-wizard")} className="bg-red-700 hover:bg-red-600 text-white gap-2">
+            <Link to="/lab-creation-wizard" className="inline-flex items-center gap-2 px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded-lg font-mono text-sm font-bold transition-colors shadow-lg shadow-red-900/30">
               <Plus className="h-4 w-4" /> Create First Lab
-            </Button>
+            </Link>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

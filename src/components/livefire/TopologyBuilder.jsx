@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -72,6 +72,7 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [connectingFrom, setConnectingFrom] = useState(null);
+  const [connectLinePos, setConnectLinePos] = useState(null); // {x, y} for rubber-band preview
   const [rightPanel, setRightPanel] = useState(null); // 'properties' | 'network' | null
   const [cidrSuggestion, setCidrSuggestion] = useState(null);
   const [cidrConflict, setCidrConflict] = useState(null);
@@ -205,16 +206,36 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
   };
 
   const handleCanvasMouseDown = (e) => {
+    // Cancel connection on clicking empty canvas
+    if (connectingFrom && (e.target === canvasRef.current || e.target.classList.contains("canvas-bg") || e.target.tagName === "svg")) {
+      setConnectingFrom(null);
+      setConnectLinePos(null);
+      return;
+    }
     if (e.target === canvasRef.current || e.target.classList.contains("canvas-bg") || e.target.tagName === "svg") {
       setIsPanning(true);
       setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
     }
   };
-  const handleCanvasMouseMove = (e) => { if (isPanning) setPan({ x: e.clientX - panStart.x, y: e.clientY - panStart.y }); };
-  const handleCanvasMouseUp = () => setIsPanning(false);
+  const handleCanvasMouseMove = (e) => {
+    if (isPanning) {
+      setPan({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
+    }
+    if (connectingFrom) {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (rect) {
+        setConnectLinePos({
+          x: (e.clientX - rect.left - pan.x) / scale,
+          y: (e.clientY - rect.top - pan.y) / scale,
+        });
+      }
+    }
+  };
+  const handleCanvasMouseUp = () => { setIsPanning(false); };
 
-  const startConnection = (deviceId) => {
-    if (connectingFrom === deviceId) { setConnectingFrom(null); return; }
+  const startConnection = useCallback((deviceId, e) => {
+    if (e) e.stopPropagation();
+    if (connectingFrom === deviceId) { setConnectingFrom(null); setConnectLinePos(null); return; }
     if (connectingFrom) {
       const fromDevice = devices.find(d => d.id === connectingFrom);
       const toDevice = devices.find(d => d.id === deviceId);
@@ -226,8 +247,9 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
         }
       }
       setConnectingFrom(null);
+      setConnectLinePos(null);
     } else { setConnectingFrom(deviceId); }
-  };
+  }, [connectingFrom, devices, updateDevice]);
 
   const renderConnections = () => {
     const lines = [];
@@ -333,12 +355,13 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
             <span className="text-[10px] font-mono text-gray-500 w-10 text-center">{Math.round(scale * 100)}%</span>
             <button onClick={() => setScale(s => Math.min(2, s + 0.25))} className="p-1.5 rounded bg-gray-800 border border-gray-700 text-gray-400 hover:text-white transition-colors"><Maximize2 className="h-3.5 w-3.5" /></button>
             <div className="h-4 w-px bg-gray-700 mx-1" />
-            <button onClick={() => setConnectingFrom(null)}
-              className={`text-[10px] font-mono px-2.5 py-1 rounded border transition-colors ${
-                connectingFrom ? "bg-yellow-900/30 border-yellow-600/60 text-yellow-400" : "bg-gray-800 border-gray-700 text-gray-500 hover:text-gray-300"
-              }`}>
-              {connectingFrom ? "Connecting... (click target)" : "Connect Mode"}
-            </button>
+            <div className="flex items-center gap-1.5 text-[10px] font-mono">
+              <span className="text-gray-600">{connectingFrom ? "Click a port dot on target device" : "Click a port dot to connect devices"}</span>
+              {connectingFrom && (
+                <button onClick={() => { setConnectingFrom(null); setConnectLinePos(null); }}
+                  className="text-red-400 hover:text-red-300 underline">Cancel</button>
+              )}
+            </div>
             <button onClick={() => setRightPanel(rightPanel === "network" ? null : "network")}
               className={`text-[10px] font-mono px-2.5 py-1 rounded border transition-colors ${
                 rightPanel === "network" ? "bg-blue-900/30 border-blue-600/60 text-blue-400" : "bg-gray-800 border-gray-700 text-gray-500 hover:text-gray-300"
@@ -356,29 +379,68 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                 onMouseDown={handleCanvasMouseDown} onMouseMove={handleCanvasMouseMove} onMouseUp={handleCanvasMouseUp} onMouseLeave={handleCanvasMouseUp}
                 style={{ cursor: isPanning ? "grabbing" : connectingFrom ? "crosshair" : "grab" }}>
                 <svg className="absolute inset-0 pointer-events-none" style={{ width: "100%", height: "100%" }}>
-                  <g transform={`translate(${pan.x},${pan.y}) scale(${scale})`}>{renderConnections()}</g>
+                  <g transform={`translate(${pan.x},${pan.y}) scale(${scale})`}>
+                    {renderConnections()}
+                    {/* Rubber-band preview line */}
+                    {connectingFrom && connectLinePos && (() => {
+                      const from = devices.find(d => d.id === connectingFrom);
+                      if (!from) return null;
+                      const fx = (from.position_x || 0) + 65;
+                      const fy = (from.position_y || 0) + 16;
+                      return (
+                        <line x1={fx} y1={fy} x2={connectLinePos.x} y2={connectLinePos.y}
+                          stroke="#eab308" strokeWidth={2} strokeDasharray="6,4" opacity={0.7} />
+                      );
+                    })()}
+                  </g>
                 </svg>
                 <div style={{ transform: `translate(${pan.x}px,${pan.y}px) scale(${scale})`, transformOrigin: "0 0" }} className="absolute inset-0">
                   {devices.map((device, idx) => {
                     const paletteItem = DEVICE_PALETTE.find(d => d.type === device.type);
                     const DevIcon = paletteItem?.icon || Server;
-                    const isConnected = connectingFrom && connectingFrom !== device.id;
+                    const isConnectingTarget = connectingFrom && connectingFrom !== device.id;
+                    const isConnectingSource = connectingFrom === device.id;
+                    const connCount = device.connections?.length || 0;
+
                     return (
                       <Draggable key={device.id} draggableId={`device-${device.id}`} index={idx}>
                         {(provided, snapshot) => (
                           <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}
-                            className={`absolute w-[130px] rounded-xl border-2 transition-all cursor-pointer ${
+                            className={`absolute w-[130px] rounded-xl border-2 transition-all group ${
                               TYPE_COLORS[device.type] || TYPE_COLORS.server
                             } ${selectedDevice === device.id ? "ring-2 ring-red-500 ring-offset-2 ring-offset-gray-950 shadow-lg shadow-red-900/20" : ""} ${
                               snapshot.isDragging ? "opacity-80 shadow-2xl scale-105" : "hover:scale-[1.02]"
-                            } ${isConnected ? "ring-1 ring-yellow-500/50" : ""}`}
+                            } ${isConnectingTarget ? "ring-2 ring-yellow-400 ring-offset-1 ring-offset-gray-950" : ""} ${
+                              isConnectingSource ? "ring-2 ring-green-400 ring-offset-1 ring-offset-gray-950" : ""
+                            }`}
                             style={{ left: device.position_x || 0, top: device.position_y || 0, ...provided.draggableProps.style }}
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (connectingFrom) { startConnection(device.id); }
-                              else if (selectedDevice === device.id) { setSelectedDevice(null); setRightPanel(null); }
+                              if (selectedDevice === device.id) { setSelectedDevice(null); setRightPanel(null); }
                               else { setSelectedDevice(device.id); setRightPanel("properties"); }
                             }}>
+
+                            {/* Port dots — right side for outbound, left side for inbound */}
+                            <button
+                              title="Connect from this port"
+                              onClick={(e) => startConnection(device.id, e)}
+                              className={`absolute -right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all z-10 ${
+                                isConnectingSource
+                                  ? "bg-green-500 border-green-400 text-white scale-110 shadow-lg shadow-green-500/40"
+                                  : connectingFrom
+                                  ? "bg-yellow-500/80 border-yellow-400 text-black hover:bg-yellow-400 cursor-pointer"
+                                  : "bg-gray-700 border-gray-500 text-gray-300 hover:bg-cyan-600 hover:border-cyan-400 hover:text-white opacity-0 group-hover:opacity-100 cursor-pointer"
+                              }`}>
+                              <GitBranch className="h-3 w-3" />
+                            </button>
+
+                            {/* Port indicator on left side */}
+                            <div className={`absolute -left-2 top-1/2 -translate-y-1/2 h-3 w-3 rounded-full border transition-all ${
+                              isConnectingTarget ? "bg-yellow-500 border-yellow-400 scale-110" :
+                              isConnectingSource ? "bg-green-500 border-green-400" :
+                              "bg-gray-600 border-gray-500 opacity-0 group-hover:opacity-100"
+                            }`} />
+
                             <div className="p-2.5">
                               <div className="flex items-center gap-1.5 mb-1.5">
                                 <DevIcon className={`h-3.5 w-3.5 ${TYPE_ICON_COLORS[device.type] || "text-gray-400"}`} />
@@ -402,16 +464,15 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                                   AMI: {availableImages.find(i => i.id === device.ami_image_id)?.product || device.ami_image_id}
                                 </div>
                               )}
+                              {connCount > 0 && (
+                                <div className="mt-1 text-[7px] font-mono text-gray-600">
+                                  {connCount} connection{connCount > 1 ? "s" : ""}
+                                </div>
+                              )}
                             </div>
                             <button onClick={(e) => { e.stopPropagation(); removeDevice(device.id); }}
                               className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-red-800/90 border border-red-600 text-red-300 hover:bg-red-700 flex items-center justify-center transition-colors">
                               <X className="h-2.5 w-2.5" />
-                            </button>
-                            <button onClick={(e) => { e.stopPropagation(); startConnection(device.id); }}
-                              className={`absolute -bottom-2 -right-2 h-5 w-5 rounded-full border flex items-center justify-center transition-colors ${
-                                connectingFrom === device.id ? "bg-yellow-800 border-yellow-500 text-yellow-300" : "bg-gray-800 border-gray-600 text-gray-400 hover:border-cyan-500 hover:text-cyan-400"
-                              }`}>
-                              <GitBranch className="h-2.5 w-2.5" />
                             </button>
                           </div>
                         )}
@@ -427,7 +488,7 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                         <Network className="h-7 w-7 text-gray-600" />
                       </div>
                       <p className="text-xs font-mono text-gray-600 mb-1">Drag devices from the palette</p>
-                      <p className="text-[10px] font-mono text-gray-700">or click a device to add it to the canvas</p>
+                      <p className="text-[10px] font-mono text-gray-700">Click a device to add it, then use port dots to connect</p>
                     </div>
                   </div>
                 )}
