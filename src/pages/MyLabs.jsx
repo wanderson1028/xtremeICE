@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import DeploymentProgress from "@/components/livefire/DeploymentProgress";
 
 const STATUS_COLORS = {
   draft: "bg-gray-800 text-gray-400 border-gray-700",
@@ -38,6 +39,7 @@ export default function MyLabs() {
   const [createError, setCreateError] = useState(null);
   const [deployingLabs, setDeployingLabs] = useState(new Set());
   const [deployError, setDeployError] = useState(null);
+  const [activeDeployment, setActiveDeployment] = useState(null); // { lab, state, result, errorMsg }
 
   const { data: currentUser } = useQuery({
     queryKey: ["me"],
@@ -67,12 +69,14 @@ export default function MyLabs() {
     if (deployingLabs.has(lab.id)) return;
     setDeployError(null);
     setDeployingLabs(prev => new Set([...prev, lab.id]));
+
+    // Show deployment progress modal
+    setActiveDeployment({ lab, deployState: "running", deployResult: null, deployErrorMsg: null });
+
     try {
-      // Update status to deploying immediately for visual feedback
       await base44.entities.LiveFireLab.update(lab.id, { status: "deploying" });
       queryClient.invalidateQueries(["my-livefire-labs"]);
 
-      // Call cloud orchestrator to deploy
       const res = await base44.functions.invoke("cloudOrchestrator", {
         action: "deployLab",
         provider: lab.cloud_provider || "aws",
@@ -80,22 +84,33 @@ export default function MyLabs() {
       });
 
       if (res.data?.error) {
-        // CIDR conflict or other deploy error
-        setDeployError(res.data.message || res.data.error);
+        const errMsg = res.data.message || res.data.error;
+        setDeployError(errMsg);
         await base44.entities.LiveFireLab.update(lab.id, { status: "failed" });
+        setActiveDeployment({ lab, deployState: "error", deployResult: null, deployErrorMsg: errMsg });
       } else {
-        // Success — navigate to wizard so user can see/edit topology
         queryClient.invalidateQueries(["my-livefire-labs"]);
         queryClient.invalidateQueries(["running-livefire-labs"]);
         queryClient.invalidateQueries(["running-devices"]);
-        navigate(`/lab-creation-wizard?lab=${lab.id}`);
+        setActiveDeployment({ lab, deployState: "success", deployResult: res.data, deployErrorMsg: null });
       }
     } catch (err) {
-      setDeployError(err?.message || "Deployment failed");
+      const errMsg = err?.message || "Deployment failed";
+      setDeployError(errMsg);
       try { await base44.entities.LiveFireLab.update(lab.id, { status: "failed" }); } catch {}
+      setActiveDeployment({ lab, deployState: "error", deployResult: null, deployErrorMsg: errMsg });
     } finally {
       setDeployingLabs(prev => { const next = new Set(prev); next.delete(lab.id); return next; });
       queryClient.invalidateQueries(["my-livefire-labs"]);
+    }
+  };
+
+  const handleDeployClose = () => {
+    const deployment = activeDeployment;
+    setActiveDeployment(null);
+    // If success, navigate to wizard
+    if (deployment?.deployState === "success") {
+      navigate(`/lab-creation-wizard?lab=${deployment.lab.id}`);
     }
   };
 
@@ -315,6 +330,17 @@ export default function MyLabs() {
           </div>
         )}
       </div>
+
+      {/* Deployment Progress Modal */}
+      {activeDeployment && (
+        <DeploymentProgress
+          lab={activeDeployment.lab}
+          deployState={activeDeployment.deployState}
+          deployResult={activeDeployment.deployResult}
+          deployErrorMsg={activeDeployment.deployErrorMsg}
+          onClose={handleDeployClose}
+        />
+      )}
     </div>
   );
 }
