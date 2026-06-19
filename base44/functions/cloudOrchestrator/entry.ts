@@ -424,6 +424,9 @@ Deno.serve(async (req) => {
         return Response.json({ error: `Unknown action: ${action}` }, { status: 400 });
     }
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    // Extract meaningful error from Axios errors (function invoke failures)
+    const msg = error?.response?.data?.error || error?.response?.data?.message || error.message || String(error);
+    console.error("[cloudOrchestrator] Unhandled error:", msg);
+    return Response.json({ error: msg }, { status: 500 });
   }
 });

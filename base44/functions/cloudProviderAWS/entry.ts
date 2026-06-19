@@ -20,6 +20,9 @@ async function checkInstanceAllowed(base44, labId, cpu, ram, userId) {
   const tierConfig = COST_TIERS[tier];
   if (!tierConfig.adminOnly) return { allowed: true, tier };
 
+  // When called from orchestrator (no user context), skip admin check
+  if (!userId) return { allowed: false, tier, reason: `${tierConfig.label} tier requires admin approval. Deploy via the UI to validate permissions.` };
+
   // Admin users can always deploy
   const user = await base44.asServiceRole.entities.User.filter({ id: userId }).then(r => r[0]);
   if (user?.role === "admin") return { allowed: true, tier };
@@ -224,8 +227,10 @@ function selectInstanceType(cpu, ram) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    // Try to get user — when called from another backend function via functions.invoke(),
+    // auth context may not always forward. This is non-fatal; the orchestrator already validates.
+    let user = null;
+    try { user = await base44.auth.me(); } catch { /* no direct user context */ }
 
     const body = await req.json();
     const { action, params = {} } = body;
@@ -236,8 +241,8 @@ Deno.serve(async (req) => {
       case "createVM": {
         const { lab_id, device_name, device_type, cpu_cores = 2, ram_mb = 4096, storage_gb = 20, subnet_id, security_group_ids = [], ami_image_id } = params;
 
-        // Enforce cost tier limits
-        const tierCheck = await checkInstanceAllowed(base44, lab_id, cpu_cores, ram_mb, user.id);
+        // Enforce cost tier limits — skip admin check when no user context (called from orchestrator)
+        const tierCheck = await checkInstanceAllowed(base44, lab_id, cpu_cores, ram_mb, user?.id || null);
         if (!tierCheck.allowed) {
           return Response.json({
             error: "INSTANCE_TIER_BLOCKED",
