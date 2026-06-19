@@ -119,9 +119,24 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
     }
   }, [vpcConfig?.cidr, region]);
 
-  const { data: availableImages = [] } = useQuery({
-    queryKey: ["ami-images", cloudProvider],
+  const { data: dbImages = [] } = useQuery({
+    queryKey: ["livefire-images", cloudProvider],
     queryFn: () => base44.entities.LiveFireImage.filter({ status: "available" }, "vendor", 100),
+  });
+
+  const { data: cloudAMIs, isFetching: fetchingAMIs } = useQuery({
+    queryKey: ["cloud-amis", cloudProvider, region],
+    queryFn: async () => {
+      try {
+        const res = await base44.functions.invoke("cloudProviderAWS", {
+          action: "listAMIs",
+          params: { region },
+        });
+        return res.data?.groups || [];
+      } catch { return []; }
+    },
+    enabled: rightPanel === "properties" && !!selectedDevice,
+    staleTime: 300_000, // cache for 5 minutes
   });
 
   const addDevice = (deviceType) => {
@@ -533,7 +548,13 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                               </div>
                               {device.ami_image_id && (
                                 <div className="mt-1.5 text-[7px] font-mono text-cyan-500 bg-cyan-950/30 rounded px-1.5 py-0.5 truncate border border-cyan-800/30">
-                                  {availableImages.find(i => i.id === device.ami_image_id)?.product || "AMI"}
+                                  {(() => {
+                                    const dbImg = dbImages.find(i => i.id === device.ami_image_id);
+                                    if (dbImg) return `${dbImg.vendor} ${dbImg.product}`;
+                                    // Truncate AMI ID for display
+                                    const id = device.ami_image_id;
+                                    return id.startsWith("ami-") ? `AMI: ${id.slice(0, 16)}…` : id.slice(0, 20);
+                                  })()}
                                 </div>
                               )}
                               {connCount > 0 && (
@@ -651,15 +672,49 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                     </select>
                   </div>
                   <div>
-                    <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">AMI / Image</label>
-                    <select value={selectedDeviceData.ami_image_id || ""}
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider">AMI / Image</label>
+                      {fetchingAMIs && <span className="text-[7px] font-mono text-gray-600 animate-pulse">loading...</span>}
+                    </div>
+                    <select
+                      value={selectedDeviceData.ami_image_id || ""}
                       onChange={(e) => updateDevice(selectedDeviceData.id, { ami_image_id: e.target.value || null })}
-                      className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white text-xs px-2.5 py-2">
-                      <option value="">Default (auto-assign)</option>
-                      {availableImages.map(img => (
-                        <option key={img.id} value={img.id}>{img.vendor} {img.product}</option>
+                      className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white text-xs px-2.5 py-2 font-mono"
+                    >
+                      <option value="">Auto-select (latest Amazon Linux)</option>
+                      {/* Cloud provider AMIs — grouped */}
+                      {cloudAMIs?.map((group) => (
+                        <optgroup key={group.group} label={`▸ ${group.group}`}>
+                          {group.images?.map((img) => (
+                            <option key={img.imageId} value={img.imageId}>
+                              {img.imageId} — {img.description?.slice(0, 60) || "N/A"}
+                            </option>
+                          )) || (
+                            <option disabled value="">{group.error || "No images found"}</option>
+                          )}
+                        </optgroup>
                       ))}
+                      {/* Separator for database images */}
+                      {dbImages.length > 0 && (
+                        <optgroup label="── Custom Images (Repository) ──">
+                          {dbImages.map(img => (
+                            <option key={img.id} value={img.id}>
+                              {img.vendor} {img.product} {img.version}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
                     </select>
+                    {selectedDeviceData.ami_image_id && cloudAMIs?.some(g => g.images?.some(i => i.imageId === selectedDeviceData.ami_image_id)) && (
+                      <p className="mt-1 text-[7px] font-mono text-cyan-400/70 truncate">
+                        ✓ Cloud AMI selected — used for deployment
+                      </p>
+                    )}
+                    {selectedDeviceData.ami_image_id && dbImages.some(i => i.id === selectedDeviceData.ami_image_id) && (
+                      <p className="mt-1 text-[7px] font-mono text-purple-400/70 truncate">
+                        ✓ Repository image selected — used for deployment
+                      </p>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div><label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">vCPU</label>

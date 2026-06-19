@@ -109,6 +109,15 @@ Deno.serve(async (req) => {
             const targetSubnet = networkData?.subnets?.find(s => s.name === deviceSubnet) || networkData?.subnets?.[0];
             const subnetId = targetSubnet?.id || networkData?.subnetId || "subnet-pending";
 
+            // Resolve AMI: if it's a LiveFireImage database ID, look up the actual AMI ID
+            let resolvedAmiId = device.ami_image_id || null;
+            if (resolvedAmiId && !resolvedAmiId.startsWith("ami-")) {
+              try {
+                const dbImage = await base44.asServiceRole.entities.LiveFireImage.filter({ id: resolvedAmiId }).then(r => r[0]);
+                resolvedAmiId = dbImage?.ami_id || null;
+              } catch { /* keep original — will fall back to auto-resolve */ }
+            }
+
             const result = await base44.asServiceRole.functions.invoke("cloudProviderAWS", {
               action: "createVM",
               params: {
@@ -121,7 +130,7 @@ Deno.serve(async (req) => {
                 subnet_id: subnetId,
                 security_group_ids: networkData?.securityGroupIds || [],
                 region: lab.region || "us-east-1",
-                ami_image_id: device.ami_image_id || null,
+                ami_image_id: resolvedAmiId,
               },
             });
             deployedDevices.push(result?.data || result);

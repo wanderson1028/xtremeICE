@@ -481,6 +481,78 @@ Deno.serve(async (req) => {
         return Response.json({ region, vpcs, totalCount: vpcs.length });
       }
 
+      case "listAMIs": {
+        // Return commonly-used Amazon AMIs for the region
+        const filters = params.filters || [
+          // Amazon Linux 2023
+          { name: "amazon-linux-2023", owner: "amazon", filter: [
+            { Name: "name", Value: ["al2023-ami-2023*-x86_64"] },
+            { Name: "state", Value: ["available"] },
+            { Name: "architecture", Value: ["x86_64"] },
+          ]},
+          // Amazon Linux 2
+          { name: "Amazon Linux 2", owner: "amazon", filter: [
+            { Name: "name", Value: ["amzn2-ami-hvm-*-x86_64-gp2"] },
+            { Name: "state", Value: ["available"] },
+          ]},
+          // Ubuntu 24.04
+          { name: "Ubuntu 24.04", owner: "099720109477", filter: [
+            { Name: "name", Value: ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"] },
+            { Name: "state", Value: ["available"] },
+          ]},
+          // Ubuntu 22.04
+          { name: "Ubuntu 22.04", owner: "099720109477", filter: [
+            { Name: "name", Value: ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"] },
+            { Name: "state", Value: ["available"] },
+          ]},
+          // Debian 12
+          { name: "Debian 12", owner: "136693071363", filter: [
+            { Name: "name", Value: ["debian-12-amd64-*"] },
+            { Name: "state", Value: ["available"] },
+          ]},
+          // RHEL 9
+          { name: "RHEL 9", owner: "309956199498", filter: [
+            { Name: "name", Value: ["RHEL-9.*-x86_64-*-Hourly2-GP3"] },
+            { Name: "state", Value: ["available"] },
+          ]},
+        ];
+
+        const results = [];
+        for (const group of filters) {
+          try {
+            const xml = await ec2Call("DescribeImages", {
+              Owner: [group.owner],
+              Filter: group.filter,
+            }, region);
+            const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+            let match;
+            const images = [];
+            while ((match = itemRegex.exec(xml)) !== null) {
+              const block = match[1];
+              const idMatch = block.match(/<imageId>([^<]+)<\/imageId>/);
+              const dateMatch = block.match(/<creationDate>([^<]+)<\/creationDate>/);
+              const descMatch = block.match(/<description>([^<]*)<\/description>/);
+              const archMatch = block.match(/<architecture>([^<]+)<\/architecture>/);
+              if (idMatch?.[1] && dateMatch?.[1]) {
+                images.push({ imageId: idMatch[1], creationDate: dateMatch[1], description: descMatch?.[1] || "", architecture: archMatch?.[1] || "x86_64" });
+              }
+            }
+            images.sort((a, b) => b.creationDate.localeCompare(a.creationDate));
+            if (images.length > 0) {
+              results.push({
+                group: group.name,
+                owner: group.owner,
+                images: images.slice(0, 5).map(i => ({ imageId: i.imageId, description: i.description, architecture: i.architecture, creationDate: i.creationDate })),
+              });
+            }
+          } catch (e) {
+            console.error(`Failed to list AMIs for ${group.name}:`, e.message);
+            results.push({ group: group.name, error: e.message });
+          }
+        }
+        return Response.json({ region, groups: results });
+      }
+
       case "listInstances": {
         const { lab_id } = params;
         const filters = lab_id
