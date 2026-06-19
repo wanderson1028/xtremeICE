@@ -37,6 +37,12 @@ async function checkInstanceAllowed(base44, labId, cpu, ram, userId) {
 
 // ── AWS Signature V4 implementation (lightweight, no SDK needed) ──
 
+// AWS Signature V4 requires percent-encoding of ALL characters except A-Z a-z 0-9 - _ . ~
+// encodeURIComponent leaves * ! ' ( ) unencoded — we must encode * as %2A for AWS
+function awsEncode(str) {
+  return encodeURIComponent(str).replace(/\*/g, "%2A");
+}
+
 function sha256Hex(data) {
   const encoder = new TextEncoder();
   return crypto.subtle.digest("SHA-256", typeof data === "string" ? encoder.encode(data) : data)
@@ -63,7 +69,7 @@ async function signRequest(method, host, region, service, canonicalUri, queryPar
   const dateStamp = amzDate.slice(0, 8);
 
   // Build canonical query string
-  const sortedParams = Object.keys(queryParams).sort().map(k => `${encodeURIComponent(k)}=${encodeURIComponent(queryParams[k])}`).join("&");
+  const sortedParams = Object.keys(queryParams).sort().map(k => `${awsEncode(k)}=${awsEncode(queryParams[k])}`).join("&");
   const canonicalQueryString = sortedParams ? sortedParams : "";
 
   const payloadHash = await sha256Hex(payload || "");
@@ -124,7 +130,7 @@ async function ec2Call(action, paramsObj, region) {
   );
 
   const qs = Object.entries(queryParams)
-    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .map(([k, v]) => `${awsEncode(k)}=${awsEncode(v)}`)
     .join("&");
 
   const resp = await fetch(`https://${host}/?${qs}`, {
