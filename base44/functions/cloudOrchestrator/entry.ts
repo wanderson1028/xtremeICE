@@ -76,10 +76,18 @@ Deno.serve(async (req) => {
         const deployCidr = vpcConfig.cidr || "10.1.0.0/16";
 
         // Pre-flight CIDR conflict check — auto-resolve if conflict
-        const cidrCheck = await base44.asServiceRole.functions.invoke("cloudProviderAWS", {
-          action: "suggestCidr",
-          params: { proposed_cidr: deployCidr, region: deployRegion },
-        });
+        console.log("[deployLab] Step 1: suggestCidr...");
+        let cidrCheck;
+        try {
+          cidrCheck = await base44.functions.invoke("cloudProviderAWS", {
+            action: "suggestCidr",
+            params: { proposed_cidr: deployCidr, region: deployRegion },
+          });
+          console.log("[deployLab] Step 1 OK:", JSON.stringify(cidrCheck?.data || cidrCheck).slice(0, 200));
+        } catch (e) {
+          console.error("[deployLab] Step 1 FAILED:", e.message);
+          throw e;
+        }
         const cidrCheckData = cidrCheck?.data || cidrCheck;
         let effectiveCidr = deployCidr;
         if (cidrCheckData?.check?.conflict) {
@@ -87,15 +95,30 @@ Deno.serve(async (req) => {
           console.log(`CIDR ${deployCidr} conflicts — auto-selected ${effectiveCidr}`);
         }
 
-        const networkResult = await base44.asServiceRole.functions.invoke("cloudProviderAWS", {
-          action: "createNetwork",
-          params: {
-            lab_id,
-            vpc_cidr: effectiveCidr,
-            subnet_configs: vpcConfig.subnets || [],
-            region: lab.region || "us-east-1",
-          },
-        });
+        // Fix subnet zones to match deployment region (topology may have different region zones)
+        const rawSubnets = vpcConfig.subnets || [];
+        const fixedSubnets = rawSubnets.map(s => ({
+          ...s,
+          zone: s.zone?.replace(/^[a-z]+-[a-z]+-\d+/, deployRegion) || `${deployRegion}a`,
+        }));
+
+        console.log("[deployLab] Step 2: createNetwork with cidr=" + effectiveCidr);
+        let networkResult;
+        try {
+          networkResult = await base44.functions.invoke("cloudProviderAWS", {
+            action: "createNetwork",
+            params: {
+              lab_id,
+              vpc_cidr: effectiveCidr,
+              subnet_configs: fixedSubnets,
+              region: deployRegion,
+            },
+          });
+          console.log("[deployLab] Step 2 OK");
+        } catch (e) {
+          console.error("[deployLab] Step 2 FAILED:", e.message);
+          throw e;
+        }
 
         const networkData = networkResult?.data || networkResult;
 
@@ -103,8 +126,10 @@ Deno.serve(async (req) => {
         const devices = topology_data?.devices || [];
         const deployedDevices = [];
         const deviceErrors = [];
+        console.log(`[deployLab] Step 3: Deploying ${devices.length} devices...`);
         for (const device of devices) {
           try {
+            console.log(`[deployLab] Deploying device: ${device.name}`);
             // Pick the right subnet based on device's subnet assignment
             const deviceSubnet = device.subnet || "public";
             const targetSubnet = networkData?.subnets?.find(s => s.name === deviceSubnet) || networkData?.subnets?.[0];
@@ -124,7 +149,7 @@ Deno.serve(async (req) => {
               } catch { /* keep original — will fall back to auto-resolve */ }
             }
 
-            const result = await base44.asServiceRole.functions.invoke("cloudProviderAWS", {
+            const result = await base44.functions.invoke("cloudProviderAWS", {
               action: "createVM",
               params: {
                 lab_id,
@@ -256,7 +281,7 @@ Deno.serve(async (req) => {
         // Terminate each device
         for (const device of devices) {
           try {
-            await base44.asServiceRole.functions.invoke("cloudProviderAWS", {
+            await base44.functions.invoke("cloudProviderAWS", {
               action: "deleteVM",
               params: { instance_id: device.instance_id, region: labs[0].region },
             });
@@ -271,7 +296,7 @@ Deno.serve(async (req) => {
         for (const dep of deployments) {
           if (dep.vpc_id) {
             try {
-              await base44.asServiceRole.functions.invoke("cloudProviderAWS", {
+              await base44.functions.invoke("cloudProviderAWS", {
                 action: "deleteNetwork",
                 params: { vpc_id: dep.vpc_id, region: labs[0].region },
               });
