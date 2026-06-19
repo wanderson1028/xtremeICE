@@ -102,12 +102,18 @@ Deno.serve(async (req) => {
         // Deploy each device
         const devices = topology_data?.devices || [];
         const deployedDevices = [];
+        const deviceErrors = [];
         for (const device of devices) {
           try {
             // Pick the right subnet based on device's subnet assignment
             const deviceSubnet = device.subnet || "public";
             const targetSubnet = networkData?.subnets?.find(s => s.name === deviceSubnet) || networkData?.subnets?.[0];
-            const subnetId = targetSubnet?.id || networkData?.subnetId || "subnet-pending";
+            const subnetId = targetSubnet?.id || networkData?.subnetId;
+
+            if (!subnetId) {
+              deviceErrors.push({ device: device.name, error: "No valid subnet found for device deployment" });
+              continue;
+            }
 
             // Resolve AMI: if it's a LiveFireImage database ID, look up the actual AMI ID
             let resolvedAmiId = device.ami_image_id || null;
@@ -133,17 +139,23 @@ Deno.serve(async (req) => {
                 ami_image_id: resolvedAmiId,
               },
             });
-            deployedDevices.push(result?.data || result);
 
-            const deviceData = result?.data || result;
+            const responseData = result?.data || result;
+            if (responseData?.error) {
+              deviceErrors.push({ device: device.name, error: responseData.message || responseData.error });
+              continue;
+            }
+
+            deployedDevices.push(responseData);
+
             // Update device record in database
             await base44.asServiceRole.entities.LiveFireDevice.create({
               lab_id,
               name: device.name,
               device_type: device.type,
-              instance_id: deviceData?.instanceId || `i-pending-${device.id}`,
-              public_ip: deviceData?.publicIp || "",
-              private_ip: deviceData?.privateIp || "",
+              instance_id: responseData?.instanceId || `i-pending-${device.id}`,
+              public_ip: responseData?.publicIp || "",
+              private_ip: responseData?.privateIp || "",
               status: "provisioning",
               cpu_cores: device.cpu_cores || 2,
               ram_mb: device.ram_mb || 4096,
@@ -154,23 +166,30 @@ Deno.serve(async (req) => {
               access_method: device.access_method || "ssh",
             });
           } catch (deviceError) {
-            console.error(`Failed to deploy device ${device.name}:`, deviceError);
+            deviceErrors.push({ device: device.name, error: deviceError.message || String(deviceError) });
           }
         }
 
+        // Determine overall status
+        const allDevicesFailed = devices.length > 0 && deployedDevices.length === 0;
+        const someDevicesFailed = deviceErrors.length > 0 && deployedDevices.length > 0;
+        const deploymentStatus = allDevicesFailed ? "failed" : "running";
+        const labStatus = allDevicesFailed ? "failed" : "running";
+
         // Update deployment record
         await base44.asServiceRole.entities.LiveFireDeployment.update(deployment.id, {
-          status: "running",
+          status: deploymentStatus,
           instance_ids: deployedDevices.map(d => d.instanceId).filter(Boolean),
           vpc_id: networkData?.vpcId,
           subnet_ids: networkData?.subnets?.map(s => s.id) || [],
           security_group_ids: networkData?.securityGroupIds || [],
+          error_message: allDevicesFailed ? deviceErrors.map(e => `${e.device}: ${e.error}`).join("; ") : (someDevicesFailed ? `Some devices failed: ${deviceErrors.map(e => e.device).join(", ")}` : null),
           completed_at: new Date().toISOString(),
         });
 
         // Update lab status
         await base44.asServiceRole.entities.LiveFireLab.update(lab_id, {
-          status: "running",
+          status: labStatus,
           device_count: deployedDevices.length,
           estimated_cost_hourly: deployedDevices.length * 0.15,
           vpc_id: networkData?.vpcId,
@@ -199,6 +218,19 @@ Deno.serve(async (req) => {
           user_email: user.email,
         });
 
+        if (allDevicesFailed) {
+          return Response.json({
+            status: "failed",
+            error: "All device launches failed",
+            message: deviceErrors.map(e => `${e.device}: ${e.error}`).join("; "),
+            deployment_id: deployment.id,
+            devices_deployed: 0,
+            device_errors: deviceErrors,
+            vpc_id: networkData?.vpcId,
+            vpc_cidr: effectiveCidr,
+          }, { status: 500 });
+        }
+
         return Response.json({
           status: "success",
           deployment_id: deployment.id,
@@ -209,6 +241,7 @@ Deno.serve(async (req) => {
           subnet_ids: networkData?.subnets,
           security_group_id: networkData?.securityGroupId,
           estimated_cost_hourly: deployedDevices.length * 0.15,
+          device_errors: deviceErrors.length > 0 ? deviceErrors : undefined,
         });
       }
 
