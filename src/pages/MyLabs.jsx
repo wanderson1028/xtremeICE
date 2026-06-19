@@ -5,7 +5,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Layers, Plus, Search, Filter, MoreVertical, Play, Pause,
   Trash2, Copy, Share2, Eye, Edit3, Cloud, Clock, Users,
-  ArrowLeft, Flame, Download, Upload, Tag, Loader2
+  ArrowLeft, Flame, Download, Upload, Tag, Loader2, CheckCircle, XCircle
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +36,8 @@ export default function MyLabs() {
   const [filter, setFilter] = useState("all");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState(null);
+  const [deployingLabs, setDeployingLabs] = useState(new Set());
+  const [deployError, setDeployError] = useState(null);
 
   const { data: currentUser } = useQuery({
     queryKey: ["me"],
@@ -59,6 +61,43 @@ export default function MyLabs() {
     },
     onSuccess: () => queryClient.invalidateQueries(["my-livefire-labs"]),
   });
+
+  const handleDeploy = async (lab, e) => {
+    e.stopPropagation();
+    if (deployingLabs.has(lab.id)) return;
+    setDeployError(null);
+    setDeployingLabs(prev => new Set([...prev, lab.id]));
+    try {
+      // Update status to deploying immediately for visual feedback
+      await base44.entities.LiveFireLab.update(lab.id, { status: "deploying" });
+      queryClient.invalidateQueries(["my-livefire-labs"]);
+
+      // Call cloud orchestrator to deploy
+      const res = await base44.functions.invoke("cloudOrchestrator", {
+        action: "deployLab",
+        provider: lab.cloud_provider || "aws",
+        params: { lab_id: lab.id, topology_data: lab.topology_data },
+      });
+
+      if (res.data?.error) {
+        // CIDR conflict or other deploy error
+        setDeployError(res.data.message || res.data.error);
+        await base44.entities.LiveFireLab.update(lab.id, { status: "failed" });
+      } else {
+        // Success — navigate to wizard so user can see/edit topology
+        queryClient.invalidateQueries(["my-livefire-labs"]);
+        queryClient.invalidateQueries(["running-livefire-labs"]);
+        queryClient.invalidateQueries(["running-devices"]);
+        navigate(`/lab-creation-wizard?lab=${lab.id}`);
+      }
+    } catch (err) {
+      setDeployError(err?.message || "Deployment failed");
+      try { await base44.entities.LiveFireLab.update(lab.id, { status: "failed" }); } catch {}
+    } finally {
+      setDeployingLabs(prev => { const next = new Set(prev); next.delete(lab.id); return next; });
+      queryClient.invalidateQueries(["my-livefire-labs"]);
+    }
+  };
 
   const handleCreateLab = async () => {
     if (creating) return;
@@ -116,10 +155,10 @@ export default function MyLabs() {
         </div>
 
         {/* Error state */}
-        {createError && (
+        {(createError || deployError) && (
           <div className="mb-4 p-3 bg-red-900/30 border border-red-700/50 rounded-lg flex items-center justify-between">
-            <span className="text-red-300 text-sm font-mono">{createError}</span>
-            <button onClick={() => setCreateError(null)} className="text-red-400 hover:text-red-300 text-lg leading-none">&times;</button>
+            <span className="text-red-300 text-sm font-mono">{createError || deployError}</span>
+            <button onClick={() => { setCreateError(null); setDeployError(null); }} className="text-red-400 hover:text-red-300 text-lg leading-none">&times;</button>
           </div>
         )}
 
@@ -179,7 +218,7 @@ export default function MyLabs() {
                 onClick={() => navigate(`/lab-creation-wizard?lab=${lab.id}`)}
               >
                 {/* Top bar */}
-                <div className="h-1.5 bg-gradient-to-r from-red-700 to-orange-600" />
+                <div className={`h-1.5 bg-gradient-to-r ${lab.status === "deploying" ? "from-yellow-600 to-yellow-400 animate-pulse" : lab.status === "running" ? "from-green-600 to-green-400" : lab.status === "failed" ? "from-red-600 to-red-400" : "from-red-700 to-orange-600"}`} />
                 <div className="p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1 min-w-0">
@@ -224,10 +263,29 @@ export default function MyLabs() {
                   <div className="flex gap-1.5 mt-3 pt-3 border-t border-gray-800">
                     {lab.status === "draft" && (
                       <button
-                        onClick={(e) => { e.stopPropagation(); }}
-                        className="flex items-center gap-1 px-2.5 py-1.5 bg-green-900/30 border border-green-700/40 text-green-400 hover:bg-green-900/50 rounded-lg text-[10px] font-mono transition-colors"
+                        onClick={(e) => handleDeploy(lab, e)}
+                        disabled={deployingLabs.has(lab.id)}
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-green-900/30 border border-green-700/40 text-green-400 hover:bg-green-900/50 disabled:bg-green-900/20 disabled:text-green-600 rounded-lg text-[10px] font-mono transition-colors"
                       >
-                        <Play className="h-3 w-3" /> Deploy
+                        {deployingLabs.has(lab.id) ? (
+                          <><div className="w-3 h-3 border-2 border-green-400/30 border-t-green-400 rounded-full animate-spin" /> Deploying...</>
+                        ) : (
+                          <><Play className="h-3 w-3" /> Deploy</>
+                        )}
+                      </button>
+                    )}
+                    {lab.status === "deploying" && (
+                      <div className="flex items-center gap-1 px-2.5 py-1.5 bg-yellow-900/20 border border-yellow-700/40 text-yellow-400 rounded-lg text-[10px] font-mono">
+                        <div className="w-3 h-3 border-2 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" /> Deploying
+                      </div>
+                    )}
+                    {lab.status === "failed" && (
+                      <button
+                        onClick={(e) => handleDeploy(lab, e)}
+                        disabled={deployingLabs.has(lab.id)}
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-red-900/30 border border-red-700/40 text-red-400 hover:bg-red-900/50 rounded-lg text-[10px] font-mono transition-colors"
+                      >
+                        <XCircle className="h-3 w-3" /> Retry
                       </button>
                     )}
                     {lab.status === "running" && (
