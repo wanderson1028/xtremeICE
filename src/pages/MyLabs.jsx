@@ -134,7 +134,7 @@ export default function MyLabs() {
       const newLab = await base44.entities.LiveFireLab.create({
         name: `New Lab ${count}`,
         cloud_provider: "aws",
-        region: "us-west-2",
+        region: "us-east-1",
         category: "Custom",
         difficulty: "Intermediate",
         visibility: "private",

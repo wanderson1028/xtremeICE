@@ -150,19 +150,59 @@ function extractTag(tags, key) {
   return null;
 }
 
-// AMI mapping for common device types
-const AMI_MAP = {
-  router: "ami-0c55b159cbfafe1f0",
-  switch: "ami-0c55b159cbfafe1f0",
-  firewall: "ami-0c55b159cbfafe1f0",
-  server: "ami-0c55b159cbfafe1f0",
-  workstation: "ami-0c7213e0f0840f9e8",
-  cloud_resource: "ami-0c55b159cbfafe1f0",
-  container: "ami-0c55b159cbfafe1f0",
-  security_appliance: "ami-0c55b159cbfafe1f0",
-  load_balancer: "ami-0c55b159cbfafe1f0",
-  monitoring: "ami-0c55b159cbfafe1f0",
-};
+// Cache AMI per region to avoid repeated DescribeImages calls
+const amiCache = {};
+
+async function resolveAMI(region) {
+  if (amiCache[region]) return amiCache[region];
+
+  try {
+    const xml = await ec2Call("DescribeImages", {
+      Owner: ["amazon"],
+      Filter: [
+        { Name: "name", Value: ["al2023-ami-2023*-x86_64"] },
+        { Name: "state", Value: ["available"] },
+        { Name: "architecture", Value: ["x86_64"] },
+        { Name: "root-device-type", Value: ["ebs"] },
+      ],
+    }, region);
+
+    // Parse images sorted by creation date, pick latest
+    const images = [];
+    const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+    let match;
+    while ((match = itemRegex.exec(xml)) !== null) {
+      const block = match[1];
+      const idMatch = block.match(/<imageId>([^<]+)<\/imageId>/);
+      const dateMatch = block.match(/<creationDate>([^<]+)<\/creationDate>/);
+      if (idMatch?.[1] && dateMatch?.[1]) {
+        images.push({ imageId: idMatch[1], creationDate: dateMatch[1] });
+      }
+    }
+
+    images.sort((a, b) => b.creationDate.localeCompare(a.creationDate));
+    const amiId = images[0]?.imageId;
+
+    if (!amiId) {
+      // Fallback: try broader filter with "amzn2-ami-hvm-*-x86_64-gp2"
+      const fallbackXml = await ec2Call("DescribeImages", {
+        Owner: ["amazon"],
+        Filter: [
+          { Name: "name", Value: ["amzn2-ami-hvm-*-x86_64-gp2"] },
+          { Name: "state", Value: ["available"] },
+        ],
+      }, region);
+      const fbMatch = fallbackXml.match(/<imageId>([^<]+)<\/imageId>/);
+      amiCache[region] = fbMatch?.[1] || null;
+    } else {
+      amiCache[region] = amiId;
+    }
+
+    return amiCache[region];
+  } catch {
+    return null;
+  }
+}
 
 function selectInstanceType(cpu, ram) {
   if (cpu >= 8 || ram >= 32768) return "c5.2xlarge";
@@ -196,7 +236,17 @@ Deno.serve(async (req) => {
           }, { status: 403 });
         }
 
-        const amiId = ami_image_id || AMI_MAP[device_type] || "ami-0c55b159cbfafe1f0";
+        // Resolve AMI dynamically for the target region
+        let amiId = ami_image_id;
+        if (!amiId) {
+          amiId = await resolveAMI(region);
+        }
+        if (!amiId) {
+          return Response.json({
+            error: "NO_AMI_FOUND",
+            message: `Could not find a suitable Amazon Linux AMI in ${region}. Try a different region or provide an ami_image_id.`,
+          }, { status: 400 });
+        }
         const instanceType = selectInstanceType(cpu_cores, ram_mb);
 
         const xml = await ec2Call("RunInstances", {
