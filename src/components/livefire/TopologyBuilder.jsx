@@ -6,7 +6,8 @@ import {
   Server, Router, Shield, Monitor, HardDrive, Wifi, Cloud,
   Container, Zap, GitBranch, Trash2, Plus, Move, Maximize2,
   Minimize2, Eye, Copy, Layers, Network, Globe, Lock, Cpu,
-  DollarSign, X, Check, AlertTriangle, Settings, ShieldAlert
+  DollarSign, X, Check, AlertTriangle, Settings, ShieldAlert,
+  Link2, Unlink
 } from "lucide-react";
 import { getCostTier, COST_TIERS, checkLabDevices } from "@/lib/instanceTiers";
 
@@ -47,7 +48,6 @@ const TYPE_ICON_COLORS = {
   monitoring: "text-gray-400",
 };
 
-// Per-device pricing ($/hr)
 const DEVICE_PRICING = {
   router: 0.18, switch: 0.14, firewall: 0.22, server: 0.15,
   workstation: 0.12, cloud_resource: 0.20, container: 0.10,
@@ -71,15 +71,14 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [selectedDevice, setSelectedDevice] = useState(null);
-  const [connectingFrom, setConnectingFrom] = useState(null);
-  const [connectLinePos, setConnectLinePos] = useState(null); // {x, y} for rubber-band preview
-  const [rightPanel, setRightPanel] = useState(null); // 'properties' | 'network' | null
+  const [connectingFrom, setConnectingFrom] = useState(null);  // device ID or null
+  const [connectLinePos, setConnectLinePos] = useState(null);
+  const [rightPanel, setRightPanel] = useState(null);
   const [cidrSuggestion, setCidrSuggestion] = useState(null);
   const [cidrConflict, setCidrConflict] = useState(null);
   const [suggestingCidr, setSuggestingCidr] = useState(false);
   const canvasRef = useRef(null);
 
-  // CIDR conflict check
   const checkCidrConflict = async (cidr) => {
     if (!cidr) return;
     try {
@@ -113,7 +112,6 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
     setSuggestingCidr(false);
   };
 
-  // Re-check conflict when CIDR or region changes
   useEffect(() => {
     if (vpcConfig?.cidr) {
       const timer = setTimeout(() => checkCidrConflict(vpcConfig.cidr), 600);
@@ -121,7 +119,6 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
     }
   }, [vpcConfig?.cidr, region]);
 
-  // Fetch available AMI images
   const { data: availableImages = [] } = useQuery({
     queryKey: ["ami-images", cloudProvider],
     queryFn: () => base44.entities.LiveFireImage.filter({ status: "available" }, "vendor", 100),
@@ -184,6 +181,76 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
     updateVpcConfig({ subnets });
   };
 
+  // --- Connection logic (EVE-NG style) ---
+  const createConnection = (fromId, toId) => {
+    if (fromId === toId) return;
+    const fromDevice = devices.find(d => d.id === fromId);
+    const toDevice = devices.find(d => d.id === toId);
+    if (!fromDevice || !toDevice) return;
+
+    const alreadyExists = fromDevice.connections?.some(c => c.target_device_id === toId);
+    if (alreadyExists) return;
+
+    const fromCount = (fromDevice.connections?.length || 0);
+    const toCount = (toDevice.connections?.length || 0);
+
+    updateDevice(fromId, {
+      connections: [...(fromDevice.connections || []), {
+        target_device_id: toId,
+        source_interface: `eth${fromCount}`,
+        target_interface: `eth${toCount}`,
+        connection_type: "ethernet",
+        bandwidth_mbps: 1000
+      }]
+    });
+    updateDevice(toId, {
+      connections: [...(toDevice.connections || []), {
+        target_device_id: fromId,
+        source_interface: `eth${toCount}`,
+        target_interface: `eth${fromCount}`,
+        connection_type: "ethernet",
+        bandwidth_mbps: 1000
+      }]
+    });
+  };
+
+  const startConnection = (deviceId, e) => {
+    e.stopPropagation();
+    setConnectingFrom(deviceId);
+  };
+
+  const finishConnection = (targetId, e) => {
+    e.stopPropagation();
+    if (connectingFrom && connectingFrom !== targetId) {
+      createConnection(connectingFrom, targetId);
+    }
+    setConnectingFrom(null);
+    setConnectLinePos(null);
+  };
+
+  const cancelConnection = (e) => {
+    if (e) e.stopPropagation();
+    setConnectingFrom(null);
+    setConnectLinePos(null);
+  };
+
+  const removeConnection = (deviceId, targetId, e) => {
+    e.stopPropagation();
+    const fromDevice = devices.find(d => d.id === deviceId);
+    const toDevice = devices.find(d => d.id === targetId);
+    if (fromDevice) {
+      updateDevice(deviceId, {
+        connections: (fromDevice.connections || []).filter(c => c.target_device_id !== targetId)
+      });
+    }
+    if (toDevice) {
+      updateDevice(targetId, {
+        connections: (toDevice.connections || []).filter(c => c.target_device_id !== deviceId)
+      });
+    }
+  };
+
+  // --- Drag & Drop ---
   const onDragEnd = (result) => {
     if (!result.destination) return;
     const { source, destination } = result;
@@ -205,18 +272,23 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
     }
   };
 
+  // --- Canvas panning ---
   const handleCanvasMouseDown = (e) => {
-    // Cancel connection on clicking empty canvas
-    if (connectingFrom && (e.target === canvasRef.current || e.target.classList.contains("canvas-bg") || e.target.tagName === "svg")) {
-      setConnectingFrom(null);
-      setConnectLinePos(null);
-      return;
+    if (connectingFrom) {
+      // Clicking empty canvas in connect mode cancels
+      const isCanvas = e.target === canvasRef.current || e.target.classList.contains("canvas-bg") || e.target.tagName === "svg";
+      if (isCanvas) {
+        cancelConnection();
+        return;
+      }
     }
-    if (e.target === canvasRef.current || e.target.classList.contains("canvas-bg") || e.target.tagName === "svg") {
+    const isCanvas = e.target === canvasRef.current || e.target.classList.contains("canvas-bg") || e.target.tagName === "svg";
+    if (isCanvas && !connectingFrom) {
       setIsPanning(true);
       setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
     }
   };
+
   const handleCanvasMouseMove = (e) => {
     if (isPanning) {
       setPan({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
@@ -231,26 +303,25 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
       }
     }
   };
+
   const handleCanvasMouseUp = () => { setIsPanning(false); };
 
-  const startConnection = useCallback((deviceId, e) => {
+  const selectDevice = (deviceId, e) => {
     if (e) e.stopPropagation();
-    if (connectingFrom === deviceId) { setConnectingFrom(null); setConnectLinePos(null); return; }
     if (connectingFrom) {
-      const fromDevice = devices.find(d => d.id === connectingFrom);
-      const toDevice = devices.find(d => d.id === deviceId);
-      if (fromDevice && toDevice && fromDevice.id !== toDevice.id) {
-        const exists = fromDevice.connections?.some(c => c.target_device_id === toDevice.id);
-        if (!exists) {
-          updateDevice(connectingFrom, { connections: [...(fromDevice.connections || []), { target_device_id: toDevice.id, source_interface: `eth${(fromDevice.connections?.length || 0)}`, target_interface: `eth${(toDevice.connections?.length || 0)}`, connection_type: "ethernet", bandwidth_mbps: 1000 }] });
-          updateDevice(deviceId, { connections: [...(toDevice.connections || []), { target_device_id: fromDevice.id, source_interface: `eth${(toDevice.connections?.length || 0)}`, target_interface: `eth${(fromDevice.connections?.length || 0)}`, connection_type: "ethernet", bandwidth_mbps: 1000 }] });
-        }
-      }
-      setConnectingFrom(null);
-      setConnectLinePos(null);
-    } else { setConnectingFrom(deviceId); }
-  }, [connectingFrom, devices, updateDevice]);
+      finishConnection(deviceId, e);
+      return;
+    }
+    if (selectedDevice === deviceId) {
+      setSelectedDevice(null);
+      setRightPanel(null);
+    } else {
+      setSelectedDevice(deviceId);
+      setRightPanel("properties");
+    }
+  };
 
+  // --- Rendering ---
   const renderConnections = () => {
     const lines = [];
     const drawn = new Set();
@@ -261,7 +332,28 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
         drawn.add(pairKey);
         const target = devices.find(d => d.id === conn.target_device_id);
         if (!target) return;
-        lines.push(<line key={pairKey} x1={(device.position_x || 0) + 60} y1={(device.position_y || 0) + 36} x2={(target.position_x || 0) + 60} y2={(target.position_y || 0) + 36} stroke="#4B5563" strokeWidth={2} opacity={0.5} />);
+        const sx = (device.position_x || 0) + 65;
+        const sy = (device.position_y || 0) + 32;
+        const ex = (target.position_x || 0) + 65;
+        const ey = (target.position_y || 0) + 32;
+        const midX = (sx + ex) / 2;
+        lines.push(
+          <g key={pairKey}>
+            {/* Clickable wider hit area */}
+            <line x1={sx} y1={sy} x2={ex} y2={ey}
+              stroke="transparent" strokeWidth={14} className="cursor-pointer"
+              onClick={(e) => removeConnection(device.id, conn.target_device_id, e)} />
+            {/* Visible line */}
+            <line x1={sx} y1={sy} x2={ex} y2={ey}
+              stroke="#4B5563" strokeWidth={2.5} opacity={0.7} />
+            {/* Delete X on hover */}
+            <g className="opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+              onClick={(e) => removeConnection(device.id, conn.target_device_id, e)}>
+              <circle cx={midX} cy={(sy + ey) / 2} r={8} fill="#1f2937" stroke="#ef4444" strokeWidth={1} />
+              <text x={midX} y={(sy + ey) / 2 + 3} textAnchor="middle" fill="#ef4444" fontSize={10} fontWeight="bold">×</text>
+            </g>
+          </g>
+        );
       });
     });
     return lines;
@@ -269,10 +361,14 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
 
   const selectedDeviceData = selectedDevice ? devices.find(d => d.id === selectedDevice) : null;
   const totalCost = devices.reduce((sum, d) => sum + (d.cost_per_hour || DEVICE_PRICING[d.type] || 0.15), 0);
-
-  // Cost tier violation check
   const tierCheck = checkLabDevices(devices, isAdmin, isLabApproved);
   const hasViolations = tierCheck.hasViolations;
+
+  const isConnectedTo = (deviceId) => {
+    if (!connectingFrom) return false;
+    const fromDevice = devices.find(d => d.id === connectingFrom);
+    return fromDevice?.connections?.some(c => c.target_device_id === deviceId);
+  };
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
@@ -308,13 +404,11 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
               </div>
             )}
           </Droppable>
-          {/* Cost summary */}
           <div className="border-t border-red-900/20 p-3 bg-black/30">
             <div className="flex items-center justify-between text-[10px]">
               <span className="font-mono text-gray-500">Est. Cost</span>
               <span className="font-mono text-green-400 font-bold">${totalCost.toFixed(2)}/hr</span>
             </div>
-            {/* Tier indicator */}
             {devices.length > 0 && !isAdmin && (
               <div className={`mt-2 text-[9px] font-mono px-2 py-1 rounded-md border ${
                 hasViolations ? "bg-red-950/30 border-red-800/40 text-red-400" : "bg-green-950/30 border-green-800/40 text-green-400"
@@ -331,7 +425,6 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
 
         {/* Center: Canvas */}
         <div className="flex-1 flex flex-col">
-          {/* Cost tier warning banner */}
           {hasViolations && !isAdmin && (
             <div className="flex items-center gap-3 px-4 py-2.5 bg-red-950/40 border-b border-red-800/50 text-red-300">
               <ShieldAlert className="h-4 w-4 shrink-0" />
@@ -350,26 +443,34 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
               </div>
             </div>
           )}
+
+          {/* Canvas Toolbar */}
           <div className="flex items-center gap-2 px-3 py-2 border-b border-red-900/20 bg-black/20 shrink-0">
             <button onClick={() => setScale(s => Math.max(0.25, s - 0.25))} className="p-1.5 rounded bg-gray-800 border border-gray-700 text-gray-400 hover:text-white transition-colors"><Minimize2 className="h-3.5 w-3.5" /></button>
             <span className="text-[10px] font-mono text-gray-500 w-10 text-center">{Math.round(scale * 100)}%</span>
             <button onClick={() => setScale(s => Math.min(2, s + 0.25))} className="p-1.5 rounded bg-gray-800 border border-gray-700 text-gray-400 hover:text-white transition-colors"><Maximize2 className="h-3.5 w-3.5" /></button>
             <div className="h-4 w-px bg-gray-700 mx-1" />
-            <div className="flex items-center gap-1.5 text-[10px] font-mono">
-              <span className="text-gray-600">{connectingFrom ? "Click a port dot on target device" : "Click a port dot to connect devices"}</span>
-              {connectingFrom && (
-                <button onClick={() => { setConnectingFrom(null); setConnectLinePos(null); }}
-                  className="text-red-400 hover:text-red-300 underline">Cancel</button>
-              )}
-            </div>
+            {connectingFrom ? (
+              <div className="flex items-center gap-2 text-[10px] font-mono">
+                <Zap className="h-3 w-3 text-yellow-400 animate-pulse" />
+                <span className="text-yellow-400 font-bold">Connecting...</span>
+                <span className="text-gray-500">Click the target device</span>
+                <button onClick={cancelConnection}
+                  className="text-red-400 hover:text-red-300 underline ml-2">Cancel</button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-[10px] font-mono text-gray-500">
+                <span>{connectingFrom ? "Click target device" : selectedDevice ? "Click another device to connect, or use button below" : "Click a device to select it"}</span>
+              </div>
+            )}
             <button onClick={() => setRightPanel(rightPanel === "network" ? null : "network")}
-              className={`text-[10px] font-mono px-2.5 py-1 rounded border transition-colors ${
+              className={`ml-auto text-[10px] font-mono px-2.5 py-1 rounded border transition-colors ${
                 rightPanel === "network" ? "bg-blue-900/30 border-blue-600/60 text-blue-400" : "bg-gray-800 border-gray-700 text-gray-500 hover:text-gray-300"
               }`}>
-              <Network className="h-3 w-3 inline mr-1" />VPC Config
+              <Network className="h-3 w-3 inline mr-1" />VPC
             </button>
-            <button onClick={() => { onChange({ ...topology, devices: [] }); setSelectedDevice(null); setRightPanel(null); setConnectingFrom(null); }}
-              className="text-[10px] font-mono px-2 py-1 rounded border border-gray-700 text-gray-500 hover:text-red-400 ml-auto transition-colors">Clear All</button>
+            <button onClick={() => { onChange({ ...topology, devices: [] }); setSelectedDevice(null); setRightPanel(null); cancelConnection(); }}
+              className="text-[10px] font-mono px-2 py-1 rounded border border-gray-700 text-gray-500 hover:text-red-400 transition-colors">Clear</button>
           </div>
 
           <Droppable droppableId="canvas" type="DEVICE">
@@ -377,7 +478,7 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
               <div ref={(el) => { canvasRef.current = el; provided.innerRef(el); }} {...provided.droppableProps}
                 className={`canvas-bg flex-1 relative overflow-hidden ${snapshot.isDraggingOver ? "bg-red-950/10" : "bg-[radial-gradient(circle,#1f2937_1px,transparent_1px)] bg-[size:20px_20px]"}`}
                 onMouseDown={handleCanvasMouseDown} onMouseMove={handleCanvasMouseMove} onMouseUp={handleCanvasMouseUp} onMouseLeave={handleCanvasMouseUp}
-                style={{ cursor: isPanning ? "grabbing" : connectingFrom ? "crosshair" : "grab" }}>
+                style={{ cursor: isPanning ? "grabbing" : connectingFrom ? "crosshair" : "default" }}>
                 <svg className="absolute inset-0 pointer-events-none" style={{ width: "100%", height: "100%" }}>
                   <g transform={`translate(${pan.x},${pan.y}) scale(${scale})`}>
                     {renderConnections()}
@@ -385,11 +486,11 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                     {connectingFrom && connectLinePos && (() => {
                       const from = devices.find(d => d.id === connectingFrom);
                       if (!from) return null;
-                      const fx = (from.position_x || 0) + 65;
-                      const fy = (from.position_y || 0) + 16;
                       return (
-                        <line x1={fx} y1={fy} x2={connectLinePos.x} y2={connectLinePos.y}
-                          stroke="#eab308" strokeWidth={2} strokeDasharray="6,4" opacity={0.7} />
+                        <line x1={(from.position_x || 0) + 65} y1={(from.position_y || 0) + 32}
+                          x2={connectLinePos.x} y2={connectLinePos.y}
+                          stroke="#fbbf24" strokeWidth={2.5} strokeDasharray="8,4" opacity={0.8}
+                          className="drop-shadow-[0_0_6px_rgba(251,191,36,0.5)]" />
                       );
                     })()}
                   </g>
@@ -398,49 +499,24 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                   {devices.map((device, idx) => {
                     const paletteItem = DEVICE_PALETTE.find(d => d.type === device.type);
                     const DevIcon = paletteItem?.icon || Server;
-                    const isConnectingTarget = connectingFrom && connectingFrom !== device.id;
+                    const isSelected = selectedDevice === device.id;
                     const isConnectingSource = connectingFrom === device.id;
+                    const isConnectingTarget = connectingFrom && connectingFrom !== device.id;
+                    const alreadyLinked = connectingFrom && isConnectedTo(device.id);
                     const connCount = device.connections?.length || 0;
+                    const borderColor = isConnectingSource ? "border-yellow-400 ring-2 ring-yellow-400/50" :
+                                        isConnectingTarget ? (alreadyLinked ? "border-gray-600" : "border-green-400 ring-2 ring-green-400/50") :
+                                        isSelected ? "ring-2 ring-red-500" : "";
 
                     return (
                       <Draggable key={device.id} draggableId={`device-${device.id}`} index={idx}>
                         {(provided, snapshot) => (
                           <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}
-                            className={`absolute w-[130px] rounded-xl border-2 transition-all group ${
-                              TYPE_COLORS[device.type] || TYPE_COLORS.server
-                            } ${selectedDevice === device.id ? "ring-2 ring-red-500 ring-offset-2 ring-offset-gray-950 shadow-lg shadow-red-900/20" : ""} ${
-                              snapshot.isDragging ? "opacity-80 shadow-2xl scale-105" : "hover:scale-[1.02]"
-                            } ${isConnectingTarget ? "ring-2 ring-yellow-400 ring-offset-1 ring-offset-gray-950" : ""} ${
-                              isConnectingSource ? "ring-2 ring-green-400 ring-offset-1 ring-offset-gray-950" : ""
+                            className={`absolute w-[130px] rounded-xl border-2 transition-all ${TYPE_COLORS[device.type] || TYPE_COLORS.server} ${borderColor} ${
+                              snapshot.isDragging ? "opacity-80 shadow-2xl scale-105 z-50" : "hover:scale-[1.02]"
                             }`}
                             style={{ left: device.position_x || 0, top: device.position_y || 0, ...provided.draggableProps.style }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (selectedDevice === device.id) { setSelectedDevice(null); setRightPanel(null); }
-                              else { setSelectedDevice(device.id); setRightPanel("properties"); }
-                            }}>
-
-                            {/* Port dots — right side for outbound, left side for inbound */}
-                            <button
-                              title="Connect from this port"
-                              onClick={(e) => startConnection(device.id, e)}
-                              className={`absolute -right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all z-10 ${
-                                isConnectingSource
-                                  ? "bg-green-500 border-green-400 text-white scale-110 shadow-lg shadow-green-500/40"
-                                  : connectingFrom
-                                  ? "bg-yellow-500/80 border-yellow-400 text-black hover:bg-yellow-400 cursor-pointer"
-                                  : "bg-gray-700 border-gray-500 text-gray-300 hover:bg-cyan-600 hover:border-cyan-400 hover:text-white opacity-0 group-hover:opacity-100 cursor-pointer"
-                              }`}>
-                              <GitBranch className="h-3 w-3" />
-                            </button>
-
-                            {/* Port indicator on left side */}
-                            <div className={`absolute -left-2 top-1/2 -translate-y-1/2 h-3 w-3 rounded-full border transition-all ${
-                              isConnectingTarget ? "bg-yellow-500 border-yellow-400 scale-110" :
-                              isConnectingSource ? "bg-green-500 border-green-400" :
-                              "bg-gray-600 border-gray-500 opacity-0 group-hover:opacity-100"
-                            }`} />
-
+                            onClick={(e) => selectDevice(device.id, e)}>
                             <div className="p-2.5">
                               <div className="flex items-center gap-1.5 mb-1.5">
                                 <DevIcon className={`h-3.5 w-3.5 ${TYPE_ICON_COLORS[device.type] || "text-gray-400"}`} />
@@ -448,30 +524,51 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                                 {(() => {
                                   const tier = getCostTier(device.cpu_cores || 2, device.ram_mb || 4096);
                                   const tc = COST_TIERS[tier];
-                                  return (
-                                    <span className={`text-[7px] font-mono px-1 py-0.5 rounded border ml-auto ${tc.bg} ${tc.color}`}>
-                                      {tc.label}
-                                    </span>
-                                  );
+                                  return <span className={`text-[7px] font-mono px-1 py-0.5 rounded border ml-auto ${tc.bg} ${tc.color}`}>{tc.label}</span>;
                                 })()}
                               </div>
                               <div className="flex items-center gap-2 text-[8px] font-mono text-gray-500">
-                                <span>{device.cpu_cores || 2} vCPU</span>
+                                <span>{device.cpu_cores || 2}vCPU</span>
                                 <span>{device.ram_mb >= 1024 ? `${device.ram_mb / 1024}GB` : `${device.ram_mb}MB`}</span>
                               </div>
                               {device.ami_image_id && (
                                 <div className="mt-1.5 text-[7px] font-mono text-cyan-500 bg-cyan-950/30 rounded px-1.5 py-0.5 truncate border border-cyan-800/30">
-                                  AMI: {availableImages.find(i => i.id === device.ami_image_id)?.product || device.ami_image_id}
+                                  {availableImages.find(i => i.id === device.ami_image_id)?.product || "AMI"}
                                 </div>
                               )}
                               {connCount > 0 && (
-                                <div className="mt-1 text-[7px] font-mono text-gray-600">
-                                  {connCount} connection{connCount > 1 ? "s" : ""}
+                                <div className="mt-1 text-[7px] font-mono text-gray-600 flex items-center gap-1">
+                                  <GitBranch className="h-2.5 w-2.5" />{connCount}
+                                </div>
+                              )}
+
+                              {/* EVE-NG style connect button — visible when selected */}
+                              {isSelected && !connectingFrom && (
+                                <button
+                                  onClick={(e) => startConnection(device.id, e)}
+                                  className="mt-2 w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-yellow-600/30 border border-yellow-500/50 text-yellow-300 hover:bg-yellow-600/50 text-[9px] font-mono font-bold transition-colors">
+                                  <Link2 className="h-3 w-3" /> Connect
+                                </button>
+                              )}
+
+                              {/* Connecting source indicator */}
+                              {isConnectingSource && (
+                                <div className="mt-2 w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-yellow-500/20 border border-yellow-400/60 text-yellow-300 text-[9px] font-mono">
+                                  <Zap className="h-3 w-3 animate-pulse" /> Source
+                                </div>
+                              )}
+
+                              {/* Connecting target indicator */}
+                              {isConnectingTarget && !alreadyLinked && (
+                                <div className="mt-2 w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-green-600/20 border border-green-500/50 text-green-300 text-[9px] font-mono font-bold">
+                                  Click to link
                                 </div>
                               )}
                             </div>
+
+                            {/* Delete button */}
                             <button onClick={(e) => { e.stopPropagation(); removeDevice(device.id); }}
-                              className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-red-800/90 border border-red-600 text-red-300 hover:bg-red-700 flex items-center justify-center transition-colors">
+                              className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-red-800/90 border border-red-600 text-red-300 hover:bg-red-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                               <X className="h-2.5 w-2.5" />
                             </button>
                           </div>
@@ -481,14 +578,14 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                   })}
                 </div>
                 {provided.placeholder}
-                {devices.length === 0 && (
+                {devices.length === 0 && !connectingFrom && (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <div className="text-center">
                       <div className="h-14 w-14 rounded-2xl bg-gray-800/40 border border-gray-700/50 flex items-center justify-center mx-auto mb-4">
                         <Network className="h-7 w-7 text-gray-600" />
                       </div>
-                      <p className="text-xs font-mono text-gray-600 mb-1">Drag devices from the palette</p>
-                      <p className="text-[10px] font-mono text-gray-700">Click a device to add it, then use port dots to connect</p>
+                      <p className="text-xs font-mono text-gray-600 mb-1">Click devices in the palette to add them</p>
+                      <p className="text-[10px] font-mono text-gray-700">Select a device → Connect → Click target</p>
                     </div>
                   </div>
                 )}
@@ -497,10 +594,9 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
           </Droppable>
         </div>
 
-        {/* Right Panel: Properties or Network Config */}
+        {/* Right Panel */}
         {rightPanel && (
           <div className="w-72 shrink-0 border-l border-red-900/20 bg-gradient-to-b from-black/40 to-black/20 overflow-y-auto">
-            {/* Tabs */}
             <div className="flex border-b border-red-900/20">
               <button onClick={() => setRightPanel("properties")}
                 className={`flex-1 text-[10px] font-mono py-2.5 text-center transition-colors ${rightPanel === "properties" ? "bg-red-900/20 text-red-300 border-b-2 border-red-500" : "text-gray-500 hover:text-gray-300"}`}>
@@ -525,7 +621,6 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                     })()}
                   </div>
 
-                  {/* Tier restriction warning */}
                   {!isAdmin && !isLabApproved && (() => {
                     const st = getCostTier(selectedDeviceData.cpu_cores || 2, selectedDeviceData.ram_mb || 4096);
                     const sc = COST_TIERS[st];
@@ -535,21 +630,18 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                         <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                         <div>
                           <p className="text-[10px] font-mono font-bold">Admin Approval Required</p>
-                          <p className="text-[9px] text-red-400/80 mt-0.5">
-                            {sc.label} tier is restricted. Reduce vCPU to ≤{COST_TIERS.performance.maxCpu}/{COST_TIERS.performance.maxRamMB / 1024}GB or request admin approval.
-                          </p>
+                          <p className="text-[9px] text-red-400/80 mt-0.5">{sc.label} tier is restricted.</p>
                         </div>
                       </div>
                     );
                   })()}
 
                   <div>
-                    <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">Device Name</label>
+                    <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">Name</label>
                     <input value={selectedDeviceData.name}
                       onChange={(e) => updateDevice(selectedDeviceData.id, { name: e.target.value })}
                       className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white text-xs px-2.5 py-2 font-mono focus:border-red-500/50 outline-none" />
                   </div>
-
                   <div>
                     <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">Type</label>
                     <select value={selectedDeviceData.type}
@@ -558,8 +650,6 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                       {DEVICE_PALETTE.map(d => <option key={d.type} value={d.type}>{d.label}</option>)}
                     </select>
                   </div>
-
-                  {/* AMI Image Selection */}
                   <div>
                     <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">AMI / Image</label>
                     <select value={selectedDeviceData.ami_image_id || ""}
@@ -567,11 +657,10 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                       className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white text-xs px-2.5 py-2">
                       <option value="">Default (auto-assign)</option>
                       {availableImages.map(img => (
-                        <option key={img.id} value={img.id}>{img.vendor} {img.product} v{img.version}</option>
+                        <option key={img.id} value={img.id}>{img.vendor} {img.product}</option>
                       ))}
                     </select>
                   </div>
-
                   <div className="grid grid-cols-2 gap-2">
                     <div><label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">vCPU</label>
                       <input type="number" value={selectedDeviceData.cpu_cores}
@@ -582,12 +671,10 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                         onChange={(e) => updateDevice(selectedDeviceData.id, { ram_mb: parseInt(e.target.value) || 4096 })}
                         className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white text-xs px-2.5 py-2 font-mono" /></div>
                   </div>
-
                   <div><label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">Storage (GB)</label>
                     <input type="number" value={selectedDeviceData.storage_gb}
                       onChange={(e) => updateDevice(selectedDeviceData.id, { storage_gb: parseInt(e.target.value) || 20 })}
                       className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white text-xs px-2.5 py-2 font-mono" /></div>
-
                   <div><label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">Subnet</label>
                     <select value={selectedDeviceData.subnet || "public"}
                       onChange={(e) => updateDevice(selectedDeviceData.id, { subnet: e.target.value })}
@@ -595,7 +682,6 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                       {vpcConfig.subnets.map((s, i) => <option key={i} value={s.name}>{s.name} ({s.cidr})</option>)}
                     </select>
                   </div>
-
                   <div><label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">Access</label>
                     <select value={selectedDeviceData.access_method || "ssh"}
                       onChange={(e) => updateDevice(selectedDeviceData.id, { access_method: e.target.value })}
@@ -604,20 +690,13 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                       <option value="web_terminal">Web Terminal</option><option value="serial_console">Serial Console</option>
                     </select>
                   </div>
-
-                  <div className="pt-2 border-t border-gray-800">
-                    <div className="flex items-center justify-between text-[10px] font-mono">
-                      <span className="text-gray-500">Cost</span>
-                      <span className="text-green-400 font-bold">${(selectedDeviceData.cost_per_hour || DEVICE_PRICING[selectedDeviceData.type] || 0.15).toFixed(2)}/hr</span>
-                    </div>
-                  </div>
                 </div>
               )}
 
               {rightPanel === "properties" && !selectedDeviceData && (
                 <div className="text-center py-12">
                   <Server className="h-8 w-8 text-gray-700 mx-auto mb-2" />
-                  <p className="text-[10px] text-gray-600 font-mono">Select a device on the canvas to edit its properties</p>
+                  <p className="text-[10px] text-gray-600 font-mono">Select a device to edit</p>
                 </div>
               )}
 
@@ -627,14 +706,13 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                     <Globe className="h-4 w-4 text-cyan-400" />
                     <span className="text-xs font-bold text-white font-mono">VPC Configuration</span>
                   </div>
-
                   <div>
-                    <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">VPC CIDR Block</label>
+                    <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">CIDR Block</label>
                     <div className="flex gap-1.5">
                       <input value={vpcConfig.cidr}
                         onChange={(e) => updateVpcConfig({ cidr: e.target.value })}
                         className={`flex-1 bg-gray-800 border rounded-lg text-white text-xs px-2.5 py-2 font-mono outline-none ${
-                          cidrConflict?.conflict ? "border-red-500/60 focus:border-red-500" : "border-gray-700 focus:border-cyan-500/50"
+                          cidrConflict?.conflict ? "border-red-500/60" : "border-gray-700 focus:border-cyan-500/50"
                         }`} />
                       <button onClick={fetchCidrSuggestion} disabled={suggestingCidr}
                         className="text-[10px] font-mono px-2.5 py-2 rounded-lg bg-cyan-900/30 border border-cyan-700/40 text-cyan-400 hover:bg-cyan-800/40 transition-colors disabled:opacity-50 whitespace-nowrap">
@@ -643,28 +721,23 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                     </div>
                     {cidrConflict?.conflict && (
                       <div className="mt-1.5 p-2 rounded-lg bg-red-950/30 border border-red-800/40 text-red-300 text-[9px] font-mono">
-                        <p className="flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> CIDR conflicts with existing VPCs</p>
+                        <p className="flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> CIDR conflict</p>
                         {cidrConflict.suggested && (
                           <button onClick={() => updateVpcConfig({ cidr: cidrConflict.suggested })}
                             className="mt-1 text-cyan-400 hover:text-cyan-300 underline">
-                            Use suggested: {cidrConflict.suggested}
+                            Use: {cidrConflict.suggested}
                           </button>
                         )}
                       </div>
                     )}
                   </div>
-
                   <div>
                     <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">Internet Gateway</label>
                     <button onClick={() => updateVpcConfig({ enableInternetGateway: !vpcConfig.enableInternetGateway })}
                       className={`w-full text-left text-[10px] font-mono px-2.5 py-2 rounded-lg border transition-colors ${
                         vpcConfig.enableInternetGateway ? "bg-green-900/20 border-green-700/40 text-green-400" : "bg-gray-800 border-gray-700 text-gray-500"
-                      }`}>
-                      {vpcConfig.enableInternetGateway ? "✓ Enabled" : "Disabled"}
-                    </button>
+                      }`}>{vpcConfig.enableInternetGateway ? "✓ Enabled" : "Disabled"}</button>
                   </div>
-
-                  {/* Subnets */}
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
                       <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider">Subnets</label>
@@ -676,26 +749,20 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                       {vpcConfig.subnets.map((subnet, idx) => (
                         <div key={idx} className="bg-black/30 rounded-lg border border-gray-800 p-2.5 space-y-1.5">
                           <div className="flex items-center gap-1.5">
-                            <input value={subnet.name}
-                              onChange={(e) => updateSubnet(idx, { name: e.target.value })}
+                            <input value={subnet.name} onChange={(e) => updateSubnet(idx, { name: e.target.value })}
                               className="flex-1 bg-gray-800 border border-gray-700 rounded text-white text-[10px] font-mono px-2 py-1" placeholder="Name" />
-                            <button onClick={() => removeSubnet(idx)}
-                              className="text-gray-500 hover:text-red-400 transition-colors"><X className="h-3 w-3" /></button>
+                            <button onClick={() => removeSubnet(idx)} className="text-gray-500 hover:text-red-400"><X className="h-3 w-3" /></button>
                           </div>
                           <div className="flex gap-1.5">
-                            <input value={subnet.cidr}
-                              onChange={(e) => updateSubnet(idx, { cidr: e.target.value })}
+                            <input value={subnet.cidr} onChange={(e) => updateSubnet(idx, { cidr: e.target.value })}
                               className="flex-1 bg-gray-800 border border-gray-700 rounded text-white text-[10px] font-mono px-2 py-1" placeholder="CIDR" />
-                            <input value={subnet.zone}
-                              onChange={(e) => updateSubnet(idx, { zone: e.target.value })}
+                            <input value={subnet.zone} onChange={(e) => updateSubnet(idx, { zone: e.target.value })}
                               className="w-24 bg-gray-800 border border-gray-700 rounded text-white text-[10px] font-mono px-2 py-1" placeholder="Zone" />
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
-
-                  {/* Security Groups */}
                   <div>
                     <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">Security Groups</label>
                     {vpcConfig.securityGroups.map((sg, sgIdx) => (
