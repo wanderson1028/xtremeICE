@@ -305,6 +305,7 @@ export default function LiveLabTopology() {
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [showAddDevice, setShowAddDevice] = useState(false);
   const [deployingDevice, setDeployingDevice] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -342,6 +343,21 @@ export default function LiveLabTopology() {
     setSelectedDevice(selectedDevice?.id === deviceId ? null : { ...device, deployed_id: deployed?.id });
     setShowAddDevice(false);
   }, [topologyDevices, deployedDevices, selectedDevice]);
+
+  const handleRefreshStatus = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await base44.functions.invoke("cloudOrchestrator", {
+        action: "refreshDeviceStatus",
+        params: { lab_id: labId },
+      });
+      refetchDevices();
+    } catch (e) {
+      console.log("Refresh failed:", e.message);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [labId, refetchDevices]);
 
   const handleCanvasClick = () => {
     setSelectedDevice(null);
@@ -448,6 +464,17 @@ export default function LiveLabTopology() {
 
   const handleMouseUp = () => setDragging(false);
 
+  const isRunning = lab?.status === "running";
+  const isDeploying = lab?.status === "deploying";
+
+  // Auto-refresh device status every 30s for active labs
+  useEffect(() => {
+    if (!isRunning && !isDeploying) return;
+    handleRefreshStatus();
+    const interval = setInterval(handleRefreshStatus, 30000);
+    return () => clearInterval(interval);
+  }, [labId, isRunning, isDeploying, handleRefreshStatus]);
+
   if (labLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-red-950/20 flex items-center justify-center">
@@ -468,9 +495,6 @@ export default function LiveLabTopology() {
     );
   }
 
-  const isRunning = lab.status === "running";
-  const isDeploying = lab.status === "deploying";
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-red-950/20 flex flex-col">
       {/* Top bar */}
@@ -488,9 +512,9 @@ export default function LiveLabTopology() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => { refetchDevices(); queryClient.invalidateQueries(["livefire-lab", labId]); }}
-            className="p-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-400 hover:text-white transition-colors" title="Refresh">
-            <RefreshCw className="h-4 w-4" />
+          <button onClick={handleRefreshStatus} disabled={refreshing}
+            className="p-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-400 hover:text-white transition-colors disabled:opacity-50" title="Refresh device status">
+            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
           </button>
           {/* Zoom */}
           <div className="flex items-center gap-1 bg-gray-800 rounded-lg border border-gray-700 px-2 py-1">

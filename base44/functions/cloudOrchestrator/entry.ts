@@ -216,6 +216,32 @@ Deno.serve(async (req) => {
           }
         }
 
+        // Wait for EC2 instances to boot and get public IPs (MapPublicIpOnLaunch takes 5-15s)
+        const launchedDevices = await base44.asServiceRole.entities.LiveFireDevice.filter({ lab_id });
+        if (launchedDevices.length > 0) {
+          console.log(`[deployLab] Waiting for public IPs on ${launchedDevices.length} devices...`);
+          await new Promise(resolve => setTimeout(resolve, 12000));
+          for (const device of launchedDevices) {
+            if (!device.instance_id) continue;
+            try {
+              const statusResult = await base44.functions.invoke("cloudProviderAWS", {
+                action: "getInstanceStatus",
+                params: { instance_id: device.instance_id, region: lab.region || "us-east-1" },
+              });
+              const statusData = statusResult?.data || statusResult;
+              const publicIp = statusData?.publicIp || null;
+              const state = statusData?.state || device.status;
+              await base44.asServiceRole.entities.LiveFireDevice.update(device.id, {
+                public_ip: publicIp || "",
+                status: state === "running" ? "running" : "provisioning",
+              });
+              console.log(`[deployLab] ${device.name}: state=${state}, publicIp=${publicIp || "none"}`);
+            } catch (pollError) {
+              console.log(`[deployLab] ${device.name}: IP poll failed — ${pollError.message}`);
+            }
+          }
+        }
+
         // Determine overall status
         const allDevicesFailed = devices.length > 0 && deployedDevices.length === 0;
         const someDevicesFailed = deviceErrors.length > 0 && deployedDevices.length > 0;
@@ -439,6 +465,46 @@ Deno.serve(async (req) => {
         });
 
         return Response.json({ status: "success" });
+      }
+
+      case "refreshDeviceStatus": {
+        // Poll AWS for all device statuses and IPs for a running lab, then update DB records
+        const { lab_id } = params;
+        const devices = await base44.asServiceRole.entities.LiveFireDevice.filter({ lab_id });
+        const lab = await base44.asServiceRole.entities.LiveFireLab.filter({ id: lab_id }).then(r => r[0]);
+        const region = lab?.region || "us-east-1";
+        const updates = [];
+
+        for (const device of devices) {
+          if (!device.instance_id || device.status === "terminated") continue;
+          try {
+            const statusResult = await base44.functions.invoke("cloudProviderAWS", {
+              action: "getInstanceStatus",
+              params: { instance_id: device.instance_id, region },
+            });
+            const statusData = statusResult?.data || statusResult;
+            const publicIp = statusData?.publicIp || null;
+            const state = statusData?.state || device.status;
+
+            let newStatus = device.status;
+            if (state === "running") newStatus = "running";
+            else if (state === "stopped" || state === "stopping") newStatus = "stopped";
+            else if (state === "terminated" || state === "shutting-down") newStatus = "terminated";
+
+            const needsUpdate = publicIp !== device.public_ip || newStatus !== device.status;
+            if (needsUpdate) {
+              await base44.asServiceRole.entities.LiveFireDevice.update(device.id, {
+                public_ip: publicIp || device.public_ip || "",
+                status: newStatus,
+              });
+              updates.push({ device: device.name, publicIp, status: newStatus });
+            }
+          } catch (e) {
+            console.log(`[refreshDeviceStatus] ${device.name}: ${e.message}`);
+          }
+        }
+
+        return Response.json({ success: true, updated: updates.length, details: updates });
       }
 
       default:

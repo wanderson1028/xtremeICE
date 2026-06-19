@@ -439,9 +439,18 @@ Deno.serve(async (req) => {
       case "getInstanceStatus": {
         const { instance_id } = params;
         const xml = await ec2Call("DescribeInstances", { InstanceId: [instance_id] }, region);
-        const stateMatch = xml.match(/<name>([^<]+)<\/name>/);
-        const ipMatch = xml.match(/<ipAddress>([^<]+)<\/ipAddress>/);
-        const privIpMatch = xml.match(/<privateIpAddress>([^<]+)<\/privateIpAddress>/);
+
+        // Extract the <instancesSet>/<item> block for accurate parsing
+        const instBlock = xml.match(/<instancesSet>\s*<item>([\s\S]*?)<\/item>/);
+        const block = instBlock?.[1] || xml;
+
+        // State name lives inside <instanceState>
+        const stateMatch = block.match(/<instanceState>[\s\S]*?<name>([^<]+)<\/name>/);
+        // public IP is top-level <ipAddress> inside instance item
+        const ipMatch = block.match(/<ipAddress>([^<]+)<\/ipAddress>/);
+        // private IP
+        const privIpMatch = block.match(/<privateIpAddress>([^<]+)<\/privateIpAddress>/);
+
         return Response.json({
           instanceId: instance_id,
           state: stateMatch?.[1] || "unknown",
