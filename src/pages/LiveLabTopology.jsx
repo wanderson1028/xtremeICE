@@ -126,6 +126,7 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
         params: {
           instance_id: deployed.instance_id,
           lab_id: labId,
+          region: lab?.region || "us-east-1",
           private_key_pem: lab?.ssh_private_key || "",
         },
       });
