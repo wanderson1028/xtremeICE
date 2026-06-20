@@ -1,21 +1,22 @@
 import React, { useState } from "react";
 import {
   Folder, FolderOpen, ChevronRight, ChevronDown, Plus,
-  Trash2, Edit2, Check, X
+  Trash2, Edit2, Check, X, AlertTriangle
 } from "lucide-react";
 
-function buildTree(folders, parentId = null) {
+function buildTree(folders, parentId = null, excludeFolderId = null) {
   return folders
-    .filter(f => (f.parent_folder_id || null) === parentId)
+    .filter(f => (f.parent_folder_id || null) === parentId && f.id !== excludeFolderId)
     .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
-    .map(f => ({ ...f, children: buildTree(folders, f.id) }));
+    .map(f => ({ ...f, children: buildTree(folders, f.id, excludeFolderId) }));
 }
 
-function TreeNode({ node, depth = 0, selectedId, onSelect, onCreateSub, onRename, onDelete, onDrop }) {
+function TreeNode({ node, depth = 0, selectedId, onSelect, onCreateSub, onRename, onDelete, onDrop, onMoveFolder, allFolders }) {
   const [expanded, setExpanded] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(node.name);
   const [dragOver, setDragOver] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const hasChildren = node.children && node.children.length > 0;
   const isSelected = selectedId === node.id;
@@ -27,9 +28,21 @@ function TreeNode({ node, depth = 0, selectedId, onSelect, onCreateSub, onRename
     setEditing(false);
   };
 
+  const handleDragStart = (e) => {
+    e.dataTransfer.setData("folderId", node.id);
+    e.dataTransfer.setData("dragType", "folder");
+    e.dataTransfer.effectAllowed = "move";
+  };
+
   const handleDragOver = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    // Don't allow dropping on self or descendant
+    const srcFolderId = e.dataTransfer.getData("folderId");
+    const dragType = e.dataTransfer.getData("dragType");
+    if (dragType === "folder" && (srcFolderId === node.id || isDescendant(allFolders, srcFolderId, node.id))) {
+      return;
+    }
     setDragOver(true);
   };
 
@@ -42,15 +55,36 @@ function TreeNode({ node, depth = 0, selectedId, onSelect, onCreateSub, onRename
     e.preventDefault();
     e.stopPropagation();
     setDragOver(false);
-    const labId = e.dataTransfer.getData("labId");
-    if (labId) {
-      onDrop(labId, node.id);
+    const dragType = e.dataTransfer.getData("dragType");
+    if (dragType === "folder") {
+      const folderId = e.dataTransfer.getData("folderId");
+      if (folderId && folderId !== node.id) {
+        onMoveFolder(folderId, node.id);
+      }
+    } else {
+      const labId = e.dataTransfer.getData("labId");
+      if (labId) {
+        onDrop(labId, node.id);
+      }
     }
+  };
+
+  const handleDeleteClick = (e) => {
+    e.stopPropagation();
+    setConfirmDelete(true);
+  };
+
+  const handleConfirmDelete = (e) => {
+    e.stopPropagation();
+    onDelete(node.id);
+    setConfirmDelete(false);
   };
 
   return (
     <div>
       <div
+        draggable
+        onDragStart={handleDragStart}
         onClick={() => onSelect(isSelected ? null : node.id)}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -90,11 +124,18 @@ function TreeNode({ node, depth = 0, selectedId, onSelect, onCreateSub, onRename
             <button onClick={handleRename} className="p-0.5 hover:text-green-400"><Check className="h-3 w-3" /></button>
             <button onClick={() => setEditing(false)} className="p-0.5 hover:text-red-400"><X className="h-3 w-3" /></button>
           </div>
+        ) : confirmDelete ? (
+          <div className="flex items-center gap-1 flex-1 min-w-0" onClick={e => e.stopPropagation()}>
+            <AlertTriangle className="h-3 w-3 text-red-400 shrink-0" />
+            <span className="text-[10px] text-red-400 font-mono">Delete?</span>
+            <button onClick={handleConfirmDelete} className="px-1 py-0.5 bg-red-800 hover:bg-red-700 text-red-200 text-[9px] font-mono rounded">Yes</button>
+            <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(false); }} className="px-1 py-0.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-[9px] font-mono rounded">No</button>
+          </div>
         ) : (
           <span className="flex-1 truncate text-xs font-mono">{node.name}</span>
         )}
 
-        {!editing && (
+        {!editing && !confirmDelete && (
           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
               onClick={(e) => { e.stopPropagation(); onCreateSub(node.id); }}
@@ -111,7 +152,7 @@ function TreeNode({ node, depth = 0, selectedId, onSelect, onCreateSub, onRename
               <Edit2 className="h-3 w-3" />
             </button>
             <button
-              onClick={(e) => { e.stopPropagation(); onDelete(node.id); }}
+              onClick={handleDeleteClick}
               className="p-0.5 rounded hover:bg-gray-700 text-gray-500 hover:text-red-400"
               title="Delete folder"
             >
@@ -119,6 +160,7 @@ function TreeNode({ node, depth = 0, selectedId, onSelect, onCreateSub, onRename
             </button>
           </div>
         )}
+        <span className="text-[9px] text-gray-600 opacity-0 group-hover:opacity-100 cursor-grab ml-0.5" title="Drag to move">⠿</span>
       </div>
 
       {expanded && hasChildren && (
@@ -134,6 +176,8 @@ function TreeNode({ node, depth = 0, selectedId, onSelect, onCreateSub, onRename
               onRename={onRename}
               onDelete={onDelete}
               onDrop={onDrop}
+              onMoveFolder={onMoveFolder}
+              allFolders={allFolders}
             />
           ))}
         </div>
@@ -142,7 +186,16 @@ function TreeNode({ node, depth = 0, selectedId, onSelect, onCreateSub, onRename
   );
 }
 
-export default function FolderTree({ folders, selectedFolderId, onSelectFolder, onCreateFolder, onRenameFolder, onDeleteFolder, onMoveLab }) {
+function isDescendant(folders, ancestorId, descendantId) {
+  const children = folders.filter(f => f.parent_folder_id === ancestorId);
+  for (const child of children) {
+    if (child.id === descendantId) return true;
+    if (isDescendant(folders, child.id, descendantId)) return true;
+  }
+  return false;
+}
+
+export default function FolderTree({ folders, selectedFolderId, onSelectFolder, onCreateFolder, onRenameFolder, onDeleteFolder, onMoveLab, onMoveFolder }) {
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
   const [creatingParentId, setCreatingParentId] = useState(null);
@@ -180,9 +233,21 @@ export default function FolderTree({ folders, selectedFolderId, onSelectFolder, 
       </div>
 
       <div className="p-2 max-h-[60vh] overflow-y-auto custom-scrollbar">
-        {/* "All Labs" root */}
+        {/* "All Labs" root — also accepts folder drops to move to root */}
         <div
           onClick={() => onSelectFolder(null)}
+          onDragOver={(e) => {
+            const dragType = e.dataTransfer.getData("dragType");
+            if (dragType === "folder") { e.preventDefault(); }
+          }}
+          onDrop={(e) => {
+            const dragType = e.dataTransfer.getData("dragType");
+            if (dragType === "folder") {
+              e.preventDefault();
+              const folderId = e.dataTransfer.getData("folderId");
+              if (folderId && onMoveFolder) onMoveFolder(folderId, null);
+            }
+          }}
           className={`flex items-center gap-2 py-1.5 px-2 rounded-lg cursor-pointer transition-all text-sm mb-1
             ${!selectedFolderId ? "bg-red-900/30 text-red-300 border border-red-700/30" : "text-gray-400 hover:text-gray-200 hover:bg-gray-800/50 border border-transparent"}
           `}
@@ -202,6 +267,8 @@ export default function FolderTree({ folders, selectedFolderId, onSelectFolder, 
             onRename={onRenameFolder}
             onDelete={onDeleteFolder}
             onDrop={onMoveLab}
+            onMoveFolder={onMoveFolder}
+            allFolders={folders}
           />
         ))}
 

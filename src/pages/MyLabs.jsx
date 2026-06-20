@@ -163,6 +163,15 @@ export default function MyLabs() {
     },
   });
 
+  const moveFolderMutation = useMutation({
+    mutationFn: async ({ folderId, newParentId }) => {
+      await base44.entities.LiveFireFolder.update(folderId, {
+        parent_folder_id: newParentId || null,
+      });
+    },
+    onSuccess: () => queryClient.invalidateQueries(["livefire-folders"]),
+  });
+
   const handleDeploy = async (lab, e) => {
     e.stopPropagation();
     if (deployingLabs.has(lab.id)) return;
@@ -309,6 +318,7 @@ export default function MyLabs() {
               onRenameFolder={(id, name) => renameFolderMutation.mutate({ id, name })}
               onDeleteFolder={(id) => deleteFolderMutation.mutate(id)}
               onMoveLab={(labId, folderId) => moveLabMutation.mutate({ labId, folderId })}
+              onMoveFolder={(folderId, newParentId) => moveFolderMutation.mutate({ folderId, newParentId })}
             />
           </div>
 
