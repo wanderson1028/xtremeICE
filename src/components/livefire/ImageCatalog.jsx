@@ -241,8 +241,8 @@ export default function ImageCatalog({ isOpen, onClose, onSelect, cloudProvider 
               <Package className="h-5 w-5 text-cyan-300" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">{cloudProvider.toUpperCase()} AMI Catalog</h2>
-              <p className="text-[10px] font-mono text-gray-400">
+              <h2 className="text-lg font-bold text-white">{cloudProvider.toUpperCase()} AMI Catalog</h2>
+              <p className="text-[11px] font-mono text-gray-400">
                 {region} — {filteredImages.length} image{filteredImages.length !== 1 ? "s" : ""}
               </p>
             </div>
@@ -265,14 +265,14 @@ export default function ImageCatalog({ isOpen, onClose, onSelect, cloudProvider 
           </div>
           <div className="flex gap-1.5">
             <button onClick={() => setOsFilter("all")}
-              className={`text-[10px] font-mono px-2.5 py-1.5 rounded-lg border transition-colors ${osFilter === "all" ? "bg-red-900/30 border-red-600/40 text-red-300" : "bg-gray-800 border-gray-700 text-gray-400 hover:text-gray-200"}`}>
+              className={`text-[11px] font-mono px-2.5 py-1.5 rounded-lg border transition-colors ${osFilter === "all" ? "bg-red-900/30 border-red-600/40 text-red-300" : "bg-gray-800 border-gray-700 text-gray-400 hover:text-gray-200"}`}>
               All OS
             </button>
             {osFamilies.slice(0, 6).map(fam => {
               const info = getOsBadge(fam);
               return (
                 <button key={fam} onClick={() => setOsFilter(osFilter === fam ? "all" : fam)}
-                  className={`text-[10px] font-mono px-2 py-1 rounded-full border whitespace-nowrap transition-colors ${osFilter === fam ? info.color + " brightness-125 shadow-sm" : "bg-gray-800/60 border-gray-700 text-gray-500 hover:text-gray-300"}`}>
+                  className={`text-[11px] font-mono px-2 py-1 rounded-full border whitespace-nowrap transition-colors ${osFilter === fam ? info.color + " brightness-125 shadow-sm" : "bg-gray-800/60 border-gray-700 text-gray-500 hover:text-gray-300"}`}>
                   {info.creds.label}
                 </button>
               );
@@ -316,8 +316,8 @@ export default function ImageCatalog({ isOpen, onClose, onSelect, cloudProvider 
                           <CatIcon className={`h-3.5 w-3.5 ${catColor}`} />
                         </div>
                         <div className="flex-1 text-left">
-                          <span className="text-[11px] font-mono font-bold text-gray-200">{catName}</span>
-                          <span className="ml-2 text-[9px] font-mono text-gray-600">({images.length})</span>
+                          <span className="text-[13px] font-mono font-bold text-gray-200">{catName}</span>
+                          <span className="ml-2 text-[10px] font-mono text-gray-500">({images.length})</span>
                         </div>
                         {isExpanded ? <ChevronDown className="h-3.5 w-3.5 text-gray-500" /> : <ChevronRight className="h-3.5 w-3.5 text-gray-500" />}
                       </button>
@@ -344,11 +344,11 @@ export default function ImageCatalog({ isOpen, onClose, onSelect, cloudProvider 
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-1.5 mb-0.5">
-                                      <span className="text-[10px] font-bold text-white font-mono truncate">{img.sourceLabel || img.name}</span>
-                                      <span className={`text-[7px] font-mono px-1.5 py-0.5 rounded-full border shrink-0 ${osInfo.color}`}>{osInfo.creds.label}</span>
+                                      <span className="text-xs font-bold text-white font-mono truncate">{img.sourceLabel || img.name}</span>
+                                      <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full border shrink-0 ${osInfo.color}`}>{osInfo.creds.label}</span>
                                     </div>
-                                    <p className="text-[9px] text-gray-500 font-mono truncate mb-1">{img.description}</p>
-                                    <div className="flex items-center gap-2 text-[7px] font-mono text-gray-600">
+                                    <p className="text-[10px] text-gray-400 font-mono truncate mb-1">{img.description}</p>
+                                    <div className="flex items-center gap-2 text-[9px] font-mono text-gray-500">
                                       <span className="flex items-center gap-1"><Monitor className="h-2.5 w-2.5" />{img.architecture}</span>
                                       <span className="flex items-center gap-1"><Terminal className="h-2.5 w-2.5" />{osInfo.creds.access.toUpperCase()}</span>
                                       <span className="flex items-center gap-1"><Key className="h-2.5 w-2.5" />{osInfo.creds.username}</span>
@@ -383,51 +383,51 @@ export default function ImageCatalog({ isOpen, onClose, onSelect, cloudProvider 
                       : <Cloud className="h-5 w-5 text-cyan-300" />}
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-white font-mono">{selectedPreview.sourceLabel || selectedPreview.name}</h3>
-                    <p className="text-[9px] font-mono text-gray-500">{selectedPreview.sourceCategory}</p>
+                    <h3 className="text-base font-bold text-white font-mono">{selectedPreview.sourceLabel || selectedPreview.name}</h3>
+                    <p className="text-[10px] font-mono text-gray-500">{selectedPreview.sourceCategory}</p>
                   </div>
                 </div>
 
                 {/* Image ID */}
                 {selectedPreview.name?.startsWith("ami-") && (
                   <div className="bg-gray-800/40 rounded-lg p-2.5 border border-gray-700/50">
-                    <p className="text-[8px] font-mono text-gray-500 uppercase mb-1">AMI ID</p>
-                    <code className="text-[10px] font-mono text-cyan-400 break-all">{selectedPreview.name}</code>
+                    <p className="text-[9px] font-mono text-gray-500 uppercase mb-1">AMI ID</p>
+                    <code className="text-[11px] font-mono text-cyan-400 break-all">{selectedPreview.name}</code>
                   </div>
                 )}
 
                 {/* OS and Credentials */}
                 <div className="bg-gray-800/40 rounded-xl p-3.5 border border-gray-700/50">
-                  <h4 className="text-[9px] font-mono text-gray-500 uppercase tracking-wider mb-2.5">OS &amp; Access</h4>
+                  <h4 className="text-[10px] font-mono text-gray-400 uppercase tracking-wider mb-2.5">OS &amp; Access</h4>
                   {(() => {
-                    const osInfo = getOsBadge(selectedPreview.osFamily);
-                    const creds = selectedPreview.username ? {
-                      username: selectedPreview.username,
-                      access: selectedPreview.access || osInfo.creds.access,
-                      port: selectedPreview.port || osInfo.creds.port,
-                      label: osInfo.creds.label,
-                    } : osInfo.creds;
-                    return (
-                      <div className="space-y-2">
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="bg-black/40 rounded-lg p-2.5">
-                            <p className="text-[7px] font-mono text-gray-500 uppercase">OS Family</p>
-                            <p className="text-[10px] font-mono font-bold text-white">{creds.label}</p>
-                          </div>
-                          <div className="bg-black/40 rounded-lg p-2.5">
-                            <p className="text-[7px] font-mono text-gray-500 uppercase">Architecture</p>
-                            <p className="text-[10px] font-mono font-bold text-gray-300">{selectedPreview.architecture}</p>
-                          </div>
+                  const osInfo = getOsBadge(selectedPreview.osFamily);
+                  const creds = selectedPreview.username ? {
+                    username: selectedPreview.username,
+                    access: selectedPreview.access || osInfo.creds.access,
+                    port: selectedPreview.port || osInfo.creds.port,
+                    label: osInfo.creds.label,
+                  } : osInfo.creds;
+                  return (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-black/40 rounded-lg p-2.5">
+                          <p className="text-[8px] font-mono text-gray-500 uppercase">OS Family</p>
+                          <p className="text-[12px] font-mono font-bold text-white">{creds.label}</p>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="bg-black/40 rounded-lg p-2.5">
-                            <p className="text-[7px] font-mono text-gray-500 uppercase">Default User</p>
-                            <p className="text-[11px] font-mono font-bold text-green-400">{creds.username}</p>
-                          </div>
-                          <div className="bg-black/40 rounded-lg p-2.5">
-                            <p className="text-[7px] font-mono text-gray-500 uppercase">Access Method</p>
-                            <p className="text-[11px] font-mono font-bold text-cyan-400">{creds.access.toUpperCase()} :{creds.port}</p>
-                          </div>
+                        <div className="bg-black/40 rounded-lg p-2.5">
+                          <p className="text-[8px] font-mono text-gray-500 uppercase">Architecture</p>
+                          <p className="text-[12px] font-mono font-bold text-gray-300">{selectedPreview.architecture}</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-black/40 rounded-lg p-2.5">
+                          <p className="text-[8px] font-mono text-gray-500 uppercase">Default User</p>
+                          <p className="text-[13px] font-mono font-bold text-green-400">{creds.username}</p>
+                        </div>
+                        <div className="bg-black/40 rounded-lg p-2.5">
+                          <p className="text-[8px] font-mono text-gray-500 uppercase">Access Method</p>
+                          <p className="text-[13px] font-mono font-bold text-cyan-400">{creds.access.toUpperCase()} :{creds.port}</p>
+                        </div>
                         </div>
                       </div>
                     );
@@ -436,8 +436,8 @@ export default function ImageCatalog({ isOpen, onClose, onSelect, cloudProvider 
 
                 {/* Connection Instructions */}
                 <div className="bg-gray-800/40 rounded-xl p-3.5 border border-gray-700/50">
-                  <h4 className="text-[9px] font-mono text-gray-500 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-                    <Terminal className="h-3 w-3 text-green-400" /> Connection Instructions
+                  <h4 className="text-[10px] font-mono text-gray-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                    <Terminal className="h-3.5 w-3.5 text-green-400" /> Connection Instructions
                   </h4>
                   {(() => {
                     const osInfo = getOsBadge(selectedPreview.osFamily);
@@ -452,8 +452,8 @@ export default function ImageCatalog({ isOpen, onClose, onSelect, cloudProvider 
                         {isRdp ? (
                           <>
                             <div className="bg-black/40 rounded-lg p-3">
-                              <p className="text-[9px] font-mono text-gray-400 mb-1.5">RDP Connection</p>
-                              <code className="block text-[10px] font-mono text-blue-300 bg-black/60 rounded-lg p-2.5 break-all border border-blue-900/30">
+                              <p className="text-[10px] font-mono text-gray-400 mb-1.5">RDP Connection</p>
+                              <code className="block text-[11px] font-mono text-blue-300 bg-black/60 rounded-lg p-2.5 break-all border border-blue-900/30">
                                 mstsc /v:&lt;PUBLIC_IP&gt;:{creds.port}
                               </code>
                             </div>
@@ -461,8 +461,8 @@ export default function ImageCatalog({ isOpen, onClose, onSelect, cloudProvider 
                               <div className="flex items-start gap-2">
                                 <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
                                 <div>
-                                  <p className="text-[9px] font-mono text-amber-300 font-bold mb-1">Windows Password</p>
-                                  <p className="text-[8px] font-mono text-amber-400/80">Decrypt the Administrator password using the lab's private key (.pem) via AWS GetPasswordData — available after deployment.</p>
+                                  <p className="text-[10px] font-mono text-amber-300 font-bold mb-1">Windows Password</p>
+                                  <p className="text-[9px] font-mono text-amber-400/80">Decrypt the Administrator password using the lab's private key (.pem) via AWS GetPasswordData — available after deployment.</p>
                                 </div>
                               </div>
                             </div>
@@ -470,15 +470,15 @@ export default function ImageCatalog({ isOpen, onClose, onSelect, cloudProvider 
                         ) : (
                           <>
                             <div className="bg-black/40 rounded-lg p-3">
-                              <p className="text-[9px] font-mono text-gray-400 mb-1.5">SSH Connection</p>
-                              <code className="block text-[10px] font-mono text-green-300 bg-black/60 rounded-lg p-2.5 border border-green-900/30">
+                              <p className="text-[10px] font-mono text-gray-400 mb-1.5">SSH Connection</p>
+                              <code className="block text-[11px] font-mono text-green-300 bg-black/60 rounded-lg p-2.5 border border-green-900/30">
                                 chmod 400 lab-key.pem{'\n'}
                                 ssh -i lab-key.pem {creds.username}@&lt;PUBLIC_IP&gt;
                               </code>
                             </div>
                             <div className="bg-black/40 rounded-lg p-3">
-                              <p className="text-[9px] font-mono text-gray-400 mb-1">Connection Details</p>
-                              <div className="text-[10px] font-mono text-gray-300 space-y-1.5">
+                              <p className="text-[10px] font-mono text-gray-400 mb-1">Connection Details</p>
+                              <div className="text-[11px] font-mono text-gray-300 space-y-1.5">
                                 <p className="flex items-center gap-2">
                                   <span className="text-gray-500">Port:</span>
                                   <span className="text-cyan-400 font-bold">{creds.port}</span>

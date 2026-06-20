@@ -547,6 +547,12 @@ Deno.serve(async (req) => {
               { name: "Ubuntu 22.04 LTS", owner: "099720109477", description: "Canonical Ubuntu Jammy Jellyfish", filter: [
                 { Name: "name", Value: ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"] }, { Name: "state", Value: ["available"] },
               ]},
+              { name: "Windows Server 2025", owner: "amazon", description: "Microsoft Windows Server 2025 Full Base", filter: [
+                { Name: "name", Value: ["Windows_Server-2025-English-Full-Base-*"] }, { Name: "state", Value: ["available"] },
+              ]},
+              { name: "Windows Server 2022", owner: "amazon", description: "Microsoft Windows Server 2022 Full Base", filter: [
+                { Name: "name", Value: ["Windows_Server-2022-English-Full-Base-*"] }, { Name: "state", Value: ["available"] },
+              ]},
               { name: "Debian 12", owner: "136693071363", description: "Debian Bookworm", filter: [
                 { Name: "name", Value: ["debian-12-amd64-*"] }, { Name: "state", Value: ["available"] },
               ]},
@@ -570,12 +576,6 @@ Deno.serve(async (req) => {
             category: "AWS Marketplace AMIs",
             icon: "shopping-cart",
             groups: [
-              { name: "Windows Server 2025", owner: "801119661308", description: "Microsoft Windows Server 2025 Base", filter: [
-                { Name: "name", Value: ["Windows_Server-2025-English-Full-Base-*"] }, { Name: "state", Value: ["available"] },
-              ]},
-              { name: "Windows Server 2022", owner: "801119661308", description: "Microsoft Windows Server 2022 Base", filter: [
-                { Name: "name", Value: ["Windows_Server-2022-English-Full-Base-*"] }, { Name: "state", Value: ["available"] },
-              ]},
               { name: "Ubuntu Pro 24.04", owner: "099720109477", description: "Ubuntu Pro with extended security", filter: [
                 { Name: "name", Value: ["ubuntu-pro-server/images/hvm-ssd/ubuntu-noble-24.04-amd64-pro-server-*"] }, { Name: "state", Value: ["available"] },
               ]},
