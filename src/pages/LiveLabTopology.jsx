@@ -116,16 +116,26 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
     setPasswordData(null);
     try {
       const res = await base44.functions.invoke("cloudProviderAWS", {
-        action: "getPasswordData",
-        params: { instance_id: deployed.instance_id, region: lab?.region || "us-east-1" },
+        action: "decryptWindowsPassword",
+        params: {
+          instance_id: deployed.instance_id,
+          lab_id: labId,
+          private_key_pem: lab?.ssh_private_key || "",
+        },
       });
       const pwdData = res.data;
-      setPasswordData(pwdData);
 
-      if (pwdData?.isEmpty) {
-        setPasswordError("Password not ready yet. Windows instances need 4-8 minutes after launch. Wait and retry.");
-      } else if (!pwdData?.passwordData) {
-        setPasswordError("No password data returned. The instance may not be a Windows machine.");
+      if (pwdData?.success && pwdData?.password) {
+        // Got the decrypted password!
+        setPasswordData({ password: pwdData.password, timestamp: pwdData.timestamp });
+        setPasswordError(null);
+      } else if (pwdData?.error === "Password not ready") {
+        setPasswordError(pwdData.message || "Password not ready yet. Windows instances need 4-8 minutes after launch.");
+        setPasswordData({ notReady: true });
+      } else {
+        setPasswordError(pwdData?.message || pwdData?.error || "Failed to decrypt password");
+        // If we have encrypted data, show it as fallback
+        if (pwdData?.passwordData) setPasswordData({ passwordData: pwdData.passwordData, decryptFailed: true, manualCmd: pwdData.manualDecryptCmd });
       }
     } catch (err) {
       setPasswordError(err?.response?.data?.error || err?.message || "Failed to retrieve password data");
@@ -339,23 +349,38 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
 
             {passwordData && !passwordError && (
               <div className="bg-gray-800/60 rounded-lg p-3 space-y-2">
-                {passwordData.passwordData && !passwordData.isEmpty ? (
+                {passwordData.password ? (
                   <>
-                    <p className="text-[9px] font-mono text-purple-400 font-bold mb-1">Encrypted Password Retrieved</p>
-                    <p className="text-[8px] font-mono text-gray-500 mb-2">
-                      Copy this base64 blob and decrypt it with your PEM key (downloaded above):
+                    <p className="text-[9px] font-mono text-green-400 font-bold mb-1">Admin Password Retrieved</p>
+                    <div className="bg-green-950/30 border border-green-900/30 rounded-lg p-2">
+                      <code className="block text-[11px] font-mono text-green-300 break-all select-all text-center tracking-wider">
+                        {passwordData.password}
+                      </code>
+                    </div>
+                    <p className="text-[8px] font-mono text-gray-500 text-center">
+                      Connect via RDP with username <code className="text-amber-400">{deployed?.default_username || "Administrator"}</code>
                     </p>
+                  </>
+                ) : passwordData.notReady ? (
+                  <p className="text-[9px] font-mono text-yellow-400 text-center">
+                    Password not yet available. Windows needs 4-8 minutes after launch to generate it.
+                  </p>
+                ) : passwordData.decryptFailed ? (
+                  <>
+                    <p className="text-[9px] font-mono text-yellow-400 mb-1">Auto-decrypt failed. Encrypted password:</p>
                     <code className="block text-[9px] font-mono text-purple-300 break-all bg-gray-950/60 p-2 rounded border border-purple-900/30 max-h-28 overflow-y-auto">
                       {passwordData.passwordData}
                     </code>
-                    <p className="text-[8px] font-mono text-gray-600 leading-relaxed">
-                      Decrypt command (Mac/Linux):<br />
-                      <code className="text-amber-400/80 text-[8px]">openssl pkeyutl -decrypt -inkey {lab.ssh_key_name || "key"}.pem -in &lt;(echo "{passwordData.passwordData.slice(0, 30)}..." | base64 -d) -pkeyopt rsa_padding_mode:pkcs1</code>
-                    </p>
+                    {passwordData.manualCmd && (
+                      <p className="text-[8px] font-mono text-gray-600 leading-relaxed">
+                        Try manually:<br />
+                        <code className="text-amber-400/80 text-[8px]">{passwordData.manualCmd}</code>
+                      </p>
+                    )}
                   </>
                 ) : (
                   <p className="text-[9px] font-mono text-yellow-400 text-center">
-                    Password not yet available. Windows needs 4-8 minutes after launch to generate the admin password.
+                    Waiting for Windows to generate admin password...
                   </p>
                 )}
                 {passwordData.timestamp && (
@@ -808,11 +833,15 @@ export default function LiveLabTopology() {
               )}
             </button>
           )}
-          {/* Start All */}
-          {isRunning && deployedDevices.some(d => d.status === "stopped") && (
-            <button onClick={handleStartAll} disabled={bulkAction}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-green-900/40 border border-green-700/40 text-green-300 hover:bg-green-900/60 rounded-lg text-[10px] font-mono transition-colors"
-              title="Start all stopped devices">
+          {/* Start All — always visible when lab is running */}
+          {isRunning && (
+            <button onClick={handleStartAll} disabled={bulkAction || !deployedDevices.some(d => d.status === "stopped")}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-mono transition-colors ${
+                deployedDevices.some(d => d.status === "stopped")
+                  ? "bg-green-900/40 border border-green-700/40 text-green-300 hover:bg-green-900/60"
+                  : "bg-gray-800/60 border border-gray-700/40 text-gray-600 cursor-not-allowed"
+              }`}
+              title={deployedDevices.some(d => d.status === "stopped") ? "Start all stopped devices" : "No stopped devices to start"}>
               {bulkAction === "starting-all" ? (
                 <><RefreshCw className="h-3.5 w-3.5 animate-spin" /> Starting...</>
               ) : (

@@ -1,4 +1,5 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
+import { privateDecrypt, constants } from "node:crypto";
 
 // ── Instance cost tier enforcement ──
 const COST_TIERS = {
@@ -742,6 +743,93 @@ Deno.serve(async (req) => {
         return Response.json({ instanceId: instance_id, previousState: prevState, currentState, success: true });
       }
 
+      case "decryptWindowsPassword": {
+        // Server-side decrypt of Windows admin password using the lab's PEM key
+        // This replicates what AWS console does when you upload a .pem key for RDP
+        const { instance_id, private_key_pem, lab_id } = params;
+
+        // 1. Get encrypted password from AWS
+        const xml = await ec2Call("GetPasswordData", { InstanceId: instance_id }, region);
+        const encryptedBase64 = xml.match(/<passwordData>([^<]*)<\/passwordData>/)?.[1] || "";
+        const timestamp = xml.match(/<timestamp>([^<]*)<\/timestamp>/)?.[1] || "";
+
+        if (!encryptedBase64 || encryptedBase64.trim() === "") {
+          return Response.json({
+            success: false,
+            error: "Password not ready",
+            message: "Windows instance has not generated the admin password yet. It takes 4-8 minutes after first launch. The instance may also need to pass status checks first.",
+            timestamp: timestamp || null,
+          });
+        }
+
+        // 2. Get the private key
+        let pemKey = private_key_pem;
+        if (!pemKey && lab_id) {
+          const lab = await base44.asServiceRole.entities.LiveFireLab.filter({ id: lab_id }).then(r => r[0]);
+          pemKey = lab?.ssh_private_key;
+        }
+        if (!pemKey) {
+          return Response.json({
+            success: false,
+            error: "No private key",
+            message: "No PEM key available to decrypt the password. Provide a private_key_pem or ensure the lab has an ssh_private_key.",
+            passwordData: encryptedBase64,
+            timestamp: timestamp || null,
+          });
+        }
+
+        try {
+          // AWS encrypts Windows passwords using RSA-OAEP with SHA-256
+          // The key from CreateKeyPair is PKCS#1 format — node:crypto handles this natively
+          const encryptedBuf = Buffer.from(encryptedBase64, "base64");
+          const password = privateDecrypt(
+            {
+              key: pemKey,
+              padding: constants.RSA_PKCS1_OAEP_PADDING,
+              oaepHash: "sha256",
+            },
+            encryptedBuf,
+          ).toString("utf8");
+
+          return Response.json({
+            success: true,
+            instanceId: instance_id,
+            password,
+            timestamp: timestamp || null,
+          });
+        } catch (decryptErr) {
+          console.error("Decrypt failed:", decryptErr.message);
+          // Fallback: try RSA_PKCS1_PADDING (older AWS format)
+          try {
+            const encryptedBuf = Buffer.from(encryptedBase64, "base64");
+            const password = privateDecrypt(
+              {
+                key: pemKey,
+                padding: constants.RSA_PKCS1_PADDING,
+              },
+              encryptedBuf,
+            ).toString("utf8");
+
+            return Response.json({
+              success: true,
+              instanceId: instance_id,
+              password,
+              timestamp: timestamp || null,
+            });
+          } catch (fallbackErr) {
+            console.error("Fallback decrypt also failed:", fallbackErr.message);
+            return Response.json({
+              success: false,
+              error: "Decryption failed",
+              message: "Could not decrypt the password. The PEM key may not match the key pair used when launching this instance.",
+              passwordData: encryptedBase64,
+              timestamp: timestamp || null,
+              manualDecryptCmd: `openssl pkeyutl -decrypt -inkey <key>.pem -in <(echo "${encryptedBase64.slice(0, 50)}..." | base64 -d) -pkeyopt rsa_padding_mode:oaep`,
+            });
+          }
+        }
+      }
+
       case "getPasswordData": {
         // Retrieve Windows Administrator password from AWS (encrypted with key pair)
         const { instance_id } = params;
@@ -750,8 +838,6 @@ Deno.serve(async (req) => {
         const passwordData = xml.match(/<passwordData>([^<]*)<\/passwordData>/)?.[1] || "";
         const timestamp = xml.match(/<timestamp>([^<]*)<\/timestamp>/)?.[1] || "";
 
-        // If password data is empty, it means Windows hasn't generated it yet (takes ~5 min after launch)
-        // or the instance isn't a Windows instance (no password data available)
         const isEmpty = !passwordData || passwordData.trim() === "";
 
         return Response.json({
@@ -760,9 +846,6 @@ Deno.serve(async (req) => {
           isEmpty,
           timestamp: timestamp || null,
           region,
-          instructions: isEmpty
-            ? "No password data available yet. Windows instances need 4-8 minutes after launch to generate the admin password. Wait and retry."
-            : "Decrypt with your private key: openssl pkeyutl -decrypt -inkey <key>.pem -in <(echo 'PASSWORD_DATA' | base64 -d) -pkeyopt rsa_padding_mode:pkcs1",
         });
       }
 
