@@ -97,75 +97,145 @@ Deno.serve(async (req) => {
         // Deploy VPC and network infrastructure using topology's VPC config
         const vpcConfig = topology_data?.vpcConfig || {};
         const deployRegion = lab.region || "us-east-1";
-        const deployCidr = vpcConfig.cidr || "10.1.0.0/16";
 
-        // Pre-flight CIDR conflict check — auto-resolve if conflict
-        console.log("[deployLab] Step 1: suggestCidr...");
-        let cidrCheck;
-        try {
-          cidrCheck = await base44.functions.invoke("cloudProviderAWS", {
-            action: "suggestCidr",
-            params: { proposed_cidr: deployCidr, region: deployRegion },
-          });
-          console.log("[deployLab] Step 1 OK:", JSON.stringify(cidrCheck?.data || cidrCheck).slice(0, 200));
-        } catch (e) {
-          console.error("[deployLab] Step 1 FAILED:", e.message);
-          throw e;
-        }
-        const cidrCheckData = cidrCheck?.data || cidrCheck;
-        let effectiveCidr = deployCidr;
-        const cidrChanged = cidrCheckData?.check?.conflict;
-        if (cidrChanged) {
-          effectiveCidr = cidrCheckData.suggested_cidr || "10.100.0.0/16";
-          console.log(`CIDR ${deployCidr} conflicts — auto-selected ${effectiveCidr}`);
-        }
+        // Check if user chose an existing VPC to reuse
+        const existingVpcId = vpcConfig.existingVpcId;
+        let networkData = null;
 
-        // Build subnet configs — when CIDR changed, derive fresh subnets from the new VPC range
-        // so subnets actually fall within the VPC (old subnets would be invalid)
-        let fixedSubnets = [];
-        if (cidrChanged) {
-          // Derive subnets from new CIDR — match the original subnet names/zones pattern
-          const parts = effectiveCidr.split("/")[0].split(".").map(Number);
-          const prefix = `${parts[0]}.${parts[1]}`;
-          const origSubnets = vpcConfig.subnets || [];
-          fixedSubnets = origSubnets.length > 0
-            ? origSubnets.map((s, i) => ({
-                name: s.name,
-                cidr: `${prefix}.${i + 1}.0/24`,
-                zone: `${deployRegion}${String.fromCharCode(97 + i)}`,
-              }))
-            : [
-                { name: "public", cidr: `${prefix}.1.0/24`, zone: `${deployRegion}a` },
-                { name: "private", cidr: `${prefix}.2.0/24`, zone: `${deployRegion}b` },
-              ];
-        } else {
-          // Fix subnet zones to match deployment region (topology may have different region zones)
-          const rawSubnets = vpcConfig.subnets || [];
-          fixedSubnets = rawSubnets.map(s => ({
-            ...s,
-            zone: s.zone?.replace(/^[a-z]+-[a-z]+-\d+/, deployRegion) || `${deployRegion}a`,
-          }));
-        }
+        if (existingVpcId) {
+          // Reuse existing VPC — look up its subnets from AWS
+          console.log(`[deployLab] Using existing VPC: ${existingVpcId}`);
+          try {
+            const vpcListRes = await base44.functions.invoke("cloudProviderAWS", {
+              action: "listAllVpcs",
+              params: { region: deployRegion },
+            });
+            const vpcList = (vpcListRes?.data || vpcListRes)?.vpcs || [];
+            const existingVpc = vpcList.find(v => v.vpcId === existingVpcId);
+            if (!existingVpc || existingVpc.subnets.length === 0) {
+              throw new Error(`Existing VPC ${existingVpcId} has no available subnets`);
+            }
 
-        console.log("[deployLab] Step 2: createNetwork with cidr=" + effectiveCidr);
-        let networkResult;
-        try {
-          networkResult = await base44.functions.invoke("cloudProviderAWS", {
-            action: "createNetwork",
-            params: {
-              lab_id,
-              vpc_cidr: effectiveCidr,
-              subnet_configs: fixedSubnets,
+            // Build subnet list from existing VPC's subnets, matching topology selections
+            const topologySubnets = vpcConfig.subnets || [];
+            const matchedSubnets = existingVpc.subnets.filter(s =>
+              topologySubnets.some(ts => ts.cidr === s.cidrBlock)
+            ).map(s => ({
+              id: s.subnetId,
+              name: topologySubnets.find(ts => ts.cidr === s.cidrBlock)?.name || "subnet",
+              cidr: s.cidrBlock,
+              zone: s.availabilityZone,
+              isPublic: true,
+            }));
+
+            if (matchedSubnets.length === 0 && existingVpc.subnets.length > 0) {
+              // No matching subnets? Use all existing ones
+              matchedSubnets.push(...existingVpc.subnets.map(s => ({
+                id: s.subnetId,
+                name: "existing",
+                cidr: s.cidrBlock,
+                zone: s.availabilityZone,
+                isPublic: true,
+              })));
+            }
+
+            // Find existing security groups for this VPC
+            let securityGroupIds = [];
+            try {
+              const sgResult = await base44.functions.invoke("cloudProviderAWS", {
+                action: "listSecurityGroups",
+                params: { vpc_id: existingVpcId, region: deployRegion },
+              });
+              const sgData = sgResult?.data || sgResult;
+              securityGroupIds = sgData?.securityGroupIds || [];
+            } catch { /* will create new SG below */ }
+
+            networkData = {
+              vpcId: existingVpcId,
+              vpcCidr: existingVpc.cidrBlock,
+              subnets: matchedSubnets,
+              subnetId: matchedSubnets[0]?.id || "",
+              securityGroupIds,
+              securityGroupId: securityGroupIds[0] || "",
               region: deployRegion,
-            },
-          });
-          console.log("[deployLab] Step 2 OK");
-        } catch (e) {
-          console.error("[deployLab] Step 2 FAILED:", e.message);
-          throw e;
+              state: "existing",
+              _existing: true,
+            };
+            console.log(`[deployLab] Reusing VPC ${existingVpcId} with ${matchedSubnets.length} subnets`);
+          } catch (e) {
+            console.error(`[deployLab] Failed to reuse existing VPC: ${e.message}. Falling back to new VPC.`);
+            existingVpcId = null; // Fall through to create new VPC
+          }
         }
 
-        const networkData = networkResult?.data || networkResult;
+        if (!networkData) {
+          const deployCidr = vpcConfig.cidr || "10.1.0.0/16";
+
+          // Pre-flight CIDR conflict check — auto-resolve if conflict
+          console.log("[deployLab] Step 1: suggestCidr...");
+          let cidrCheck;
+          try {
+            cidrCheck = await base44.functions.invoke("cloudProviderAWS", {
+              action: "suggestCidr",
+              params: { proposed_cidr: deployCidr, region: deployRegion },
+            });
+            console.log("[deployLab] Step 1 OK:", JSON.stringify(cidrCheck?.data || cidrCheck).slice(0, 200));
+          } catch (e) {
+            console.error("[deployLab] Step 1 FAILED:", e.message);
+            throw e;
+          }
+          const cidrCheckData = cidrCheck?.data || cidrCheck;
+          let effectiveCidr = deployCidr;
+          const cidrChanged = cidrCheckData?.check?.conflict;
+          if (cidrChanged) {
+            effectiveCidr = cidrCheckData.suggested_cidr || "10.100.0.0/16";
+            console.log(`CIDR ${deployCidr} conflicts — auto-selected ${effectiveCidr}`);
+          }
+
+          // Build subnet configs
+          let fixedSubnets = [];
+          if (cidrChanged) {
+            const parts = effectiveCidr.split("/")[0].split(".").map(Number);
+            const prefix = `${parts[0]}.${parts[1]}`;
+            const origSubnets = vpcConfig.subnets || [];
+            fixedSubnets = origSubnets.length > 0
+              ? origSubnets.map((s, i) => ({
+                  name: s.name,
+                  cidr: `${prefix}.${i + 1}.0/24`,
+                  zone: `${deployRegion}${String.fromCharCode(97 + i)}`,
+                }))
+              : [
+                  { name: "public", cidr: `${prefix}.1.0/24`, zone: `${deployRegion}a` },
+                  { name: "private", cidr: `${prefix}.2.0/24`, zone: `${deployRegion}b` },
+                ];
+          } else {
+            const rawSubnets = vpcConfig.subnets || [];
+            fixedSubnets = rawSubnets.map(s => ({
+              ...s,
+              zone: s.zone?.replace(/^[a-z]+-[a-z]+-\d+/, deployRegion) || `${deployRegion}a`,
+            }));
+          }
+
+          console.log("[deployLab] Step 2: createNetwork with cidr=" + effectiveCidr);
+          let networkResult;
+          try {
+            networkResult = await base44.functions.invoke("cloudProviderAWS", {
+              action: "createNetwork",
+              params: {
+                lab_id,
+                vpc_cidr: effectiveCidr,
+                subnet_configs: fixedSubnets,
+                region: deployRegion,
+              },
+            });
+            console.log("[deployLab] Step 2 OK");
+          } catch (e) {
+            console.error("[deployLab] Step 2 FAILED:", e.message);
+            throw e;
+          }
+
+          networkData = networkResult?.data || networkResult;
+        }
 
         // Deploy each device
         const devices = topology_data?.devices || [];

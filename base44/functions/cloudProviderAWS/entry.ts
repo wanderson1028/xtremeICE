@@ -529,6 +529,255 @@ Deno.serve(async (req) => {
         return Response.json({ region, vpcs, totalCount: vpcs.length });
       }
 
+      case "listAllVpcs": {
+        // List all VPCs in region with full details: subnets, instances, lab linkage
+        const vpcXml = await ec2Call("DescribeVpcs", {}, region);
+
+        // Parse all VPCs
+        const vpcs = [];
+        const vpcRegex = /<item>\s*<vpcId>([^<]+)<\/vpcId>[\s\S]*?<cidrBlock>([^<]+)<\/cidrBlock>[\s\S]*?<state>([^<]+)<\/state>[\s\S]*?<isDefault>([^<]+)<\/isDefault>[\s\S]*?<tagSet>([\s\S]*?)<\/tagSet>[\s\S]*?(?=<\/item>)/g;
+        for (const m of vpcXml.matchAll(vpcRegex)) {
+          vpcs.push({
+            vpcId: m[1],
+            cidrBlock: m[2],
+            state: m[3],
+            isDefault: m[4] === "true",
+            name: extractTag(m[5], "Name") || m[1],
+            labId: extractTag(m[5], "LabId") || null,
+            managedBy: extractTag(m[5], "ManagedBy") || null,
+          });
+        }
+
+        // Get subnets for all VPCs (single call)
+        let subnetsByVpc = {};
+        try {
+          const subXml = await ec2Call("DescribeSubnets", {}, region);
+          for (const m of subXml.matchAll(/<item>\s*<subnetId>([^<]+)<\/subnetId>[\s\S]*?<vpcId>([^<]+)<\/vpcId>[\s\S]*?<cidrBlock>([^<]+)<\/cidrBlock>[\s\S]*?<availabilityZone>([^<]+)<\/availabilityZone>[\s\S]*?<availableIpAddressCount>(\d+)<\/availableIpAddressCount>/g)) {
+            const vpcId = m[2];
+            if (!subnetsByVpc[vpcId]) subnetsByVpc[vpcId] = [];
+            subnetsByVpc[vpcId].push({
+              subnetId: m[1],
+              cidrBlock: m[3],
+              availabilityZone: m[4],
+              availableIps: parseInt(m[5]),
+            });
+          }
+        } catch (e) { console.error("Failed to fetch subnets:", e.message); }
+
+        // Get instances for all VPCs (single call)
+        let instancesByVpc = {};
+        try {
+          const instXml = await ec2Call("DescribeInstances", {}, region);
+          const instBlocks = instXml.split("</reservationSet>")[0]?.split("<item>") || [];
+          for (let i = 1; i < instBlocks.length; i++) {
+            const block = instBlocks[i];
+            const vpcMatch = block.match(/<vpcId>([^<]+)<\/vpcId>/);
+            const stateMatch = block.match(/<name>([^<]+)<\/name>/);
+            if (vpcMatch && stateMatch?.[1] !== "terminated" && stateMatch?.[1] !== "shutting-down") {
+              const vpcId = vpcMatch[1];
+              if (!instancesByVpc[vpcId]) instancesByVpc[vpcId] = 0;
+              instancesByVpc[vpcId]++;
+            }
+          }
+        } catch (e) { console.error("Failed to fetch instances:", e.message); }
+
+        // Cross-reference with labs to determine usage (check both vpc_id and tag)
+        let labsByVpc = {};
+        try {
+          const allLabs = await base44.asServiceRole.entities.LiveFireLab.filter({});
+          for (const lab of allLabs) {
+            if (lab.vpc_id) labsByVpc[lab.vpc_id] = lab;
+          }
+        } catch (e) { console.error("Failed to fetch labs:", e.message); }
+
+        // Also try to match by labId tag — some labs may have been deleted but VPCs remain tagged
+        const tagLabs = {};
+        try {
+          const allLabs = await base44.asServiceRole.entities.LiveFireLab.filter({});
+          for (const lab of allLabs) {
+            tagLabs[lab.id] = lab;
+          }
+        } catch (e) { /* ignore */ }
+
+        // Assemble final response
+        const enrichedVpcs = vpcs.map(vpc => {
+          const subs = subnetsByVpc[vpc.vpcId] || [];
+          const instanceCount = instancesByVpc[vpc.vpcId] || 0;
+          const linkedLab = labsByVpc[vpc.vpcId] || (vpc.labId ? tagLabs[vpc.labId] : null) || null;
+          const isOrphaned = !vpc.isDefault && instanceCount === 0 && !linkedLab;
+          return {
+            ...vpc,
+            subnets: subs,
+            instanceCount,
+            linkedLab: linkedLab ? { id: linkedLab.id, name: linkedLab.name, status: linkedLab.status } : null,
+            isOrphaned,
+          };
+        });
+
+        // Sort: default VPC first, then orphaned, then in-use
+        enrichedVpcs.sort((a, b) => {
+          if (a.isDefault && !b.isDefault) return -1;
+          if (!a.isDefault && b.isDefault) return 1;
+          if (a.isOrphaned && !b.isOrphaned) return 1;
+          if (!a.isOrphaned && b.isOrphaned) return -1;
+          return a.cidrBlock.localeCompare(b.cidrBlock);
+        });
+
+        return Response.json({ region, vpcs: enrichedVpcs, totalCount: enrichedVpcs.length });
+      }
+
+      case "suggestSubnets": {
+        // Given a VPC CIDR, return all possible /24 subnets and mark which are taken
+        const { vpc_cidr, vpc_id } = params;
+        if (!vpc_cidr && !vpc_id) {
+          return Response.json({ error: "Provide vpc_cidr or vpc_id" }, { status: 400 });
+        }
+
+        let cidr = vpc_cidr;
+        if (!cidr && vpc_id) {
+          // Fetch VPC CIDR from AWS
+          const xml = await ec2Call("DescribeVpcs", { VpcId: [vpc_id] }, region);
+          cidr = xml.match(/<cidrBlock>([^<]+)<\/cidrBlock>/)?.[1] || "";
+        }
+        if (!cidr) {
+          return Response.json({ error: "Could not determine VPC CIDR" }, { status: 400 });
+        }
+
+        // Parse CIDR to compute available /24 subnets
+        const [ip, mask] = cidr.split("/");
+        const maskBits = parseInt(mask);
+        const ipParts = ip.split(".").map(Number);
+
+        // For masks <= 24, we can derive /24 subnets
+        if (maskBits > 24) {
+          return Response.json({ error: "VPC CIDR is smaller than /24 — cannot split into /24 subnets" }, { status: 400 });
+        }
+
+        // How many /24 subnets fit?
+        const subnetBits = 24 - maskBits;
+        const subnetCount = 1 << subnetBits;
+        const subnetOctetStart = maskBits <= 8 ? 1 : maskBits <= 16 ? 2 : 3;
+
+        let existingSubnets = [];
+        if (vpc_id) {
+          try {
+            const subXml = await ec2Call("DescribeSubnets", { Filter: [{ Name: "vpc-id", Value: [vpc_id] }] }, region);
+            for (const m of subXml.matchAll(/<cidrBlock>([^<]+)<\/cidrBlock>/g)) {
+              existingSubnets.push(m[1]);
+            }
+          } catch (e) { console.error("Failed to fetch existing subnets:", e.message); }
+        }
+
+        const subnetOptions = [];
+        const baseIp = [...ipParts];
+
+        // For a /16, subnetOctetStart = 2 (third octet changes)
+        // For a /8, subnetOctetStart = 1 (second octet changes)
+        for (let i = 0; i < subnetCount && i < 256; i++) {
+          const octet = [...baseIp];
+          if (subnetOctetStart === 1) octet[1] = i;
+          else if (subnetOctetStart === 2) octet[2] = i;
+          else octet[3] = i;
+
+          const subnetCidr = `${octet.join(".")}/24`;
+          const isTaken = existingSubnets.includes(subnetCidr);
+          subnetOptions.push({ cidr: subnetCidr, isTaken, label: `${subnetCidr}${isTaken ? " ⬤" : ""}` });
+        }
+
+        return Response.json({
+          vpcCidr: cidr,
+          subnetCount: subnetOptions.length,
+          availableCount: subnetOptions.filter(s => !s.isTaken).length,
+          usedCount: subnetOptions.filter(s => s.isTaken).length,
+          subnets: subnetOptions,
+        });
+      }
+
+      case "deleteVpc": {
+        // Force-delete a VPC — cleans up dependent resources first
+        const { vpc_id, force = false } = params;
+        if (!vpc_id) return Response.json({ error: "vpc_id required" }, { status: 400 });
+
+        const result = { vpcId: vpc_id, steps: [], error: null };
+        const runStep = (name, fn) => fn().then(r => { result.steps.push(`${name}: ok`); return r; }).catch(e => { result.steps.push(`${name}: ${e.message}`); throw e; });
+
+        try {
+          // 1. Check for running instances
+          const instXml = await ec2Call("DescribeInstances", { Filter: [{ Name: "vpc-id", Value: [vpc_id] }] }, region);
+          const runningIds = [];
+          for (const m of instXml.matchAll(/<instanceId>([^<]+)<\/instanceId>/g)) {
+            const block = instXml.slice(Math.max(0, instXml.indexOf(m[1]) - 200), instXml.indexOf(m[1]) + 300);
+            const stateMatch = block.match(/<name>([^<]+)<\/name>/);
+            if (stateMatch && !["terminated", "shutting-down"].includes(stateMatch[1])) {
+              runningIds.push(m[1]);
+            }
+          }
+
+          if (runningIds.length > 0 && !force) {
+            return Response.json({
+              error: `VPC has ${runningIds.length} running instance(s). Use force=true to terminate them.`,
+              runningInstanceIds: runningIds,
+              vpcId: vpc_id,
+            }, { status: 409 });
+          }
+
+          // Terminate running instances if force=true
+          if (runningIds.length > 0 && force) {
+            await runStep("terminateInstances", () => ec2Call("TerminateInstances", { InstanceId: runningIds }, region));
+            // Short wait for instances to start shutting down
+            await new Promise(r => setTimeout(r, 3000));
+          }
+
+          // 2. Detach and delete IGWs
+          try {
+            const igwXml = await ec2Call("DescribeInternetGateways", { Filter: [{ Name: "attachment.vpc-id", Value: [vpc_id] }] }, region);
+            for (const m of igwXml.matchAll(/<internetGatewayId>([^<]+)<\/internetGatewayId>/g)) {
+              await runStep(`detachIGW_${m[1]}`, () => ec2Call("DetachInternetGateway", { InternetGatewayId: m[1], VpcId: vpc_id }, region));
+              await runStep(`deleteIGW_${m[1]}`, () => ec2Call("DeleteInternetGateway", { InternetGatewayId: m[1] }, region));
+            }
+          } catch (e) { result.steps.push(`igw: ${e.message}`); }
+
+          // 3. Delete subnets
+          const subXml = await ec2Call("DescribeSubnets", { Filter: [{ Name: "vpc-id", Value: [vpc_id] }] }, region);
+          for (const m of subXml.matchAll(/<subnetId>([^<]+)<\/subnetId>/g)) {
+            await runStep(`deleteSubnet_${m[1]}`, () => ec2Call("DeleteSubnet", { SubnetId: m[1] }, region));
+          }
+
+          // 4. Delete non-default security groups
+          try {
+            const sgXml = await ec2Call("DescribeSecurityGroups", { Filter: [{ Name: "vpc-id", Value: [vpc_id] }] }, region);
+            for (const m of sgXml.matchAll(/<groupId>([^<]+)<\/groupId>/g)) {
+              const groupId = m[1];
+              const block = sgXml.slice(sgXml.indexOf(groupId) - 100, sgXml.indexOf(groupId) + 200);
+              if (!block.includes("<groupName>default<")) {
+                await runStep(`deleteSG_${groupId}`, () => ec2Call("DeleteSecurityGroup", { GroupId: groupId }, region));
+              }
+            }
+          } catch (e) { result.steps.push(`sg: ${e.message}`); }
+
+          // 5. Delete non-main route tables
+          try {
+            const rtXml = await ec2Call("DescribeRouteTables", { Filter: [{ Name: "vpc-id", Value: [vpc_id] }] }, region);
+            for (const m of rtXml.matchAll(/<routeTableId>([^<]+)<\/routeTableId>/g)) {
+              const rtId = m[1];
+              const block = rtXml.slice(rtXml.indexOf(rtId) - 100, rtXml.indexOf(rtId) + 200);
+              if (!block.includes("<main>true<")) {
+                await runStep(`deleteRT_${rtId}`, () => ec2Call("DeleteRouteTable", { RouteTableId: rtId }, region));
+              }
+            }
+          } catch (e) { result.steps.push(`rt: ${e.message}`); }
+
+          // 6. Delete the VPC
+          await runStep("deleteVpc", () => ec2Call("DeleteVpc", { VpcId: vpc_id }, region));
+
+          result.success = true;
+          return Response.json(result);
+        } catch (e) {
+          result.error = e.message;
+          return Response.json(result, { status: 500 });
+        }
+      }
+
       case "listAMIs": {
         // Return AMIs organized by AWS-standard categories
         const categories = params.categories || [
@@ -869,6 +1118,21 @@ Deno.serve(async (req) => {
           timestamp,
           region,
         });
+      }
+
+      case "listSecurityGroups": {
+        // List security groups for a given VPC
+        const { vpc_id } = params;
+        const ids = [];
+        if (vpc_id) {
+          const xml = await ec2Call("DescribeSecurityGroups", {
+            Filter: [{ Name: "vpc-id", Value: [vpc_id] }],
+          }, region);
+          for (const m of xml.matchAll(/<groupId>([^<]+)<\/groupId>/g)) {
+            ids.push(m[1]);
+          }
+        }
+        return Response.json({ securityGroupIds: ids, vpcId: vpc_id, region });
       }
 
       case "deleteKeyPair": {
