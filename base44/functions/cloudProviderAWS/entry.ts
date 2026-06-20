@@ -528,98 +528,157 @@ Deno.serve(async (req) => {
       }
 
       case "listAMIs": {
-        // Return commonly-used Amazon AMIs for the region
-        const filters = params.filters || [
-          // Amazon Linux 2023
-          { name: "amazon-linux-2023", owner: "amazon", filter: [
-            { Name: "name", Value: ["al2023-ami-2023*-x86_64"] },
-            { Name: "state", Value: ["available"] },
-            { Name: "architecture", Value: ["x86_64"] },
-          ]},
-          // Amazon Linux 2
-          { name: "Amazon Linux 2", owner: "amazon", filter: [
-            { Name: "name", Value: ["amzn2-ami-hvm-*-x86_64-gp2"] },
-            { Name: "state", Value: ["available"] },
-          ]},
-          // Ubuntu 24.04
-          { name: "Ubuntu 24.04", owner: "099720109477", filter: [
-            { Name: "name", Value: ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"] },
-            { Name: "state", Value: ["available"] },
-          ]},
-          // Ubuntu 22.04
-          { name: "Ubuntu 22.04", owner: "099720109477", filter: [
-            { Name: "name", Value: ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"] },
-            { Name: "state", Value: ["available"] },
-          ]},
-          // Debian 12
-          { name: "Debian 12", owner: "136693071363", filter: [
-            { Name: "name", Value: ["debian-12-amd64-*"] },
-            { Name: "state", Value: ["available"] },
-          ]},
-          // RHEL 9
-          { name: "RHEL 9", owner: "309956199498", filter: [
-            { Name: "name", Value: ["RHEL-9.*-x86_64-*-Hourly2-GP3"] },
-            { Name: "state", Value: ["available"] },
-          ]},
+        // Return AMIs organized by AWS-standard categories
+        const categories = params.categories || [
+          // ── Quick Start AMIs ──
+          {
+            category: "Quick Start AMIs",
+            icon: "zap",
+            groups: [
+              { name: "Amazon Linux 2023", owner: "amazon", description: "Amazon's cloud-native Linux distribution", filter: [
+                { Name: "name", Value: ["al2023-ami-2023*-x86_64"] }, { Name: "state", Value: ["available"] }, { Name: "architecture", Value: ["x86_64"] },
+              ]},
+              { name: "Amazon Linux 2", owner: "amazon", description: "Legacy Amazon Linux 2 (LTS)", filter: [
+                { Name: "name", Value: ["amzn2-ami-hvm-*-x86_64-gp2"] }, { Name: "state", Value: ["available"] },
+              ]},
+              { name: "Ubuntu 24.04 LTS", owner: "099720109477", description: "Canonical Ubuntu Noble Numbat", filter: [
+                { Name: "name", Value: ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"] }, { Name: "state", Value: ["available"] },
+              ]},
+              { name: "Ubuntu 22.04 LTS", owner: "099720109477", description: "Canonical Ubuntu Jammy Jellyfish", filter: [
+                { Name: "name", Value: ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"] }, { Name: "state", Value: ["available"] },
+              ]},
+              { name: "Debian 12", owner: "136693071363", description: "Debian Bookworm", filter: [
+                { Name: "name", Value: ["debian-12-amd64-*"] }, { Name: "state", Value: ["available"] },
+              ]},
+              { name: "Red Hat Enterprise Linux 9", owner: "309956199498", description: "RHEL 9 with hourly billing", filter: [
+                { Name: "name", Value: ["RHEL-9.*-x86_64-*-Hourly2-GP3"] }, { Name: "state", Value: ["available"] },
+              ]},
+            ],
+          },
+          // ── My AMIs ──
+          {
+            category: "My AMIs",
+            icon: "user",
+            groups: [
+              { name: "Owned by me", owner: "self", description: "AMIs you created or uploaded", filter: [
+                { Name: "state", Value: ["available"] },
+              ]},
+            ],
+          },
+          // ── AWS Marketplace AMIs ──
+          {
+            category: "AWS Marketplace AMIs",
+            icon: "shopping-cart",
+            groups: [
+              { name: "Windows Server 2025", owner: "801119661308", description: "Microsoft Windows Server 2025 Base", filter: [
+                { Name: "name", Value: ["Windows_Server-2025-English-Full-Base-*"] }, { Name: "state", Value: ["available"] },
+              ]},
+              { name: "Windows Server 2022", owner: "801119661308", description: "Microsoft Windows Server 2022 Base", filter: [
+                { Name: "name", Value: ["Windows_Server-2022-English-Full-Base-*"] }, { Name: "state", Value: ["available"] },
+              ]},
+              { name: "Ubuntu Pro 24.04", owner: "099720109477", description: "Ubuntu Pro with extended security", filter: [
+                { Name: "name", Value: ["ubuntu-pro-server/images/hvm-ssd/ubuntu-noble-24.04-amd64-pro-server-*"] }, { Name: "state", Value: ["available"] },
+              ]},
+              { name: "Cisco CSR 1000V", owner: "679593333241", description: "Cisco Cloud Services Router", filter: [
+                { Name: "name", Value: ["cisco-csr-1kv-*"] }, { Name: "state", Value: ["available"] },
+              ]},
+              { name: "Fortinet FortiGate", owner: "679593333241", description: "Fortinet Next-Gen Firewall", filter: [
+                { Name: "name", Value: ["fortinet-fortigate-*"] }, { Name: "state", Value: ["available"] },
+              ]},
+              { name: "Palo Alto VM-Series", owner: "679593333241", description: "Palo Alto Networks VM-Series", filter: [
+                { Name: "name", Value: ["PA-VM-AWS-*"] }, { Name: "state", Value: ["available"] },
+              ]},
+            ],
+          },
+          // ── Community AMIs ──
+          {
+            category: "Community AMIs",
+            icon: "users",
+            groups: [
+              { name: "Kali Linux", owner: "679593333241", description: "Offensive Security Kali Linux", filter: [
+                { Name: "name", Value: ["kali-linux-*-amd64-*"] }, { Name: "state", Value: ["available"] },
+              ]},
+              { name: "CentOS Stream 9", owner: "125523088429", description: "CentOS Stream 9", filter: [
+                { Name: "name", Value: ["CentOS-Stream-9-*"] }, { Name: "state", Value: ["available"] },
+              ]},
+              { name: "Rocky Linux 9", owner: "792107900819", description: "Rocky Linux 9 (RHEL-compatible)", filter: [
+                { Name: "name", Value: ["Rocky-9-EC2-Base-*"] }, { Name: "state", Value: ["available"] },
+              ]},
+              { name: "AlmaLinux 9", owner: "764336703387", description: "AlmaLinux OS 9", filter: [
+                { Name: "name", Value: ["AlmaLinux-OS-9-*-x86_64-*"] }, { Name: "state", Value: ["available"] },
+              ]},
+            ],
+          },
         ];
 
-        const results = [];
+        const categorizedResults = [];
         let describeImagesAvailable = true;
 
-        // Try DescribeImages for the first filter — if it fails with AuthFailure,
-        // all subsequent calls will fail too, so skip and return hardcoded AMIs
-        for (const group of filters) {
-          if (!describeImagesAvailable) {
-            results.push({
-              group: group.name,
-              owner: group.owner,
-              images: [{ imageId: DEFAULT_AMIS[region] || DEFAULT_AMIS["us-east-1"], description: "Default (DescribeImages unavailable)", architecture: "x86_64", creationDate: "N/A" }],
-              _fallback: true,
-            });
-            continue;
-          }
-          try {
-            const xml = await ec2Call("DescribeImages", {
-              Owner: [group.owner],
-              Filter: group.filter,
-            }, region);
-            const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-            let match;
-            const images = [];
-            while ((match = itemRegex.exec(xml)) !== null) {
-              const block = match[1];
-              const idMatch = block.match(/<imageId>([^<]+)<\/imageId>/);
-              const dateMatch = block.match(/<creationDate>([^<]+)<\/creationDate>/);
-              const descMatch = block.match(/<description>([^<]*)<\/description>/);
-              const archMatch = block.match(/<architecture>([^<]+)<\/architecture>/);
-              if (idMatch?.[1] && dateMatch?.[1]) {
-                images.push({ imageId: idMatch[1], creationDate: dateMatch[1], description: descMatch?.[1] || "", architecture: archMatch?.[1] || "x86_64" });
-              }
-            }
-            images.sort((a, b) => b.creationDate.localeCompare(a.creationDate));
-            if (images.length > 0) {
-              results.push({
+        for (const category of categories) {
+          const catGroups = [];
+          for (const group of (category.groups || [])) {
+            if (!describeImagesAvailable) {
+              catGroups.push({
                 group: group.name,
                 owner: group.owner,
-                images: images.slice(0, 5).map(i => ({ imageId: i.imageId, description: i.description, architecture: i.architecture, creationDate: i.creationDate })),
-              });
-            }
-          } catch (e) {
-            console.error(`Failed to list AMIs for ${group.name}:`, e.message);
-            if (e.message.includes("AuthFailure")) {
-              describeImagesAvailable = false;
-              results.push({
-                group: group.name,
-                owner: group.owner,
-                images: [{ imageId: DEFAULT_AMIS[region] || DEFAULT_AMIS["us-east-1"], description: "Default (permission issue)", architecture: "x86_64", creationDate: "N/A" }],
+                description: group.description,
+                images: [{ imageId: DEFAULT_AMIS[region] || DEFAULT_AMIS["us-east-1"], description: "Default (DescribeImages unavailable)", architecture: "x86_64", creationDate: "N/A" }],
                 _fallback: true,
               });
-            } else {
-              results.push({ group: group.name, error: e.message });
+              continue;
+            }
+            try {
+              const xml = await ec2Call("DescribeImages", {
+                Owner: [group.owner],
+                Filter: group.filter,
+              }, region);
+              const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+              let match;
+              const images = [];
+              while ((match = itemRegex.exec(xml)) !== null) {
+                const block = match[1];
+                const idMatch = block.match(/<imageId>([^<]+)<\/imageId>/);
+                const dateMatch = block.match(/<creationDate>([^<]+)<\/creationDate>/);
+                const descMatch = block.match(/<description>([^<]*)<\/description>/);
+                const archMatch = block.match(/<architecture>([^<]+)<\/architecture>/);
+                if (idMatch?.[1] && dateMatch?.[1]) {
+                  images.push({ imageId: idMatch[1], creationDate: dateMatch[1], description: descMatch?.[1] || "", architecture: archMatch?.[1] || "x86_64" });
+                }
+              }
+              images.sort((a, b) => b.creationDate.localeCompare(a.creationDate));
+              if (images.length > 0) {
+                catGroups.push({
+                  group: group.name,
+                  owner: group.owner,
+                  description: group.description,
+                  images: images.slice(0, 5).map(i => ({ imageId: i.imageId, description: i.description, architecture: i.architecture, creationDate: i.creationDate })),
+                });
+              }
+            } catch (e) {
+              console.error(`Failed to list AMIs for ${group.name}:`, e.message);
+              if (e.message.includes("AuthFailure") || e.message.includes("UnauthorizedOperation")) {
+                describeImagesAvailable = false;
+                catGroups.push({
+                  group: group.name,
+                  owner: group.owner,
+                  description: group.description,
+                  images: [{ imageId: DEFAULT_AMIS[region] || DEFAULT_AMIS["us-east-1"], description: `Default (${e.message.slice(0, 30)}…)`, architecture: "x86_64", creationDate: "N/A" }],
+                  _fallback: true,
+                });
+              } else {
+                catGroups.push({ group: group.name, error: e.message });
+              }
             }
           }
+          if (catGroups.length > 0) {
+            categorizedResults.push({
+              category: category.category,
+              icon: category.icon,
+              groups: catGroups,
+            });
+          }
         }
-        return Response.json({ region, groups: results });
+        return Response.json({ region, categories: categorizedResults });
       }
 
       case "listInstances": {

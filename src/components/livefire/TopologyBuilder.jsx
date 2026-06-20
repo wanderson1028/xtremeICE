@@ -140,21 +140,6 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
     queryFn: () => base44.entities.LiveFireImage.filter({ status: "available" }, "vendor", 100),
   });
 
-  const { data: cloudAMIs, isFetching: fetchingAMIs } = useQuery({
-    queryKey: ["cloud-amis", cloudProvider, region],
-    queryFn: async () => {
-      try {
-        const res = await base44.functions.invoke("cloudProviderAWS", {
-          action: "listAMIs",
-          params: { region },
-        });
-        return res.data?.groups || [];
-      } catch { return []; }
-    },
-    enabled: rightPanel === "properties" && !!selectedDevice,
-    staleTime: 300_000, // cache for 5 minutes
-  });
-
   const addDevice = (deviceType) => {
     const paletteItem = DEVICE_PALETTE.find(d => d.type === deviceType);
     const newDevice = {
