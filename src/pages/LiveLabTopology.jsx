@@ -110,11 +110,17 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
   };
 
   const handleGetPassword = async () => {
-    if (!deployed?.instance_id) return;
+    console.log("[GetPassword] clicked, deployed:", deployed);
+    if (!deployed?.instance_id) {
+      console.log("[GetPassword] no instance_id, returning");
+      setPasswordError("No instance ID available");
+      return;
+    }
     setLoadingPassword(true);
     setPasswordError(null);
     setPasswordData(null);
     try {
+      console.log("[GetPassword] calling decryptWindowsPassword with instance:", deployed.instance_id);
       const res = await base44.functions.invoke("cloudProviderAWS", {
         action: "decryptWindowsPassword",
         params: {
@@ -123,10 +129,10 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
           private_key_pem: lab?.ssh_private_key || "",
         },
       });
+      console.log("[GetPassword] response:", res.data);
       const pwdData = res.data;
 
       if (pwdData?.success && pwdData?.password) {
-        // Got the decrypted password!
         setPasswordData({ password: pwdData.password, timestamp: pwdData.timestamp });
         setPasswordError(null);
       } else if (pwdData?.error === "Password not ready") {
@@ -134,10 +140,10 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
         setPasswordData({ notReady: true });
       } else {
         setPasswordError(pwdData?.message || pwdData?.error || "Failed to decrypt password");
-        // If we have encrypted data, show it as fallback
         if (pwdData?.passwordData) setPasswordData({ passwordData: pwdData.passwordData, decryptFailed: true, manualCmd: pwdData.manualDecryptCmd });
       }
     } catch (err) {
+      console.error("[GetPassword] error:", err);
       setPasswordError(err?.response?.data?.error || err?.message || "Failed to retrieve password data");
     } finally {
       setLoadingPassword(false);
@@ -958,26 +964,30 @@ export default function LiveLabTopology() {
           )}
         </div>
 
-        {/* Side panels */}
+        {/* Side panels — stopPropagation prevents canvas click from closing them */}
         {selectedDevice && (
-          <DeviceDetailPanel
-            device={selectedDevice}
-            deployed={deployedDevices.find(d => d.name?.toLowerCase() === selectedDevice.name?.toLowerCase())}
-            onClose={() => setSelectedDevice(null)}
-            lab={lab}
-            refetchDevices={refetchDevices}
-            queryClient={queryClient}
-            labId={labId}
-          />
+          <div onClick={(e) => e.stopPropagation()}>
+            <DeviceDetailPanel
+              device={selectedDevice}
+              deployed={deployedDevices.find(d => d.name?.toLowerCase() === selectedDevice.name?.toLowerCase())}
+              onClose={() => setSelectedDevice(null)}
+              lab={lab}
+              refetchDevices={refetchDevices}
+              queryClient={queryClient}
+              labId={labId}
+            />
+          </div>
         )}
 
         {showAddDevice && (
-          <AddDevicePanel
-            lab={lab}
-            onClose={() => setShowAddDevice(false)}
-            onDeploy={handleDeployDevice}
-            deploying={deployingDevice}
-          />
+          <div onClick={(e) => e.stopPropagation()}>
+            <AddDevicePanel
+              lab={lab}
+              onClose={() => setShowAddDevice(false)}
+              onDeploy={handleDeployDevice}
+              deploying={deployingDevice}
+            />
+          </div>
         )}
 
         {/* Error toast */}
