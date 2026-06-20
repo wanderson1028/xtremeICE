@@ -149,6 +149,10 @@
     "ssh_private_key": {
       "type": "string",
       "description": "PEM private key material for SSH (downloadable)"
+    },
+    "folder_id": {
+      "type": "string",
+      "description": "ID of the LiveFireFolder this lab belongs to"
     }
   },
   "required": [
