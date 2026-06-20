@@ -726,6 +726,22 @@ Deno.serve(async (req) => {
         });
       }
 
+      case "startVM": {
+        const { instance_id } = params;
+        const xml = await ec2Call("StartInstances", { InstanceId: [instance_id] }, region);
+        const currentState = xml.match(/<currentState>[\s\S]*?<name>([^<]+)<\/name>/)?.[1] || "pending";
+        const prevState = xml.match(/<previousState>[\s\S]*?<name>([^<]+)<\/name>/)?.[1] || "stopped";
+        return Response.json({ instanceId: instance_id, previousState: prevState, currentState, success: true });
+      }
+
+      case "stopVM": {
+        const { instance_id } = params;
+        const xml = await ec2Call("StopInstances", { InstanceId: [instance_id] }, region);
+        const currentState = xml.match(/<currentState>[\s\S]*?<name>([^<]+)<\/name>/)?.[1] || "stopping";
+        const prevState = xml.match(/<previousState>[\s\S]*?<name>([^<]+)<\/name>/)?.[1] || "running";
+        return Response.json({ instanceId: instance_id, previousState: prevState, currentState, success: true });
+      }
+
       case "getPasswordData": {
         // Retrieve Windows Administrator password from AWS (encrypted with key pair)
         const { instance_id } = params;
@@ -734,12 +750,19 @@ Deno.serve(async (req) => {
         const passwordData = xml.match(/<passwordData>([^<]*)<\/passwordData>/)?.[1] || "";
         const timestamp = xml.match(/<timestamp>([^<]*)<\/timestamp>/)?.[1] || "";
 
+        // If password data is empty, it means Windows hasn't generated it yet (takes ~5 min after launch)
+        // or the instance isn't a Windows instance (no password data available)
+        const isEmpty = !passwordData || passwordData.trim() === "";
+
         return Response.json({
           instanceId: instance_id,
-          passwordData,  // Base64-encrypted password (decrypt with private key)
-          timestamp,
+          passwordData,
+          isEmpty,
+          timestamp: timestamp || null,
           region,
-          instructions: "Decrypt using: openssl rsautl -decrypt -inkey <private-key>.pem -in <(echo 'PASSWORD_DATA' | base64 -d)",
+          instructions: isEmpty
+            ? "No password data available yet. Windows instances need 4-8 minutes after launch to generate the admin password. Wait and retry."
+            : "Decrypt with your private key: openssl pkeyutl -decrypt -inkey <key>.pem -in <(echo 'PASSWORD_DATA' | base64 -d) -pkeyopt rsa_padding_mode:pkcs1",
         });
       }
 

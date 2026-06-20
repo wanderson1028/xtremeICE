@@ -507,6 +507,209 @@ Deno.serve(async (req) => {
         return Response.json({ status: "success" });
       }
 
+      case "stopDevice": {
+        const { lab_id, device_id } = params;
+        const device = await base44.asServiceRole.entities.LiveFireDevice.filter({ id: device_id, lab_id }).then(r => r[0]);
+        if (!device?.instance_id) return Response.json({ error: "Device not found or not deployed" }, { status: 404 });
+
+        const lab = await base44.asServiceRole.entities.LiveFireLab.filter({ id: lab_id }).then(r => r[0]);
+        const result = await base44.functions.invoke("cloudProviderAWS", {
+          action: "stopVM",
+          params: { instance_id: device.instance_id, region: lab?.region || "us-east-1" },
+        });
+        const data = result?.data || result;
+        await base44.asServiceRole.entities.LiveFireDevice.update(device_id, { status: "stopped" });
+        return Response.json({ success: true, device_id, instance_id: device.instance_id, previousState: data.previousState });
+      }
+
+      case "startDevice": {
+        const { lab_id, device_id } = params;
+        const device = await base44.asServiceRole.entities.LiveFireDevice.filter({ id: device_id, lab_id }).then(r => r[0]);
+        if (!device?.instance_id) return Response.json({ error: "Device not found or not deployed" }, { status: 404 });
+
+        const lab = await base44.asServiceRole.entities.LiveFireLab.filter({ id: lab_id }).then(r => r[0]);
+        const result = await base44.functions.invoke("cloudProviderAWS", {
+          action: "startVM",
+          params: { instance_id: device.instance_id, region: lab?.region || "us-east-1" },
+        });
+        const data = result?.data || result;
+        await base44.asServiceRole.entities.LiveFireDevice.update(device_id, { status: "provisioning" });
+        return Response.json({ success: true, device_id, instance_id: device.instance_id, currentState: data.currentState });
+      }
+
+      case "stopAllDevices": {
+        const { lab_id } = params;
+        const devices = await base44.asServiceRole.entities.LiveFireDevice.filter({ lab_id });
+        const lab = await base44.asServiceRole.entities.LiveFireLab.filter({ id: lab_id }).then(r => r[0]);
+        const region = lab?.region || "us-east-1";
+        const results = [];
+
+        for (const device of devices) {
+          if (!device.instance_id || device.status === "terminated" || device.status === "stopped") continue;
+          try {
+            await base44.functions.invoke("cloudProviderAWS", {
+              action: "stopVM",
+              params: { instance_id: device.instance_id, region },
+            });
+            await base44.asServiceRole.entities.LiveFireDevice.update(device.id, { status: "stopped" });
+            results.push({ device: device.name, status: "stopped" });
+          } catch (e) {
+            results.push({ device: device.name, error: e.message });
+          }
+        }
+        return Response.json({ success: true, stopped: results.filter(r => r.status === "stopped").length, errors: results.filter(r => r.error).length, details: results });
+      }
+
+      case "startAllDevices": {
+        const { lab_id } = params;
+        const devices = await base44.asServiceRole.entities.LiveFireDevice.filter({ lab_id });
+        const lab = await base44.asServiceRole.entities.LiveFireLab.filter({ id: lab_id }).then(r => r[0]);
+        const region = lab?.region || "us-east-1";
+        const results = [];
+
+        for (const device of devices) {
+          if (!device.instance_id || device.status === "terminated" || device.status === "running" || device.status === "provisioning") continue;
+          try {
+            await base44.functions.invoke("cloudProviderAWS", {
+              action: "startVM",
+              params: { instance_id: device.instance_id, region },
+            });
+            await base44.asServiceRole.entities.LiveFireDevice.update(device.id, { status: "provisioning" });
+            results.push({ device: device.name, status: "starting" });
+          } catch (e) {
+            results.push({ device: device.name, error: e.message });
+          }
+        }
+        return Response.json({ success: true, started: results.filter(r => r.status === "starting").length, errors: results.filter(r => r.error).length, details: results });
+      }
+
+      case "deployAllDevices": {
+        // Deploy all un-deployed topology devices at once — the topology devices are in topology_data.devices,
+        // this action deploys any that don't have a matching LiveFireDevice record yet
+        const { lab_id } = params;
+        const lab = await base44.asServiceRole.entities.LiveFireLab.filter({ id: lab_id }).then(r => r[0]);
+        if (!lab) return Response.json({ error: "Lab not found" }, { status: 404 });
+
+        const topologyData = lab.topology_data || {};
+        const topologyDevices = topologyData.devices || [];
+        const deployedDevices = await base44.asServiceRole.entities.LiveFireDevice.filter({ lab_id });
+        const deployedNames = new Set(deployedDevices.map(d => d.name?.toLowerCase()));
+
+        // Find devices not yet deployed
+        const pendingDevices = topologyDevices.filter(d => !deployedNames.has(d.name?.toLowerCase()));
+        if (pendingDevices.length === 0) {
+          return Response.json({ success: true, deployed: 0, message: "All topology devices are already deployed" });
+        }
+
+        // Get existing network/deployment info
+        const deployRegion = lab.region || "us-east-1";
+        const deployments = await base44.asServiceRole.entities.LiveFireDeployment.filter({ lab_id });
+        const dep = deployments[0];
+        if (!dep?.subnet_ids?.length && !lab.subnet_id) {
+          return Response.json({ error: "No network infrastructure found. Deploy the lab's VPC first." }, { status: 400 });
+        }
+
+        const subnetId = dep?.subnet_ids?.[0] || lab.subnet_id;
+        const secGroupIds = dep?.security_group_ids || [];
+        const keyName = lab.ssh_key_name;
+
+        const results = [];
+        const errors = [];
+
+        for (const device of pendingDevices) {
+          try {
+            const createParams = {
+              lab_id,
+              device_name: device.name,
+              device_type: device.type,
+              cpu_cores: device.cpu_cores || 2,
+              ram_mb: device.ram_mb || 4096,
+              storage_gb: device.storage_gb || 20,
+              subnet_id: subnetId,
+              security_group_ids: secGroupIds,
+              region: deployRegion,
+              ami_image_id: device.ami_image_id || null,
+              key_name: keyName,
+            };
+
+            // Resolve AMI if it's a database ID
+            if (createParams.ami_image_id && !createParams.ami_image_id.startsWith("ami-")) {
+              try {
+                const dbImage = await base44.asServiceRole.entities.LiveFireImage.filter({ id: createParams.ami_image_id }).then(r => r[0]);
+                createParams.ami_image_id = dbImage?.ami_id || null;
+              } catch { createParams.ami_image_id = null; }
+            }
+
+            const vmResult = await base44.functions.invoke("cloudProviderAWS", {
+              action: "createVM",
+              params: createParams,
+            });
+            const vmData = vmResult?.data || vmResult;
+
+            if (vmData?.error) {
+              errors.push({ device: device.name, error: vmData.message || vmData.error });
+              continue;
+            }
+
+            const defaultUser = device.access_method === "rdp" ? "Administrator" : "ec2-user";
+            await base44.asServiceRole.entities.LiveFireDevice.create({
+              lab_id,
+              name: device.name,
+              device_type: device.type,
+              instance_id: vmData?.instanceId || `i-pending-${device.name}`,
+              public_ip: vmData?.publicIp || "",
+              private_ip: vmData?.privateIp || "",
+              status: "provisioning",
+              cpu_cores: device.cpu_cores || 2,
+              ram_mb: device.ram_mb || 4096,
+              storage_gb: device.storage_gb || 20,
+              position_x: device.position_x,
+              position_y: device.position_y,
+              connections: device.connections || [],
+              access_method: device.access_method || "ssh",
+              default_username: defaultUser,
+              access_port: device.access_method === "rdp" ? 3389 : 22,
+            });
+
+            results.push({ device: device.name, instanceId: vmData.instanceId, status: "provisioning" });
+          } catch (deviceError) {
+            errors.push({ device: device.name, error: deviceError.message || String(deviceError) });
+          }
+        }
+
+        // Poll for public IPs after a short delay
+        if (results.length > 0) {
+          await new Promise(resolve => setTimeout(resolve, 10000));
+          const freshDevices = await base44.asServiceRole.entities.LiveFireDevice.filter({ lab_id });
+          for (const device of freshDevices) {
+            if (!device.instance_id || device.status !== "provisioning") continue;
+            try {
+              const statusResult = await base44.functions.invoke("cloudProviderAWS", {
+                action: "getInstanceStatus",
+                params: { instance_id: device.instance_id, region: deployRegion },
+              });
+              const statusData = statusResult?.data || statusResult;
+              const publicIp = statusData?.publicIp || null;
+              const state = statusData?.state || device.status;
+              await base44.asServiceRole.entities.LiveFireDevice.update(device.id, {
+                public_ip: publicIp || "",
+                status: state === "running" ? "running" : "provisioning",
+              });
+            } catch { /* poll may fail, not critical */ }
+          }
+        }
+
+        const allFailed = pendingDevices.length > 0 && results.length === 0;
+        return Response.json({
+          success: results.length > 0,
+          deployed: results.length,
+          pending: pendingDevices.length,
+          errors: errors.length > 0 ? errors : undefined,
+          devices: results,
+          message: allFailed ? "All device deployments failed" : undefined,
+        }, { status: allFailed ? 500 : 200 });
+      }
+
       case "refreshDeviceStatus": {
         // Poll AWS for all device statuses and IPs for a running lab, then update DB records
         const { lab_id } = params;

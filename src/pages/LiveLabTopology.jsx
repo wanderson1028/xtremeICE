@@ -5,7 +5,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, Server, Router, Shield, Monitor, Cloud, Terminal,
   Wifi, Plus, X, Play, Square, RefreshCw, ExternalLink,
-  ChevronRight, Cpu, HardDrive, Network, Globe, Zap, Download, Key
+  ChevronRight, Cpu, HardDrive, Network, Globe, Zap, Download, Key,
+  Power, PowerOff, Rocket
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,11 +89,12 @@ function ConnectionLine({ conn, topologyDevices, deployedMap }) {
 }
 
 // ---- Device Detail Panel ----
-function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices }) {
+function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, queryClient, labId }) {
   const [connecting, setConnecting] = useState(false);
   const [passwordData, setPasswordData] = useState(null);
   const [loadingPassword, setLoadingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState(null);
+  const [deviceAction, setDeviceAction] = useState(null); // 'stopping' | 'starting'
   const status = deployed?.status || "pending";
   const isWindows = (deployed?.access_method || device.access_method) === "rdp";
 
@@ -111,16 +113,58 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices }) {
     if (!deployed?.instance_id) return;
     setLoadingPassword(true);
     setPasswordError(null);
+    setPasswordData(null);
     try {
       const res = await base44.functions.invoke("cloudProviderAWS", {
         action: "getPasswordData",
         params: { instance_id: deployed.instance_id, region: lab?.region || "us-east-1" },
       });
-      setPasswordData(res.data);
+      const pwdData = res.data;
+      setPasswordData(pwdData);
+
+      if (pwdData?.isEmpty) {
+        setPasswordError("Password not ready yet. Windows instances need 4-8 minutes after launch. Wait and retry.");
+      } else if (!pwdData?.passwordData) {
+        setPasswordError("No password data returned. The instance may not be a Windows machine.");
+      }
     } catch (err) {
       setPasswordError(err?.response?.data?.error || err?.message || "Failed to retrieve password data");
     } finally {
       setLoadingPassword(false);
+    }
+  };
+
+  const handleStopDevice = async () => {
+    if (!deployed?.id) return;
+    setDeviceAction("stopping");
+    try {
+      await base44.functions.invoke("cloudOrchestrator", {
+        action: "stopDevice",
+        params: { lab_id: labId, device_id: deployed.id },
+      });
+      refetchDevices();
+      queryClient.invalidateQueries(["livefire-devices", labId]);
+    } catch (err) {
+      console.error("Stop failed:", err);
+    } finally {
+      setDeviceAction(null);
+    }
+  };
+
+  const handleStartDevice = async () => {
+    if (!deployed?.id) return;
+    setDeviceAction("starting");
+    try {
+      await base44.functions.invoke("cloudOrchestrator", {
+        action: "startDevice",
+        params: { lab_id: labId, device_id: deployed.id },
+      });
+      refetchDevices();
+      queryClient.invalidateQueries(["livefire-devices", labId]);
+    } catch (err) {
+      console.error("Start failed:", err);
+    } finally {
+      setDeviceAction(null);
     }
   };
 
@@ -211,6 +255,38 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices }) {
           </div>
         )}
 
+        {/* Power Controls */}
+        {deployed?.instance_id && deployed?.id && (
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              onClick={handleStopDevice}
+              disabled={status === "stopped" || status === "terminated" || deviceAction}
+              size="sm"
+              variant="outline"
+              className="border-red-700/40 text-red-400 hover:bg-red-950/30 hover:text-red-300 text-xs"
+            >
+              {deviceAction === "stopping" ? (
+                <><RefreshCw className="h-3.5 w-3.5 animate-spin mr-1" /> Stopping...</>
+              ) : (
+                <><PowerOff className="h-3.5 w-3.5 mr-1" /> Stop</>
+              )}
+            </Button>
+            <Button
+              onClick={handleStartDevice}
+              disabled={status === "running" || status === "provisioning" || status === "terminated" || deviceAction}
+              size="sm"
+              variant="outline"
+              className="border-green-700/40 text-green-400 hover:bg-green-950/30 hover:text-green-300 text-xs"
+            >
+              {deviceAction === "starting" ? (
+                <><RefreshCw className="h-3.5 w-3.5 animate-spin mr-1" /> Starting...</>
+              ) : (
+                <><Power className="h-3.5 w-3.5 mr-1" /> Start</>
+              )}
+            </Button>
+          </div>
+        )}
+
         {/* Connect */}
         <Button
           onClick={handleConnect}
@@ -261,21 +337,25 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices }) {
               <p className="text-[9px] text-red-400 font-mono text-center">{passwordError}</p>
             )}
 
-            {passwordData && (
+            {passwordData && !passwordError && (
               <div className="bg-gray-800/60 rounded-lg p-3 space-y-2">
-                {passwordData.passwordData ? (
+                {passwordData.passwordData && !passwordData.isEmpty ? (
                   <>
-                    <p className="text-[9px] font-mono text-gray-500">Encrypted Password (Base64):</p>
-                    <code className="block text-[9px] font-mono text-purple-300 break-all bg-gray-950/60 p-2 rounded">
+                    <p className="text-[9px] font-mono text-purple-400 font-bold mb-1">Encrypted Password Retrieved</p>
+                    <p className="text-[8px] font-mono text-gray-500 mb-2">
+                      Copy this base64 blob and decrypt it with your PEM key (downloaded above):
+                    </p>
+                    <code className="block text-[9px] font-mono text-purple-300 break-all bg-gray-950/60 p-2 rounded border border-purple-900/30 max-h-28 overflow-y-auto">
                       {passwordData.passwordData}
                     </code>
                     <p className="text-[8px] font-mono text-gray-600 leading-relaxed">
-                      Decrypt with: <code className="text-amber-500/70">openssl rsautl -decrypt -inkey {lab.ssh_key_name || "key"}.pem -in &lt;(echo '{passwordData.passwordData.slice(0, 30)}...' | base64 -d)</code>
+                      Decrypt command (Mac/Linux):<br />
+                      <code className="text-amber-400/80 text-[8px]">openssl pkeyutl -decrypt -inkey {lab.ssh_key_name || "key"}.pem -in &lt;(echo "{passwordData.passwordData.slice(0, 30)}..." | base64 -d) -pkeyopt rsa_padding_mode:pkcs1</code>
                     </p>
                   </>
                 ) : (
                   <p className="text-[9px] font-mono text-yellow-400 text-center">
-                    Password not yet available. It may take a few minutes after launch for AWS to generate it.
+                    Password not yet available. Windows needs 4-8 minutes after launch to generate the admin password.
                   </p>
                 )}
                 {passwordData.timestamp && (
@@ -420,6 +500,7 @@ export default function LiveLabTopology() {
   const [showAddDevice, setShowAddDevice] = useState(false);
   const [deployingDevice, setDeployingDevice] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [bulkAction, setBulkAction] = useState(null); // 'stopping-all' | 'starting-all' | 'deploying-all'
   const [error, setError] = useState(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -476,6 +557,77 @@ export default function LiveLabTopology() {
   const handleCanvasClick = () => {
     setSelectedDevice(null);
     setShowAddDevice(false);
+  };
+
+  // Bulk actions
+  const handleStopAll = async () => {
+    if (!confirm(`Stop all ${deployedDevices.length} devices in this lab? Stopped instances retain their EBS storage but won't incur compute charges.`)) return;
+    setBulkAction("stopping-all");
+    setError(null);
+    try {
+      await base44.functions.invoke("cloudOrchestrator", {
+        action: "stopAllDevices",
+        params: { lab_id: labId },
+      });
+      refetchDevices();
+    } catch (err) {
+      setError(err?.response?.data?.error || "Failed to stop devices");
+    } finally {
+      setBulkAction(null);
+    }
+  };
+
+  const handleStartAll = async () => {
+    const stoppedDevices = deployedDevices.filter(d => d.status === "stopped" && d.instance_id);
+    if (stoppedDevices.length === 0) {
+      setError("No stopped devices to start");
+      return;
+    }
+    setBulkAction("starting-all");
+    setError(null);
+    try {
+      await base44.functions.invoke("cloudOrchestrator", {
+        action: "startAllDevices",
+        params: { lab_id: labId },
+      });
+      refetchDevices();
+      // Poll for public IPs after starting
+      setTimeout(() => handleRefreshStatus(), 15000);
+    } catch (err) {
+      setError(err?.response?.data?.error || "Failed to start devices");
+    } finally {
+      setBulkAction(null);
+    }
+  };
+
+  const handleDeployAll = async () => {
+    const pendingCount = topologyDevices.filter(d =>
+      !deployedDevices.some(dd => dd.name?.toLowerCase() === d.name?.toLowerCase())
+    ).length;
+    if (pendingCount === 0) {
+      setError("All topology devices are already deployed");
+      return;
+    }
+    if (!confirm(`Deploy ${pendingCount} topology devices? Estimated cost: $${(pendingCount * 0.15).toFixed(2)}/hr total.`)) return;
+    setBulkAction("deploying-all");
+    setError(null);
+    try {
+      const res = await base44.functions.invoke("cloudOrchestrator", {
+        action: "deployAllDevices",
+        params: { lab_id: labId },
+      });
+      const data = res.data;
+      if (data?.errors?.length) {
+        setError(`${data.deployed} deployed, ${data.errors.length} failed: ${data.errors.map(e => e.device).join(", ")}`);
+      }
+      refetchDevices();
+      queryClient.invalidateQueries(["livefire-lab", labId]);
+      setTimeout(() => handleRefreshStatus(), 12000);
+    } catch (err) {
+      setError(err?.response?.data?.error || err?.response?.data?.message || "Deploy all failed");
+    } finally {
+      setBulkAction(null);
+    }
   };
 
   // Add new device to running lab
@@ -632,6 +784,42 @@ export default function LiveLabTopology() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* Bulk Deploy */}
+          {isRunning && topologyDevices.some(d => !deployedDevices.some(dd => dd.name?.toLowerCase() === d.name?.toLowerCase())) && (
+            <button onClick={handleDeployAll} disabled={bulkAction}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-r from-cyan-800 to-cyan-700 border border-cyan-600/50 text-cyan-300 hover:from-cyan-700 hover:to-cyan-600 rounded-lg text-[10px] font-mono transition-all"
+              title="Deploy all topology devices at once">
+              {bulkAction === "deploying-all" ? (
+                <><RefreshCw className="h-3.5 w-3.5 animate-spin" /> Deploying...</>
+              ) : (
+                <><Rocket className="h-3.5 w-3.5" /> Deploy All</>
+              )}
+            </button>
+          )}
+          {/* Stop All */}
+          {isRunning && deployedDevices.some(d => d.status === "running" || d.status === "provisioning") && (
+            <button onClick={handleStopAll} disabled={bulkAction}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-red-900/40 border border-red-700/40 text-red-300 hover:bg-red-900/60 rounded-lg text-[10px] font-mono transition-colors"
+              title="Stop all running devices to save costs">
+              {bulkAction === "stopping-all" ? (
+                <><RefreshCw className="h-3.5 w-3.5 animate-spin" /> Stopping...</>
+              ) : (
+                <><PowerOff className="h-3.5 w-3.5" /> Stop All</>
+              )}
+            </button>
+          )}
+          {/* Start All */}
+          {isRunning && deployedDevices.some(d => d.status === "stopped") && (
+            <button onClick={handleStartAll} disabled={bulkAction}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-green-900/40 border border-green-700/40 text-green-300 hover:bg-green-900/60 rounded-lg text-[10px] font-mono transition-colors"
+              title="Start all stopped devices">
+              {bulkAction === "starting-all" ? (
+                <><RefreshCw className="h-3.5 w-3.5 animate-spin" /> Starting...</>
+              ) : (
+                <><Power className="h-3.5 w-3.5" /> Start All</>
+              )}
+            </button>
+          )}
           <button onClick={handleRefreshStatus} disabled={refreshing}
             className="p-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-400 hover:text-white transition-colors disabled:opacity-50" title="Refresh device status">
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
@@ -749,6 +937,8 @@ export default function LiveLabTopology() {
             onClose={() => setSelectedDevice(null)}
             lab={lab}
             refetchDevices={refetchDevices}
+            queryClient={queryClient}
+            labId={labId}
           />
         )}
 
