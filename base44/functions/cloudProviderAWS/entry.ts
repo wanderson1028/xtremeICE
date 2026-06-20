@@ -1,5 +1,5 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
-import { createPrivateKey, privateDecrypt, constants } from "node:crypto";
+import { privateDecrypt, constants } from "node:crypto";
 import { Buffer } from "node:buffer";
 
 // ── Instance cost tier enforcement ──
@@ -779,52 +779,62 @@ Deno.serve(async (req) => {
           });
         }
 
-        try {
-          // Parse PEM key with createPrivateKey (handles both PKCS#1 and PKCS#8 formats)
-          const privKey = createPrivateKey({ key: pemKey, format: "pem", type: "pkcs1" }).export({ format: "pem", type: "pkcs1" });
-          const encryptedBuf = Buffer.from(encryptedBase64, "base64");
+        // Normalize PEM: ensure proper line breaks and no trailing garbage
+        pemKey = pemKey
+          .replace(/\\\\n/g, "\n")
+          .replace(/\\n/g, "\n")
+          .replace(/\r\n/g, "\n")
+          .trim();
 
-          // AWS encrypts Windows passwords using RSA-OAEP with SHA-256
-          const password = privateDecrypt(
-            { key: privKey, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" },
+        const encryptedBuf = Buffer.from(encryptedBase64, "base64");
+        let password = null;
+        let lastError = null;
+
+        // Try 1: RSA-OAEP with SHA-256 (modern AWS standard)
+        try {
+          password = privateDecrypt(
+            { key: pemKey, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" },
             encryptedBuf,
           ).toString("utf8");
+        } catch (e) { lastError = e.message; }
 
+        // Try 2: RSA-OAEP with SHA-1 (older AWS format)
+        if (!password) {
+          try {
+            password = privateDecrypt(
+              { key: pemKey, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha1" },
+              encryptedBuf,
+            ).toString("utf8");
+          } catch (e) { if (!lastError) lastError = e.message; }
+        }
+
+        // Try 3: PKCS1 v1.5 (legacy format)
+        if (!password) {
+          try {
+            password = privateDecrypt(
+              { key: pemKey, padding: constants.RSA_PKCS1_PADDING },
+              encryptedBuf,
+            ).toString("utf8");
+          } catch (e) { if (!lastError) lastError = e.message; }
+        }
+
+        if (password) {
           return Response.json({
             success: true,
             instanceId: instance_id,
             password,
             timestamp: timestamp || null,
           });
-        } catch (decryptErr) {
-          console.error("OAEP decrypt failed:", decryptErr.message);
-          // Fallback: try RSA_PKCS1_PADDING (older AWS format)
-          try {
-            const privKey = createPrivateKey({ key: pemKey, format: "pem", type: "pkcs1" });
-            const encryptedBuf = Buffer.from(encryptedBase64, "base64");
-            const password = privateDecrypt(
-              { key: privKey, padding: constants.RSA_PKCS1_PADDING },
-              encryptedBuf,
-            ).toString("utf8");
-
-            return Response.json({
-              success: true,
-              instanceId: instance_id,
-              password,
-              timestamp: timestamp || null,
-            });
-          } catch (fallbackErr) {
-            console.error("PKCS1 fallback also failed:", fallbackErr.message);
-            return Response.json({
-              success: false,
-              error: "Decryption failed: " + (decryptErr.message || fallbackErr.message),
-              message: "Could not decrypt the password. The PEM key may not match the key pair used when launching this instance.",
-              passwordData: encryptedBase64,
-              timestamp: timestamp || null,
-              manualDecryptCmd: `openssl pkeyutl -decrypt -inkey <key>.pem -in <(echo "${encryptedBase64.slice(0, 50)}..." | base64 -d) -pkeyopt rsa_padding_mode:oaep`,
-            });
-          }
         }
+
+        return Response.json({
+          success: false,
+          error: "Decryption failed: " + (lastError || "unknown error"),
+          message: "Could not decrypt the password. The PEM key may not match the key pair used when launching this instance.",
+          passwordData: encryptedBase64,
+          timestamp: timestamp || null,
+          manualDecryptCmd: `openssl pkeyutl -decrypt -inkey <key>.pem -in <(echo "${encryptedBase64.slice(0, 50)}..." | base64 -d) -pkeyopt rsa_padding_mode:oaep`,
+        });
       }
 
       case "getPasswordData": {
