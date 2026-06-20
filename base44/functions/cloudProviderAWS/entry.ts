@@ -1,5 +1,6 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 import { privateDecrypt, constants } from "node:crypto";
+import { Buffer } from "node:buffer";
 
 // ── Instance cost tier enforcement ──
 const COST_TIERS = {
