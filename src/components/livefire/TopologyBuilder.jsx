@@ -7,7 +7,7 @@ import {
   Container, Zap, GitBranch, Trash2, Plus, Move, Maximize2,
   Minimize2, Eye, Copy, Layers, Network, Globe, Lock, Cpu,
   DollarSign, X, Check, AlertTriangle, Settings, ShieldAlert,
-  Link2, Unlink
+  Link2, Unlink, Database, Terminal, Key, MonitorPlay, ExternalLink
 } from "lucide-react";
 import {
   AlertDialog,
@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { getCostTier, COST_TIERS, checkLabDevices } from "@/lib/instanceTiers";
+import ImageCatalog from "@/components/livefire/ImageCatalog";
 
 const DEVICE_PALETTE = [
   { type: "router", label: "Router", icon: Router, color: "blue" },
@@ -89,6 +90,9 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
   const [suggestingCidr, setSuggestingCidr] = useState(false);
   const [confirmDeleteDevice, setConfirmDeleteDevice] = useState(null);
   const [confirmClearCanvas, setConfirmClearCanvas] = useState(false);
+  const [imageCatalogOpen, setImageCatalogOpen] = useState(false);
+  const [catalogForDeviceId, setCatalogForDeviceId] = useState(null);
+  const [manualImageId, setManualImageId] = useState("");
   const canvasRef = useRef(null);
 
   const checkCidrConflict = async (cidr) => {
@@ -559,14 +563,18 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                                 <span>{device.ram_mb >= 1024 ? `${device.ram_mb / 1024}GB` : `${device.ram_mb}MB`}</span>
                               </div>
                               {device.ami_image_id && (
-                                <div className="mt-1.5 text-[7px] font-mono text-cyan-500 bg-cyan-950/30 rounded px-1.5 py-0.5 truncate border border-cyan-800/30">
-                                  {(() => {
-                                    const dbImg = dbImages.find(i => i.id === device.ami_image_id);
-                                    if (dbImg) return `${dbImg.vendor} ${dbImg.product}`;
-                                    // Truncate AMI ID for display
-                                    const id = device.ami_image_id;
-                                    return id.startsWith("ami-") ? `AMI: ${id.slice(0, 16)}…` : id.slice(0, 20);
-                                  })()}
+                                <div className="mt-1.5 text-[7px] font-mono text-cyan-500 bg-cyan-950/30 rounded px-1.5 py-0.5 truncate border border-cyan-800/30 flex items-center gap-1">
+                                  <span className="truncate">
+                                    {(() => {
+                                      const dbImg = dbImages.find(i => i.id === device.ami_image_id);
+                                      if (dbImg) return `${dbImg.vendor} ${dbImg.product}`;
+                                      const id = device.ami_image_id;
+                                      return id.startsWith("ami-") ? `AMI: ${id.slice(0, 14)}…` : id.slice(0, 18);
+                                    })()}
+                                  </span>
+                                  {(device.access_method === "rdp" || device.ami_image_id?.toLowerCase().includes("windows"))
+                                    ? <MonitorPlay className="h-2.5 w-2.5 text-blue-400 shrink-0" />
+                                    : <Terminal className="h-2.5 w-2.5 text-green-400 shrink-0" />}
                                 </div>
                               )}
                               {connCount > 0 && (
@@ -685,48 +693,71 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                     </select>
                   </div>
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider">AMI / Image</label>
-                      {fetchingAMIs && <span className="text-[7px] font-mono text-gray-600 animate-pulse">loading...</span>}
-                    </div>
-                    <select
-                      value={selectedDeviceData.ami_image_id || ""}
-                      onChange={(e) => updateDevice(selectedDeviceData.id, { ami_image_id: e.target.value || null })}
-                      className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white text-xs px-2.5 py-2 font-mono"
-                    >
-                      <option value="">Auto-select (latest Amazon Linux)</option>
-                      {/* Cloud provider AMIs — grouped */}
-                      {cloudAMIs?.map((group) => (
-                        <optgroup key={group.group} label={`▸ ${group.group}`}>
-                          {group.images?.map((img) => (
-                            <option key={img.imageId} value={img.imageId}>
-                              {img.imageId} — {img.description?.slice(0, 60) || "N/A"}
-                            </option>
-                          )) || (
-                            <option disabled value="">{group.error || "No images found"}</option>
-                          )}
-                        </optgroup>
-                      ))}
-                      {/* Separator for database images */}
-                      {dbImages.length > 0 && (
-                        <optgroup label="── Custom Images (Repository) ──">
-                          {dbImages.map(img => (
-                            <option key={img.id} value={img.id}>
-                              {img.vendor} {img.product} {img.version}
-                            </option>
-                          ))}
-                        </optgroup>
-                      )}
-                    </select>
-                    {selectedDeviceData.ami_image_id && cloudAMIs?.some(g => g.images?.some(i => i.imageId === selectedDeviceData.ami_image_id)) && (
-                      <p className="mt-1 text-[7px] font-mono text-cyan-400/70 truncate">
-                        ✓ Cloud AMI selected — used for deployment
-                      </p>
-                    )}
-                    {selectedDeviceData.ami_image_id && dbImages.some(i => i.id === selectedDeviceData.ami_image_id) && (
-                      <p className="mt-1 text-[7px] font-mono text-purple-400/70 truncate">
-                        ✓ Repository image selected — used for deployment
-                      </p>
+                    <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">AMI / Image</label>
+                    {selectedDeviceData.ami_image_id ? (
+                      <div className="space-y-2">
+                        <div className="bg-cyan-950/20 border border-cyan-800/30 rounded-lg p-2.5">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[9px] font-mono font-bold text-cyan-400 truncate max-w-[140px]">
+                              {(() => {
+                                const dbImg = dbImages.find(i => i.id === selectedDeviceData.ami_image_id);
+                                if (dbImg) return `${dbImg.vendor} ${dbImg.product}`;
+                                return selectedDeviceData.ami_image_id?.startsWith("ami-") ? selectedDeviceData.ami_image_id : selectedDeviceData.ami_image_id;
+                              })()}
+                            </span>
+                            <span className="text-[7px] font-mono text-cyan-600 flex items-center gap-1">
+                              <Check className="h-2.5 w-2.5" /> Selected
+                            </span>
+                          </div>
+                          {/* Connection preview */}
+                          <div className="flex items-center gap-2 text-[7px] font-mono text-gray-500 mt-1.5">
+                            <span className="flex items-center gap-0.5"><Terminal className="h-2.5 w-2.5 text-green-400" />SSH</span>
+                            <span className="flex items-center gap-0.5"><Key className="h-2.5 w-2.5 text-yellow-400" />.pem key</span>
+                            <span className="text-gray-600">| port 22</span>
+                          </div>
+                        </div>
+                        <div className="flex gap-1.5">
+                          <button
+                            onClick={() => { setCatalogForDeviceId(selectedDeviceData.id); setImageCatalogOpen(true); }}
+                            className="flex-1 text-[9px] font-mono px-2 py-1.5 rounded-lg bg-gray-800 border border-gray-700 text-cyan-400 hover:bg-gray-700 transition-colors flex items-center justify-center gap-1">
+                            <Database className="h-3 w-3" /> Change
+                          </button>
+                          <button
+                            onClick={() => updateDevice(selectedDeviceData.id, { ami_image_id: null })}
+                            className="text-[9px] font-mono px-2 py-1.5 rounded-lg bg-gray-800 border border-gray-700 text-gray-500 hover:text-red-400 transition-colors">
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <button
+                          onClick={() => { setCatalogForDeviceId(selectedDeviceData.id); setImageCatalogOpen(true); }}
+                          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-gray-800 border border-gray-700 text-gray-400 hover:text-cyan-400 hover:border-cyan-700/40 transition-colors text-[10px] font-mono">
+                          <Database className="h-3.5 w-3.5" /> Browse Image Catalog
+                        </button>
+                        <div className="relative">
+                          <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-gray-800"></div>
+                          </div>
+                          <div className="relative flex justify-center text-[8px]">
+                            <span className="px-2 bg-gray-900 text-gray-700 font-mono">or enter manually</span>
+                          </div>
+                        </div>
+                        <input
+                          type="text"
+                          value={manualImageId}
+                          onChange={(e) => setManualImageId(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && manualImageId.trim()) {
+                              updateDevice(selectedDeviceData.id, { ami_image_id: manualImageId.trim() });
+                              setManualImageId("");
+                            }
+                          }}
+                          placeholder="Paste AMI ID (ami-xxxxx)..."
+                          className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white text-[10px] px-2.5 py-2 font-mono focus:border-cyan-500/50 outline-none placeholder:text-gray-600"
+                        />
+                      </div>
                     )}
                   </div>
                   <div className="grid grid-cols-2 gap-2">
@@ -757,6 +788,45 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                       <option value="ssh">SSH</option><option value="rdp">RDP</option><option value="novnc">noVNC</option>
                       <option value="web_terminal">Web Terminal</option><option value="serial_console">Serial Console</option>
                     </select>
+                  </div>
+
+                  {/* Connection details preview */}
+                  <div className="bg-gray-800/60 rounded-lg p-3 border border-gray-700 space-y-2">
+                    <p className="text-[8px] font-mono text-gray-500 uppercase tracking-wider">Connection Info</p>
+                    {selectedDeviceData.access_method === "rdp" ? (
+                      <>
+                        <div className="bg-black/30 rounded p-2">
+                          <code className="text-[9px] font-mono text-blue-400 break-all">
+                            mstsc /v:&lt;IP&gt;:3389
+                          </code>
+                        </div>
+                        <p className="text-[8px] font-mono text-gray-500 flex items-center gap-1">
+                          <Key className="h-2.5 w-2.5 text-yellow-400" />
+                          User: <span className="text-white">{selectedDeviceData.default_username || "Administrator"}</span>
+                        </p>
+                        <p className="text-[7px] font-mono text-amber-400/70">
+                          Password is auto-generated on deploy — available in the device panel under GetPasswordData
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="bg-black/30 rounded p-2">
+                          <code className="text-[9px] font-mono text-green-400 break-all">
+                            chmod 400 lab-key.pem{'\n'}
+                            ssh -i lab-key.pem {selectedDeviceData.default_username || "ec2-user"}@&lt;IP&gt;
+                          </code>
+                        </div>
+                        <p className="text-[8px] font-mono text-gray-500 flex items-center gap-1">
+                          <Key className="h-2.5 w-2.5 text-yellow-400" />
+                          Key: <span className="text-white">.pem file</span>
+                          <span className="text-gray-600">|</span>
+                          Port: <span className="text-cyan-400">22</span>
+                        </p>
+                      </>
+                    )}
+                    <p className="text-[7px] font-mono text-gray-600 italic">
+                      SSH key and IP are available after deployment
+                    </p>
                   </div>
                 </div>
               )}
@@ -861,6 +931,27 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
           </div>
         )}
       </div>
+
+      {/* Image Catalog Modal */}
+      <ImageCatalog
+        isOpen={imageCatalogOpen}
+        onClose={() => { setImageCatalogOpen(false); setCatalogForDeviceId(null); }}
+        onSelect={(image) => {
+          if (catalogForDeviceId) {
+            const value = image.source === "custom" ? image.id : image.name; // custom uses db ID, cloud uses AMI ID
+            updateDevice(catalogForDeviceId, {
+              ami_image_id: value,
+              // Auto-set access method based on OS
+              access_method: image.osFamily === "windows" ? "rdp" : "ssh",
+              access_port: image.osFamily === "windows" ? 3389 : 22,
+              default_username: image.username || (image.osFamily === "windows" ? "Administrator" : "ec2-user"),
+            });
+          }
+        }}
+        cloudProvider={cloudProvider}
+        region={region}
+        selectedImageId={catalogForDeviceId ? selectedDeviceData?.ami_image_id : null}
+      />
 
       {/* Delete Device Confirmation */}
       <AlertDialog open={!!confirmDeleteDevice} onOpenChange={(open) => { if (!open) setConfirmDeleteDevice(null); }}>
