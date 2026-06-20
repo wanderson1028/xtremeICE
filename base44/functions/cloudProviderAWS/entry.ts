@@ -1,5 +1,5 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
-import { privateDecrypt, constants } from "node:crypto";
+import { privateDecrypt, constants, createPrivateKey } from "node:crypto";
 import { Buffer } from "node:buffer";
 
 // ── Instance cost tier enforcement ──
@@ -1029,42 +1029,83 @@ Deno.serve(async (req) => {
         }
 
         // Normalize PEM: ensure proper line breaks and no trailing garbage
+        const rawLen = pemKey.length;
+        const hasRealNewlines = pemKey.includes("\n");
+        const hasEscapedN = pemKey.includes("\\n");
+        console.log(`[decrypt] Raw key: ${rawLen} chars, real_newlines=${hasRealNewlines}, escaped_n=${hasEscapedN}`);
+        console.log(`[decrypt] Key head (first 100): ${JSON.stringify(pemKey.slice(0, 100))}`);
+        console.log(`[decrypt] Encrypted data: ${encryptedBase64.length} chars`);
+
+        // Dedicated normalization: convert ALL forms of newline encoding to real \n
         pemKey = pemKey
-          .replace(/\\\\n/g, "\n")
-          .replace(/\\n/g, "\n")
-          .replace(/\r\n/g, "\n")
+          .replace(/\\\\n/g, "\n")    // double-escaped \\n → real newline
+          .replace(/\\n/g, "\n")      // JSON-escaped \n → real newline
+          .replace(/\r\n/g, "\n")     // CRLF → LF
+          .replace(/\r/g, "\n")       // bare CR → LF
           .trim();
 
+        // Verify key boundaries are intact after normalization
+        const startsOk = pemKey.startsWith("-----BEGIN");
+        const endsOk = pemKey.endsWith("-----");
+        console.log(`[decrypt] After normalize: ${pemKey.length} chars, starts=${startsOk}, ends=${endsOk}`);
+        console.log(`[decrypt] Key head (first 100): ${JSON.stringify(pemKey.slice(0, 100))}`);
+
         const encryptedBuf = Buffer.from(encryptedBase64, "base64");
+        console.log(`[decrypt] Encrypted buffer: ${encryptedBuf.length} bytes`);
+
+        // Parse the key through createPrivateKey — validates format and handles both PKCS#1 + PKCS#8
+        let privateKeyObj;
+        try {
+          privateKeyObj = createPrivateKey(pemKey);
+          console.log("[decrypt] createPrivateKey: SUCCESS, type=" + (privateKeyObj.type || "unknown"));
+        } catch (e) {
+          console.error(`[decrypt] createPrivateKey failed: ${e.message}`);
+          // Fall back to raw PEM string
+          privateKeyObj = pemKey;
+          console.log("[decrypt] Falling back to raw PEM string");
+        }
+
         let password = null;
         let lastError = null;
 
         // Try 1: RSA-OAEP with SHA-256 (modern AWS standard)
         try {
           password = privateDecrypt(
-            { key: pemKey, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" },
+            { key: privateKeyObj, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" },
             encryptedBuf,
           ).toString("utf8");
-        } catch (e) { lastError = e.message; }
+          console.log("[decrypt] OAEP-SHA256: SUCCESS");
+        } catch (e) {
+          lastError = e.message;
+          console.error(`[decrypt] OAEP-SHA256 failed: ${e.message}`);
+        }
 
         // Try 2: RSA-OAEP with SHA-1 (older AWS format)
         if (!password) {
           try {
             password = privateDecrypt(
-              { key: pemKey, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha1" },
+              { key: privateKeyObj, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha1" },
               encryptedBuf,
             ).toString("utf8");
-          } catch (e) { if (!lastError) lastError = e.message; }
+            console.log("[decrypt] OAEP-SHA1: SUCCESS");
+          } catch (e) {
+            if (!lastError) lastError = e.message;
+            console.error(`[decrypt] OAEP-SHA1 failed: ${e.message}`);
+          }
         }
 
         // Try 3: PKCS1 v1.5 (legacy format)
         if (!password) {
           try {
             password = privateDecrypt(
-              { key: pemKey, padding: constants.RSA_PKCS1_PADDING },
+              { key: privateKeyObj, padding: constants.RSA_PKCS1_PADDING },
               encryptedBuf,
             ).toString("utf8");
-          } catch (e) { if (!lastError) lastError = e.message; }
+            console.log("[decrypt] PKCS1-v1.5: SUCCESS");
+          } catch (e) {
+            if (!lastError) lastError = e.message;
+            console.error(`[decrypt] PKCS1-v1.5 failed: ${e.message}`);
+          }
         }
 
         if (password) {
@@ -1078,9 +1119,17 @@ Deno.serve(async (req) => {
 
         return Response.json({
           success: false,
-          error: "Decryption failed: " + (lastError || "unknown error"),
+          error: `Decryption failed (OAEP-SHA256, OAEP-SHA1, PKCS1-v1.5): ${lastError || "unknown"}`,
           message: "Could not decrypt the password. The PEM key may not match the key pair used when launching this instance.",
-          passwordData: encryptedBase64,
+          debug: {
+            keyLen: rawLen,
+            hasRealNewlines,
+            hasEscapedN,
+            startsWithBegin: startsOk,
+            endsWithEnd: endsOk,
+            encryptedLength: encryptedBase64.length,
+          },
+          passwordData: encryptedBase64.slice(0, 100) + "...",
           timestamp: timestamp || null,
           manualDecryptCmd: `openssl pkeyutl -decrypt -inkey <key>.pem -in <(echo "${encryptedBase64.slice(0, 50)}..." | base64 -d) -pkeyopt rsa_padding_mode:oaep`,
         });
