@@ -382,6 +382,18 @@ Deno.serve(async (req) => {
           await base44.asServiceRole.entities.LiveFireDeployment.update(dep.id, { status: "terminated" });
         }
 
+        // Delete SSH key pair from AWS
+        if (labs[0].ssh_key_name) {
+          try {
+            await base44.functions.invoke("cloudProviderAWS", {
+              action: "deleteKeyPair",
+              params: { key_name: labs[0].ssh_key_name, region: labs[0].region },
+            });
+          } catch (e) {
+            console.error(`Failed to delete key pair ${labs[0].ssh_key_name}:`, e);
+          }
+        }
+
         await base44.asServiceRole.entities.LiveFireLab.update(lab_id, { status: "completed" });
 
         await base44.asServiceRole.entities.LiveFireAuditLog.create({

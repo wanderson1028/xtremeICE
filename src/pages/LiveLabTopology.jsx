@@ -5,7 +5,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, Server, Router, Shield, Monitor, Cloud, Terminal,
   Wifi, Plus, X, Play, Square, RefreshCw, ExternalLink,
-  ChevronRight, Cpu, HardDrive, Network, Globe, Zap, Download
+  ChevronRight, Cpu, HardDrive, Network, Globe, Zap, Download, Key
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,7 +90,11 @@ function ConnectionLine({ conn, topologyDevices, deployedMap }) {
 // ---- Device Detail Panel ----
 function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices }) {
   const [connecting, setConnecting] = useState(false);
+  const [passwordData, setPasswordData] = useState(null);
+  const [loadingPassword, setLoadingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState(null);
   const status = deployed?.status || "pending";
+  const isWindows = (deployed?.access_method || device.access_method) === "rdp";
 
   const handleDownloadKey = () => {
     if (!lab?.ssh_private_key) return;
@@ -101,6 +105,23 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices }) {
     a.download = `${lab.ssh_key_name || "livefire-key"}.pem`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleGetPassword = async () => {
+    if (!deployed?.instance_id) return;
+    setLoadingPassword(true);
+    setPasswordError(null);
+    try {
+      const res = await base44.functions.invoke("cloudProviderAWS", {
+        action: "getPasswordData",
+        params: { instance_id: deployed.instance_id, region: lab?.region || "us-east-1" },
+      });
+      setPasswordData(res.data);
+    } catch (err) {
+      setPasswordError(err?.response?.data?.error || err?.message || "Failed to retrieve password data");
+    } finally {
+      setLoadingPassword(false);
+    }
   };
 
   const handleConnect = async () => {
@@ -214,14 +235,68 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices }) {
             variant="outline"
             className="w-full border-amber-700/40 text-amber-400 hover:bg-amber-950/30 hover:text-amber-300 text-xs"
           >
-            <Download className="h-3.5 w-3.5 mr-1.5" /> Download SSH Key (.pem)
+            <Download className="h-3.5 w-3.5 mr-1.5" /> Download {isWindows ? "PEM Key (for RDP password)" : "SSH Key (.pem)"}
           </Button>
         )}
 
-        {lab?.ssh_private_key && (
+        {/* Windows RDP: Get Password */}
+        {isWindows && deployed?.instance_id && status === "running" && lab?.ssh_private_key && (
+          <div className="space-y-2 pt-2 border-t border-gray-800">
+            <p className="text-[9px] font-mono text-gray-500">Windows Admin Password is encrypted with the PEM key. Retrieve it from AWS:</p>
+            <Button
+              onClick={handleGetPassword}
+              disabled={loadingPassword}
+              size="sm"
+              variant="outline"
+              className="w-full border-purple-700/40 text-purple-400 hover:bg-purple-950/30 hover:text-purple-300 text-xs"
+            >
+              {loadingPassword ? (
+                <><RefreshCw className="h-3.5 w-3.5 animate-spin mr-1.5" /> Fetching...</>
+              ) : (
+                <><Key className="h-3.5 w-3.5 mr-1.5" /> Get Windows Admin Password</>
+              )}
+            </Button>
+
+            {passwordError && (
+              <p className="text-[9px] text-red-400 font-mono text-center">{passwordError}</p>
+            )}
+
+            {passwordData && (
+              <div className="bg-gray-800/60 rounded-lg p-3 space-y-2">
+                {passwordData.passwordData ? (
+                  <>
+                    <p className="text-[9px] font-mono text-gray-500">Encrypted Password (Base64):</p>
+                    <code className="block text-[9px] font-mono text-purple-300 break-all bg-gray-950/60 p-2 rounded">
+                      {passwordData.passwordData}
+                    </code>
+                    <p className="text-[8px] font-mono text-gray-600 leading-relaxed">
+                      Decrypt with: <code className="text-amber-500/70">openssl rsautl -decrypt -inkey {lab.ssh_key_name || "key"}.pem -in &lt;(echo '{passwordData.passwordData.slice(0, 30)}...' | base64 -d)</code>
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-[9px] font-mono text-yellow-400 text-center">
+                    Password not yet available. It may take a few minutes after launch for AWS to generate it.
+                  </p>
+                )}
+                {passwordData.timestamp && (
+                  <p className="text-[8px] font-mono text-gray-600 text-right">Fetched: {new Date(passwordData.timestamp).toLocaleTimeString()}</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {lab?.ssh_private_key && !isWindows && (
           <p className="text-[8px] text-gray-600 font-mono text-center leading-relaxed">
             Save the key and run: <code className="text-amber-500/70">chmod 400 key.pem</code><br />
             then <code className="text-amber-500/70">ssh -i key.pem {deployed?.default_username || "ec2-user"}@{deployed?.public_ip || "&lt;ip&gt;"}</code>
+          </p>
+        )}
+
+        {lab?.ssh_private_key && isWindows && (
+          <p className="text-[8px] text-gray-600 font-mono text-center leading-relaxed">
+            Download the PEM key above, then use <strong>Get Windows Admin Password</strong> to retrieve the RDP password.<br />
+            Connect via: <code className="text-purple-400">RDP to {deployed?.public_ip || "&lt;ip&gt;"}:3389</code>
           </p>
         )}
       </div>

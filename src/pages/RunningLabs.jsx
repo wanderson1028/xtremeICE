@@ -6,7 +6,8 @@ import {
   Activity, Search, ArrowLeft, Play, Pause, Square, Trash2,
   Monitor, Server, Globe, ExternalLink, Terminal, Shield,
   DollarSign, AlertTriangle, XCircle, RefreshCw, BarChart3,
-  Network, Save, Layers
+  Network, Save, Layers, Timer, Clock, Ban, CheckCircle,
+  HardDrive, Key
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +29,11 @@ export default function RunningLabs() {
   const [deletingNetworks, setDeletingNetworks] = useState(new Set());
   const [saveDialogOpen, setSaveDialogOpen] = useState(null);
   const [savingNetworks, setSavingNetworks] = useState(new Set());
-  const [selectedRegion, setSelectedRegion] = useState("us-west-2");
+  const [selectedRegion, setSelectedRegion] = useState("us-east-1");
+  const [confirmTerminateInstance, setConfirmTerminateInstance] = useState(null);
+  const [terminatingInstances, setTerminatingInstances] = useState(new Set());
+  const [autoShutdownLabs, setAutoShutdownLabs] = useState({});
+  const [adminRetentionLabs, setAdminRetentionLabs] = useState(new Set());
 
   const { data: labs = [], isLoading } = useQuery({
     queryKey: ["running-livefire-labs"],
@@ -54,6 +59,35 @@ export default function RunningLabs() {
     queryFn: () => base44.entities.LiveFireDeployment.list("-updated_date", 50),
     refetchInterval: 15000,
   });
+
+  // Live AWS EC2 instances scan
+  const { data: liveInstances = [], isLoading: instancesLoading, refetch: refetchInstances } = useQuery({
+    queryKey: ["livefire-instances"],
+    queryFn: async () => {
+      try {
+        const res = await base44.functions.invoke("cloudProviderAWS", {
+          action: "listInstances",
+          params: { region: selectedRegion },
+        });
+        return (res.data?.instances || []).map(i => ({ ...i, source: "aws" }));
+      } catch {
+        return [];
+      }
+    },
+    refetchInterval: 30000,
+    enabled: activeTab === "instances",
+  });
+
+  // Cross-reference EC2 instances with our lab devices to find orphans
+  const orphanedInstances = (() => {
+    const knownInstanceIds = new Set(devices.map(d => d.instance_id).filter(Boolean));
+    return liveInstances.filter(i => !knownInstanceIds.has(i.instanceId) && i.state !== "terminated");
+  })();
+
+  const knownInstances = (() => {
+    const knownInstanceIds = new Set(devices.map(d => d.instance_id).filter(Boolean));
+    return liveInstances.filter(i => knownInstanceIds.has(i.instanceId) && i.state !== "terminated");
+  })();
 
   // Live AWS VPC scan (may fail if region/creds mismatch)
   const { data: liveVpcs = [], isLoading: networksLoading, refetch: refetchNetworks } = useQuery({
@@ -202,6 +236,54 @@ export default function RunningLabs() {
     return sum + labDevices.reduce((s, d) => s + (0.15), 0);
   }, 0);
 
+  const terminateInstanceMutation = useMutation({
+    mutationFn: async (instanceId) => {
+      setTerminatingInstances(prev => new Set([...prev, instanceId]));
+      const res = await base44.functions.invoke("cloudProviderAWS", {
+        action: "deleteVM",
+        params: { instance_id: instanceId, region: selectedRegion },
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      refetchInstances();
+      queryClient.invalidateQueries(["running-livefire-labs"]);
+      queryClient.invalidateQueries(["running-devices"]);
+      setTerminatingInstances(prev => { const n = new Set(prev); n.delete(confirmTerminateInstance); return n; });
+      setConfirmTerminateInstance(null);
+    },
+    onError: () => {
+      setTerminatingInstances(prev => { const n = new Set(prev); n.delete(confirmTerminateInstance); return n; });
+    },
+  });
+
+  const setAutoShutdownMutation = useMutation({
+    mutationFn: async ({ labId, minutes }) => {
+      await base44.entities.LiveFireLab.update(labId, { auto_shutdown_minutes: minutes });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(["running-livefire-labs"]);
+      queryClient.invalidateQueries(["livefire-labs"]);
+    },
+  });
+
+  const handleSetAutoShutdown = (labId, minutes) => {
+    setAutoShutdownMutation.mutate({ labId, minutes });
+    setAutoShutdownLabs(prev => ({ ...prev, [labId]: minutes }));
+  };
+
+  const toggleAdminRetention = (labId) => {
+    const newSet = new Set(adminRetentionLabs);
+    if (newSet.has(labId)) {
+      newSet.delete(labId);
+      base44.entities.LiveFireLab.update(labId, { admin_approved_cost: false });
+    } else {
+      newSet.add(labId);
+      base44.entities.LiveFireLab.update(labId, { admin_approved_cost: true });
+    }
+    setAdminRetentionLabs(newSet);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-red-950/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -240,6 +322,7 @@ export default function RunningLabs() {
           {[
             { key: "labs", label: "Lab Deployments", icon: Server },
             { key: "networks", label: "VPC Networks", icon: Network },
+            { key: "instances", label: "EC2 Instances", icon: HardDrive },
           ].map(t => (
             <button key={t.key} onClick={() => setActiveTab(t.key)}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-mono transition-all ${
@@ -302,6 +385,17 @@ export default function RunningLabs() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      {/* Auto-shutdown indicator */}
+                      {lab.auto_shutdown_minutes > 0 && (
+                        <span className="text-[9px] font-mono text-amber-400 bg-amber-900/20 border border-amber-700/30 px-2 py-0.5 rounded-full flex items-center gap-1"
+                          title={`Auto-shutdown after ${lab.auto_shutdown_minutes} min`}>
+                          <Clock className="h-2.5 w-2.5" /> {lab.auto_shutdown_minutes}m
+                        </span>
+                      )}
+                      {lab.admin_approved_cost && (
+                        <span className="text-[9px] font-mono text-purple-400 bg-purple-900/20 border border-purple-700/30 px-2 py-0.5 rounded-full"
+                          title="Admin approved for extended runtime">Retained</span>
+                      )}
                       <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
                         lab.status === "running" ? "bg-green-900/30 text-green-400 border-green-700/30" : "bg-yellow-900/30 text-yellow-400 border-yellow-700/30"
                       }`}>
@@ -398,6 +492,40 @@ export default function RunningLabs() {
                   {labDevices.length === 0 && (
                     <div className="p-4 text-center">
                       <p className="text-xs text-gray-600 font-mono">No devices deployed yet</p>
+                    </div>
+                  )}
+                  {/* Auto-shutdown & Admin Retention controls */}
+                  {lab.status === "running" && (
+                    <div className="px-4 py-2 border-t border-red-900/20 flex items-center gap-3 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-3 w-3 text-gray-500" />
+                        <span className="text-[10px] font-mono text-gray-500">Auto-shutdown:</span>
+                        <select
+                          value={autoShutdownLabs[lab.id] ?? lab.auto_shutdown_minutes ?? 0}
+                          onChange={(e) => {
+                            const mins = parseInt(e.target.value);
+                            handleSetAutoShutdown(lab.id, mins);
+                          }}
+                          className="text-[10px] font-mono bg-gray-800 border border-gray-700 text-gray-300 rounded px-2 py-1 focus:outline-none focus:border-red-700/50"
+                        >
+                          {[0, 30, 60, 120, 240, 480, 1440].map(m => (
+                            <option key={m} value={m}>{m === 0 ? "Disabled" : `${m >= 60 ? `${m/60}h` : `${m}m`}`}</option>
+                          ))}
+                        </select>
+                      </div>
+                      {/* Admin Retention Toggle */}
+                      <button
+                        onClick={() => toggleAdminRetention(lab.id)}
+                        className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono border transition-colors ${
+                          lab.admin_approved_cost
+                            ? "bg-purple-900/30 border-purple-700/40 text-purple-400 hover:bg-purple-900/50"
+                            : "bg-gray-800 border-gray-700 text-gray-500 hover:text-gray-300"
+                        }`}
+                        title={lab.admin_approved_cost ? "Admin retention enabled — lab won't auto-shutdown" : "Request admin retention to prevent auto-shutdown"}
+                      >
+                        <Shield className="h-3 w-3" />
+                        {lab.admin_approved_cost ? "Retained" : "Retain"}
+                      </button>
                     </div>
                   )}
                 </div>
@@ -531,6 +659,163 @@ export default function RunningLabs() {
                 </div>
               ))
             )}
+          </div>
+        )}
+
+        {/* EC2 Instances Tab */}
+        {activeTab === "instances" && (
+          <div className="space-y-4">
+            {/* Orphaned instances alert */}
+            {orphanedInstances.length > 0 && (
+              <div className="p-4 bg-red-950/30 border border-red-800/40 rounded-xl">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangle className="h-4 w-4 text-red-400" />
+                  <span className="text-sm font-bold text-red-300 font-mono">⚠ {orphanedInstances.length} Orphaned Instance{orphanedInstances.length !== 1 ? "s" : ""} Detected</span>
+                </div>
+                <p className="text-xs text-red-300/70 font-mono">
+                  These EC2 instances are running in AWS but not linked to any lab. They are still incurring costs.
+                  Terminate them below or re-associate them with a lab.
+                </p>
+              </div>
+            )}
+
+            {instancesLoading && liveInstances.length === 0 ? (
+              <div className="flex justify-center py-20">
+                <div className="w-8 h-8 border-2 border-orange-600/30 border-t-orange-500 rounded-full animate-spin" />
+              </div>
+            ) : liveInstances.length === 0 ? (
+              <div className="text-center py-20">
+                <HardDrive className="h-12 w-12 text-gray-700 mx-auto mb-4" />
+                <p className="text-gray-500 font-mono text-sm">No EC2 instances found</p>
+                <p className="text-xs text-gray-600 font-mono mt-1">Deploy a lab to create instances</p>
+              </div>
+            ) : (
+              <>
+                {/* Summary stats */}
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  {[
+                    { label: "Total Instances", value: liveInstances.length, icon: HardDrive, color: "cyan" },
+                    { label: "Orphaned", value: orphanedInstances.length, icon: AlertTriangle, color: orphanedInstances.length > 0 ? "red" : "green" },
+                    { label: "Linked to Labs", value: knownInstances.length, icon: CheckCircle, color: "green" },
+                  ].map(s => (
+                    <div key={s.label} className={`bg-gray-900/80 border border-${s.color === "red" ? "red" : "red"}-900/30 rounded-xl p-3 flex items-center gap-3`}>
+                      <div className={`h-9 w-9 rounded-lg bg-${s.color}-900/30 border border-${s.color}-700/30 flex items-center justify-center shrink-0`}>
+                        <s.icon className={`h-4 w-4 text-${s.color}-400`} />
+                      </div>
+                      <div>
+                        <p className="text-lg font-bold text-white font-mono">{s.value}</p>
+                        <p className="text-[10px] text-gray-500 font-mono">{s.label}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-3">
+                  {[...orphanedInstances, ...knownInstances].map(inst => {
+                    const isOrphaned = orphanedInstances.some(o => o.instanceId === inst.instanceId);
+                    const linkedDevice = devices.find(d => d.instance_id === inst.instanceId);
+                    const linkedLab = linkedDevice ? labs.find(l => l.id === linkedDevice.lab_id) : null;
+
+                    return (
+                      <div key={inst.instanceId} className={`bg-gray-900/80 border rounded-xl overflow-hidden ${isOrphaned ? "border-red-700/40" : "border-red-900/30"}`}>
+                        <div className="flex items-center justify-between p-4 border-b border-red-900/20">
+                          <div className="flex items-center gap-3">
+                            <div className={`h-3 w-3 rounded-full ${inst.state === "running" ? "bg-green-500 animate-pulse" : "bg-yellow-500"}`} />
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="text-sm font-bold text-white font-mono">{inst.instanceId}</h3>
+                                {isOrphaned ? (
+                                  <span className="text-[9px] font-mono text-red-400 bg-red-900/20 border border-red-700/30 px-2 py-0.5 rounded">ORPHANED</span>
+                                ) : (
+                                  <span className="text-[9px] font-mono text-green-400 bg-green-900/20 border border-green-700/30 px-2 py-0.5 rounded">{linkedDevice?.name || "Linked"}</span>
+                                )}
+                              </div>
+                              <p className="text-[10px] font-mono text-gray-500">
+                                {inst.state} · {inst.publicIp || "No public IP"} · {inst.privateIp || "—"}
+                                {linkedLab && <span className="ml-2 text-cyan-400">Lab: {linkedLab.name}</span>}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {/* SSH hint for linked devices */}
+                            {!isOrphaned && linkedLab?.ssh_private_key && inst.publicIp && (
+                              <button
+                                onClick={() => {
+                                  const user = linkedDevice?.default_username || "ec2-user";
+                                  const blob = new Blob([linkedLab.ssh_private_key], { type: "application/x-pem-file" });
+                                  const url = URL.createObjectURL(blob);
+                                  const a = document.createElement("a");
+                                  a.href = url;
+                                  a.download = `${linkedLab.ssh_key_name || "key"}.pem`;
+                                  a.click();
+                                  URL.revokeObjectURL(url);
+                                }}
+                                className="flex items-center gap-1 px-2 py-1.5 bg-amber-900/20 border border-amber-700/30 text-amber-400 hover:bg-amber-900/40 rounded-lg text-[10px] font-mono transition-colors"
+                                title="Download SSH Key">
+                                <Key className="h-3 w-3" /> Key
+                              </button>
+                            )}
+                            {/* Terminate button */}
+                            {confirmTerminateInstance === inst.instanceId ? (
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => terminateInstanceMutation.mutate(inst.instanceId)}
+                                  disabled={terminatingInstances.has(inst.instanceId)}
+                                  className="text-[10px] font-mono px-2 py-1 rounded bg-red-800 border border-red-600 text-red-200 hover:bg-red-700">
+                                  {terminatingInstances.has(inst.instanceId) ? "Terminating..." : "Confirm"}
+                                </button>
+                                <button onClick={() => setConfirmTerminateInstance(null)}
+                                  className="text-[10px] font-mono px-2 py-1 rounded bg-gray-800 border border-gray-700 text-gray-400 hover:text-gray-200">
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setConfirmTerminateInstance(inst.instanceId)}
+                                disabled={terminatingInstances.has(inst.instanceId)}
+                                className={`p-1.5 rounded-lg border transition-colors ${
+                                  terminatingInstances.has(inst.instanceId)
+                                    ? "bg-red-900/30 border-red-700/40 text-red-400 animate-pulse"
+                                    : "bg-gray-800 border-gray-700 text-gray-400 hover:text-red-400 hover:border-red-700/40"
+                                }`} title="Terminate instance">
+                                {terminatingInstances.has(inst.instanceId) ? (
+                                  <div className="w-3.5 h-3.5 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        {/* Instance details */}
+                        <div className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                          {[
+                            { label: "Instance ID", value: inst.instanceId },
+                            { label: "State", value: inst.state },
+                            { label: "Public IP", value: inst.publicIp || "—" },
+                            { label: "Private IP", value: inst.privateIp || "—" },
+                          ].map(d => (
+                            <div key={d.label}>
+                              <p className="text-[9px] font-mono text-gray-600 uppercase">{d.label}</p>
+                              <p className="text-xs font-mono text-white">{d.value}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
+            <div className="flex items-center justify-between mt-4">
+              <p className="text-xs text-gray-500 font-mono">
+                Region: {selectedRegion} · {liveInstances.length} instance{liveInstances.length !== 1 ? "s" : ""} found
+              </p>
+              <button onClick={refetchInstances}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 border border-gray-700 text-gray-400 hover:text-white rounded-lg text-[10px] font-mono transition-colors">
+                <RefreshCw className="h-3 w-3" /> Refresh
+              </button>
+            </div>
           </div>
         )}
       </div>

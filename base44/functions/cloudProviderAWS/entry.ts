@@ -667,6 +667,38 @@ Deno.serve(async (req) => {
         });
       }
 
+      case "getPasswordData": {
+        // Retrieve Windows Administrator password from AWS (encrypted with key pair)
+        const { instance_id } = params;
+        const xml = await ec2Call("GetPasswordData", { InstanceId: instance_id }, region);
+
+        const passwordData = xml.match(/<passwordData>([^<]*)<\/passwordData>/)?.[1] || "";
+        const timestamp = xml.match(/<timestamp>([^<]*)<\/timestamp>/)?.[1] || "";
+
+        return Response.json({
+          instanceId: instance_id,
+          passwordData,  // Base64-encrypted password (decrypt with private key)
+          timestamp,
+          region,
+          instructions: "Decrypt using: openssl rsautl -decrypt -inkey <private-key>.pem -in <(echo 'PASSWORD_DATA' | base64 -d)",
+        });
+      }
+
+      case "getConsoleOutput": {
+        const { instance_id } = params;
+        const xml = await ec2Call("GetConsoleOutput", { InstanceId: instance_id }, region);
+
+        const output = xml.match(/<output>([^<]*)<\/output>/)?.[1] || "";
+        const timestamp = xml.match(/<timestamp>([^<]*)<\/timestamp>/)?.[1] || "";
+
+        return Response.json({
+          instanceId: instance_id,
+          output,  // Base64-encoded console output
+          timestamp,
+          region,
+        });
+      }
+
       case "deleteKeyPair": {
         const { key_name } = params;
         await ec2Call("DeleteKeyPair", { KeyName: key_name }, region);

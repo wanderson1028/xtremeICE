@@ -51,6 +51,8 @@ export default function MyLabs() {
   const [deployError, setDeployError] = useState(null);
   const [activeDeployment, setActiveDeployment] = useState(null); // { lab, state, result, errorMsg }
   const [deleteConfirmLab, setDeleteConfirmLab] = useState(null); // lab object to confirm deletion
+  const [deletingLabId, setDeletingLabId] = useState(null);
+  const [deleteMode, setDeleteMode] = useState(null); // "delete-only" | "terminate-delete"
 
   const { data: currentUser } = useQuery({
     queryKey: ["me"],
@@ -63,8 +65,35 @@ export default function MyLabs() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.LiveFireLab.delete(id),
-    onSuccess: () => queryClient.invalidateQueries(["my-livefire-labs"]),
+    mutationFn: async (lab) => {
+      setDeletingLabId(lab.id);
+      // If lab is running and user chose "terminate-delete", terminate first
+      if (deleteMode === "terminate-delete" && (lab.status === "running" || lab.status === "deploying")) {
+        try {
+          await base44.functions.invoke("cloudOrchestrator", {
+            action: "terminateLab",
+            params: { lab_id: lab.id },
+          });
+          // Wait a moment for termination to propagate
+          await new Promise(r => setTimeout(r, 2000));
+        } catch (e) {
+          console.error("Terminate before delete failed:", e);
+        }
+      }
+      await base44.entities.LiveFireLab.delete(lab.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(["my-livefire-labs"]);
+      queryClient.invalidateQueries(["running-livefire-labs"]);
+      queryClient.invalidateQueries(["running-devices"]);
+      queryClient.invalidateQueries(["livefire-deployments-vpc"]);
+      setDeletingLabId(null);
+      setDeleteMode(null);
+    },
+    onError: () => {
+      setDeletingLabId(null);
+      setDeleteMode(null);
+    },
   });
 
   const cloneMutation = useMutation({
@@ -371,31 +400,79 @@ export default function MyLabs() {
       )}
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteConfirmLab} onOpenChange={(open) => { if (!open) setDeleteConfirmLab(null); }}>
-        <AlertDialogContent className="bg-gray-900 border border-red-800/40 text-white">
+      <AlertDialog open={!!deleteConfirmLab} onOpenChange={(open) => { if (!open) { setDeleteConfirmLab(null); setDeleteMode(null); } }}>
+        <AlertDialogContent className="bg-gray-900 border border-red-800/40 text-white max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white text-lg">Delete Lab</AlertDialogTitle>
             <AlertDialogDescription className="text-gray-400">
-              Are you sure you want to delete <span className="text-red-400 font-bold font-mono">{deleteConfirmLab?.name}</span>?
-              {deleteConfirmLab?.status === "running" && (
-                <span className="block mt-2 text-red-400 font-mono text-xs">⚠ This lab is currently running — its cloud resources will remain active and continue to incur costs unless terminated first.</span>
+              <p>Are you sure you want to delete <span className="text-red-400 font-bold font-mono">{deleteConfirmLab?.name}</span>?</p>
+              {(deleteConfirmLab?.status === "running" || deleteConfirmLab?.status === "deploying") && (
+                <div className="mt-3 p-3 bg-red-950/40 border border-red-800/40 rounded-lg">
+                  <p className="text-red-400 font-mono text-xs font-bold mb-1">⚠ Running Cloud Resources Detected</p>
+                  <p className="text-red-300/80 text-xs">
+                    This lab has active EC2 instances and VPC networks in AWS. Deleting only the database
+                    record will <strong>leave resources running</strong> and you'll continue to be billed.
+                  </p>
+                </div>
               )}
-              <span className="block mt-2">This action cannot be undone.</span>
+              <span className="block mt-2 text-xs text-gray-500">This action cannot be undone.</span>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white">Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-700 hover:bg-red-600 text-white"
-              onClick={() => {
-                if (deleteConfirmLab) {
-                  deleteMutation.mutate(deleteConfirmLab.id);
-                  setDeleteConfirmLab(null);
-                }
-              }}
+          <AlertDialogFooter className="flex-col sm:flex-col gap-2">
+            {(deleteConfirmLab?.status === "running" || deleteConfirmLab?.status === "deploying") ? (
+              <>
+                <button
+                  className="w-full px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-mono text-sm font-bold transition-colors disabled:opacity-50"
+                  disabled={!!deletingLabId}
+                  onClick={() => {
+                    if (deleteConfirmLab) {
+                      setDeleteMode("terminate-delete");
+                      deleteMutation.mutate(deleteConfirmLab);
+                      setDeleteConfirmLab(null);
+                    }
+                  }}
+                >
+                  {deletingLabId === deleteConfirmLab?.id && deleteMode === "terminate-delete"
+                    ? "Terminating & Deleting..."
+                    : "Terminate Cloud Resources & Delete"}
+                </button>
+                <button
+                  className="w-full px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg font-mono text-xs transition-colors disabled:opacity-50"
+                  disabled={!!deletingLabId}
+                  onClick={() => {
+                    if (deleteConfirmLab) {
+                      setDeleteMode("delete-only");
+                      deleteMutation.mutate(deleteConfirmLab);
+                      setDeleteConfirmLab(null);
+                    }
+                  }}
+                >
+                  {deletingLabId === deleteConfirmLab?.id && deleteMode === "delete-only"
+                    ? "Deleting..."
+                    : "Delete Database Record Only (keep AWS resources)"}
+                </button>
+              </>
+            ) : (
+              <button
+                className="w-full px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded-lg font-mono text-sm font-bold transition-colors disabled:opacity-50"
+                disabled={!!deletingLabId}
+                onClick={() => {
+                  if (deleteConfirmLab) {
+                    setDeleteMode("delete-only");
+                    deleteMutation.mutate(deleteConfirmLab);
+                    setDeleteConfirmLab(null);
+                  }
+                }}
+              >
+                {deletingLabId === deleteConfirmLab?.id ? "Deleting..." : "Delete Permanently"}
+              </button>
+            )}
+            <AlertDialogCancel
+              className="w-full mt-0 bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white"
+              onClick={() => { setDeleteMode(null); }}
             >
-              Delete Permanently
-            </AlertDialogAction>
+              Cancel
+            </AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
