@@ -75,6 +75,7 @@ function CollaborationDropdown({ currentPageName, access }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [liveFireOpen, setLiveFireOpen] = useState(false);
+  const [myLabsOpen, setMyLabsOpen] = useState(false);
   const ref = useRef(null);
   const isActive = ["CyberEventBuilder", "LiveFire", "LiveFireDashboard", "MyLabs", "SharedLabs", "LFTemplates", "RunningLabs", "ImageRepository", "MarketplacePage", "CloudResources", "LFAdministration", "LabCreationWizard"].includes(currentPageName);
 
@@ -118,21 +119,32 @@ function CollaborationDropdown({ currentPageName, access }) {
                 className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
                 Live Fire Dashboard
               </Link>
-              <Link to="/my-labs" onClick={() => setOpen(false)}
-                className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
-                My Labs
-              </Link>
-              <Link to="/shared-labs" onClick={() => setOpen(false)}
-                className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
-                Shared Labs
-              </Link>
+              <button
+                onClick={() => setMyLabsOpen(v => !v)}
+                className="flex items-center justify-between w-full pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors"
+              >
+                <span>My Labs</span>
+                <ChevronDown className={`h-3 w-3 text-gray-400 transition-transform ${myLabsOpen ? "rotate-180" : ""}`} />
+              </button>
+              {myLabsOpen && (
+                <>
+                  <Link to="/my-labs" onClick={() => setOpen(false)}
+                    className="flex items-center gap-2.5 pl-12 pr-4 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-red-950/50 transition-colors">
+                    View All
+                  </Link>
+                  <Link to="/shared-labs" onClick={() => setOpen(false)}
+                    className="flex items-center gap-2.5 pl-12 pr-4 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-red-950/50 transition-colors">
+                    Shared Labs
+                  </Link>
+                  <Link to="/running-labs" onClick={() => setOpen(false)}
+                    className="flex items-center gap-2.5 pl-12 pr-4 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-red-950/50 transition-colors">
+                    Running Labs
+                  </Link>
+                </>
+              )}
               <Link to="/lf-templates" onClick={() => setOpen(false)}
                 className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
                 Templates
-              </Link>
-              <Link to="/running-labs" onClick={() => setOpen(false)}
-                className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
-                Running Labs
               </Link>
               <Link to="/image-repository" onClick={() => setOpen(false)}
                 className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
