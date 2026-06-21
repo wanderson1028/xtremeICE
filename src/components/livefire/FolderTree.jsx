@@ -195,19 +195,28 @@ function isDescendant(folders, ancestorId, descendantId) {
   return false;
 }
 
-export default function FolderTree({ folders, selectedFolderId, onSelectFolder, onCreateFolder, onRenameFolder, onDeleteFolder, onMoveLab, onMoveFolder }) {
+export default function FolderTree({ folders, selectedFolderId, onSelectFolder, onCreateFolder, onRenameFolder, onDeleteFolder, onMoveLab, onMoveFolder, isCreating = false, folderError = null, onDismissError }) {
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
   const [creatingParentId, setCreatingParentId] = useState(null);
 
   const tree = buildTree(folders);
 
+  // Close input when mutation succeeds (isPending changes from true to false)
+  const [wasCreating, setWasCreating] = useState(false);
+  if (wasCreating && !isCreating && creating) {
+    setNewName("");
+    setCreating(false);
+    setCreatingParentId(null);
+    setWasCreating(false);
+  }
+  if (isCreating && creating) {
+    if (!wasCreating) setWasCreating(true);
+  }
+
   const handleCreate = (parentId = null) => {
-    if (newName.trim()) {
+    if (newName.trim() && !isCreating) {
       onCreateFolder(newName.trim(), parentId);
-      setNewName("");
-      setCreating(false);
-      setCreatingParentId(null);
     }
   };
 
@@ -278,6 +287,16 @@ export default function FolderTree({ folders, selectedFolderId, onSelectFolder, 
           </p>
         )}
 
+        {/* Error display */}
+        {folderError && (
+          <div className="mx-2 mt-2 p-2 bg-red-900/30 border border-red-700/40 rounded-lg flex items-center justify-between">
+            <span className="text-[10px] text-red-300 font-mono">{folderError}</span>
+            {onDismissError && (
+              <button onClick={onDismissError} className="text-red-400 hover:text-red-300 text-xs leading-none">&times;</button>
+            )}
+          </div>
+        )}
+
         {/* Create new folder input */}
         {creating && (
           <div className="flex items-center gap-1 mt-2 pl-2" style={{ paddingLeft: creatingParentId ? "24px" : "8px" }}>
@@ -287,14 +306,21 @@ export default function FolderTree({ folders, selectedFolderId, onSelectFolder, 
               onChange={e => setNewName(e.target.value)}
               onKeyDown={e => {
                 if (e.key === "Enter") handleCreate(creatingParentId);
-                if (e.key === "Escape") { setCreating(false); setCreatingParentId(null); }
+                if (e.key === "Escape" && !isCreating) { setCreating(false); setCreatingParentId(null); }
               }}
               placeholder="Folder name..."
-              className="flex-1 min-w-0 bg-gray-800 border border-gray-600 text-white text-xs rounded px-2 py-1 focus:outline-none focus:border-amber-500"
+              disabled={isCreating}
+              className="flex-1 min-w-0 bg-gray-800 border border-gray-600 text-white text-xs rounded px-2 py-1 focus:outline-none focus:border-amber-500 disabled:opacity-50"
               autoFocus
             />
-            <button onClick={() => handleCreate(creatingParentId)} className="p-1 hover:text-green-400 text-gray-500"><Check className="h-3.5 w-3.5" /></button>
-            <button onClick={() => { setCreating(false); setCreatingParentId(null); }} className="p-1 hover:text-red-400 text-gray-500"><X className="h-3.5 w-3.5" /></button>
+            {isCreating ? (
+              <div className="w-3.5 h-3.5 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin" />
+            ) : (
+              <>
+                <button onClick={() => handleCreate(creatingParentId)} className="p-1 hover:text-green-400 text-gray-500"><Check className="h-3.5 w-3.5" /></button>
+                <button onClick={() => { setCreating(false); setCreatingParentId(null); }} className="p-1 hover:text-red-400 text-gray-500"><X className="h-3.5 w-3.5" /></button>
+              </>
+            )}
           </div>
         )}
       </div>

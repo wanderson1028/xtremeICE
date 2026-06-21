@@ -56,6 +56,7 @@ export default function MyLabs() {
   const [deleteMode, setDeleteMode] = useState(null);
   const [selectedFolderId, setSelectedFolderId] = useState(null);
   const [moveMenuLab, setMoveMenuLab] = useState(null);
+  const [folderError, setFolderError] = useState(null);
 
   const { data: currentUser } = useQuery({
     queryKey: ["me"],
@@ -118,7 +119,13 @@ export default function MyLabs() {
         sort_order: folders.filter(f => (f.parent_folder_id || null) === (parentId || null)).length,
       });
     },
-    onSuccess: () => queryClient.invalidateQueries(["livefire-folders"]),
+    onSuccess: () => {
+      queryClient.invalidateQueries(["livefire-folders"]);
+      setFolderError(null);
+    },
+    onError: (err) => {
+      setFolderError(err?.response?.data?.message || err?.message || "Failed to create folder");
+    },
   });
 
   const renameFolderMutation = useMutation({
@@ -315,6 +322,9 @@ export default function MyLabs() {
               selectedFolderId={selectedFolderId}
               onSelectFolder={setSelectedFolderId}
               onCreateFolder={(name, parentId) => createFolderMutation.mutate({ name, parentId })}
+              isCreating={createFolderMutation.isPending}
+              folderError={folderError}
+              onDismissError={() => setFolderError(null)}
               onRenameFolder={(id, name) => renameFolderMutation.mutate({ id, name })}
               onDeleteFolder={(id) => deleteFolderMutation.mutate(id)}
               onMoveLab={(labId, folderId) => moveLabMutation.mutate({ labId, folderId })}
