@@ -1222,87 +1222,42 @@ Deno.serve(async (req) => {
         let lastError = null;
 
         const { createPrivateKey } = await import("node:crypto");
+        const { privateDecrypt, constants: c } = await import("node:crypto");
 
+        // AWS GetPasswordData uses RSA PKCS#1 v1.5 padding (not OAEP).
+        // The Web Crypto API only supports OAEP, so we use node:crypto for v1.5 first.
+        // See: https://docs.aws.amazon.com/AWSEC2/latest/WindowsGuide/ec2-key-pairs.html
+
+        // Try PKCS#1 v1.5 first (what AWS actually uses)
         try {
-          // Step 1: Parse PEM and extract JWK via node:crypto
-          const keyObj = createPrivateKey(pemKey);
-          const jwk = keyObj.export({ format: "jwk" });
-          console.log(`[decrypt] JWK exported: alg=${jwk.alg}, kty=${jwk.kty}, n_len=${jwk.n?.length}, e=${jwk.e}`);
-
-          // Step 2: Import JWK into Web Crypto
-          const cryptoKey = await crypto.subtle.importKey(
-            "jwk",
-            jwk,
-            { name: "RSA-OAEP", hash: "SHA-256" },
-            false,
-            ["decrypt"],
-          );
-          console.log("[decrypt] Web Crypto importKey: SUCCESS");
-
-          // Step 3: Decrypt OAEP-SHA256 (modern AWS)
-          try {
-            const decrypted = await crypto.subtle.decrypt(
-              { name: "RSA-OAEP" },
-              cryptoKey,
-              encryptedBuf,
-            );
-            password = new TextDecoder().decode(decrypted);
-            console.log("[decrypt] Web Crypto OAEP-SHA256: SUCCESS");
-          } catch (e) {
-            lastError = e.message;
-            console.error(`[decrypt] Web Crypto OAEP-SHA256 failed: ${e.message}`);
-
-            // Try OAEP-SHA1
-            try {
-              const sha1Key = await crypto.subtle.importKey(
-                "jwk", jwk,
-                { name: "RSA-OAEP", hash: "SHA-1" },
-                false, ["decrypt"],
-              );
-              const decrypted = await crypto.subtle.decrypt(
-                { name: "RSA-OAEP" },
-                sha1Key,
-                encryptedBuf,
-              );
-              password = new TextDecoder().decode(decrypted);
-              console.log("[decrypt] Web Crypto OAEP-SHA1: SUCCESS");
-            } catch (e2) {
-              if (!lastError) lastError = e2.message;
-              console.error(`[decrypt] Web Crypto OAEP-SHA1 failed: ${e2.message}`);
-            }
-          }
+          password = privateDecrypt(
+            { key: pemKey, padding: c.RSA_PKCS1_PADDING },
+            encryptedBuf,
+          ).toString("utf8");
+          console.log("[decrypt] PKCS1-v1.5: SUCCESS");
         } catch (e) {
           lastError = e.message;
-          console.error(`[decrypt] Web Crypto setup failed: ${e.message}`);
+          console.error(`[decrypt] PKCS1-v1.5 failed: ${e.message}`);
 
-          // Fallback: try node:crypto privateDecrypt with raw PEM string directly
-          const { privateDecrypt, constants: c } = await import("node:crypto");
+          // Try OAEP-SHA256
           try {
             password = privateDecrypt(
               { key: pemKey, padding: c.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" },
               encryptedBuf,
             ).toString("utf8");
-            console.log("[decrypt] Fallback OAEP-SHA256: SUCCESS");
+            console.log("[decrypt] OAEP-SHA256: SUCCESS");
           } catch (e2) {
-            console.error(`[decrypt] Fallback OAEP-SHA256 failed: ${e2.message}`);
+            console.error(`[decrypt] OAEP-SHA256 failed: ${e2.message}`);
+            // Try OAEP-SHA1
             try {
               password = privateDecrypt(
                 { key: pemKey, padding: c.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha1" },
                 encryptedBuf,
               ).toString("utf8");
-              console.log("[decrypt] Fallback OAEP-SHA1: SUCCESS");
+              console.log("[decrypt] OAEP-SHA1: SUCCESS");
             } catch (e3) {
-              console.error(`[decrypt] Fallback OAEP-SHA1 failed: ${e3.message}`);
-              try {
-                password = privateDecrypt(
-                  { key: pemKey, padding: c.RSA_PKCS1_PADDING },
-                  encryptedBuf,
-                ).toString("utf8");
-                console.log("[decrypt] Fallback PKCS1-v1.5: SUCCESS");
-              } catch (e4) {
-                console.error(`[decrypt] Fallback PKCS1-v1.5 failed: ${e4.message}`);
-                if (!lastError) lastError = e4.message;
-              }
+              console.error(`[decrypt] OAEP-SHA1 failed: ${e3.message}`);
+              if (!lastError) lastError = e3.message;
             }
           }
         }
