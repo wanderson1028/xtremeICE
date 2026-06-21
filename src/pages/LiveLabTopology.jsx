@@ -3,20 +3,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Link, useSearchParams } from "react-router-dom";
 import {
-  ArrowLeft, Server, Router, Shield, Monitor, Cloud, Terminal,
-  Wifi, Plus, X, Play, Square, RefreshCw, ExternalLink,
+  ArrowLeft, Terminal, Wifi, Plus, X, Play, Square, RefreshCw, ExternalLink,
   ChevronRight, Cpu, HardDrive, Network, Globe, Zap, Download, Key, Check,
-  Power, PowerOff, Rocket
+  Power, PowerOff, Rocket, Server
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-
-const DEVICE_ICONS = {
-  router: Router, switch: Network, firewall: Shield, server: Server,
-  workstation: Monitor, cloud_resource: Cloud, container: Cloud,
-  security_appliance: Shield, load_balancer: Server, monitoring: Monitor,
-};
+import DeviceIconRenderer, { getDeviceIcon } from "@/components/livefire/DeviceIcons";
 
 const TYPE_COLORS = {
   router: "border-amber-500 bg-amber-500/10", switch: "border-cyan-500 bg-cyan-500/10",
@@ -41,10 +35,10 @@ const DEVICE_TEMPLATES = [
 
 // ---- Device Node on Canvas ----
 function DeviceNode({ device, deployed, isSelected, onClick, style }) {
-  const Icon = DEVICE_ICONS[device.type] || Server;
   const colors = TYPE_COLORS[device.type] || TYPE_COLORS.server;
   const status = deployed?.status || "pending";
   const statusColor = STATUS_COLORS[status] || STATUS_COLORS.pending;
+  const iconId = device.icon_id || device.type;
 
   return (
     <div
@@ -56,7 +50,7 @@ function DeviceNode({ device, deployed, isSelected, onClick, style }) {
       <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-gray-900 ${statusColor} z-10`} />
       {/* Device pill */}
       <div className={`w-[72px] h-[44px] rounded-xl border-2 ${colors} bg-gray-900/90 backdrop-blur-sm flex items-center justify-center shadow-lg ${isSelected ? "ring-2 ring-red-500/50" : ""}`}>
-        <Icon className="h-5 w-5 text-white/80" />
+        <DeviceIconRenderer type={device.type} iconId={iconId} className="text-white/80 w-7 h-7" />
       </div>
       <span className="text-[9px] font-mono text-gray-400 mt-1 text-center leading-tight max-w-[80px] truncate">
         {device.name}
@@ -239,7 +233,9 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-red-900/20 bg-gray-950">
         <div className="flex items-center gap-2">
-          {(() => { const Icon = DEVICE_ICONS[device.type] || Server; return <Icon className="h-4 w-4 text-red-400" />; })()}
+          <div className="w-5 h-5">
+            <DeviceIconRenderer type={device.type} iconId={device.icon_id || device.type} className="text-red-400" />
+          </div>
           <span className="text-sm font-bold text-white">{device.name}</span>
         </div>
         <button onClick={onClose} className="text-gray-500 hover:text-white"><X className="h-4 w-4" /></button>
@@ -522,7 +518,6 @@ function AddDevicePanel({ lab, onClose, onDeploy, deploying }) {
         <p className="text-[10px] font-mono text-gray-500 uppercase">Device Type</p>
         <div className="grid grid-cols-2 gap-2">
           {DEVICE_TEMPLATES.map(tpl => {
-            const Icon = DEVICE_ICONS[tpl.type] || Server;
             return (
               <button
                 key={tpl.type}
@@ -533,7 +528,9 @@ function AddDevicePanel({ lab, onClose, onDeploy, deploying }) {
                     : "border-gray-700 bg-gray-800/60 hover:border-gray-600"
                 }`}
               >
-                <Icon className="h-5 w-5 text-gray-300" />
+                <div className="w-7 h-7">
+                  <DeviceIconRenderer type={tpl.type} iconId={tpl.type} className="text-gray-300" />
+                </div>
                 <span className="text-[10px] font-mono text-gray-300">{tpl.name}</span>
                 <span className="text-[8px] font-mono text-gray-600">{tpl.subtitle}</span>
               </button>

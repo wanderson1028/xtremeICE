@@ -3,12 +3,12 @@ import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import {
-  Server, Router, Shield, Monitor, HardDrive, Wifi, Cloud,
-  Container, Zap, GitBranch, Trash2, Plus, Move, Maximize2,
-  Minimize2, Eye, Copy, Layers, Network, Globe, Lock, Cpu,
+  Trash2, Plus, Maximize2, Minimize2, Eye, Copy, Layers, Network, Globe,
   DollarSign, X, Check, AlertTriangle, Settings, ShieldAlert,
-  Link2, Unlink, Database, Terminal, Key, MonitorPlay, ExternalLink, RefreshCw
+  Link2, Database, Terminal, Key, MonitorPlay, RefreshCw, Zap, Wand2,
+  GitBranch, Lock, Server
 } from "lucide-react";
+import DeviceIconRenderer, { getIconOptions, DEVICE_ICONS } from "@/components/livefire/DeviceIcons";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,15 +23,16 @@ import { getCostTier, COST_TIERS, checkLabDevices } from "@/lib/instanceTiers";
 import ImageCatalog from "@/components/livefire/ImageCatalog";
 
 const DEVICE_PALETTE = [
-  { type: "router", label: "Router", icon: Router, color: "blue" },
-  { type: "switch", label: "Switch", icon: GitBranch, color: "cyan" },
-  { type: "firewall", label: "Firewall", icon: Shield, color: "red" },
-  { type: "server", label: "Server", icon: Server, color: "green" },
-  { type: "workstation", label: "Workstation", icon: Monitor, color: "yellow" },
-  { type: "cloud_resource", label: "Cloud", icon: Cloud, color: "purple" },
-  { type: "container", label: "Container", icon: Container, color: "orange" },
-  { type: "load_balancer", label: "Load Balancer", icon: Layers, color: "teal" },
-  { type: "monitoring", label: "Monitor", icon: Eye, color: "gray" },
+  { type: "router", label: "Router", color: "blue" },
+  { type: "switch", label: "Switch", color: "cyan" },
+  { type: "firewall", label: "Firewall", color: "red" },
+  { type: "server", label: "Server", color: "green" },
+  { type: "workstation", label: "Workstation", color: "yellow" },
+  { type: "cloud_resource", label: "Cloud", color: "purple" },
+  { type: "container", label: "Container", color: "orange" },
+  { type: "load_balancer", label: "Load Balancer", color: "teal" },
+  { type: "monitoring", label: "Monitor", color: "gray" },
+  { type: "security_appliance", label: "Security Appliance", color: "pink" },
 ];
 
 const TYPE_COLORS = {
@@ -200,6 +201,7 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
     const newDevice = {
       id: `dev_${Date.now()}`,
       type: deviceType,
+      icon_id: deviceType, // default icon matches device type
       name: `${paletteItem?.label || deviceType}_${devices.length + 1}`,
       position_x: 200 + (devices.length % 4) * 160,
       position_y: 130 + Math.floor(devices.length / 4) * 170,
@@ -457,19 +459,21 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
             {(provided) => (
               <div ref={provided.innerRef} {...provided.droppableProps} className="flex-1 overflow-y-auto p-2 space-y-1">
                 {DEVICE_PALETTE.map((dev, idx) => (
-                  <Draggable key={dev.type} draggableId={`palette-${dev.type}`} index={idx}>
-                    {(provided, snapshot) => (
-                      <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}
-                        onClick={() => addDevice(dev.type)}
-                        className={`flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-grab active:cursor-grabbing ${
-                          snapshot.isDragging ? "bg-red-900/40 border-red-500 shadow-lg" : "bg-gray-800/60 border-gray-700 hover:border-red-700/40 hover:bg-gray-800/80"
-                        }`}>
-                        <dev.icon className={`h-4 w-4 ${TYPE_ICON_COLORS[dev.type] || "text-gray-400"}`} />
-                        <span className="text-[11px] font-mono text-gray-300">{dev.label}</span>
-                        <span className="text-[9px] font-mono text-gray-600 ml-auto">${DEVICE_PRICING[dev.type]}/hr</span>
-                      </div>
-                    )}
-                  </Draggable>
+                 <Draggable key={dev.type} draggableId={`palette-${dev.type}`} index={idx}>
+                   {(provided, snapshot) => (
+                     <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}
+                       onClick={() => addDevice(dev.type)}
+                       className={`flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-grab active:cursor-grabbing ${
+                         snapshot.isDragging ? "bg-red-900/40 border-red-500 shadow-lg" : "bg-gray-800/60 border-gray-700 hover:border-red-700/40 hover:bg-gray-800/80"
+                       }`}>
+                       <div className="w-7 h-7 shrink-0">
+                         <DeviceIconRenderer type={dev.type} iconId={dev.type} className={`${TYPE_ICON_COLORS[dev.type] || "text-gray-400"}`} />
+                       </div>
+                       <span className="text-[11px] font-mono text-gray-300">{dev.label}</span>
+                       <span className="text-[9px] font-mono text-gray-600 ml-auto">${DEVICE_PRICING[dev.type]}/hr</span>
+                     </div>
+                   )}
+                 </Draggable>
                 ))}
                 {provided.placeholder}
               </div>
@@ -568,8 +572,6 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                 </svg>
                 <div style={{ transform: `translate(${pan.x}px,${pan.y}px) scale(${scale})`, transformOrigin: "0 0" }} className="absolute inset-0">
                   {devices.map((device, idx) => {
-                    const paletteItem = DEVICE_PALETTE.find(d => d.type === device.type);
-                    const DevIcon = paletteItem?.icon || Server;
                     const isSelected = selectedDevice === device.id;
                     const isConnectingSource = connectingFrom === device.id;
                     const isConnectingTarget = connectingFrom && connectingFrom !== device.id;
@@ -578,19 +580,22 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                     const borderColor = isConnectingSource ? "border-yellow-400 ring-2 ring-yellow-400/50" :
                                         isConnectingTarget ? (alreadyLinked ? "border-gray-600" : "border-green-400 ring-2 ring-green-400/50") :
                                         isSelected ? "ring-2 ring-red-500" : "";
+                    const iconId = device.icon_id || device.type;
 
                     return (
                       <Draggable key={device.id} draggableId={`device-${device.id}`} index={idx}>
                         {(provided, snapshot) => (
                           <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}
-                            className={`absolute w-[130px] rounded-xl border-2 transition-all ${TYPE_COLORS[device.type] || TYPE_COLORS.server} ${borderColor} ${
+                            className={`absolute w-[140px] rounded-xl border-2 transition-all ${TYPE_COLORS[device.type] || TYPE_COLORS.server} ${borderColor} ${
                               snapshot.isDragging ? "opacity-80 shadow-2xl scale-105 z-50" : "hover:scale-[1.02]"
                             }`}
                             style={{ left: device.position_x || 0, top: device.position_y || 0, ...provided.draggableProps.style }}
                             onClick={(e) => selectDevice(device.id, e)}>
                             <div className="p-2.5">
                               <div className="flex items-center gap-1.5 mb-1.5">
-                                <DevIcon className={`h-3.5 w-3.5 ${TYPE_ICON_COLORS[device.type] || "text-gray-400"}`} />
+                                <div className={`w-5 h-5 shrink-0 ${TYPE_ICON_COLORS[device.type] || "text-gray-400"}`}>
+                                  <DeviceIconRenderer type={device.type} iconId={iconId} className={TYPE_ICON_COLORS[device.type] || "text-gray-400"} />
+                                </div>
                                 <span className="text-[9px] font-mono text-gray-200 truncate font-bold">{device.name}</span>
                                 {(() => {
                                   const tier = getCostTier(device.cpu_cores || 2, device.ram_mb || 4096);
@@ -694,7 +699,9 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
               {rightPanel === "properties" && selectedDeviceData && (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 pb-2 border-b border-gray-800">
-                    <div className={`h-2 w-2 rounded-full ${selectedDeviceData.status === "running" ? "bg-green-400" : "bg-gray-500"}`} />
+                    <div className={`w-5 h-5 shrink-0 ${TYPE_ICON_COLORS[selectedDeviceData.type] || "text-gray-400"}`}>
+                      <DeviceIconRenderer type={selectedDeviceData.type} iconId={selectedDeviceData.icon_id || selectedDeviceData.type} className={TYPE_ICON_COLORS[selectedDeviceData.type] || "text-gray-400"} />
+                    </div>
                     <span className="text-xs font-bold text-white font-mono">{selectedDeviceData.name}</span>
                     {(() => {
                       const st = getCostTier(selectedDeviceData.cpu_cores || 2, selectedDeviceData.ram_mb || 4096);
@@ -727,10 +734,39 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                   <div>
                     <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">Type</label>
                     <select value={selectedDeviceData.type}
-                      onChange={(e) => updateDevice(selectedDeviceData.id, { type: e.target.value, cost_per_hour: DEVICE_PRICING[e.target.value] || 0.15 })}
+                      onChange={(e) => updateDevice(selectedDeviceData.id, { type: e.target.value, cost_per_hour: DEVICE_PRICING[e.target.value] || 0.15, icon_id: e.target.value })}
                       className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white text-xs px-2.5 py-2">
                       {DEVICE_PALETTE.map(d => <option key={d.type} value={d.type}>{d.label}</option>)}
                     </select>
+                  </div>
+                  {/* Icon Picker */}
+                  <div>
+                    <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1 flex items-center gap-1">
+                      <Wand2 className="h-2.5 w-2.5" /> Icon Style
+                    </label>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {getIconOptions(selectedDeviceData.type).map(opt => {
+                        const isActive = (selectedDeviceData.icon_id || selectedDeviceData.type) === opt.id;
+                        return (
+                          <button key={opt.id}
+                            onClick={() => updateDevice(selectedDeviceData.id, { icon_id: opt.id })}
+                            className={`flex flex-col items-center gap-1 p-2 rounded-lg border transition-all ${
+                              isActive
+                                ? "bg-red-900/30 border-red-600/60"
+                                : "bg-gray-800/60 border-gray-700 hover:border-gray-600"
+                            }`}
+                            title={opt.label}
+                          >
+                            <div className={`w-6 h-6 ${isActive ? TYPE_ICON_COLORS[selectedDeviceData.type] || "text-gray-400" : "text-gray-500"}`}>
+                              <DeviceIconRenderer type={opt.id} iconId={opt.id} className={isActive ? TYPE_ICON_COLORS[selectedDeviceData.type] || "text-gray-400" : "text-gray-500"} />
+                            </div>
+                            <span className={`text-[7px] font-mono truncate w-full text-center ${isActive ? "text-red-300" : "text-gray-600"}`}>
+                              {opt.label}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                   <div>
                     <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">AMI / Image</label>
