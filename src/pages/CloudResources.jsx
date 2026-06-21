@@ -164,12 +164,14 @@ export default function CloudResources() {
   const enrichedInstances = rawInstances.map(inst => {
     const device = deviceByInstanceId[inst.instanceId];
     const lab = device ? labById[device.lab_id] : null;
+    const isManaged = !!lab;
     return {
       ...inst,
       deviceName: device?.name || inst.instanceId,
       deviceType: device?.device_type || "instance",
       labId: device?.lab_id || null,
       labName: lab?.name || null,
+      isManaged,
       cpu: device?.cpu_cores || 2,
       ram: device?.ram_mb || 4096,
       isWindows: (device?.access_method || "").toLowerCase() === "rdp" || (device?.name || "").toLowerCase().includes("windows"),
@@ -354,6 +356,9 @@ export default function CloudResources() {
                           {inst.state}
                         </span>
                         {inst.isWindows && <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-blue-900/30 text-blue-400 border border-blue-700/30">Windows</span>}
+                        {!inst.isManaged && (
+                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-gray-800 text-gray-500 border border-gray-700">External</span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-[10px] font-mono text-gray-500">{inst.instanceId}</span>
@@ -375,30 +380,36 @@ export default function CloudResources() {
                       </div>
                     </div>
 
-                    {/* Lifecycle Actions */}
+                    {/* Lifecycle Actions — only for managed (lab-linked) instances */}
                     <div className="flex items-center gap-1.5 shrink-0">
-                      {inst.state === "stopped" && (
-                        <button
-                          onClick={() => handleInstanceAction("start", inst.instanceId, `Start ${inst.deviceName}`)}
-                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-900/30 border border-green-700/40 text-green-400 hover:bg-green-800/40 text-[10px] font-mono transition-colors"
-                        >
-                          <Play className="h-3 w-3" /> Start
-                        </button>
+                      {inst.isManaged ? (
+                        <>
+                          {inst.state === "stopped" && (
+                            <button
+                              onClick={() => handleInstanceAction("start", inst.instanceId, `Start ${inst.deviceName}`)}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-900/30 border border-green-700/40 text-green-400 hover:bg-green-800/40 text-[10px] font-mono transition-colors"
+                            >
+                              <Play className="h-3 w-3" /> Start
+                            </button>
+                          )}
+                          {inst.state === "running" && (
+                            <button
+                              onClick={() => handleInstanceAction("stop", inst.instanceId, `Stop ${inst.deviceName}`)}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-900/30 border border-amber-700/40 text-amber-400 hover:bg-amber-800/40 text-[10px] font-mono transition-colors"
+                            >
+                              <Square className="h-3 w-3" /> Stop
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleInstanceAction("terminate", inst.instanceId, `Terminate ${inst.deviceName}`)}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-900/20 border border-red-800/40 text-red-400 hover:bg-red-800/40 text-[10px] font-mono transition-colors"
+                          >
+                            <Trash2 className="h-3 w-3" /> Terminate
+                          </button>
+                        </>
+                      ) : (
+                        <span className="text-[9px] font-mono text-gray-600 italic px-2">View only — not linked to any lab</span>
                       )}
-                      {inst.state === "running" && (
-                        <button
-                          onClick={() => handleInstanceAction("stop", inst.instanceId, `Stop ${inst.deviceName}`)}
-                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-900/30 border border-amber-700/40 text-amber-400 hover:bg-amber-800/40 text-[10px] font-mono transition-colors"
-                        >
-                          <Square className="h-3 w-3" /> Stop
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleInstanceAction("terminate", inst.instanceId, `Terminate ${inst.deviceName}`)}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-900/20 border border-red-800/40 text-red-400 hover:bg-red-800/40 text-[10px] font-mono transition-colors"
-                      >
-                        <Trash2 className="h-3 w-3" /> Terminate
-                      </button>
                     </div>
                   </div>
                 ))}
@@ -484,7 +495,7 @@ export default function CloudResources() {
                           }`}>{vpc.state}</span>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
-                          {!isDefault && (
+                          {!isDefault && vpc.linkedLab && (
                             <button
                               onClick={() => setDeleteConfirm({ vpcId: vpc.vpcId, vpcName: vpc.name || vpc.cidrBlock, hasInstances: vpc.instanceCount > 0 })}
                               className="p-1.5 rounded-lg bg-red-900/20 border border-red-800/30 text-red-400 hover:bg-red-800/40 hover:border-red-700/50 transition-colors"
@@ -492,6 +503,9 @@ export default function CloudResources() {
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
+                          )}
+                          {!isDefault && !vpc.linkedLab && (
+                            <span className="text-[8px] font-mono text-gray-600 italic">External VPC — view only</span>
                           )}
                         </div>
                       </div>
