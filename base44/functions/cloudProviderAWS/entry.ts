@@ -1245,6 +1245,7 @@ Deno.serve(async (req) => {
         // 3. Compute fingerprint from the PEM private key
         let pemFingerprint = null;
         let pemParseError = null;
+        const pemKey = private_key_pem;
         try {
           const { createPrivateKey, createPublicKey } = await import("node:crypto");
           const privKeyObj = createPrivateKey(pemKey);

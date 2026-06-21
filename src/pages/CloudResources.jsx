@@ -6,7 +6,8 @@ import {
   Cloud, Search, Plus, ArrowLeft, CheckCircle2, XCircle,
   Settings, BarChart3, HardDrive, Cpu, Globe, Trash2,
   Network, AlertTriangle, ChevronDown, ChevronRight,
-  Wifi, Shield, ExternalLink, RefreshCw, Filter
+  Wifi, Shield, ExternalLink, RefreshCw, Filter,
+  Server, Play, Square, StopCircle, Power
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,30 +17,64 @@ import {
   AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+const STATE_COLORS = {
+  running: "text-green-400 bg-green-900/30 border-green-700/30",
+  stopped: "text-amber-400 bg-amber-900/30 border-amber-700/30",
+  stopping: "text-amber-300 bg-amber-900/20 border-amber-700/20",
+  pending: "text-blue-400 bg-blue-900/30 border-blue-700/30",
+  provisioning: "text-blue-400 bg-blue-900/30 border-blue-700/30",
+  "shutting-down": "text-red-400 bg-red-900/30 border-red-700/30",
+  terminated: "text-gray-500 bg-gray-800 border-gray-700",
+};
+
 const PROVIDER_COLORS = {
   aws: "from-orange-600/20 to-orange-800/10 border-orange-700/30",
   azure: "from-blue-600/20 to-blue-800/10 border-blue-700/30",
   gcp: "from-green-600/20 to-green-800/10 border-green-700/30",
 };
 
-const PROVIDER_LABELS = {
-  aws: "Amazon Web Services",
-  azure: "Microsoft Azure",
-  gcp: "Google Cloud Platform",
-};
-
 export default function CloudResources() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("vpcs"); // vpcs | accounts
-  const [searchVpc, setSearchVpc] = useState("");
+  const [activeTab, setActiveTab] = useState("instances");
+  const [search, setSearch] = useState("");
   const [expandedVpc, setExpandedVpc] = useState(null);
-  const [deleteConfirm, setDeleteConfirm] = useState(null); // { vpcId, vpcName, hasInstances }
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [forceDelete, setForceDelete] = useState(false);
   const [deletingVpc, setDeletingVpc] = useState(null);
   const [deleteError, setDeleteError] = useState(null);
   const [subnetSuggestions, setSubnetSuggestions] = useState(null);
   const [loadingSubnets, setLoadingSubnets] = useState(null);
+  const [actionConfirm, setActionConfirm] = useState(null); // { instanceId, action, label }
 
+  // ── Instances query ──
+  const { data: instancesData, isLoading: instLoading, refetch: refetchInstances } = useQuery({
+    queryKey: ["all-instances"],
+    queryFn: async () => {
+      const res = await base44.functions.invoke("cloudProviderAWS", {
+        action: "listInstances",
+        params: {},
+      });
+      return res.data;
+    },
+    staleTime: 15000,
+    refetchInterval: 60000,
+  });
+
+  // ── Devices query (for lab cross-reference) ──
+  const { data: devices = [] } = useQuery({
+    queryKey: ["all-livefire-devices"],
+    queryFn: () => base44.entities.LiveFireDevice.filter({}),
+    staleTime: 30000,
+  });
+
+  // ── Labs for names ──
+  const { data: labs = [] } = useQuery({
+    queryKey: ["all-labs-cloud"],
+    queryFn: () => base44.entities.LiveFireLab.filter({}),
+    staleTime: 30000,
+  });
+
+  // ── VPCs query ──
   const { data: vpcData, isLoading: vpcsLoading, refetch: refetchVpcs } = useQuery({
     queryKey: ["all-vpcs"],
     queryFn: async () => {
@@ -62,6 +97,27 @@ export default function CloudResources() {
     queryFn: () => base44.entities.LiveFireDeployment.list("-updated_date", 50),
   });
 
+  // ── Instance actions ──
+  const instanceMutation = useMutation({
+    mutationFn: async ({ action, instanceId }) => {
+      const res = await base44.functions.invoke("cloudProviderAWS", {
+        action,
+        params: { instance_id: instanceId },
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      setActionConfirm(null);
+      refetchInstances();
+      queryClient.invalidateQueries({ queryKey: ["all-livefire-devices"] });
+    },
+    onError: (err) => {
+      console.error("Instance action failed:", err);
+      setActionConfirm(null);
+    },
+  });
+
+  // ── VPC delete ──
   const deleteVpcMutation = useMutation({
     mutationFn: async ({ vpcId, force }) => {
       const res = await base44.functions.invoke("cloudProviderAWS", {
@@ -86,6 +142,73 @@ export default function CloudResources() {
     },
   });
 
+  const handleInstanceAction = (action, instanceId, label) => {
+    setActionConfirm({ instanceId, action, label });
+  };
+
+  const executeInstanceAction = () => {
+    if (!actionConfirm) return;
+    instanceMutation.mutate({
+      action: actionConfirm.action === "terminate" ? "deleteVM" : actionConfirm.action === "stop" ? "stopVM" : "startVM",
+      instanceId: actionConfirm.instanceId,
+    });
+  };
+
+  // ── Build enriched instance list ──
+  const rawInstances = instancesData?.instances || [];
+  const deviceByInstanceId = {};
+  devices.forEach(d => { if (d.instance_id) deviceByInstanceId[d.instance_id] = d; });
+  const labById = {};
+  labs.forEach(l => { labById[l.id] = l; });
+
+  const enrichedInstances = rawInstances.map(inst => {
+    const device = deviceByInstanceId[inst.instanceId];
+    const lab = device ? labById[device.lab_id] : null;
+    return {
+      ...inst,
+      deviceName: device?.name || inst.instanceId,
+      deviceType: device?.device_type || "instance",
+      labId: device?.lab_id || null,
+      labName: lab?.name || null,
+      cpu: device?.cpu_cores || 2,
+      ram: device?.ram_mb || 4096,
+      isWindows: (device?.access_method || "").toLowerCase() === "rdp" || (device?.name || "").toLowerCase().includes("windows"),
+      accessMethod: device?.access_method || "ssh",
+    };
+  });
+
+  const filteredInstances = enrichedInstances.filter(inst => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (
+      inst.instanceId.toLowerCase().includes(q) ||
+      (inst.deviceName || "").toLowerCase().includes(q) ||
+      (inst.labName || "").toLowerCase().includes(q) ||
+      (inst.publicIp || "").includes(q) ||
+      (inst.instanceId || "").toLowerCase().includes(q)
+    );
+  });
+
+  const runningCount = enrichedInstances.filter(i => i.state === "running").length;
+  const stoppedCount = enrichedInstances.filter(i => i.state === "stopped").length;
+
+  // ── VPC data ──
+  const vpcs = vpcData?.vpcs || [];
+  const region = vpcData?.region || "us-east-1";
+  const orphanCount = vpcs.filter(v => v.isOrphaned).length;
+  const inUseCount = vpcs.filter(v => !v.isOrphaned && !v.isDefault).length;
+
+  const filteredVpcs = vpcs.filter(v => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (
+      v.vpcId.toLowerCase().includes(q) ||
+      v.cidrBlock.toLowerCase().includes(q) ||
+      (v.name || "").toLowerCase().includes(q) ||
+      (v.linkedLab?.name || "").toLowerCase().includes(q)
+    );
+  });
+
   const loadSubnets = async (vpcId, vpcCidr) => {
     setLoadingSubnets(vpcId);
     try {
@@ -104,109 +227,185 @@ export default function CloudResources() {
     deleteVpcMutation.mutate({ vpcId: deleteConfirm.vpcId, force: forceDelete || !deleteConfirm.hasInstances });
   };
 
-  const vpcs = vpcData?.vpcs || [];
-  const region = vpcData?.region || "us-east-1";
-  const orphanCount = vpcs.filter(v => v.isOrphaned).length;
-  const inUseCount = vpcs.filter(v => !v.isOrphaned && !v.isDefault).length;
-
-  const filteredVpcs = vpcs.filter(v => {
-    if (!searchVpc) return true;
-    const q = searchVpc.toLowerCase();
-    return (
-      v.vpcId.toLowerCase().includes(q) ||
-      v.cidrBlock.toLowerCase().includes(q) ||
-      (v.name || "").toLowerCase().includes(q) ||
-      (v.linkedLab?.name || "").toLowerCase().includes(q)
-    );
-  });
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-red-950/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <Link to="/LiveFireDashboard" className="text-gray-400 hover:text-white transition-colors">
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-white">Cloud Resources</h1>
-            <p className="text-sm text-gray-400 font-mono">VPC management & cloud infrastructure</p>
+            <p className="text-sm text-gray-400 font-mono">Manage instances, VPCs, and infrastructure</p>
           </div>
-          <Button onClick={() => refetchVpcs()} variant="outline" className="border-gray-700 text-gray-400 hover:text-white gap-2">
+          <Button
+            onClick={() => { refetchInstances(); refetchVpcs(); }}
+            variant="outline"
+            className="border-gray-700 text-gray-400 hover:text-white gap-2"
+          >
             <RefreshCw className="h-4 w-4" /> Refresh
           </Button>
         </div>
 
         {/* Stats Bar */}
-        {vpcData && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-            <div className="bg-gray-900/80 border border-gray-800 rounded-xl p-3.5">
-              <p className="text-[10px] font-mono text-gray-500 uppercase mb-1">Total VPCs</p>
-              <p className="text-xl font-bold text-white">{vpcs.length}</p>
-            </div>
-            <div className="bg-gray-900/80 border border-green-800/30 rounded-xl p-3.5">
-              <p className="text-[10px] font-mono text-gray-500 uppercase mb-1">In Use</p>
-              <p className="text-xl font-bold text-green-400">{inUseCount}</p>
-            </div>
-            <div className="bg-gray-900/80 border border-amber-800/30 rounded-xl p-3.5">
-              <p className="text-[10px] font-mono text-gray-500 uppercase mb-1">Orphaned</p>
-              <p className="text-xl font-bold text-amber-400">{orphanCount}</p>
-            </div>
-            <div className="bg-gray-900/80 border border-blue-800/30 rounded-xl p-3.5">
-              <p className="text-[10px] font-mono text-gray-500 uppercase mb-1">Region</p>
-              <p className="text-lg font-bold text-blue-400 font-mono">{region}</p>
-            </div>
-            <div className="bg-gray-900/80 border border-red-800/30 rounded-xl p-3.5">
-              <p className="text-[10px] font-mono text-gray-500 uppercase mb-1">Deployments</p>
-              <p className="text-xl font-bold text-red-400">{deployments.length}</p>
-            </div>
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
+          <div className="bg-gray-900/80 border border-gray-800 rounded-xl p-3.5">
+            <p className="text-[10px] font-mono text-gray-500 uppercase mb-1">Instances</p>
+            <p className="text-xl font-bold text-white">{enrichedInstances.length}</p>
+          </div>
+          <div className="bg-gray-900/80 border border-green-800/30 rounded-xl p-3.5">
+            <p className="text-[10px] font-mono text-gray-500 uppercase mb-1">Running</p>
+            <p className="text-xl font-bold text-green-400">{runningCount}</p>
+          </div>
+          <div className="bg-gray-900/80 border border-amber-800/30 rounded-xl p-3.5">
+            <p className="text-[10px] font-mono text-gray-500 uppercase mb-1">Stopped</p>
+            <p className="text-xl font-bold text-amber-400">{stoppedCount}</p>
+          </div>
+          <div className="bg-gray-900/80 border border-gray-800 rounded-xl p-3.5">
+            <p className="text-[10px] font-mono text-gray-500 uppercase mb-1">VPCs</p>
+            <p className="text-xl font-bold text-white">{vpcs.length}</p>
+          </div>
+          <div className="bg-gray-900/80 border border-amber-800/30 rounded-xl p-3.5">
+            <p className="text-[10px] font-mono text-gray-500 uppercase mb-1">Orphaned</p>
+            <p className="text-xl font-bold text-amber-400">{orphanCount}</p>
+          </div>
+          <div className="bg-gray-900/80 border border-blue-800/30 rounded-xl p-3.5">
+            <p className="text-[10px] font-mono text-gray-500 uppercase mb-1">Region</p>
+            <p className="text-lg font-bold text-blue-400 font-mono">{region}</p>
+          </div>
+        </div>
+
+        {/* Search */}
+        <div className="flex items-center gap-3 mb-4">
+          <div className="relative flex-1 max-w-lg">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+            <Input
+              placeholder={`Search ${activeTab === "instances" ? "by name, lab, IP, or instance ID" : "by VPC ID, CIDR, or lab name"}...`}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10 bg-gray-800 border-gray-700 text-white h-9 text-sm font-mono"
+            />
+          </div>
+          <span className="text-[10px] font-mono text-gray-500">
+            {activeTab === "instances"
+              ? `${filteredInstances.length} of ${enrichedInstances.length}`
+              : `${filteredVpcs.length} of ${vpcs.length}`}
+          </span>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-0 mb-6">
+          {["instances", "vpcs", "accounts"].map(tab => (
+            <button
+              key={tab}
+              onClick={() => { setActiveTab(tab); setSearch(""); }}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-t-lg text-sm font-mono font-bold transition-all ${
+                activeTab === tab
+                  ? "bg-gray-900 border border-b-0 border-red-800/40 text-red-400"
+                  : "bg-gray-900/40 border border-b border-gray-800 text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              {tab === "instances" && <Server className="h-4 w-4" />}
+              {tab === "vpcs" && <Network className="h-4 w-4" />}
+              {tab === "accounts" && <Cloud className="h-4 w-4" />}
+              {tab === "instances" ? "Instances" : tab === "vpcs" ? "VPCs & Networks" : "Cloud Accounts"}
+            </button>
+          ))}
+        </div>
+
+        {/* ── INSTANCES TAB ── */}
+        {activeTab === "instances" && (
+          <div>
+            {instLoading ? (
+              <div className="flex justify-center py-20">
+                <div className="w-8 h-8 border-2 border-red-600/30 border-t-red-500 rounded-full animate-spin" />
+              </div>
+            ) : filteredInstances.length === 0 ? (
+              <div className="text-center py-20 bg-gray-900/40 border border-gray-800 rounded-xl">
+                <Server className="h-12 w-12 text-gray-700 mx-auto mb-4" />
+                <p className="text-gray-500 font-mono text-sm mb-2">
+                  {search ? "No instances match your search" : "No instances found"}
+                </p>
+                <p className="text-gray-700 font-mono text-xs">
+                  Instances will appear here when labs are deployed
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filteredInstances.map(inst => (
+                  <div
+                    key={inst.instanceId}
+                    className="bg-gray-900/60 border border-gray-800 rounded-xl p-4 flex items-center gap-3 hover:border-gray-700 transition-colors"
+                  >
+                    <Server className={`h-4 w-4 shrink-0 ${
+                      inst.state === "running" ? "text-green-400" :
+                      inst.state === "stopped" ? "text-amber-400" :
+                      "text-gray-500"
+                    }`} />
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white truncate">{inst.deviceName}</span>
+                        <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full border ${STATE_COLORS[inst.state] || "text-gray-500 bg-gray-800 border-gray-700"}`}>
+                          {inst.state}
+                        </span>
+                        {inst.isWindows && <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-blue-900/30 text-blue-400 border border-blue-700/30">Windows</span>}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] font-mono text-gray-500">{inst.instanceId}</span>
+                        {inst.labName && (
+                          <Link to={`/live-lab-topology?labId=${inst.labId}`} className="text-[10px] font-mono text-cyan-400 hover:text-cyan-300 flex items-center gap-0.5">
+                            {inst.labName} <ExternalLink className="h-2.5 w-2.5" />
+                          </Link>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 mt-1">
+                        {inst.publicIp && (
+                          <span className="text-[9px] font-mono text-green-400">{inst.publicIp}</span>
+                        )}
+                        {inst.privateIp && (
+                          <span className="text-[9px] font-mono text-gray-500">{inst.privateIp}</span>
+                        )}
+                        <span className="text-[9px] font-mono text-gray-600">{inst.cpu}vCPU / {inst.ram}MB</span>
+                      </div>
+                    </div>
+
+                    {/* Lifecycle Actions */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {inst.state === "stopped" && (
+                        <button
+                          onClick={() => handleInstanceAction("start", inst.instanceId, `Start ${inst.deviceName}`)}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-900/30 border border-green-700/40 text-green-400 hover:bg-green-800/40 text-[10px] font-mono transition-colors"
+                        >
+                          <Play className="h-3 w-3" /> Start
+                        </button>
+                      )}
+                      {inst.state === "running" && (
+                        <button
+                          onClick={() => handleInstanceAction("stop", inst.instanceId, `Stop ${inst.deviceName}`)}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-900/30 border border-amber-700/40 text-amber-400 hover:bg-amber-800/40 text-[10px] font-mono transition-colors"
+                        >
+                          <Square className="h-3 w-3" /> Stop
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleInstanceAction("terminate", inst.instanceId, `Terminate ${inst.deviceName}`)}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-900/20 border border-red-800/40 text-red-400 hover:bg-red-800/40 text-[10px] font-mono transition-colors"
+                      >
+                        <Trash2 className="h-3 w-3" /> Terminate
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Tab Switcher */}
-        <div className="flex gap-0 mb-6">
-          <button
-            onClick={() => setActiveTab("vpcs")}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-t-lg text-sm font-mono font-bold transition-all ${
-              activeTab === "vpcs"
-                ? "bg-gray-900 border border-b-0 border-red-800/40 text-red-400"
-                : "bg-gray-900/40 border border-b border-gray-800 text-gray-500 hover:text-gray-300"
-            }`}
-          >
-            <Network className="h-4 w-4" /> VPCs & Subnets
-          </button>
-          <button
-            onClick={() => setActiveTab("accounts")}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-t-lg text-sm font-mono font-bold transition-all ${
-              activeTab === "accounts"
-                ? "bg-gray-900 border border-b-0 border-red-800/40 text-red-400"
-                : "bg-gray-900/40 border border-b border-gray-800 text-gray-500 hover:text-gray-300"
-            }`}
-          >
-            <Cloud className="h-4 w-4" /> Cloud Accounts
-          </button>
-        </div>
-
-        {/* VPC Management Tab */}
+        {/* ── VPCS TAB ── */}
         {activeTab === "vpcs" && (
           <div>
-            {/* Search & Filters */}
-            <div className="flex items-center gap-3 mb-4">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-                <Input
-                  placeholder="Search by VPC ID, CIDR, or lab name..."
-                  value={searchVpc}
-                  onChange={(e) => setSearchVpc(e.target.value)}
-                  className="pl-10 bg-gray-800 border-gray-700 text-white h-9 text-sm font-mono"
-                />
-              </div>
-              <div className="flex gap-2">
-                <span className="text-[10px] font-mono text-gray-500 self-center">
-                  {filteredVpcs.length} of {vpcs.length}
-                </span>
-              </div>
-            </div>
-
             {vpcsLoading ? (
               <div className="flex justify-center py-20">
                 <div className="w-8 h-8 border-2 border-red-600/30 border-t-red-500 rounded-full animate-spin" />
@@ -214,8 +413,9 @@ export default function CloudResources() {
             ) : filteredVpcs.length === 0 ? (
               <div className="text-center py-20 bg-gray-900/40 border border-gray-800 rounded-xl">
                 <Network className="h-12 w-12 text-gray-700 mx-auto mb-4" />
-                <p className="text-gray-500 font-mono text-sm mb-2">No VPCs found</p>
-                <p className="text-gray-700 font-mono text-xs">VPCs will appear here when labs are deployed</p>
+                <p className="text-gray-500 font-mono text-sm mb-2">
+                  {search ? "No VPCs match your search" : "No VPCs found"}
+                </p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -230,7 +430,6 @@ export default function CloudResources() {
                       isDefault ? "bg-gray-900/40 border-gray-800" :
                       "bg-gray-900/60 border-red-900/20"
                     }`}>
-                      {/* VPC Row */}
                       <div className="flex items-center gap-3 p-4">
                         <button
                           onClick={() => {
@@ -251,8 +450,6 @@ export default function CloudResources() {
                             <p className="text-[9px] font-mono text-gray-600 truncate">{vpc.vpcId}</p>
                           </div>
                         </div>
-
-                        {/* Badges */}
                         <div className="flex items-center gap-1.5 ml-auto shrink-0">
                           {isDefault && (
                             <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-blue-900/30 text-blue-400 border border-blue-700/30">Default</span>
@@ -268,20 +465,15 @@ export default function CloudResources() {
                               {vpc.linkedLab.name} <ExternalLink className="h-2.5 w-2.5" />
                             </Link>
                           )}
-                          {!vpc.linkedLab && !isOrphaned && !isDefault && (
-                            <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-gray-800 text-gray-500">Unknown</span>
-                          )}
                           {vpc.instanceCount > 0 && (
                             <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-cyan-900/30 text-cyan-400 border border-cyan-700/30">
-                              {vpc.instanceCount} instance{vpc.instanceCount !== 1 ? "s" : ""}
+                              {vpc.instanceCount} inst
                             </span>
                           )}
                           <span className={`text-[9px] font-mono px-2 py-0.5 rounded-full ${
                             vpc.state === "available" ? "bg-green-900/30 text-green-400 border border-green-700/30" : "bg-gray-800 text-gray-500"
                           }`}>{vpc.state}</span>
                         </div>
-
-                        {/* Actions */}
                         <div className="flex items-center gap-1.5 shrink-0">
                           {!isDefault && (
                             <button
@@ -295,7 +487,6 @@ export default function CloudResources() {
                         </div>
                       </div>
 
-                      {/* Expanded Subnets */}
                       {isExpanded && (
                         <div className="border-t border-gray-800 px-4 py-3 bg-black/20">
                           <div className="flex items-center gap-2 mb-3">
@@ -307,33 +498,25 @@ export default function CloudResources() {
                               <div className="w-3 h-3 border border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin ml-2" />
                             )}
                           </div>
-
                           {subnetSuggestions && expandedVpc === vpc.vpcId ? (
-                            /* Full subnet grid from CIDR analysis */
                             <div>
                               <div className="flex items-center gap-3 mb-2 text-[9px] font-mono">
-                                <span className="text-gray-500">
-                                  Available: <span className="text-green-400">{subnetSuggestions.availableCount}</span>
-                                </span>
-                                <span className="text-gray-500">
-                                  Used: <span className="text-amber-400">{subnetSuggestions.usedCount}</span>
-                                </span>
-                                <span className="text-gray-600">| {subnetSuggestions.subnetCount} total /24s</span>
+                                <span className="text-gray-500">Available: <span className="text-green-400">{subnetSuggestions.availableCount}</span></span>
+                                <span className="text-gray-500">Used: <span className="text-amber-400">{subnetSuggestions.usedCount}</span></span>
                               </div>
                               <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-1 max-h-40 overflow-y-auto p-1">
                                 {subnetSuggestions.subnets.map(s => (
                                   <div key={s.cidr} className={`text-[9px] font-mono px-1.5 py-1 rounded text-center truncate ${
                                     s.isTaken
                                       ? "bg-amber-900/20 border border-amber-800/30 text-amber-400/70"
-                                      : "bg-gray-800/40 border border-gray-700/40 text-gray-400 hover:text-cyan-400 hover:border-cyan-700/40 cursor-pointer"
-                                  }`} title={s.isTaken ? `${s.cidr} (in use)` : s.cidr}>
+                                      : "bg-gray-800/40 border border-gray-700/40 text-gray-400"
+                                  }`} title={s.cidr}>
                                     {s.cidr.split("/")[0].split(".").pop()}
                                   </div>
                                 ))}
                               </div>
                             </div>
                           ) : vpc.subnets?.length > 0 ? (
-                            /* Existing subnets from AWS */
                             <div className="space-y-1.5">
                               {vpc.subnets.map(s => (
                                 <div key={s.subnetId} className="flex items-center gap-3 bg-gray-800/30 rounded-lg px-3 py-2 border border-gray-800">
@@ -347,7 +530,7 @@ export default function CloudResources() {
                               ))}
                             </div>
                           ) : (
-                            <p className="text-[10px] font-mono text-gray-600">No subnets found in this VPC</p>
+                            <p className="text-[10px] font-mono text-gray-600">No subnets found</p>
                           )}
                         </div>
                       )}
@@ -359,7 +542,7 @@ export default function CloudResources() {
           </div>
         )}
 
-        {/* Cloud Accounts Tab */}
+        {/* ── CLOUD ACCOUNTS TAB ── */}
         {activeTab === "accounts" && (
           <div>
             {acctsLoading ? (
@@ -377,7 +560,6 @@ export default function CloudResources() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {accounts.map(acct => {
-                  const acctDeployments = deployments.filter(d => d.cloud_account_id === acct.id);
                   const usage = acct.quota_max_instances > 0 ? Math.round((acct.current_instances / acct.quota_max_instances) * 100) : 0;
                   return (
                     <div key={acct.id} className={`bg-gradient-to-br ${PROVIDER_COLORS[acct.provider] || PROVIDER_COLORS.aws} border rounded-xl overflow-hidden`}>
@@ -398,7 +580,6 @@ export default function CloudResources() {
                             {acct.status}
                           </div>
                         </div>
-
                         <div className="space-y-2 mb-3">
                           <div>
                             <div className="flex justify-between text-[9px] font-mono text-gray-500 mb-0.5">
@@ -409,23 +590,10 @@ export default function CloudResources() {
                               <div className="h-full bg-gradient-to-r from-cyan-600 to-cyan-400 rounded-full" style={{ width: `${usage}%` }} />
                             </div>
                           </div>
-                          <div>
-                            <div className="flex justify-between text-[9px] font-mono text-gray-500 mb-0.5">
-                              <span>vCPUs</span>
-                              <span>{acct.current_vcpus}/{acct.quota_max_vcpus}</span>
-                            </div>
-                            <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                              <div className="h-full bg-gradient-to-r from-purple-600 to-purple-400 rounded-full" style={{ width: `${Math.min((acct.current_vcpus / acct.quota_max_vcpus) * 100, 100)}%` }} />
-                            </div>
-                          </div>
                         </div>
-
                         <div className="flex gap-2 pt-3 border-t border-gray-800">
-                          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 border border-gray-700 text-gray-400 hover:text-gray-200 rounded-lg text-[10px] font-mono transition-colors flex-1 justify-center">
+                          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 border border-gray-700 text-gray-400 rounded-lg text-[10px] font-mono transition-colors flex-1 justify-center">
                             <Settings className="h-3 w-3" /> Settings
-                          </button>
-                          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 border border-gray-700 text-gray-400 hover:text-green-400 rounded-lg text-[10px] font-mono transition-colors">
-                            <BarChart3 className="h-3 w-3" />
                           </button>
                         </div>
                       </div>
@@ -437,56 +605,71 @@ export default function CloudResources() {
           </div>
         )}
 
-        {/* Deployments Table */}
-        {deployments.length > 0 && (
-          <div className="mt-8 bg-gray-900/80 border border-red-900/30 rounded-xl overflow-hidden">
-            <div className="flex items-center gap-2.5 px-5 py-4 border-b border-red-900/20">
-              <Globe className="h-4 w-4 text-cyan-400" />
-              <h2 className="text-sm font-bold text-white">Deployment History</h2>
-              <span className="text-[10px] font-mono text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">{deployments.length}</span>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-gray-800">
-                    <th className="text-[10px] font-mono text-gray-500 px-4 py-2 uppercase">Provider</th>
-                    <th className="text-[10px] font-mono text-gray-500 px-4 py-2 uppercase">Region</th>
-                    <th className="text-[10px] font-mono text-gray-500 px-4 py-2 uppercase">Status</th>
-                    <th className="text-[10px] font-mono text-gray-500 px-4 py-2 uppercase">VPC</th>
-                    <th className="text-[10px] font-mono text-gray-500 px-4 py-2 uppercase">Cost/hr</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {deployments.slice(0, 10).map(d => (
-                    <tr key={d.id} className="border-b border-gray-800/50 hover:bg-red-950/10 transition-colors">
-                      <td className="px-4 py-2.5">
-                        <span className="text-[10px] font-mono text-gray-300 uppercase">{d.provider}</span>
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <span className="text-[10px] font-mono text-gray-500">{d.region}</span>
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
-                          d.status === "running" ? "bg-green-900/30 text-green-400 border border-green-700/30" :
-                          d.status === "provisioning" ? "bg-yellow-900/30 text-yellow-400 border border-yellow-700/30" :
-                          "bg-gray-800 text-gray-500"
-                        }`}>{d.status}</span>
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <span className="text-[10px] font-mono text-gray-500 font-mono">{d.vpc_id || "—"}</span>
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <span className="text-[10px] font-mono text-gray-400">${d.estimated_cost_hourly?.toFixed(2)}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+        {/* ── Instance Action Confirmation Dialog ── */}
+        <AlertDialog open={!!actionConfirm} onOpenChange={(open) => { if (!open) setActionConfirm(null); }}>
+          <AlertDialogContent className="bg-gray-900 border border-red-800/40 text-white">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-white text-lg flex items-center gap-2">
+                {actionConfirm?.action === "terminate" ? (
+                  <Trash2 className="h-5 w-5 text-red-400" />
+                ) : actionConfirm?.action === "stop" ? (
+                  <Square className="h-5 w-5 text-amber-400" />
+                ) : (
+                  <Play className="h-5 w-5 text-green-400" />
+                )}
+                {actionConfirm?.label || "Confirm Action"}
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-gray-400 space-y-3">
+                <p>
+                  Are you sure you want to <span className="font-bold text-white">{actionConfirm?.action}</span>{" "}
+                  <span className="text-cyan-400 font-mono">{actionConfirm?.instanceId}</span>?
+                </p>
+                {actionConfirm?.action === "terminate" && (
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-red-950/30 border border-red-800/40 text-red-300">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-bold">This will permanently destroy the instance</p>
+                      <p className="text-xs mt-0.5 text-red-400/80">
+                        All data on this instance will be lost. This action cannot be undone.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {actionConfirm?.action === "stop" && (
+                  <p className="text-xs text-amber-400/80">
+                    The instance will be stopped. You can start it again later. EBS storage costs still apply.
+                  </p>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white">
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                className={
+                  actionConfirm?.action === "terminate" ? "bg-red-700 hover:bg-red-600 text-white" :
+                  actionConfirm?.action === "stop" ? "bg-amber-700 hover:bg-amber-600 text-white" :
+                  "bg-green-700 hover:bg-green-600 text-white"
+                }
+                onClick={executeInstanceAction}
+                disabled={instanceMutation.isPending}
+              >
+                {instanceMutation.isPending ? (
+                  <span className="flex items-center gap-2">
+                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Working...
+                  </span>
+                ) : (
+                  actionConfirm?.action === "terminate" ? "Terminate Instance" :
+                  actionConfirm?.action === "stop" ? "Stop Instance" : "Start Instance"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-        {/* Delete VPC Confirmation Dialog */}
+        {/* ── Delete VPC Confirmation Dialog ── */}
         <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => { if (!open) { setDeleteConfirm(null); setForceDelete(false); setDeleteError(null); } }}>
           <AlertDialogContent className="bg-gray-900 border border-red-800/40 text-white">
             <AlertDialogHeader>
@@ -496,7 +679,7 @@ export default function CloudResources() {
               </AlertDialogTitle>
               <AlertDialogDescription className="text-gray-400 space-y-3">
                 <p>
-                  Are you sure you want to delete VPC{" "}
+                  Delete VPC{" "}
                   <span className="text-red-400 font-bold font-mono">{deleteConfirm?.vpcName}</span>
                   {" "}({deleteConfirm?.vpcId})?
                 </p>
@@ -506,8 +689,7 @@ export default function CloudResources() {
                     <div>
                       <p className="text-sm font-bold">This VPC has running instances</p>
                       <p className="text-xs mt-0.5 text-amber-400/80">
-                        Check <strong>Force Terminate Instances</strong> below to terminate them before deleting the VPC.
-                        Without this, the delete will fail.
+                        Check <strong>Force Terminate Instances</strong> to terminate them before deleting.
                       </p>
                     </div>
                   </div>
@@ -528,10 +710,6 @@ export default function CloudResources() {
                     {deleteError}
                   </div>
                 )}
-                <p className="text-xs text-gray-600">
-                  This will delete the VPC, all subnets, internet gateways, security groups, and route tables.
-                  This action cannot be undone.
-                </p>
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -543,14 +721,7 @@ export default function CloudResources() {
                 onClick={handleDeleteVpc}
                 disabled={deletingVpc === deleteConfirm?.vpcId}
               >
-                {deletingVpc === deleteConfirm?.vpcId ? (
-                  <span className="flex items-center gap-2">
-                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Deleting...
-                  </span>
-                ) : (
-                  "Delete VPC"
-                )}
+                {deletingVpc === deleteConfirm?.vpcId ? "Deleting..." : "Delete VPC"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
