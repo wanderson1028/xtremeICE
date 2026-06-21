@@ -1228,36 +1228,51 @@ Deno.serve(async (req) => {
         // The Web Crypto API only supports OAEP, so we use node:crypto for v1.5 first.
         // See: https://docs.aws.amazon.com/AWSEC2/latest/WindowsGuide/ec2-key-pairs.html
 
-        // Try PKCS#1 v1.5 first (what AWS actually uses)
+        // Node crypto's createPrivateKey handles PKCS#1, PKCS#8, and SEC1 PEM formats.
+        // Then export to PKCS#8 PEM for privateDecrypt (Deno's polyfill requires PEM strings).
+        let pkcs8PemKey;
         try {
-          password = privateDecrypt(
-            { key: pemKey, padding: c.RSA_PKCS1_PADDING },
-            encryptedBuf,
-          ).toString("utf8");
-          console.log("[decrypt] PKCS1-v1.5: SUCCESS");
+          const keyObj = createPrivateKey(pemKey);
+          console.log("[decrypt] createPrivateKey: SUCCESS, type=" + (keyObj.type || keyObj.asymmetricKeyType || "unknown"));
+          pkcs8PemKey = keyObj.export({ type: "pkcs8", format: "pem" });
+          console.log(`[decrypt] PKCS8 export: ${pkcs8PemKey.length} chars, starts=${pkcs8PemKey.startsWith("-----")}`);
         } catch (e) {
-          lastError = e.message;
-          console.error(`[decrypt] PKCS1-v1.5 failed: ${e.message}`);
+          lastError = `PEM parse error: ${e.message}`;
+          console.error(`[decrypt] createPrivateKey/export failed: ${e.message}`);
+        }
 
-          // Try OAEP-SHA256
+        if (pkcs8PemKey) {
+          // Try PKCS#1 v1.5 first (what AWS actually uses)
           try {
             password = privateDecrypt(
-              { key: pemKey, padding: c.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" },
+              { key: pkcs8PemKey, padding: c.RSA_PKCS1_PADDING },
               encryptedBuf,
             ).toString("utf8");
-            console.log("[decrypt] OAEP-SHA256: SUCCESS");
-          } catch (e2) {
-            console.error(`[decrypt] OAEP-SHA256 failed: ${e2.message}`);
-            // Try OAEP-SHA1
+            console.log("[decrypt] PKCS1-v1.5: SUCCESS");
+          } catch (e) {
+            lastError = e.message;
+            console.error(`[decrypt] PKCS1-v1.5 failed: ${e.message}`);
+
+            // Try OAEP-SHA256
             try {
               password = privateDecrypt(
-                { key: pemKey, padding: c.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha1" },
+                { key: pkcs8PemKey, padding: c.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" },
                 encryptedBuf,
               ).toString("utf8");
-              console.log("[decrypt] OAEP-SHA1: SUCCESS");
-            } catch (e3) {
-              console.error(`[decrypt] OAEP-SHA1 failed: ${e3.message}`);
-              if (!lastError) lastError = e3.message;
+              console.log("[decrypt] OAEP-SHA256: SUCCESS");
+            } catch (e2) {
+              console.error(`[decrypt] OAEP-SHA256 failed: ${e2.message}`);
+              // Try OAEP-SHA1
+              try {
+                password = privateDecrypt(
+                  { key: pkcs8PemKey, padding: c.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha1" },
+                  encryptedBuf,
+                ).toString("utf8");
+                console.log("[decrypt] OAEP-SHA1: SUCCESS");
+              } catch (e3) {
+                console.error(`[decrypt] OAEP-SHA1 failed: ${e3.message}`);
+                if (!lastError) lastError = e3.message;
+              }
             }
           }
         }
@@ -1282,11 +1297,11 @@ Deno.serve(async (req) => {
             startsWithBegin: startsOk,
             endsWithEnd: endsOk,
             encryptedLength: encryptedBase64.length,
-            method: "WebCrypto-OAEP-SHA256 + fallbacks",
+            method: "PKCS1-v1.5 + OAEP fallbacks via node:crypto",
           },
           passwordData: encryptedBase64.slice(0, 100) + "...",
           timestamp: timestamp || null,
-          manualDecryptCmd: `openssl pkeyutl -decrypt -inkey <key>.pem -in <(echo "${encryptedBase64.slice(0, 50)}..." | base64 -d) -pkeyopt rsa_padding_mode:oaep`,
+          manualDecryptCmd: `openssl rsautl -decrypt -inkey <key>.pem -in <(echo "${encryptedBase64.slice(0, 50)}..." | base64 -d)`,
         });
       }
 
