@@ -73,6 +73,18 @@ export default function MyLabs() {
     queryFn: () => base44.entities.LiveFireFolder.list("sort_order", 200),
   });
 
+  // Fetch deployment errors for failed labs
+  const { data: deployments = [] } = useQuery({
+    queryKey: ["my-deployment-errors"],
+    queryFn: () => base44.entities.LiveFireDeployment.list("-created_date", 200),
+  });
+  const deploymentErrorMap = {};
+  deployments.forEach(d => {
+    if (d.error_message && d.lab_id) {
+      deploymentErrorMap[d.lab_id] = d.error_message;
+    }
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (lab) => {
       setDeletingLabId(lab.id);
@@ -409,7 +421,7 @@ export default function MyLabs() {
                     onDragStart={(e) => handleLabDragStart(e, lab.id)}
                     className="bg-gray-900/80 border border-red-900/30 hover:border-red-500/30 rounded-xl overflow-hidden transition-all group cursor-pointer"
                     onClick={() => {
-                      if (lab.status === "running" || lab.status === "deploying") {
+                      if (lab.status === "running" || lab.status === "deploying" || lab.status === "failed") {
                         navigate(`/live-lab-topology?lab=${lab.id}`);
                       } else {
                         navigate(`/lab-creation-wizard?lab=${lab.id}`);
@@ -455,6 +467,13 @@ export default function MyLabs() {
 
                       {lab.description && (
                         <p className="text-xs text-gray-500 line-clamp-2 mb-3">{lab.description}</p>
+                      )}
+
+                      {/* Show deployment error for failed labs */}
+                      {lab.status === "failed" && deploymentErrorMap[lab.id] && (
+                        <div className="mb-3 p-2 bg-red-950/20 border border-red-800/30 rounded-lg">
+                          <p className="text-[9px] font-mono text-red-400/80 line-clamp-3 break-all">{deploymentErrorMap[lab.id]}</p>
+                        </div>
                       )}
 
                       <div className="flex items-center justify-between text-[10px] font-mono text-gray-600">
