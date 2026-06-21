@@ -2,11 +2,14 @@ import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
   Layers, Plus, Search, Play, Pause,
   Trash2, Copy, Cloud, ArrowLeft,
   Loader2, XCircle, Folder, MoveHorizontal, Monitor
 } from "lucide-react";
+import AnimatedPage from "@/components/livefire/AnimatedPage";
+import { CardSkeleton } from "@/components/livefire/LoadingSkeleton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -293,7 +296,7 @@ export default function MyLabs() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-red-950/20">
+    <AnimatedPage className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-red-950/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
@@ -304,7 +307,9 @@ export default function MyLabs() {
             <h1 className="text-2xl font-bold text-white">My Labs</h1>
             <p className="text-sm text-gray-400 font-mono">Manage your cloud cyber range labs</p>
           </div>
-          <button
+          <motion.button
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
             onClick={handleCreateLab}
             disabled={creating}
             className="flex items-center gap-2 px-4 py-2 bg-red-700 hover:bg-red-600 disabled:bg-red-800 disabled:cursor-wait text-white rounded-lg font-mono text-sm font-bold transition-colors shadow-lg shadow-red-900/30 min-w-[110px] justify-center"
@@ -314,7 +319,7 @@ export default function MyLabs() {
             ) : (
               <><Plus className="h-4 w-4" /> New Lab</>
             )}
-          </button>
+          </motion.button>
         </div>
 
         {/* Error state */}
@@ -393,8 +398,8 @@ export default function MyLabs() {
 
             {/* Labs Grid */}
             {isLoading ? (
-              <div className="flex justify-center py-20">
-                <div className="w-8 h-8 border-2 border-red-600/30 border-t-red-500 rounded-full animate-spin" />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 py-4">
+                <CardSkeleton /><CardSkeleton /><CardSkeleton /><CardSkeleton />
               </div>
             ) : filtered.length === 0 ? (
               <div className="text-center py-20">
@@ -415,8 +420,9 @@ export default function MyLabs() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
                 {filtered.map(lab => (
-                  <div
+                  <motion.div
                     key={lab.id}
+                    whileHover={{ y: -2, boxShadow: "0 4px 20px rgba(239,68,68,0.1)" }}
                     draggable
                     onDragStart={(e) => handleLabDragStart(e, lab.id)}
                     className="bg-gray-900/80 border border-red-900/30 hover:border-red-500/30 rounded-xl overflow-hidden transition-all group cursor-pointer"
@@ -572,7 +578,7 @@ export default function MyLabs() {
                         </button>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             )}
@@ -668,6 +674,6 @@ export default function MyLabs() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </AnimatedPage>
   );
 }

@@ -9,6 +9,8 @@ import {
   BookOpen, MessageSquare, Plus, TrendingUp, Zap, Shield,
   ArrowRight, Layers, Wifi, Monitor, HardDrive, Loader2
 } from "lucide-react";
+import AnimatedPage from "@/components/livefire/AnimatedPage";
+import { CardSkeleton, StatCardSkeleton } from "@/components/livefire/LoadingSkeleton";
 
 function StatCard({ icon: Icon, label, value, sub, color = "red", trend }) {
   const colors = {
@@ -19,7 +21,10 @@ function StatCard({ icon: Icon, label, value, sub, color = "red", trend }) {
     purple: "from-purple-600/20 to-purple-800/10 border-purple-700/30",
   };
   return (
-    <div className={`bg-gradient-to-br ${colors[color]} border rounded-xl p-4 relative overflow-hidden`}>
+    <motion.div
+      whileHover={{ y: -2, transition: { duration: 0.2 } }}
+      className={`bg-gradient-to-br ${colors[color]} border rounded-xl p-4 relative overflow-hidden`}
+    >
       <div className="flex items-start justify-between">
         <div>
           <p className="text-[10px] font-mono text-gray-500 uppercase tracking-wider mb-1">{label}</p>
@@ -36,7 +41,7 @@ function StatCard({ icon: Icon, label, value, sub, color = "red", trend }) {
           <span className="text-[10px] font-mono text-green-400">{trend}</span>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -86,6 +91,7 @@ export default function LiveFireDashboard() {
   const runningDevices = activeLabs.reduce((sum, l) => sum + (l.device_count || 0), 0);
   const estCost = activeLabs.reduce((sum, l) => sum + (l.estimated_cost_hourly || 0), 0);
   const sharedLabs = myLabs.filter(l => l.visibility === "shared" || l.visibility === "public");
+  const isLoading = labsLoading;
 
   const handleCreateLab = async () => {
     setCreating(true);
@@ -117,7 +123,7 @@ export default function LiveFireDashboard() {
   }));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-red-950/20">
+    <AnimatedPage className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-red-950/20">
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-0 right-1/4 w-[600px] h-[500px] bg-orange-900/6 rounded-full blur-3xl" />
         <div className="absolute bottom-1/3 left-1/3 w-[500px] h-[400px] bg-red-900/6 rounded-full blur-3xl" />
@@ -128,6 +134,7 @@ export default function LiveFireDashboard() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
           className="flex items-center justify-between mb-8"
         >
           <div className="flex items-center gap-4">
@@ -154,10 +161,18 @@ export default function LiveFireDashboard() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatCard icon={Flame} label="Active Labs" value={activeLabs.length} sub={`${myLabs.length} total`} color="red" trend="+2 this week" />
-          <StatCard icon={Server} label="Running Devices" value={runningDevices} sub="across all labs" color="blue" />
-          <StatCard icon={Cloud} label="Cloud Utilization" value={`${Math.min(runningDevices * 5, 100)}%`} sub={`${runningDevices} instances`} color="purple" />
-          <StatCard icon={DollarSign} label="Est. Cost/hr" value={`$${estCost.toFixed(2)}`} sub="USD" color="green" />
+          {isLoading ? (
+            <>
+              <StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton />
+            </>
+          ) : (
+            <>
+              <StatCard icon={Flame} label="Active Labs" value={activeLabs.length} sub={`${myLabs.length} total`} color="red" trend="+2 this week" />
+              <StatCard icon={Server} label="Running Devices" value={runningDevices} sub="across all labs" color="blue" />
+              <StatCard icon={Cloud} label="Cloud Utilization" value={`${Math.min(runningDevices * 5, 100)}%`} sub={`${runningDevices} instances`} color="purple" />
+              <StatCard icon={DollarSign} label="Est. Cost/hr" value={`$${estCost.toFixed(2)}`} sub="USD" color="green" />
+            </>
+          )}
         </div>
 
         {/* Main Content Grid */}
@@ -178,8 +193,8 @@ export default function LiveFireDashboard() {
               </div>
               <div className="divide-y divide-gray-800/50">
                 {labsLoading ? (
-                  <div className="p-8 text-center">
-                    <div className="w-6 h-6 border-2 border-red-600/30 border-t-red-500 rounded-full animate-spin mx-auto" />
+                  <div className="p-4 space-y-2">
+                    <CardSkeleton /><CardSkeleton /><CardSkeleton />
                   </div>
                 ) : myLabs.length === 0 ? (
                   <div className="p-8 text-center">
@@ -188,21 +203,26 @@ export default function LiveFireDashboard() {
                   </div>
                 ) : (
                   myLabs.slice(0, 5).map(lab => (
-                    <Link key={lab.id} to={`/my-labs?lab=${lab.id}`} className="flex items-center justify-between px-5 py-3 hover:bg-red-950/10 transition-colors block">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`h-2 w-2 rounded-full shrink-0 ${lab.status === "running" ? "bg-green-500 animate-pulse" : lab.status === "deploying" ? "bg-yellow-500 animate-pulse" : lab.status === "failed" ? "bg-red-500" : "bg-gray-600"}`} />
-                        <div className="min-w-0">
-                          <p className="text-sm text-white truncate">{lab.name}</p>
-                          <p className="text-[10px] font-mono text-gray-500">{lab.category} · {lab.difficulty} · {lab.cloud_provider?.toUpperCase()}</p>
+                    <motion.div
+                      key={lab.id}
+                      whileHover={{ backgroundColor: "rgba(127,29,29,0.05)", x: 3, transition: { duration: 0.15 } }}
+                    >
+                      <Link to={`/my-labs?lab=${lab.id}`} className="flex items-center justify-between px-5 py-3 transition-colors block">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`h-2 w-2 rounded-full shrink-0 ${lab.status === "running" ? "bg-green-500 animate-pulse" : lab.status === "deploying" ? "bg-yellow-500 animate-pulse" : lab.status === "failed" ? "bg-red-500" : "bg-gray-600"}`} />
+                          <div className="min-w-0">
+                            <p className="text-sm text-white truncate">{lab.name}</p>
+                            <p className="text-[10px] font-mono text-gray-500">{lab.category} · {lab.difficulty} · {lab.cloud_provider?.toUpperCase()}</p>
+                          </div>
                         </div>
-                      </div>
-                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full shrink-0 ${
-                        lab.status === "running" ? "bg-green-900/30 text-green-400 border border-green-700/30" :
-                        lab.status === "deploying" ? "bg-yellow-900/30 text-yellow-400 border border-yellow-700/30" :
-                        lab.status === "failed" ? "bg-red-900/30 text-red-400 border border-red-700/30" :
-                        "bg-gray-800 text-gray-500 border border-gray-700/30"
-                      }`}>{lab.status}</span>
-                    </Link>
+                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full shrink-0 ${
+                          lab.status === "running" ? "bg-green-900/30 text-green-400 border border-green-700/30" :
+                          lab.status === "deploying" ? "bg-yellow-900/30 text-yellow-400 border border-yellow-700/30" :
+                          lab.status === "failed" ? "bg-red-900/30 text-red-400 border border-red-700/30" :
+                          "bg-gray-800 text-gray-500 border border-gray-700/30"
+                        }`}>{lab.status}</span>
+                      </Link>
+                    </motion.div>
                   ))
                 )}
               </div>
@@ -277,8 +297,10 @@ export default function LiveFireDashboard() {
                   { label: "Running Labs", icon: Activity, path: "/running-labs", color: "green" },
                   { label: "Images", icon: HardDrive, path: "/image-repository", color: "purple" },
                 ].map((btn) => (
-                  <button
+                  <motion.button
                     key={btn.label}
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
                     disabled={btn.loading}
                     onClick={() => btn.action ? btn.action() : navigate(btn.path)}
                     className={`flex flex-col items-center gap-1.5 p-3 rounded-xl bg-gray-800/60 border border-gray-700/50 hover:border-${btn.color}-700/50 hover:bg-${btn.color}-950/20 transition-all text-center disabled:opacity-60`}
@@ -289,7 +311,7 @@ export default function LiveFireDashboard() {
                       <btn.icon className={`h-5 w-5 text-${btn.color}-400`} />
                     )}
                     <span className="text-[10px] font-mono text-gray-300">{btn.loading ? "Creating..." : btn.label}</span>
-                  </button>
+                  </motion.button>
                 ))}
               </div>
             </div>
@@ -313,13 +335,14 @@ export default function LiveFireDashboard() {
                   </div>
                 ) : (
                   templates.slice(0, 4).map(t => (
-                    <div key={t.id} className="px-5 py-3 flex items-center justify-between hover:bg-red-950/10 transition-colors cursor-pointer">
+                    <motion.div key={t.id} className="px-5 py-3 flex items-center justify-between hover:bg-red-950/10 transition-colors cursor-pointer"
+                      whileHover={{ x: 2, transition: { duration: 0.15 } }}>
                       <div>
                         <p className="text-sm text-white">{t.name}</p>
                         <p className="text-[10px] font-mono text-gray-500">{t.category} · {t.difficulty}</p>
                       </div>
                       <span className="text-[10px] font-mono text-gray-500">{t.usage_count || 0} uses</span>
-                    </div>
+                    </motion.div>
                   ))
                 )}
               </div>
@@ -376,6 +399,6 @@ export default function LiveFireDashboard() {
           </div>
         </div>
       </div>
-    </div>
+    </AnimatedPage>
   );
 }
