@@ -5,7 +5,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Layers, Plus, Search, Play, Pause,
   Trash2, Copy, Cloud, ArrowLeft,
-  Loader2, XCircle, Folder, MoveHorizontal
+  Loader2, XCircle, Folder, MoveHorizontal, Monitor
 } from "lucide-react";
 import {
   AlertDialog,
@@ -492,6 +492,14 @@ export default function MyLabs() {
                             className="flex items-center gap-1 px-2.5 py-1.5 bg-red-900/30 border border-red-700/40 text-red-400 hover:bg-red-900/50 rounded-lg text-[10px] font-mono transition-colors"
                           >
                             <XCircle className="h-3 w-3" /> Retry
+                          </button>
+                        )}
+                        {(lab.status === "running" || lab.status === "deploying") && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); navigate(`/live-lab-topology?lab=${lab.id}`); }}
+                            className="flex items-center gap-1 px-2.5 py-1.5 bg-green-900/30 border border-green-700/40 text-green-400 hover:bg-green-900/50 rounded-lg text-[10px] font-mono transition-colors"
+                          >
+                            <Monitor className="h-3 w-3" /> Topology
                           </button>
                         )}
                         {lab.status === "running" && (

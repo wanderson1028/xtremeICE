@@ -171,6 +171,14 @@ export default function LabCreationWizard() {
             </h1>
             <p className="text-sm text-gray-400 font-mono">Cloud-Native Cyber Range Builder</p>
           </div>
+          {(existingLab?.status === "running" || existingLab?.status === "deploying") && (
+            <Link
+              to={`/live-lab-topology?lab=${existingLabId}`}
+              className="flex items-center gap-2 px-4 py-2 bg-green-900/40 border border-green-700/50 text-green-400 hover:bg-green-900/60 hover:text-green-300 rounded-lg text-xs font-mono font-bold transition-colors"
+            >
+              <Monitor className="h-4 w-4" /> View Topology
+            </Link>
+          )}
           {isAdmin && (
             <Badge className="bg-purple-900/30 text-purple-400 border-purple-700/30 gap-1">
               <Shield className="h-3 w-3" /> Admin Mode
