@@ -946,16 +946,180 @@ Deno.serve(async (req) => {
           const stateMatch = block.match(/<name>([^<]+)<\/name>/);
           const ipMatch = block.match(/<ipAddress>([^<]+)<\/ipAddress>/);
           const privMatch = block.match(/<privateIpAddress>([^<]+)<\/privateIpAddress>/);
+          const typeMatch = block.match(/<instanceType>([^<]+)<\/instanceType>/);
+          const launchMatch = block.match(/<launchTime>([^<]+)<\/launchTime>/);
           if (idMatch && stateMatch?.[1] !== "terminated") {
             instances.push({
               instanceId: idMatch[1],
               state: stateMatch[1],
               publicIp: ipMatch?.[1] || null,
               privateIp: privMatch?.[1] || null,
+              instanceType: typeMatch?.[1] || "unknown",
+              launchTime: launchMatch?.[1] || null,
+              region: region,
             });
           }
         }
         return Response.json({ region, instances, totalCount: instances.length });
+      }
+
+      case "listAllRegionInstances": {
+        // Query all major AWS regions for XtremeICE-managed instances
+        const ALL_REGIONS = [
+          "us-east-1", "us-east-2", "us-west-1", "us-west-2",
+          "eu-west-1", "eu-west-2", "eu-west-3", "eu-central-1", "eu-north-1",
+          "ap-southeast-1", "ap-southeast-2", "ap-northeast-1", "ap-northeast-2", "ap-south-1",
+          "sa-east-1", "ca-central-1",
+        ];
+
+        const allInstances = [];
+        const regionResults = [];
+        const filters = [{ Name: "tag:ManagedBy", Value: ["XtremeICE-LiveFire"] }];
+
+        for (const r of ALL_REGIONS) {
+          try {
+            const xml = await ec2Call("DescribeInstances", { Filter: filters }, r);
+            const reservationBlocks = xml.split("</reservationSet>")[0]?.split("<item>") || [];
+            let count = 0;
+            for (let i = 1; i < reservationBlocks.length; i++) {
+              const block = reservationBlocks[i];
+              const idMatch = block.match(/<instanceId>([^<]+)<\/instanceId>/);
+              const stateMatch = block.match(/<name>([^<]+)<\/name>/);
+              const ipMatch = block.match(/<ipAddress>([^<]+)<\/ipAddress>/);
+              const privMatch = block.match(/<privateIpAddress>([^<]+)<\/privateIpAddress>/);
+              const typeMatch = block.match(/<instanceType>([^<]+)<\/instanceType>/);
+              const launchMatch = block.match(/<launchTime>([^<]+)<\/launchTime>/);
+              if (idMatch && stateMatch?.[1] !== "terminated" && stateMatch?.[1] !== "shutting-down") {
+                allInstances.push({
+                  instanceId: idMatch[1],
+                  state: stateMatch[1],
+                  publicIp: ipMatch?.[1] || null,
+                  privateIp: privMatch?.[1] || null,
+                  instanceType: typeMatch?.[1] || "unknown",
+                  launchTime: launchMatch?.[1] || null,
+                  region: r,
+                });
+                count++;
+              }
+            }
+            regionResults.push({ region: r, count });
+          } catch (e) {
+            // Some regions may not be enabled — skip silently
+            regionResults.push({ region: r, count: 0, error: e.message });
+          }
+        }
+
+        return Response.json({
+          instances: allInstances,
+          totalCount: allInstances.length,
+          regions: regionResults,
+        });
+      }
+
+      case "listAllRegionVpcs": {
+        // Query all major AWS regions for VPCs with subnets and instances
+        const ALL_REGIONS = [
+          "us-east-1", "us-east-2", "us-west-1", "us-west-2",
+          "eu-west-1", "eu-west-2", "eu-west-3", "eu-central-1", "eu-north-1",
+          "ap-southeast-1", "ap-southeast-2", "ap-northeast-1", "ap-northeast-2", "ap-south-1",
+          "sa-east-1", "ca-central-1",
+        ];
+
+        const allVpcs = [];
+        const regionResults = [];
+
+        for (const r of ALL_REGIONS) {
+          try {
+            const vpcXml = await ec2Call("DescribeVpcs", {}, r);
+            const vpcs = [];
+            const vpcRegex = /<item>\s*<vpcId>([^<]+)<\/vpcId>[\s\S]*?<cidrBlock>([^<]+)<\/cidrBlock>[\s\S]*?<state>([^<]+)<\/state>[\s\S]*?<isDefault>([^<]+)<\/isDefault>[\s\S]*?<tagSet>([\s\S]*?)<\/tagSet>[\s\S]*?(?=<\/item>)/g;
+            for (const m of vpcXml.matchAll(vpcRegex)) {
+              vpcs.push({
+                vpcId: m[1],
+                cidrBlock: m[2],
+                state: m[3],
+                isDefault: m[4] === "true",
+                name: extractTag(m[5], "Name") || m[1],
+                labId: extractTag(m[5], "LabId") || null,
+                managedBy: extractTag(m[5], "ManagedBy") || null,
+                region: r,
+              });
+            }
+
+            // Get subnets for VPCs in this region
+            let subnetsByVpc = {};
+            try {
+              const subXml = await ec2Call("DescribeSubnets", {}, r);
+              for (const m of subXml.matchAll(/<item>\s*<subnetId>([^<]+)<\/subnetId>[\s\S]*?<vpcId>([^<]+)<\/vpcId>[\s\S]*?<cidrBlock>([^<]+)<\/cidrBlock>[\s\S]*?<availabilityZone>([^<]+)<\/availabilityZone>[\s\S]*?<availableIpAddressCount>(\d+)<\/availableIpAddressCount>/g)) {
+                const vpcId = m[2];
+                if (!subnetsByVpc[vpcId]) subnetsByVpc[vpcId] = [];
+                subnetsByVpc[vpcId].push({
+                  subnetId: m[1], cidrBlock: m[3],
+                  availabilityZone: m[4], availableIps: parseInt(m[5]),
+                });
+              }
+            } catch (e) { /* skip */ }
+
+            // Get instance counts per VPC in this region
+            let instancesByVpc = {};
+            try {
+              const instXml = await ec2Call("DescribeInstances", {}, r);
+              const instBlocks = instXml.split("</reservationSet>")[0]?.split("<item>") || [];
+              for (let i = 1; i < instBlocks.length; i++) {
+                const block = instBlocks[i];
+                const vpcMatch = block.match(/<vpcId>([^<]+)<\/vpcId>/);
+                const stateMatch = block.match(/<name>([^<]+)<\/name>/);
+                if (vpcMatch && stateMatch?.[1] !== "terminated" && stateMatch?.[1] !== "shutting-down") {
+                  instancesByVpc[vpcMatch[1]] = (instancesByVpc[vpcMatch[1]] || 0) + 1;
+                }
+              }
+            } catch (e) { /* skip */ }
+
+            for (const vpc of vpcs) {
+              allVpcs.push({
+                ...vpc,
+                subnets: subnetsByVpc[vpc.vpcId] || [],
+                instanceCount: instancesByVpc[vpc.vpcId] || 0,
+              });
+            }
+            regionResults.push({ region: r, vpcCount: vpcs.length });
+          } catch (e) {
+            regionResults.push({ region: r, vpcCount: 0, error: e.message });
+          }
+        }
+
+        // Cross-reference with labs
+        let labsByVpc = {};
+        try {
+          const allLabs = await base44.asServiceRole.entities.LiveFireLab.filter({});
+          for (const lab of allLabs) {
+            if (lab.vpc_id) labsByVpc[lab.vpc_id] = lab;
+          }
+        } catch (e) { /* skip */ }
+
+        const enrichedVpcs = allVpcs.map(vpc => {
+          const linkedLab = labsByVpc[vpc.vpcId] || null;
+          const isOrphaned = !vpc.isDefault && vpc.instanceCount === 0 && !linkedLab;
+          return {
+            ...vpc,
+            linkedLab: linkedLab ? { id: linkedLab.id, name: linkedLab.name, status: linkedLab.status } : null,
+            isOrphaned,
+          };
+        });
+
+        enrichedVpcs.sort((a, b) => {
+          if (a.isDefault && !b.isDefault) return -1;
+          if (!a.isDefault && b.isDefault) return 1;
+          if (a.isOrphaned && !b.isOrphaned) return 1;
+          if (!a.isOrphaned && b.isOrphaned) return -1;
+          return a.cidrBlock.localeCompare(b.cidrBlock);
+        });
+
+        return Response.json({
+          vpcs: enrichedVpcs,
+          totalCount: enrichedVpcs.length,
+          regions: regionResults,
+        });
       }
 
       case "createKeyPair": {

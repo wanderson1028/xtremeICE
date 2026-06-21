@@ -48,10 +48,10 @@ export default function CloudResources() {
 
   // ── Instances query ──
   const { data: instancesData, isLoading: instLoading, refetch: refetchInstances } = useQuery({
-    queryKey: ["all-instances"],
+    queryKey: ["all-region-instances"],
     queryFn: async () => {
       const res = await base44.functions.invoke("cloudProviderAWS", {
-        action: "listInstances",
+        action: "listAllRegionInstances",
         params: {},
       });
       return res.data;
@@ -76,10 +76,10 @@ export default function CloudResources() {
 
   // ── VPCs query ──
   const { data: vpcData, isLoading: vpcsLoading, refetch: refetchVpcs } = useQuery({
-    queryKey: ["all-vpcs"],
+    queryKey: ["all-region-vpcs"],
     queryFn: async () => {
       const res = await base44.functions.invoke("cloudProviderAWS", {
-        action: "listAllVpcs",
+        action: "listAllRegionVpcs",
         params: {},
       });
       return res.data;
@@ -174,6 +174,7 @@ export default function CloudResources() {
       ram: device?.ram_mb || 4096,
       isWindows: (device?.access_method || "").toLowerCase() === "rdp" || (device?.name || "").toLowerCase().includes("windows"),
       accessMethod: device?.access_method || "ssh",
+      region: inst.region || device?.region || "us-east-1",
     };
   });
 
@@ -194,7 +195,9 @@ export default function CloudResources() {
 
   // ── VPC data ──
   const vpcs = vpcData?.vpcs || [];
-  const region = vpcData?.region || "us-east-1";
+  const vpcRegions = instancesData?.regions || vpcData?.regions || [];
+  const activeRegions = vpcRegions.filter(r => r.count > 0 || r.vpcCount > 0).length;
+  const totalRegions = vpcRegions.length;
   const orphanCount = vpcs.filter(v => v.isOrphaned).length;
   const inUseCount = vpcs.filter(v => !v.isOrphaned && !v.isDefault).length;
 
@@ -271,8 +274,8 @@ export default function CloudResources() {
             <p className="text-xl font-bold text-amber-400">{orphanCount}</p>
           </div>
           <div className="bg-gray-900/80 border border-blue-800/30 rounded-xl p-3.5">
-            <p className="text-[10px] font-mono text-gray-500 uppercase mb-1">Region</p>
-            <p className="text-lg font-bold text-blue-400 font-mono">{region}</p>
+            <p className="text-[10px] font-mono text-gray-500 uppercase mb-1">Regions</p>
+            <p className="text-lg font-bold text-blue-400 font-mono">{activeRegions}<span className="text-sm text-gray-600">/{totalRegions}</span></p>
           </div>
         </div>
 
@@ -368,6 +371,7 @@ export default function CloudResources() {
                           <span className="text-[9px] font-mono text-gray-500">{inst.privateIp}</span>
                         )}
                         <span className="text-[9px] font-mono text-gray-600">{inst.cpu}vCPU / {inst.ram}MB</span>
+                        <span className="text-[9px] font-mono text-blue-400/70">{inst.region}</span>
                       </div>
                     </div>
 
@@ -464,6 +468,11 @@ export default function CloudResources() {
                               className="flex items-center gap-1 text-[9px] font-mono px-2 py-0.5 rounded-full bg-green-900/30 text-green-400 border border-green-700/30 hover:bg-green-800/30 transition-colors">
                               {vpc.linkedLab.name} <ExternalLink className="h-2.5 w-2.5" />
                             </Link>
+                          )}
+                          {vpc.region && (
+                            <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-blue-900/30 text-blue-400 border border-blue-700/30">
+                              {vpc.region}
+                            </span>
                           )}
                           {vpc.instanceCount > 0 && (
                             <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-cyan-900/30 text-cyan-400 border border-cyan-700/30">
