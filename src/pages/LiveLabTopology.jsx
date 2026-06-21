@@ -5,12 +5,12 @@ import { Link, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, Terminal, Wifi, Plus, X, Play, Square, RefreshCw, ExternalLink,
   ChevronRight, Cpu, HardDrive, Network, Globe, Zap, Download, Key, Check,
-  Power, PowerOff, Rocket, Server
+  Power, PowerOff, Rocket, Server, Wand2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import DeviceIconRenderer, { getDeviceIcon } from "@/components/livefire/DeviceIcons";
+import DeviceIconRenderer, { getDeviceIcon, getIconOptions } from "@/components/livefire/DeviceIcons";
 
 const TYPE_COLORS = {
   router: "border-amber-500 bg-amber-500/10", switch: "border-cyan-500 bg-cyan-500/10",
@@ -92,8 +92,22 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
   const [verifying, setVerifying] = useState(false);
   const [deviceAction, setDeviceAction] = useState(null); // 'stopping' | 'starting'
   const [rdpCopied, setRdpCopied] = useState(false);
+  const [showIconPicker, setShowIconPicker] = useState(false);
   const status = deployed?.status || "pending";
   const isWindows = (deployed?.access_method || device.access_method) === "rdp";
+
+  const handleChangeIcon = async (iconId) => {
+    const topologyData = lab?.topology_data || {};
+    const devices = [...(topologyData.devices || [])];
+    const idx = devices.findIndex(d => d.id === device.id);
+    if (idx !== -1) {
+      devices[idx] = { ...devices[idx], icon_id: iconId };
+      await base44.entities.LiveFireLab.update(labId, {
+        topology_data: { ...topologyData, devices },
+      });
+      queryClient.invalidateQueries(["livefire-lab", labId]);
+    }
+  };
 
   const handleDownloadKey = () => {
     if (!lab?.ssh_private_key) return;
@@ -248,6 +262,42 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
           <Badge className={`text-[10px] font-mono ${status === "running" ? "bg-green-900/40 text-green-400 border-green-700/40" : status === "provisioning" ? "bg-yellow-900/40 text-yellow-400 border-yellow-700/40" : "bg-gray-800 text-gray-400 border-gray-700"}`}>
             {status}
           </Badge>
+        </div>
+
+        {/* Icon Picker */}
+        <div>
+          <button
+            onClick={() => setShowIconPicker(!showIconPicker)}
+            className="flex items-center justify-between w-full text-[9px] font-mono text-gray-500 hover:text-gray-300 transition-colors uppercase"
+          >
+            <span className="flex items-center gap-1"><Wand2 className="h-2.5 w-2.5" /> Icon Style</span>
+            <span className="text-gray-600">{showIconPicker ? "▲" : "▼"}</span>
+          </button>
+          {showIconPicker && (
+            <div className="mt-2 grid grid-cols-3 gap-1.5">
+              {getIconOptions(device.type).map(opt => {
+                const isActive = (device.icon_id || device.type) === opt.id;
+                return (
+                  <button key={opt.id}
+                    onClick={() => handleChangeIcon(opt.id)}
+                    className={`flex flex-col items-center gap-1 p-2 rounded-lg border transition-all ${
+                      isActive
+                        ? "bg-red-900/30 border-red-600/60"
+                        : "bg-gray-800/60 border-gray-700 hover:border-gray-600"
+                    }`}
+                    title={opt.label}
+                  >
+                    <div className={`w-6 h-6 ${isActive ? "text-red-400" : "text-gray-500"}`}>
+                      <DeviceIconRenderer type={opt.id} iconId={opt.id} className={isActive ? "text-red-400" : "text-gray-500"} />
+                    </div>
+                    <span className={`text-[7px] font-mono truncate w-full text-center ${isActive ? "text-red-300" : "text-gray-600"}`}>
+                      {opt.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Specs */}
