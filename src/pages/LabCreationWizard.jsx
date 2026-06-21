@@ -50,6 +50,7 @@ export default function LabCreationWizard() {
     region: "us-west-2",
     auto_shutdown_minutes: 0,
     collaboration_enabled: false,
+    folder_id: null,
     topology_data: {
       devices: [],
       connections: [],
@@ -68,6 +69,22 @@ export default function LabCreationWizard() {
     queryFn: () => base44.auth.me(),
   });
   const isAdmin = currentUser?.role === "admin";
+
+  const { data: folders = [] } = useQuery({
+    queryKey: ["livefire-folders"],
+    queryFn: () => base44.entities.LiveFireFolder.list("sort_order", 200),
+  });
+
+  const getFolderPath = (folderId) => {
+    if (!folderId) return "Uncategorized";
+    const parts = [];
+    let current = folders.find(f => f.id === folderId);
+    while (current) {
+      parts.unshift(current.name);
+      current = folders.find(f => f.id === current.parent_folder_id);
+    }
+    return parts.join(" / ");
+  };
 
   // Load existing lab
   const { data: existingLab } = useQuery({
@@ -90,6 +107,7 @@ export default function LabCreationWizard() {
         region: existingLab.region || "us-west-2",
         auto_shutdown_minutes: existingLab.auto_shutdown_minutes || 0,
         collaboration_enabled: existingLab.collaboration_enabled || false,
+        folder_id: existingLab.folder_id || null,
         topology_data: {
           devices: existingTopology.devices || [],
           connections: existingTopology.connections || [],
@@ -115,6 +133,7 @@ export default function LabCreationWizard() {
         region: form.region,
         auto_shutdown_minutes: form.auto_shutdown_minutes,
         collaboration_enabled: form.collaboration_enabled,
+        folder_id: form.folder_id || null,
         topology_data: form.topology_data,
         device_count: form.topology_data?.devices?.length || 0,
         status: existingLab?.status || "draft",
@@ -248,6 +267,20 @@ export default function LabCreationWizard() {
                     onChange={e => update("tags", e.target.value)}
                     className="bg-gray-800 border-gray-700 text-white h-10"
                   />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-mono text-gray-400 block mb-1.5">Folder</label>
+                  <select
+                    value={form.folder_id || ""}
+                    onChange={e => update("folder_id", e.target.value || null)}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white text-sm px-3 py-2.5 h-10 max-w-xs"
+                  >
+                    <option value="">Uncategorized</option>
+                    {folders.map(f => (
+                      <option key={f.id} value={f.id}>{getFolderPath(f.id)}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
@@ -443,6 +476,7 @@ export default function LabCreationWizard() {
                     { label: "Visibility", value: form.visibility },
                     { label: "Cloud Provider", value: form.cloud_provider?.toUpperCase() },
                     { label: "Region", value: form.region },
+                    { label: "Folder", value: getFolderPath(form.folder_id) },
                     { label: "Devices", value: form.topology_data?.devices?.length || 0 },
                     { label: "Auto Shutdown", value: form.auto_shutdown_minutes > 0 ? `${form.auto_shutdown_minutes} min` : "Disabled" },
                   ].map(item => (
