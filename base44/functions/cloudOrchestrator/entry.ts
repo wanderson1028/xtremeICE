@@ -150,6 +150,7 @@ Deno.serve(async (req) => {
               securityGroupIds = sgData?.securityGroupIds || [];
             } catch { /* will create new SG below */ }
 
+            effectiveCidr = existingVpc.cidrBlock;
             networkData = {
               vpcId: existingVpcId,
               vpcCidr: existingVpc.cidrBlock,
@@ -168,8 +169,9 @@ Deno.serve(async (req) => {
           }
         }
 
+        let effectiveCidr = vpcConfig.cidr || "10.1.0.0/16";
         if (!networkData) {
-          const deployCidr = vpcConfig.cidr || "10.1.0.0/16";
+          const deployCidr = effectiveCidr;
 
           // Pre-flight CIDR conflict check — auto-resolve if conflict
           console.log("[deployLab] Step 1: suggestCidr...");
@@ -185,7 +187,7 @@ Deno.serve(async (req) => {
             throw e;
           }
           const cidrCheckData = cidrCheck?.data || cidrCheck;
-          let effectiveCidr = deployCidr;
+          effectiveCidr = deployCidr;
           const cidrChanged = cidrCheckData?.check?.conflict;
           if (cidrChanged) {
             effectiveCidr = cidrCheckData.suggested_cidr || "10.100.0.0/16";
@@ -407,7 +409,7 @@ Deno.serve(async (req) => {
           devices_deployed: deployedDevices.length,
           vpc_id: networkData?.vpcId,
           vpc_cidr: effectiveCidr,
-          cidr_auto_resolved: effectiveCidr !== deployCidr,
+          cidr_auto_resolved: effectiveCidr !== (vpcConfig.cidr || "10.1.0.0/16"),
           subnet_ids: networkData?.subnets,
           security_group_id: networkData?.securityGroupId,
           estimated_cost_hourly: deployedDevices.length * 0.15,
