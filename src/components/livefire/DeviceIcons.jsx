@@ -256,58 +256,23 @@ export const DEVICE_ICONS = {
   monitoring: MonitoringIcon,
 };
 
-// Alternative icon options for each device type (enables icon switching)
-export const DEVICE_ICON_OPTIONS = {
-  server: [
-    { id: "server", label: "Server Rack", icon: ServerIcon },
-    { id: "workstation", label: "Desktop", icon: WorkstationIcon },
-    { id: "monitoring", label: "Monitor", icon: MonitoringIcon },
-  ],
-  router: [
-    { id: "router", label: "Router", icon: RouterIcon },
-    { id: "switch", label: "Switch", icon: SwitchIcon },
-    { id: "load_balancer", label: "Load Balancer", icon: LoadBalancerIcon },
-  ],
-  switch: [
-    { id: "switch", label: "Switch", icon: SwitchIcon },
-    { id: "router", label: "Router", icon: RouterIcon },
-    { id: "load_balancer", label: "Load Balancer", icon: LoadBalancerIcon },
-  ],
-  firewall: [
-    { id: "firewall", label: "Firewall", icon: FirewallIcon },
-    { id: "security_appliance", label: "Security Appliance", icon: SecurityApplianceIcon },
-  ],
-  workstation: [
-    { id: "workstation", label: "Desktop", icon: WorkstationIcon },
-    { id: "server", label: "Server", icon: ServerIcon },
-    { id: "monitoring", label: "Monitor", icon: MonitoringIcon },
-  ],
-  cloud_resource: [
-    { id: "cloud_resource", label: "Cloud Resource", icon: CloudIcon },
-    { id: "server", label: "Server", icon: ServerIcon },
-  ],
-  container: [
-    { id: "container", label: "Container", icon: ContainerIcon },
-    { id: "server", label: "Server", icon: ServerIcon },
-  ],
-  load_balancer: [
-    { id: "load_balancer", label: "Load Balancer", icon: LoadBalancerIcon },
-    { id: "router", label: "Router", icon: RouterIcon },
-    { id: "switch", label: "Switch", icon: SwitchIcon },
-  ],
-  security_appliance: [
-    { id: "security_appliance", label: "Security Appliance", icon: SecurityApplianceIcon },
-    { id: "firewall", label: "Firewall", icon: FirewallIcon },
-  ],
-  monitoring: [
-    { id: "monitoring", label: "Monitoring", icon: MonitoringIcon },
-    { id: "server", label: "Server", icon: ServerIcon },
-  ],
-};
+// Full icon catalog — every device can use any icon
+const ALL_ICONS = [
+  { id: "server", label: "Server Rack", icon: ServerIcon },
+  { id: "workstation", label: "Desktop", icon: WorkstationIcon },
+  { id: "router", label: "Router", icon: RouterIcon },
+  { id: "switch", label: "Switch", icon: SwitchIcon },
+  { id: "firewall", label: "Firewall", icon: FirewallIcon },
+  { id: "cloud_resource", label: "Cloud", icon: CloudIcon },
+  { id: "container", label: "Container", icon: ContainerIcon },
+  { id: "load_balancer", label: "Load Balancer", icon: LoadBalancerIcon },
+  { id: "security_appliance", label: "Security App", icon: SecurityApplianceIcon },
+  { id: "monitoring", label: "Monitor", icon: MonitoringIcon },
+];
 
-// Get available icon choices for a device type
+// Get available icon choices — returns all icons so any device can pick any icon
 export function getIconOptions(deviceType) {
-  return DEVICE_ICON_OPTIONS[deviceType] || [];
+  return ALL_ICONS;
 }
 
 // Get the icon component by ID (maps to one of the DEVICE_ICONS keys)

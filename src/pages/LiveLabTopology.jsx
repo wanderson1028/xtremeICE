@@ -92,7 +92,6 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
   const [verifying, setVerifying] = useState(false);
   const [deviceAction, setDeviceAction] = useState(null); // 'stopping' | 'starting'
   const [rdpCopied, setRdpCopied] = useState(false);
-  const [showIconPicker, setShowIconPicker] = useState(false);
   const status = deployed?.status || "pending";
   const isWindows = (deployed?.access_method || device.access_method) === "rdp";
 
@@ -264,40 +263,35 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
           </Badge>
         </div>
 
-        {/* Icon Picker */}
-        <div>
-          <button
-            onClick={() => setShowIconPicker(!showIconPicker)}
-            className="flex items-center justify-between w-full text-[9px] font-mono text-gray-500 hover:text-gray-300 transition-colors uppercase"
-          >
-            <span className="flex items-center gap-1"><Wand2 className="h-2.5 w-2.5" /> Icon Style</span>
-            <span className="text-gray-600">{showIconPicker ? "▲" : "▼"}</span>
-          </button>
-          {showIconPicker && (
-            <div className="mt-2 grid grid-cols-3 gap-1.5">
-              {getIconOptions(device.type).map(opt => {
-                const isActive = (device.icon_id || device.type) === opt.id;
-                return (
-                  <button key={opt.id}
-                    onClick={() => handleChangeIcon(opt.id)}
-                    className={`flex flex-col items-center gap-1 p-2 rounded-lg border transition-all ${
-                      isActive
-                        ? "bg-red-900/30 border-red-600/60"
-                        : "bg-gray-800/60 border-gray-700 hover:border-gray-600"
-                    }`}
-                    title={opt.label}
-                  >
-                    <div className={`w-6 h-6 ${isActive ? "text-red-400" : "text-gray-500"}`}>
-                      <DeviceIconRenderer type={opt.id} iconId={opt.id} className={isActive ? "text-red-400" : "text-gray-500"} />
-                    </div>
-                    <span className={`text-[7px] font-mono truncate w-full text-center ${isActive ? "text-red-300" : "text-gray-600"}`}>
-                      {opt.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+        {/* Icon Picker — always visible */}
+        <div className="bg-gray-800/40 rounded-lg p-3 border border-gray-700/60">
+          <div className="flex items-center gap-1.5 mb-2.5">
+            <Wand2 className="h-3 w-3 text-amber-400" />
+            <span className="text-[10px] font-mono text-amber-400 uppercase tracking-wider font-bold">Icon Style</span>
+          </div>
+          <div className="grid grid-cols-5 gap-1.5">
+            {getIconOptions(device.type).map(opt => {
+              const isActive = (device.icon_id || device.type) === opt.id;
+              return (
+                <button key={opt.id}
+                  onClick={() => handleChangeIcon(opt.id)}
+                  className={`flex flex-col items-center gap-1 p-2 rounded-lg border transition-all ${
+                    isActive
+                      ? "bg-red-900/40 border-red-500/70 shadow-[0_0_8px_rgba(239,68,68,0.2)]"
+                      : "bg-gray-800/80 border-gray-600/60 hover:border-red-700/40 hover:bg-gray-750"
+                  }`}
+                  title={opt.label}
+                >
+                  <div className={`w-7 h-7 ${isActive ? "text-red-400" : "text-gray-400"}`}>
+                    <DeviceIconRenderer type={opt.id} iconId={opt.id} className={isActive ? "text-red-400" : "text-gray-400"} />
+                  </div>
+                  <span className={`text-[8px] font-mono leading-tight text-center ${isActive ? "text-red-300 font-bold" : "text-gray-500"}`}>
+                    {opt.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Specs */}
