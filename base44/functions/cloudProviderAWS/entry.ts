@@ -1220,6 +1220,91 @@ Deno.serve(async (req) => {
         return Response.json({ securityGroupIds: ids, vpcId: vpc_id, region });
       }
 
+      case "verifyKeyPair": {
+        // Diagnostic: check if a given PEM private key matches the key pair on an EC2 instance.
+        // Returns fingerprints and whether they match.
+        const { instance_id, private_key_pem } = params;
+
+        // 1. Get the instance's key name
+        const instXml = await ec2Call("DescribeInstances", { InstanceId: [instance_id] }, region);
+        const keyNameMatch = instXml.match(/<keyName>([^<]+)<\/keyName>/);
+        const instanceKeyName = keyNameMatch?.[1] || null;
+
+        // 2. Get the key pair fingerprint from AWS
+        let awsFingerprint = null;
+        let awsKeyMaterialMd5 = null;
+        if (instanceKeyName) {
+          try {
+            const keyXml = await ec2Call("DescribeKeyPairs", { KeyName: [instanceKeyName] }, region);
+            awsFingerprint = keyXml.match(/<keyFingerprint>([^<]+)<\/keyFingerprint>/)?.[1] || null;
+          } catch (e) {
+            console.error(`[verifyKeyPair] Could not describe key pair: ${e.message}`);
+          }
+        }
+
+        // 3. Compute fingerprint from the PEM private key
+        let pemFingerprint = null;
+        let pemParseError = null;
+        try {
+          const { createPrivateKey, createPublicKey } = await import("node:crypto");
+          const privKeyObj = createPrivateKey(pemKey);
+          // Extract public key from private key
+          const pubKey = createPublicKey(privKeyObj);
+          const pubPem = pubKey.export({ type: "spki", format: "pem" });
+
+          // Compute MD5 fingerprint (AWS-style: MD5 of DER-encoded public key)
+          const pubBase64 = pubPem
+            .replace(/-----(BEGIN|END) PUBLIC KEY-----/g, "")
+            .replace(/\s/g, "");
+          const pubDer = await import("node:buffer").then(m => m.Buffer.from(pubBase64, "base64"));
+          const md5Hash = await crypto.subtle.digest("MD5", pubDer);
+          const md5Array = Array.from(new Uint8Array(md5Hash));
+          pemFingerprint = md5Array.map(b => b.toString(16).padStart(2, "0")).join(":");
+        } catch (e) {
+          pemParseError = e.message;
+          console.error(`[verifyKeyPair] PEM parse failed: ${e.message}`);
+        }
+
+        // 4. Try the decrypt itself and capture the exact error
+        let decryptError = null;
+        try {
+          const encryptedXml = await ec2Call("GetPasswordData", { InstanceId: instance_id }, region);
+          const enc = encryptedXml.match(/<passwordData>([^<]*)<\/passwordData>/)?.[1] || "";
+          if (enc && enc.trim()) {
+            const encBuf = await import("node:buffer").then(m => m.Buffer.from(enc, "base64"));
+            const { createPrivateKey: cpk } = await import("node:crypto");
+            const keyObj = cpk(pemKey);
+            const jwk = keyObj.export({ format: "jwk" });
+            const cryptoKey = await crypto.subtle.importKey("jwk", jwk, { name: "RSA-OAEP", hash: "SHA-256" }, false, ["decrypt"]);
+            await crypto.subtle.decrypt({ name: "RSA-OAEP" }, cryptoKey, encBuf);
+          } else {
+            decryptError = "Password data not yet available";
+          }
+        } catch (e) {
+          decryptError = e.message;
+        }
+
+        const fingerprintsMatch = pemFingerprint && awsFingerprint
+          ? pemFingerprint.toLowerCase() === awsFingerprint.toLowerCase()
+          : null;
+
+        return Response.json({
+          instanceId: instance_id,
+          instanceKeyName,
+          awsFingerprint,
+          pemFingerprint,
+          fingerprintsMatch,
+          pemParseError,
+          decryptError: decryptError || null,
+          region,
+          verdict: fingerprintsMatch === true
+            ? "Keys match — decryption should work. Check decryptError for crypto issue."
+            : fingerprintsMatch === false
+              ? "KEY MISMATCH — the stored PEM key does NOT match the key pair used to launch this instance. The lab may have been re-deployed with a new key."
+              : "Could not verify — missing fingerprint data.",
+        });
+      }
+
       case "deleteKeyPair": {
         const { key_name } = params;
         await ec2Call("DeleteKeyPair", { KeyName: key_name }, region);

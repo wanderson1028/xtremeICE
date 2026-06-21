@@ -94,6 +94,8 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
   const [passwordData, setPasswordData] = useState(null);
   const [loadingPassword, setLoadingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState(null);
+  const [verifyResult, setVerifyResult] = useState(null);
+  const [verifying, setVerifying] = useState(false);
   const [deviceAction, setDeviceAction] = useState(null); // 'stopping' | 'starting'
   const status = deployed?.status || "pending";
   const isWindows = (deployed?.access_method || device.access_method) === "rdp";
@@ -148,6 +150,27 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
       setPasswordError(err?.response?.data?.error || err?.message || "Failed to retrieve password data");
     } finally {
       setLoadingPassword(false);
+    }
+  };
+
+  const handleVerifyKey = async () => {
+    if (!deployed?.instance_id) return;
+    setVerifying(true);
+    setVerifyResult(null);
+    try {
+      const res = await base44.functions.invoke("cloudProviderAWS", {
+        action: "verifyKeyPair",
+        params: {
+          instance_id: deployed.instance_id,
+          private_key_pem: lab?.ssh_private_key || "",
+          region: lab?.region || "us-east-1",
+        },
+      });
+      setVerifyResult(res.data);
+    } catch (err) {
+      setVerifyResult({ verdict: "Error: " + (err?.response?.data?.error || err?.message) });
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -349,6 +372,37 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
                 <><Key className="h-3.5 w-3.5 mr-1.5" /> Get Windows Admin Password</>
               )}
             </Button>
+
+            {/* Diagnostic: Verify key match */}
+            <Button
+              onClick={handleVerifyKey}
+              disabled={verifying}
+              size="sm"
+              variant="ghost"
+              className="w-full border-gray-700/40 text-gray-400 hover:text-white text-[9px] h-7"
+            >
+              {verifying ? (
+                <><RefreshCw className="h-3 w-3 animate-spin mr-1" /> Checking...</>
+              ) : (
+                <>🔍 Verify Key Match</>
+              )}
+            </Button>
+
+            {verifyResult && (
+              <div className={`bg-gray-800/60 rounded-lg p-2 border text-[9px] font-mono ${
+                verifyResult.fingerprintsMatch === true
+                  ? "border-green-700/40 text-green-400"
+                  : verifyResult.fingerprintsMatch === false
+                    ? "border-red-700/40 text-red-400"
+                    : "border-yellow-700/40 text-yellow-400"
+              }`}>
+                <p className="font-bold">{verifyResult.verdict}</p>
+                {verifyResult.instanceKeyName && <p className="mt-1 text-gray-500">Instance key: {verifyResult.instanceKeyName}</p>}
+                {verifyResult.awsFingerprint && <p className="text-gray-500">AWS fingerprint: {verifyResult.awsFingerprint}</p>}
+                {verifyResult.pemFingerprint && <p className="text-gray-500">PEM fingerprint: {verifyResult.pemFingerprint}</p>}
+                {verifyResult.decryptError && <p className="mt-1 text-gray-500">Decrypt error: {verifyResult.decryptError}</p>}
+              </div>
+            )}
 
             {passwordError && (
               <p className="text-[9px] text-red-400 font-mono text-center">{passwordError}</p>
