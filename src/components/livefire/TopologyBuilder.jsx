@@ -878,170 +878,312 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                 </div>
               )}
 
-              {rightPanel === "network" && (
+              {rightPanel === "network" && (() => {
+                // Count devices per subnet
+                const devicesPerSubnet = {};
+                devices.forEach(d => {
+                  const sn = d.subnet || "public";
+                  devicesPerSubnet[sn] = (devicesPerSubnet[sn] || 0) + 1;
+                });
+
+                return (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 pb-2 border-b border-gray-800">
                     <Globe className="h-4 w-4 text-cyan-400" />
                     <span className="text-xs font-bold text-white font-mono">VPC Configuration</span>
                   </div>
 
-                  {/* Existing VPC Selector */}
+                  {/* VPC Mode: Existing vs New */}
                   <div>
-                    <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">Existing VPC</label>
-                    <div className="flex gap-1.5">
-                      <select
-                        value={selectedExistingVpc || ""}
-                        onChange={(e) => selectExistingVpc(e.target.value || null)}
-                        onClick={() => { if (existingVpcs.length === 0) fetchExistingVpcs(); }}
-                        onFocus={() => { if (existingVpcs.length === 0) fetchExistingVpcs(); }}
-                        className="flex-1 bg-gray-800 border border-gray-700 rounded-lg text-white text-[10px] font-mono px-2.5 py-2 outline-none focus:border-cyan-500/50"
-                      >
-                        <option value="">— New VPC —</option>
-                        {existingVpcs.filter(v => !v.isDefault).map(vpc => (
-                          <option key={vpc.vpcId} value={vpc.vpcId}>
-                            {vpc.name || vpc.cidrBlock} ({vpc.cidrBlock}) {vpc.isOrphaned ? "[unused]" : ""}
-                          </option>
-                        ))}
-                      </select>
-                      <button onClick={fetchExistingVpcs} disabled={loadingVpcs}
-                        className="text-[10px] font-mono px-2.5 py-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-400 hover:text-white transition-colors disabled:opacity-50 whitespace-nowrap">
-                        {loadingVpcs ? "..." : <RefreshCw className="h-3 w-3" />}
+                    <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1.5">VPC Source</label>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        onClick={() => { selectExistingVpc(null); setVpcSubnetOptions(null); }}
+                        className={`text-[9px] font-mono px-2.5 py-2 rounded-lg border transition-colors text-center ${
+                          !selectedExistingVpc
+                            ? "bg-cyan-900/30 border-cyan-600/60 text-cyan-300"
+                            : "bg-gray-800/40 border-gray-700/40 text-gray-400 hover:text-cyan-400 hover:border-cyan-700/40"
+                        }`}>
+                        <Plus className="h-3 w-3 inline mr-1" />New VPC
+                      </button>
+                      <button
+                        onClick={() => { fetchExistingVpcs(); }}
+                        className={`text-[9px] font-mono px-2.5 py-2 rounded-lg border transition-colors text-center ${
+                          selectedExistingVpc
+                            ? "bg-cyan-900/30 border-cyan-600/60 text-cyan-300"
+                            : "bg-gray-800/40 border-gray-700/40 text-gray-400 hover:text-cyan-400 hover:border-cyan-700/40"
+                        }`}>
+                        <RefreshCw className="h-3 w-3 inline mr-1" />Existing
                       </button>
                     </div>
-                    {selectedExistingVpc && (
-                      <p className="text-[8px] font-mono text-cyan-500/70 mt-1">
-                        Using existing VPC — CIDR: {vpcConfig.cidr}
-                      </p>
-                    )}
                   </div>
 
-                  <div>
-                    <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">CIDR Block</label>
-                    <div className="flex gap-1.5">
-                      <input value={vpcConfig.cidr}
-                        onChange={(e) => { updateVpcConfig({ cidr: e.target.value }); setSelectedExistingVpc(null); }}
-                        className={`flex-1 bg-gray-800 border rounded-lg text-white text-xs px-2.5 py-2 font-mono outline-none ${
-                          cidrConflict?.conflict ? "border-red-500/60" : "border-gray-700 focus:border-cyan-500/50"
-                        }`} />
-                      <button onClick={fetchCidrSuggestion} disabled={suggestingCidr}
-                        className="text-[10px] font-mono px-2.5 py-2 rounded-lg bg-cyan-900/30 border border-cyan-700/40 text-cyan-400 hover:bg-cyan-800/40 transition-colors disabled:opacity-50 whitespace-nowrap">
-                        {suggestingCidr ? "..." : "Suggest"}
-                      </button>
-                    </div>
-                    {cidrConflict?.conflict && (
-                      <div className="mt-1.5 p-2 rounded-lg bg-red-950/30 border border-red-800/40 text-red-300 text-[9px] font-mono">
-                        <p className="flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> CIDR conflict</p>
-                        {cidrConflict.suggested && (
-                          <button onClick={() => updateVpcConfig({ cidr: cidrConflict.suggested })}
-                            className="mt-1 text-cyan-400 hover:text-cyan-300 underline">
-                            Use: {cidrConflict.suggested}
-                          </button>
+                  {/* Existing VPC Selector */}
+                  {selectedExistingVpc ? (
+                    <>
+                      <div>
+                        <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">Select VPC</label>
+                        <div className="flex gap-1.5">
+                          <select
+                            value={selectedExistingVpc}
+                            onChange={(e) => selectExistingVpc(e.target.value || null)}
+                            className="flex-1 bg-gray-800 border border-gray-700 rounded-lg text-white text-[10px] font-mono px-2.5 py-2 outline-none focus:border-cyan-500/50"
+                          >
+                            <option value="">— Choose —</option>
+                            {existingVpcs.filter(v => !v.isDefault).map(vpc => (
+                              <option key={vpc.vpcId} value={vpc.vpcId}>
+                                {vpc.name || vpc.cidrBlock} ({vpc.cidrBlock}) {vpc.isOrphaned ? "[unused]" : `[${vpc.instanceCount} inst]`}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        {selectedExistingVpc && (
+                          <div className="mt-1.5 bg-cyan-950/20 border border-cyan-800/30 rounded-lg p-2">
+                            <p className="text-[9px] font-mono text-cyan-400 font-bold">{vpcConfig.cidr}</p>
+                            <p className="text-[8px] font-mono text-cyan-600">
+                              {existingVpcs.find(v => v.vpcId === selectedExistingVpc)?.instanceCount || 0} running instances
+                            </p>
+                          </div>
                         )}
                       </div>
-                    )}
-                  </div>
 
-                  {/* Subnet Options from VPC CIDR */}
-                  {vpcSubnetOptions && (
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider">
-                          Subnets from {vpcConfig.cidr}
-                        </label>
-                        <span className="text-[7px] font-mono text-gray-600">
-                          {vpcSubnetOptions.availableCount} available / {vpcSubnetOptions.subnetCount} total
-                        </span>
-                      </div>
-                      {loadingSubnets ? (
-                        <div className="flex justify-center py-3">
-                          <div className="w-4 h-4 border-2 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin" />
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-3 gap-1 max-h-36 overflow-y-auto">
-                          {vpcSubnetOptions.subnets.filter(s => !s.isTaken).slice(0, 24).map(s => {
-                            const isSelected = vpcConfig.subnets.some(sub => sub.cidr === s.cidr);
-                            return (
-                              <button key={s.cidr}
-                                onClick={() => applySubnetFromVpc(s.cidr)}
-                                className={`text-[9px] font-mono px-1.5 py-1.5 rounded border text-center transition-colors ${
-                                  isSelected
-                                    ? "bg-cyan-900/30 border-cyan-600/60 text-cyan-300"
-                                    : "bg-gray-800/40 border-gray-700/40 text-gray-400 hover:text-cyan-400 hover:border-cyan-700/40"
-                                }`}>
-                                {s.cidr.split("/")[0].split(".").pop()}
-                              </button>
-                            );
-                          })}
+                      {/* Subnet Options from existing VPC */}
+                      {vpcSubnetOptions && (
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider">
+                              Available Subnets
+                            </label>
+                            <span className="text-[7px] font-mono text-gray-600">
+                              {vpcConfig.subnets.length} selected / {vpcSubnetOptions.availableCount} free
+                            </span>
+                          </div>
+                          {loadingSubnets ? (
+                            <div className="flex justify-center py-3">
+                              <div className="w-4 h-4 border-2 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin" />
+                            </div>
+                          ) : (
+                            <div className="space-y-1 max-h-48 overflow-y-auto">
+                              {vpcSubnetOptions.subnets.filter(s => !s.isTaken).slice(0, 24).map(s => {
+                                const isSelected = vpcConfig.subnets.some(sub => sub.cidr === s.cidr);
+                                const devsOnSubnet = devices.filter(d => d.subnet === (vpcConfig.subnets.find(sub => sub.cidr === s.cidr)?.name || "")).length;
+                                return (
+                                  <button key={s.cidr}
+                                    onClick={() => applySubnetFromVpc(s.cidr)}
+                                    className={`w-full text-left text-[9px] font-mono px-2.5 py-2 rounded-lg border transition-colors flex items-center justify-between ${
+                                      isSelected
+                                        ? "bg-cyan-900/30 border-cyan-600/60 text-cyan-300"
+                                        : "bg-gray-800/40 border-gray-700/40 text-gray-400 hover:text-cyan-400 hover:border-cyan-700/40"
+                                    }`}>
+                                    <span className="truncate">{s.cidr}</span>
+                                    <span className="text-[8px] shrink-0 ml-2">
+                                      {isSelected && devsOnSubnet > 0
+                                        ? <span className="text-green-400">{devsOnSubnet} device{devsOnSubnet > 1 ? "s" : ""}</span>
+                                        : isSelected ? <Check className="h-3 w-3 text-cyan-400" /> : null}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       )}
+                    </>
+                  ) : (
+                    <>
+                      {/* New VPC CIDR */}
+                      <div>
+                        <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">CIDR Block</label>
+                        <div className="flex gap-1.5">
+                          <input value={vpcConfig.cidr}
+                            onChange={(e) => updateVpcConfig({ cidr: e.target.value })}
+                            className={`flex-1 bg-gray-800 border rounded-lg text-white text-xs px-2.5 py-2 font-mono outline-none ${
+                              cidrConflict?.conflict ? "border-red-500/60" : "border-gray-700 focus:border-cyan-500/50"
+                            }`} />
+                          <button onClick={fetchCidrSuggestion} disabled={suggestingCidr}
+                            className="text-[10px] font-mono px-2.5 py-2 rounded-lg bg-cyan-900/30 border border-cyan-700/40 text-cyan-400 hover:bg-cyan-800/40 transition-colors disabled:opacity-50 whitespace-nowrap">
+                            {suggestingCidr ? "..." : "Suggest"}
+                          </button>
+                        </div>
+                        {cidrConflict?.conflict && (
+                          <div className="mt-1.5 p-2 rounded-lg bg-red-950/30 border border-red-800/40 text-red-300 text-[9px] font-mono">
+                            <p className="flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> CIDR conflict</p>
+                            {cidrConflict.suggested && (
+                              <button onClick={() => updateVpcConfig({ cidr: cidrConflict.suggested })}
+                                className="mt-1 text-cyan-400 hover:text-cyan-300 underline">
+                                Use: {cidrConflict.suggested}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Derived subnets preview */}
+                      {vpcConfig.cidr && !selectedExistingVpc && (() => {
+                        const parts = vpcConfig.cidr.split("/")[0].split(".").map(Number);
+                        const prefix = `${parts[0]}.${parts[1]}`;
+                        const derivedSubnets = [
+                          { name: "public", cidr: `${prefix}.1.0/24` },
+                          { name: "private", cidr: `${prefix}.2.0/24` },
+                        ];
+                        return (
+                          <div>
+                            <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">Derived Subnets</label>
+                            <div className="space-y-1">
+                              {derivedSubnets.map(s => {
+                                const isSelected = vpcConfig.subnets.some(sub => sub.cidr === s.cidr);
+                                const devsOnSubnet = devices.filter(d => d.subnet === s.name).length;
+                                return (
+                                  <button key={s.cidr}
+                                    onClick={() => {
+                                      if (isSelected) {
+                                        updateVpcConfig({ subnets: vpcConfig.subnets.filter(sub => sub.cidr !== s.cidr) });
+                                      } else {
+                                        updateVpcConfig({ subnets: [...vpcConfig.subnets, { ...s, zone: `${region}a` }] });
+                                      }
+                                    }}
+                                    className={`w-full text-left text-[9px] font-mono px-2.5 py-2 rounded-lg border transition-colors flex items-center justify-between ${
+                                      isSelected
+                                        ? "bg-cyan-900/30 border-cyan-600/60 text-cyan-300"
+                                        : "bg-gray-800/40 border-gray-700/40 text-gray-400 hover:text-cyan-400 hover:border-cyan-700/40"
+                                    }`}>
+                                    <span>{s.name} <span className="text-[8px] opacity-60">({s.cidr})</span></span>
+                                    <span className="text-[8px] shrink-0 ml-2">
+                                      {devsOnSubnet > 0 && <span className="text-green-400">{devsOnSubnet}</span>}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </>
+                  )}
+
+                  {/* Internet Gateway (new VPC only) */}
+                  {!selectedExistingVpc && (
+                    <div>
+                      <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">Internet Gateway</label>
+                      <button onClick={() => updateVpcConfig({ enableInternetGateway: !vpcConfig.enableInternetGateway })}
+                        className={`w-full text-left text-[10px] font-mono px-2.5 py-2 rounded-lg border transition-colors ${
+                          vpcConfig.enableInternetGateway ? "bg-green-900/20 border-green-700/40 text-green-400" : "bg-gray-800 border-gray-700 text-gray-500"
+                        }`}>{vpcConfig.enableInternetGateway ? "✓ Enabled" : "Disabled"}</button>
                     </div>
                   )}
 
-                  <div>
-                    <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">Internet Gateway</label>
-                    <button onClick={() => updateVpcConfig({ enableInternetGateway: !vpcConfig.enableInternetGateway })}
-                      className={`w-full text-left text-[10px] font-mono px-2.5 py-2 rounded-lg border transition-colors ${
-                        vpcConfig.enableInternetGateway ? "bg-green-900/20 border-green-700/40 text-green-400" : "bg-gray-800 border-gray-700 text-gray-500"
-                      }`}>{vpcConfig.enableInternetGateway ? "✓ Enabled" : "Disabled"}</button>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider">Subnets</label>
-                      <button onClick={addSubnet} className="text-[8px] font-mono text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
-                        <Plus className="h-2.5 w-2.5" /> Custom
-                      </button>
-                    </div>
-                    <div className="space-y-1.5">
-                      {vpcConfig.subnets.map((subnet, idx) => (
-                        <div key={idx} className="bg-black/30 rounded-lg border border-gray-800 p-2.5 space-y-1.5">
-                          <div className="flex items-center gap-1.5">
-                            <input value={subnet.name} onChange={(e) => updateSubnet(idx, { name: e.target.value })}
-                              className="flex-1 bg-gray-800 border border-gray-700 rounded text-white text-[10px] font-mono px-2 py-1" placeholder="Name" />
-                            <button onClick={() => removeSubnet(idx)} className="text-gray-500 hover:text-red-400"><X className="h-3 w-3" /></button>
+                  {/* Device Assignments */}
+                  {vpcConfig.subnets.length > 0 && devices.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider">Device Assignments</label>
+                        <span className="text-[7px] font-mono text-gray-600">{devices.length} devices</span>
+                      </div>
+                      <div className="space-y-1 max-h-40 overflow-y-auto">
+                        {vpcConfig.subnets.map(sn => {
+                          const snDevices = devices.filter(d => (d.subnet || "public") === sn.name);
+                          return (
+                            <div key={sn.name} className="bg-black/30 rounded-lg border border-gray-800 p-2">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[9px] font-mono font-bold text-gray-300">{sn.name}</span>
+                                <span className="text-[7px] font-mono text-gray-500">{sn.cidr}</span>
+                              </div>
+                              {snDevices.length === 0 ? (
+                                <p className="text-[8px] font-mono text-gray-600 italic">No devices assigned</p>
+                              ) : (
+                                <div className="space-y-0.5">
+                                  {snDevices.map(d => (
+                                    <div key={d.id} className="flex items-center gap-1.5 text-[8px] font-mono text-gray-400">
+                                      <div className={`w-1.5 h-1.5 rounded-full ${TYPE_ICON_COLORS[d.type] || "bg-gray-500"}`} />
+                                      <span className="truncate flex-1">{d.name}</span>
+                                      <span className="text-gray-600">{d.type}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {/* Unassigned devices */}
+                      {(() => {
+                        const assignedNames = vpcConfig.subnets.map(s => s.name);
+                        const unassigned = devices.filter(d => !assignedNames.includes(d.subnet || "public"));
+                        if (unassigned.length === 0) return null;
+                        return (
+                          <div className="mt-1 bg-amber-950/20 border border-amber-800/30 rounded-lg p-2">
+                            <p className="text-[8px] font-mono text-amber-400 mb-1">Unmatched subnet</p>
+                            {unassigned.map(d => (
+                              <div key={d.id} className="flex items-center gap-1.5 text-[8px] font-mono text-amber-300/70">
+                                <span className="truncate flex-1">{d.name}</span>
+                                <span className="text-amber-500">→ {d.subnet || "public"}</span>
+                              </div>
+                            ))}
                           </div>
-                          <div className="flex gap-1.5">
-                            <input value={subnet.cidr} onChange={(e) => updateSubnet(idx, { cidr: e.target.value })}
-                              className="flex-1 bg-gray-800 border border-gray-700 rounded text-white text-[10px] font-mono px-2 py-1" placeholder="CIDR" />
-                            <input value={subnet.zone} onChange={(e) => updateSubnet(idx, { zone: e.target.value })}
-                              className="w-24 bg-gray-800 border border-gray-700 rounded text-white text-[10px] font-mono px-2 py-1" placeholder="Zone" />
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {/* Custom subnet management (new VPC only) */}
+                  {!selectedExistingVpc && (
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider">Custom Subnets</label>
+                        <button onClick={addSubnet} className="text-[8px] font-mono text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+                          <Plus className="h-2.5 w-2.5" /> Add
+                        </button>
+                      </div>
+                      <div className="space-y-1.5">
+                        {vpcConfig.subnets.map((subnet, idx) => (
+                          <div key={idx} className="bg-black/30 rounded-lg border border-gray-800 p-2 space-y-1">
+                            <div className="flex items-center gap-1.5">
+                              <input value={subnet.name} onChange={(e) => updateSubnet(idx, { name: e.target.value })}
+                                className="flex-1 bg-gray-800 border border-gray-700 rounded text-white text-[10px] font-mono px-2 py-1" placeholder="Name" />
+                              <button onClick={() => removeSubnet(idx)} className="text-gray-500 hover:text-red-400"><X className="h-3 w-3" /></button>
+                            </div>
+                            <div className="flex gap-1.5">
+                              <input value={subnet.cidr} onChange={(e) => updateSubnet(idx, { cidr: e.target.value })}
+                                className="flex-1 bg-gray-800 border border-gray-700 rounded text-white text-[10px] font-mono px-2 py-1" placeholder="CIDR" />
+                              <input value={subnet.zone} onChange={(e) => updateSubnet(idx, { zone: e.target.value })}
+                                className="w-24 bg-gray-800 border border-gray-700 rounded text-white text-[10px] font-mono px-2 py-1" placeholder="Zone" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Security Groups (new VPC only) */}
+                  {!selectedExistingVpc && (
+                    <div>
+                      <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">Security Groups</label>
+                      {vpcConfig.securityGroups.map((sg, sgIdx) => (
+                        <div key={sgIdx} className="bg-black/30 rounded-lg border border-gray-800 p-2.5 mb-1.5">
+                          <input value={sg.name}
+                            onChange={(e) => {
+                              const sgs = [...vpcConfig.securityGroups];
+                              sgs[sgIdx] = { ...sgs[sgIdx], name: e.target.value };
+                              updateVpcConfig({ securityGroups: sgs });
+                            }}
+                            className="w-full bg-gray-800 border border-gray-700 rounded text-white text-[10px] font-mono px-2 py-1 mb-1.5" placeholder="SG Name" />
+                          <div className="space-y-1">
+                            {sg.rules.map((rule, rIdx) => (
+                              <div key={rIdx} className="flex items-center gap-1 text-[9px] font-mono text-gray-400 bg-gray-800/40 rounded px-2 py-1">
+                                <Lock className="h-2.5 w-2.5 text-cyan-400 shrink-0" />
+                                <span>{rule.protocol}:{rule.port}</span>
+                                <span className="text-gray-600">←</span>
+                                <span className="truncate">{rule.source}</span>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       ))}
-                      {vpcConfig.subnets.length === 0 && !vpcSubnetOptions && (
-                        <p className="text-[9px] font-mono text-gray-600 text-center py-3">
-                          Pick a VPC above to browse subnets, or add custom subnets
-                        </p>
-                      )}
                     </div>
-                  </div>
-
-                  <div>
-                    <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">Security Groups</label>
-                    {vpcConfig.securityGroups.map((sg, sgIdx) => (
-                      <div key={sgIdx} className="bg-black/30 rounded-lg border border-gray-800 p-2.5 mb-1.5">
-                        <input value={sg.name}
-                          onChange={(e) => {
-                            const sgs = [...vpcConfig.securityGroups];
-                            sgs[sgIdx] = { ...sgs[sgIdx], name: e.target.value };
-                            updateVpcConfig({ securityGroups: sgs });
-                          }}
-                          className="w-full bg-gray-800 border border-gray-700 rounded text-white text-[10px] font-mono px-2 py-1 mb-1.5" placeholder="SG Name" />
-                        <div className="space-y-1">
-                          {sg.rules.map((rule, rIdx) => (
-                            <div key={rIdx} className="flex items-center gap-1 text-[9px] font-mono text-gray-400 bg-gray-800/40 rounded px-2 py-1">
-                              <Lock className="h-2.5 w-2.5 text-cyan-400 shrink-0" />
-                              <span>{rule.protocol}:{rule.port}</span>
-                              <span className="text-gray-600">←</span>
-                              <span className="truncate">{rule.source}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  )}
                 </div>
-              )}
+                );
+              })()}
             </div>
           </div>
         )}
