@@ -5,7 +5,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, Server, Router, Shield, Monitor, Cloud, Terminal,
   Wifi, Plus, X, Play, Square, RefreshCw, ExternalLink,
-  ChevronRight, Cpu, HardDrive, Network, Globe, Zap, Download, Key,
+  ChevronRight, Cpu, HardDrive, Network, Globe, Zap, Download, Key, Check,
   Power, PowerOff, Rocket
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -97,6 +97,7 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
   const [verifyResult, setVerifyResult] = useState(null);
   const [verifying, setVerifying] = useState(false);
   const [deviceAction, setDeviceAction] = useState(null); // 'stopping' | 'starting'
+  const [rdpCopied, setRdpCopied] = useState(false);
   const status = deployed?.status || "pending";
   const isWindows = (deployed?.access_method || device.access_method) === "rdp";
 
@@ -217,10 +218,15 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
     const user = deployed.default_username || (method === "rdp" ? "Administrator" : "ec2-user");
 
     if (method === "ssh") {
-      // Open SSH connection — user must download the key first
       window.open(`ssh://${user}@${deployed.public_ip}:${port}`, "_blank");
     } else if (method === "rdp") {
-      window.open(`rdp://${user}@${deployed.public_ip}:${port}`, "_blank");
+      // RDP needs a native client — copy connection info and show instructions
+      const rdpInfo = `IP: ${deployed.public_ip}\nPort: ${port}\nUsername: ${user}`;
+      try {
+        await navigator.clipboard.writeText(rdpInfo);
+        setRdpCopied(true);
+        setTimeout(() => setRdpCopied(false), 3000);
+      } catch { /* clipboard may not be available */ }
     } else if (deployed.access_url) {
       window.open(deployed.access_url, "_blank");
     }
@@ -332,12 +338,14 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
           onClick={handleConnect}
           disabled={!deployed?.public_ip || connecting || status !== "running"}
           size="sm"
-          className="w-full bg-green-700 hover:bg-green-600 disabled:bg-gray-800 disabled:text-gray-600 text-white"
+          className={`w-full disabled:bg-gray-800 disabled:text-gray-600 text-white ${isWindows && rdpCopied ? "bg-cyan-700 hover:bg-cyan-600" : "bg-green-700 hover:bg-green-600"}`}
         >
           {connecting ? (
             <><RefreshCw className="h-3.5 w-3.5 animate-spin mr-1.5" /> Connecting...</>
+          ) : isWindows && rdpCopied ? (
+            <><Check className="h-3.5 w-3.5 mr-1.5" /> Connection Info Copied</>
           ) : deployed?.public_ip ? (
-            <><Terminal className="h-3.5 w-3.5 mr-1.5" /> Connect ({deployed.access_method || "ssh"})</>
+            <><Terminal className="h-3.5 w-3.5 mr-1.5" /> {isWindows ? "Copy RDP Info" : `Connect (${deployed.access_method || "ssh"})`}</>
           ) : (
             <><Wifi className="h-3.5 w-3.5 mr-1.5" /> No public IP</>
           )}

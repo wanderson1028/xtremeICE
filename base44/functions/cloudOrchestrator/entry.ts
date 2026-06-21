@@ -292,7 +292,7 @@ Deno.serve(async (req) => {
             deployedDevices.push(responseData);
 
             // Update device record in database
-            const defaultUser = device.default_username || (device.type === "workstation" && device.access_method === "rdp" ? "Administrator" : "ec2-user");
+            const defaultUser = device.default_username || (device.access_method === "rdp" ? "Administrator" : "ec2-user");
             await base44.asServiceRole.entities.LiveFireDevice.create({
               lab_id,
               name: device.name,
