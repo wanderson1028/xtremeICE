@@ -45,7 +45,8 @@ Return a JSON object with these fields:
             prerequisites: { type: "array", items: { type: "string" } },
             tags: { type: "array", items: { type: "string" } },
             modules: { type: "array", items: { type: "object" } },
-          }
+          },
+          required: ["title", "description", "difficulty", "estimated_duration_minutes", "nice_category", "nice_work_role", "nice_task_ids", "nice_ksa_ids", "objectives", "prerequisites", "tags", "modules"]
         }
       });
 
