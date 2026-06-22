@@ -214,7 +214,6 @@ const AuthenticatedApp = () => {
       <Route path="/EigrpLab" element={<LayoutWrapper currentPageName="EigrpLab"><EigrpLab /></LayoutWrapper>} />
       <Route path="/FirewallLab" element={<LayoutWrapper currentPageName="FirewallLab"><FirewallLab /></LayoutWrapper>} />
       <Route path="/training-catalog" element={<LayoutWrapper currentPageName="TrainingCatalog"><TrainingCatalog /></LayoutWrapper>} />
-      <Route path="/lab-builder" element={<LayoutWrapper currentPageName="LabBuilder"><LabBuilder /></LayoutWrapper>} />
       {/* Live Fire Cyber Range Module */}
       <Route path="/LiveFireDashboard" element={<LayoutWrapper currentPageName="LiveFireDashboard"><LiveFireDashboard /></LayoutWrapper>} />
       <Route path="/my-labs" element={<LayoutWrapper currentPageName="MyLabs"><MyLabs /></LayoutWrapper>} />

@@ -89,40 +89,6 @@
     },
     "thumbnail_url": {
       "type": "string"
-    },
-    "steps": {
-      "type": "array",
-      "items": {
-        "type": "object"
-      },
-      "description": "Ordered lab instructions/steps for the student"
-    },
-    "lab_learning_purpose": {
-      "type": "string",
-      "description": "What the student should learn from this lab"
-    },
-    "lab_authenticity": {
-      "type": "string",
-      "description": "Realism/authenticity notes for the lab scenario"
-    },
-    "lab_guidance": {
-      "type": "string",
-      "description": "Guidance notes for instructors or students"
-    },
-    "nice_mapping_notes": {
-      "type": "string",
-      "description": "Notes on how this lab maps to the NICE Framework"
-    },
-    "nice_evidence_of_performance": {
-      "type": "string",
-      "description": "How student performance is evidenced"
-    },
-    "nice_rubric_criteria": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "description": "Scoring rubric criteria aligned to NICE"
     }
   },
   "required": [

@@ -1,199 +1,156 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, Save, Loader2, CheckCircle2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import React, { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { useQueryClient } from "@tanstack/react-query";
-import StepIndicator from "@/components/labbuilder/StepIndicator";
-import StepBasics from "@/components/labbuilder/StepBasics";
-import StepEnvironment from "@/components/labbuilder/StepEnvironment";
-import StepContent from "@/components/labbuilder/StepContent";
-import StepNiceMapping from "@/components/labbuilder/StepNiceMapping";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight, Check } from "lucide-react";
 
-const STEP_TITLES = ["Lab Basics", "Environment", "Content & Steps", "NICE Framework Mapping"];
+import Step1Basics from "@/components/labs/builder/Step1Basics";
+import Step2Environment from "@/components/labs/builder/Step2Environment";
+import Step3Content from "@/components/labs/builder/Step3Content";
+import Step4Assessment from "@/components/labs/builder/Step4Assessment";
+import Step5NiceMapping from "@/components/labs/builder/Step5NiceMapping";
+
+const STEPS = ["Basics", "Environment", "Content", "Assessment", "NICE Mapping"];
+
+const DEFAULT_FORM = {
+  title: "", description: "", difficulty: "Beginner",
+  estimated_duration_minutes: 60, tags: [], status: "draft",
+  environment_profile_id: "",
+  objectives: [], prerequisites: [], passing_score: 70,
+  nice_category: "", nice_work_role: "", nice_task_ids: [], nice_ksa_ids: [],
+};
 
 export default function LabBuilder() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [currentStep, setCurrentStep] = useState(0);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const urlParams = new URLSearchParams(window.location.search);
+  const editId = urlParams.get("id");
 
-  const [data, setData] = useState({
-    title: "",
-    description: "",
-    difficulty: "Beginner",
-    estimated_duration_minutes: 60,
-    tags: [],
-    prerequisites: [],
-    environment_profile_id: "",
-    network_topology: { name: "", description: "", devices: [] },
-    objectives: [],
-    steps: [],
-    lab_learning_purpose: "",
-    lab_authenticity: "",
-    lab_guidance: "",
-    nice_category: "",
-    nice_work_role: "",
-    nice_task_ids: [],
-    nice_ksa_ids: [],
-    nice_mapping_notes: "",
-    nice_evidence_of_performance: "",
-    nice_rubric_criteria: [],
-    status: "draft",
-    version: "1.0",
+  const [step, setStep] = useState(0);
+  const [form, setForm] = useState(DEFAULT_FORM);
+  const [modules, setModules] = useState([]);
+  const [saving, setSaving] = useState(false);
+
+  const { data: existing } = useQuery({
+    queryKey: ["lab-template", editId],
+    queryFn: () => base44.entities.LabTemplate.filter({ id: editId }).then(r => r[0]),
+    enabled: !!editId,
   });
 
-  const update = (patch) => setData((prev) => ({ ...prev, ...patch }));
+  const { data: existingModules = [] } = useQuery({
+    queryKey: ["lab-modules", editId],
+    queryFn: () => base44.entities.CourseModule.filter({ template_id: editId }),
+    enabled: !!editId,
+  });
 
-  const canProceed = () => {
-    if (currentStep === 0) return data.title?.trim() && data.difficulty;
-    if (currentStep === 3) return data.nice_category;
-    return true;
-  };
+  useEffect(() => {
+    if (existing) setForm({ ...DEFAULT_FORM, ...existing });
+  }, [existing]);
 
-  const handleNext = () => {
-    if (!canProceed()) return;
-    setCurrentStep((s) => Math.min(s + 1, 3));
-  };
+  useEffect(() => {
+    if (existingModules.length) setModules(existingModules);
+  }, [existingModules]);
 
-  const handleBack = () => setCurrentStep((s) => Math.max(s - 1, 0));
+  const updateForm = (updates) => setForm(prev => ({ ...prev, ...updates }));
 
-  const handleSave = async (publish = false) => {
-    if (!data.title?.trim() || !data.nice_category || !data.difficulty) {
-      alert("Please complete required fields: Title, Difficulty (Basics) and NICE Category (NICE Mapping).");
-      return;
-    }
+  const handleSave = async () => {
     setSaving(true);
     try {
-      const payload = { ...data };
-      if (publish) payload.status = "published";
-
-      await base44.entities.LabTemplate.create(payload);
+      let templateId = editId;
+      if (editId) {
+        await base44.entities.LabTemplate.update(editId, form);
+      } else {
+        const created = await base44.entities.LabTemplate.create(form);
+        templateId = created.id;
+      }
+      // Sync modules: delete removed, create/update remaining
+      for (const mod of existingModules) {
+        if (!modules.find(m => m.id === mod.id)) {
+          await base44.entities.CourseModule.delete(mod.id);
+        }
+      }
+      for (const mod of modules) {
+        if (mod.id) {
+          await base44.entities.CourseModule.update(mod.id, { ...mod, template_id: templateId });
+        } else {
+          await base44.entities.CourseModule.create({ ...mod, template_id: templateId });
+        }
+      }
       queryClient.invalidateQueries({ queryKey: ["lab-templates"] });
-      setSaved(true);
-      setTimeout(() => navigate("/training-catalog"), 1500);
-    } catch (err) {
-      alert("Failed to save lab: " + err.message);
+      navigate("/LabTemplates");
     } finally {
       setSaving(false);
     }
   };
 
-  const renderStep = () => {
-    switch (currentStep) {
-      case 0:
-        return <StepBasics data={data} update={update} />;
-      case 1:
-        return <StepEnvironment data={data} update={update} />;
-      case 2:
-        return <StepContent data={data} update={update} />;
-      case 3:
-        return <StepNiceMapping data={data} update={update} />;
-      default:
-        return null;
-    }
-  };
-
-  if (saved) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-black via-gray-950 to-red-950/20">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center"
-        >
-          <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-white">Lab Saved!</h2>
-          <p className="text-gray-400 text-sm mt-1">Redirecting to catalog...</p>
-        </motion.div>
-      </div>
-    );
-  }
+  const stepProps = { form, updateForm };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-red-950/10">
-      {/* Header */}
-      <div className="border-b border-gray-800 bg-black/50 px-6 py-5">
-        <div className="max-w-3xl mx-auto">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-xl font-semibold text-gray-100 tracking-tight">Lab Builder</h1>
-              <p className="text-gray-400 text-sm mt-0.5">
-                {STEP_TITLES[currentStep]} — Step {currentStep + 1} of 4
-              </p>
-            </div>
-            <Button
-              variant="ghost"
-              onClick={() => navigate("/training-catalog")}
-              className="text-gray-400 hover:text-white"
-            >
-              Cancel
-            </Button>
-          </div>
-          <StepIndicator currentStep={currentStep} />
+    <div className="min-h-screen bg-gray-950 p-6">
+      <div className="max-w-3xl mx-auto">
+        <Link to="/LabBuilderDashboard" className="inline-flex items-center gap-1 text-gray-400 hover:text-white text-sm mb-5 transition-colors">
+          <ChevronLeft className="h-4 w-4" /> Course Lab Builder
+        </Link>
+
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-white">{editId ? "Edit Lab Template" : "Create Lab Template"}</h1>
+          <p className="text-gray-400 text-sm mt-1">Build a NICE Framework-aligned lab course</p>
         </div>
-      </div>
 
-      {/* Form Body */}
-      <div className="max-w-3xl mx-auto px-6 py-8">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentStep}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.2 }}
-          >
-            {renderStep()}
-          </motion.div>
-        </AnimatePresence>
-      </div>
+        {/* Step Indicator */}
+        <div className="flex items-center mb-8">
+          {STEPS.map((s, i) => (
+            <React.Fragment key={s}>
+              <button
+                onClick={() => i < step && setStep(i)}
+                className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-all ${
+                  i === step ? "text-white font-semibold" :
+                  i < step ? "text-green-400 cursor-pointer hover:text-green-300" : "text-gray-600"
+                }`}
+              >
+                <span className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                  i < step ? "bg-green-700" : i === step ? "bg-red-700" : "bg-gray-800"
+                }`}>
+                  {i < step ? <Check className="h-3 w-3" /> : i + 1}
+                </span>
+                <span className="hidden sm:inline">{s}</span>
+              </button>
+              {i < STEPS.length - 1 && (
+                <div className={`flex-1 h-px mx-1 ${i < step ? "bg-green-800" : "bg-gray-800"}`} />
+              )}
+            </React.Fragment>
+          ))}
+        </div>
 
-      {/* Footer Nav */}
-      <div className="sticky bottom-0 border-t border-gray-800 bg-black/80 backdrop-blur-sm px-6 py-4">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
-          <Button
-            variant="ghost"
-            onClick={handleBack}
-            disabled={currentStep === 0}
-            className="text-gray-300 hover:text-white disabled:opacity-30"
-          >
-            <ArrowLeft className="h-4 w-4 mr-1.5" /> Back
+        {/* Step Content */}
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-6 mb-6">
+          {step === 0 && <Step1Basics {...stepProps} />}
+          {step === 1 && <Step2Environment {...stepProps} />}
+          {step === 2 && <Step3Content {...stepProps} modules={modules} setModules={setModules} />}
+          {step === 3 && <Step4Assessment {...stepProps} />}
+          {step === 4 && <Step5NiceMapping {...stepProps} />}
+        </div>
+
+        {/* Navigation */}
+        <div className="flex justify-between">
+          <Button variant="outline"
+            onClick={() => step === 0 ? navigate("/LabTemplates") : setStep(s => s - 1)}
+            className="bg-transparent border-gray-700 text-gray-300 hover:bg-gray-800">
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            {step === 0 ? "Cancel" : "Back"}
           </Button>
-
-          <div className="flex items-center gap-2">
-            {currentStep === 3 && (
-              <Button
-                variant="ghost"
-                onClick={() => handleSave(false)}
-                disabled={saving}
-                className="text-gray-300 hover:text-white border border-gray-700"
-              >
-                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Save className="h-4 w-4 mr-1.5" />}
-                Save Draft
-              </Button>
-            )}
-            {currentStep < 3 ? (
-              <Button
-                onClick={handleNext}
-                disabled={!canProceed()}
-                className="bg-red-600 hover:bg-red-700 text-white"
-              >
-                Next <ArrowRight className="h-4 w-4 ml-1.5" />
-              </Button>
-            ) : (
-              <Button
-                onClick={() => handleSave(true)}
-                disabled={saving}
-                className="bg-red-600 hover:bg-red-700 text-white"
-              >
-                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <CheckCircle2 className="h-4 w-4 mr-1.5" />}
-                Save & Publish
-              </Button>
-            )}
-          </div>
+          {step < STEPS.length - 1 ? (
+            <Button onClick={() => setStep(s => s + 1)} disabled={!form.title}
+              className="bg-red-700 hover:bg-red-600 text-white">
+              Next <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          ) : (
+            <Button onClick={handleSave} disabled={saving || !form.title}
+              className="bg-green-700 hover:bg-green-600 text-white">
+              {saving ? "Saving..." : editId ? "Update Template" : "Create Template"}
+            </Button>
+          )}
         </div>
       </div>
     </div>
