@@ -44,7 +44,21 @@ Return a JSON object with these fields:
             objectives: { type: "array", items: { type: "string" } },
             prerequisites: { type: "array", items: { type: "string" } },
             tags: { type: "array", items: { type: "string" } },
-            modules: { type: "array", items: { type: "object" } },
+            modules: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  description: { type: "string" },
+                  type: { type: "string" },
+                  duration_minutes: { type: "number" },
+                  points: { type: "number" },
+                  content: { type: "string" }
+                },
+                required: ["title", "description", "type", "duration_minutes", "points", "content"]
+              }
+            }
           },
           required: ["title", "description", "difficulty", "estimated_duration_minutes", "nice_category", "nice_work_role", "nice_task_ids", "nice_ksa_ids", "objectives", "prerequisites", "tags", "modules"]
         }
