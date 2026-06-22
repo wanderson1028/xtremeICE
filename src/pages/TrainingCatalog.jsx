@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { Search, Clock, ChevronRight, X, BookOpen, Filter } from "lucide-react";
+import { Search, Clock, ChevronRight, X, BookOpen, Filter, Plus } from "lucide-react";
 import { LAB_COURSES, VIRTUAL_LABS, LINUX_LABS, POWERSHELL_LABS } from "@/lib/labCatalog";
 
 const DIFFICULTY_ORDER = { Beginner: 0, Intermediate: 1, Advanced: 2, Expert: 3 };
@@ -122,8 +122,16 @@ export default function TrainingCatalog() {
             </h1>
             <p className="text-gray-400 text-sm mt-0.5">{ALL_LABS.length} labs across cybersecurity, networking, Linux & Windows</p>
           </div>
-          <div className="text-sm text-gray-400">
-            Showing <span className="text-white font-semibold">{filtered.length}</span> of {ALL_LABS.length} labs
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-gray-400">
+              Showing <span className="text-white font-semibold">{filtered.length}</span> of {ALL_LABS.length} labs
+            </div>
+            <Link
+              to="/lab-builder"
+              className="flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              <Plus className="h-4 w-4" /> Create New Lab
+            </Link>
           </div>
         </div>
       </div>
