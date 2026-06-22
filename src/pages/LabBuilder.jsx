@@ -9,9 +9,11 @@ import Step1Basics from "@/components/labs/builder/Step1Basics";
 import Step2Environment from "@/components/labs/builder/Step2Environment";
 import Step3Content from "@/components/labs/builder/Step3Content";
 import Step5NiceMapping from "@/components/labs/builder/Step5NiceMapping";
+import StepExportConfig from "@/components/labs/builder/StepExportConfig";
+import ExportResultsModal from "@/components/labs/exports/ExportResultsModal";
 import AIGeneratorPanel from "@/components/labs/builder/AIGeneratorPanel";
 
-const STEPS = ["Basics", "Environment", "Content", "NICE Mapping"];
+const STEPS = ["Basics", "Environment", "Content", "NICE Mapping", "Export Config"];
 
 const DEFAULT_FORM = {
   title: "", description: "", difficulty: "Beginner",
@@ -19,6 +21,7 @@ const DEFAULT_FORM = {
   environment_profile_id: "",
   objectives: [], prerequisites: [], passing_score: 70,
   nice_category: "", nice_work_role: "", nice_task_ids: [], nice_ksa_ids: [],
+  export_instructor_guide: false, export_student_guide: false, export_lms_outline: false,
 };
 
 export default function LabBuilder() {
@@ -31,6 +34,7 @@ export default function LabBuilder() {
   const [form, setForm] = useState(DEFAULT_FORM);
   const [modules, setModules] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [exportResults, setExportResults] = useState(null);
 
   const { data: existing } = useQuery({
     queryKey: ["lab-template", editId],
@@ -78,7 +82,7 @@ export default function LabBuilder() {
         }
       }
       queryClient.invalidateQueries({ queryKey: ["lab-templates"] });
-      navigate("/LabTemplates");
+      setExportResults({ template: { ...form, id: templateId }, modules });
     } finally {
       setSaving(false);
     }
@@ -132,6 +136,7 @@ export default function LabBuilder() {
           {step === 1 && <Step2Environment {...stepProps} />}
           {step === 2 && <Step3Content {...stepProps} modules={modules} setModules={setModules} />}
           {step === 3 && <Step5NiceMapping {...stepProps} />}
+          {step === 4 && <StepExportConfig {...stepProps} />}
         </div>
 
         {/* Navigation */}
@@ -154,6 +159,14 @@ export default function LabBuilder() {
             </Button>
           )}
         </div>
+
+        {exportResults && (
+          <ExportResultsModal
+            template={exportResults.template}
+            modules={exportResults.modules}
+            onClose={() => { setExportResults(null); navigate("/LabTemplates"); }}
+          />
+        )}
       </div>
     </div>
   );
