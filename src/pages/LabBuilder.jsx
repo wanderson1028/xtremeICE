@@ -8,10 +8,10 @@ import { ChevronLeft, ChevronRight, Check } from "lucide-react";
 import Step1Basics from "@/components/labs/builder/Step1Basics";
 import Step2Environment from "@/components/labs/builder/Step2Environment";
 import Step3Content from "@/components/labs/builder/Step3Content";
-import Step4Assessment from "@/components/labs/builder/Step4Assessment";
 import Step5NiceMapping from "@/components/labs/builder/Step5NiceMapping";
+import AIGeneratorPanel from "@/components/labs/builder/AIGeneratorPanel";
 
-const STEPS = ["Basics", "Environment", "Content", "Assessment", "NICE Mapping"];
+const STEPS = ["Basics", "Environment", "Content", "NICE Mapping"];
 
 const DEFAULT_FORM = {
   title: "", description: "", difficulty: "Beginner",
@@ -123,13 +123,15 @@ export default function LabBuilder() {
           ))}
         </div>
 
+        {/* AI Generator — available on every step */}
+        <AIGeneratorPanel updateForm={updateForm} setModules={setModules} />
+
         {/* Step Content */}
         <div className="bg-gray-900 rounded-xl border border-gray-800 p-6 mb-6">
           {step === 0 && <Step1Basics {...stepProps} />}
           {step === 1 && <Step2Environment {...stepProps} />}
           {step === 2 && <Step3Content {...stepProps} modules={modules} setModules={setModules} />}
-          {step === 3 && <Step4Assessment {...stepProps} />}
-          {step === 4 && <Step5NiceMapping {...stepProps} />}
+          {step === 3 && <Step5NiceMapping {...stepProps} />}
         </div>
 
         {/* Navigation */}
