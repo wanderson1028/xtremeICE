@@ -4,7 +4,7 @@ import { NotebookPen, ChevronLeft, ChevronRight } from "lucide-react";
 const STORAGE_KEY_PREFIX = "lab_notes_";
 
 export default function LabNotepad({ labTitle }) {
-  const storageKey = STORAGE_KEY_PREFIX + labTitle.replace(/\s+/g, "_");
+  const storageKey = STORAGE_KEY_PREFIX + (labTitle || "").replace(/\s+/g, "_");
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState(() => localStorage.getItem(storageKey) || "");
 
