@@ -6,8 +6,10 @@ import ExportArtifact from "@/components/labs/exports/ExportArtifact";
 import { generateInstructorGuide } from "@/components/labs/exports/InstructorGuide";
 import { generateStudentGuide } from "@/components/labs/exports/StudentGuide";
 import { generateLmsOutline } from "@/components/labs/exports/LmsOutline";
+import { generateNiceReport } from "@/components/labs/exports/NiceAlignmentReport";
 
 const GUIDES = [
+  { label: "NICE Alignment Report", icon: FileCheck, desc: "Framework mapping data and summary", generate: generateNiceReport, filename: "nice-alignment-report.md" },
   { label: "Instructor Guide", icon: GraduationCap, desc: "Teaching notes, answer keys, and facilitation guidance", generate: generateInstructorGuide, filename: "instructor-guide.md" },
   { label: "Student Guide", icon: BookOpen, desc: "Step-by-step instructions and reference materials for learners", generate: generateStudentGuide, filename: "student-guide.md" },
   { label: "LMS Outline", icon: ClipboardList, desc: "Course structure ready for import into an LMS", generate: generateLmsOutline, filename: "lms-outline.md" },

@@ -2,7 +2,7 @@ import React from "react";
 import { FileCheck } from "lucide-react";
 import ExportArtifact from "./ExportArtifact";
 
-function generateNiceReport(template) {
+export function generateNiceReport(template) {
   const taskIds = template.nice_task_ids || [];
   const knowledgeIds = template.nice_knowledge_ids || [];
   const skillIds = template.nice_skill_ids || [];
