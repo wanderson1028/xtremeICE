@@ -25,7 +25,8 @@ Return a JSON object with these fields:
 - nice_category: one of "Securely Provision", "Operate and Maintain", "Oversee and Govern", "Protect and Defend", "Analyze", "Collect and Operate", "Investigate"
 - nice_work_role: string (specific work role within that category)
 - nice_task_ids: array of NICE task ID strings (e.g., "T0001", "T0023")
-- nice_tks_ids: array of NICE TKS ID strings (e.g., "K0001", "S0001") — TKS = Task, Knowledge, Skills
+- nice_knowledge_ids: array of NICE Knowledge ID strings (e.g., "K0001", "K0061")
+- nice_skill_ids: array of NICE Skill ID strings (e.g., "S0001", "S0010")
 - objectives: array of 3-5 learning objectives
 - prerequisites: array of 2-3 prerequisites
 - tags: array of relevant tags
@@ -43,7 +44,8 @@ Return a JSON object with these fields:
             nice_category: { type: "string" },
             nice_work_role: { type: "string" },
             nice_task_ids: { type: "array", items: { type: "string" } },
-            nice_tks_ids: { type: "array", items: { type: "string" } },
+            nice_knowledge_ids: { type: "array", items: { type: "string" } },
+            nice_skill_ids: { type: "array", items: { type: "string" } },
             objectives: { type: "array", items: { type: "string" } },
             prerequisites: { type: "array", items: { type: "string" } },
             tags: { type: "array", items: { type: "string" } },
@@ -67,7 +69,7 @@ Return a JSON object with these fields:
               required: ["scenario", "tasks", "success_criteria"]
             }
           },
-          required: ["title", "description", "difficulty", "estimated_duration_minutes", "nice_category", "nice_work_role", "nice_task_ids", "nice_tks_ids", "objectives", "prerequisites", "tags", "lab_content"]
+          required: ["title", "description", "difficulty", "estimated_duration_minutes", "nice_category", "nice_work_role", "nice_task_ids", "nice_knowledge_ids", "nice_skill_ids", "objectives", "prerequisites", "tags", "lab_content"]
         }
       });
 
@@ -79,7 +81,8 @@ Return a JSON object with these fields:
         nice_category: res.nice_category || "",
         nice_work_role: res.nice_work_role || "",
         nice_task_ids: res.nice_task_ids || [],
-        nice_tks_ids: res.nice_tks_ids || [],
+        nice_knowledge_ids: res.nice_knowledge_ids || [],
+        nice_skill_ids: res.nice_skill_ids || [],
         objectives: res.objectives || [],
         prerequisites: res.prerequisites || [],
         tags: res.tags || [],

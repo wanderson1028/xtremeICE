@@ -20,7 +20,7 @@ const DEFAULT_FORM = {
   estimated_duration_minutes: 60, tags: [], status: "draft",
   environment_profile_id: "",
   objectives: [], prerequisites: [], passing_score: 70,
-  nice_category: "", nice_work_role: "", nice_task_ids: [], nice_tks_ids: [],
+  nice_category: "", nice_work_role: "", nice_task_ids: [], nice_knowledge_ids: [], nice_skill_ids: [],
   lab_content: { scenario: "", tasks: [], success_criteria: "" },
   export_instructor_guide: false, export_student_guide: false, export_lms_outline: false,
 };

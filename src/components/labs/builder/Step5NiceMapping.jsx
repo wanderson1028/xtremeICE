@@ -1,10 +1,9 @@
-import React, { useState } from "react";
-import { Input } from "@/components/ui/input";
+import React from "react";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, X, CheckCircle2, Circle, Target, Layers, ClipboardList, GraduationCap } from "lucide-react";
+import { CheckCircle2, Circle, Target, Layers, ClipboardList, BookOpen, Wrench } from "lucide-react";
+import { NICE_TASKS, NICE_KNOWLEDGE, NICE_SKILLS } from "@/lib/niceDataset";
+import NiceIdPicker from "@/components/labs/builder/NiceIdPicker";
 
 const NICE_WORK_ROLES = {
   "Securely Provision": ["Software Developer", "Enterprise Architect", "Systems Security Architect", "Security Control Assessor", "R&D Specialist", "Cyber Policy and Strategy Planner"],
@@ -17,7 +16,7 @@ const NICE_WORK_ROLES = {
 };
 const CATEGORIES = Object.keys(NICE_WORK_ROLES);
 
-function StatCard({ icon: Icon, label, value, sub, accent }) {
+function StatCard({ icon: Icon, label, value, accent }) {
   return (
     <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 flex items-center gap-3">
       <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${accent}`}>
@@ -26,42 +25,6 @@ function StatCard({ icon: Icon, label, value, sub, accent }) {
       <div className="min-w-0">
         <p className="text-xs text-gray-400 uppercase tracking-wide">{label}</p>
         <p className="text-sm font-semibold text-white truncate">{value || "—"}</p>
-        {sub && <p className="text-xs text-gray-500 truncate">{sub}</p>}
-      </div>
-    </div>
-  );
-}
-
-function TagEditor({ label, items = [], onChange, placeholder }) {
-  const [input, setInput] = useState("");
-  const add = () => {
-    if (input.trim()) { onChange([...items, input.trim()]); setInput(""); }
-  };
-  return (
-    <div>
-      <Label className="text-gray-300 mb-1.5 block text-sm">{label}</Label>
-      <div className="flex gap-2 mb-2">
-        <Input value={input} onChange={e => setInput(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && (e.preventDefault(), add())}
-          placeholder={placeholder}
-          className="bg-gray-800 border-gray-700 text-white text-sm" />
-        <Button onClick={add} size="sm" className="bg-gray-700 hover:bg-gray-600 text-white border-0 px-3">
-          <Plus className="h-3.5 w-3.5" />
-        </Button>
-      </div>
-      <div className="flex flex-wrap gap-1.5 min-h-[28px]">
-        {items.length === 0 ? (
-          <p className="text-gray-600 text-xs italic">No items added yet</p>
-        ) : (
-          items.map((item, i) => (
-            <Badge key={i} className="bg-gray-700 text-gray-200 border-0 flex items-center gap-1 text-xs">
-              {item}
-              <button onClick={() => onChange(items.filter((_, j) => j !== i))}>
-                <X className="h-2.5 w-2.5" />
-              </button>
-            </Badge>
-          ))
-        )}
       </div>
     </div>
   );
@@ -71,12 +34,13 @@ export default function Step5NiceMapping({ form, updateForm }) {
   const category = form.nice_category;
   const workRole = form.nice_work_role;
   const taskIds = form.nice_task_ids || [];
-  const tksIds = form.nice_tks_ids || [];
+  const knowledgeIds = form.nice_knowledge_ids || [];
+  const skillIds = form.nice_skill_ids || [];
   const roles = NICE_WORK_ROLES[category] || [];
 
-  const completedFields = [category, workRole, taskIds.length > 0, tksIds.length > 0];
+  const completedFields = [category, workRole, taskIds.length > 0, knowledgeIds.length > 0, skillIds.length > 0];
   const completedCount = completedFields.filter(Boolean).length;
-  const completionPct = Math.round((completedCount / 4) * 100);
+  const completionPct = Math.round((completedCount / 5) * 100);
 
   return (
     <div className="space-y-6">
@@ -98,11 +62,12 @@ export default function Step5NiceMapping({ form, updateForm }) {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <StatCard icon={Layers} label="Category" value={category} accent="bg-blue-500/15 text-blue-400" />
         <StatCard icon={Target} label="Work Role" value={workRole} accent="bg-cyan-500/15 text-cyan-400" />
-        <StatCard icon={ClipboardList} label="Task IDs" value={`${taskIds.length} mapped`} accent="bg-amber-500/15 text-amber-400" />
-        <StatCard icon={GraduationCap} label="TKS IDs" value={`${tksIds.length} mapped`} accent="bg-purple-500/15 text-purple-400" />
+        <StatCard icon={ClipboardList} label="Tasks" value={`${taskIds.length} mapped`} accent="bg-amber-500/15 text-amber-400" />
+        <StatCard icon={BookOpen} label="Knowledge" value={`${knowledgeIds.length} mapped`} accent="bg-purple-500/15 text-purple-400" />
+        <StatCard icon={Wrench} label="Skills" value={`${skillIds.length} mapped`} accent="bg-green-500/15 text-green-400" />
       </div>
 
       {/* Category & Work Role Panel */}
@@ -137,26 +102,35 @@ export default function Step5NiceMapping({ form, updateForm }) {
         </div>
       </div>
 
-      {/* Task & TKS Panel */}
-      <div className="bg-gray-800/30 border border-gray-700/50 rounded-xl p-5 space-y-4">
+      {/* Task, Knowledge & Skills Panel */}
+      <div className="bg-gray-800/30 border border-gray-700/50 rounded-xl p-5 space-y-5">
         <div className="flex items-center gap-2">
           <ClipboardList className="h-4 w-4 text-amber-400" />
-          <h3 className="text-sm font-semibold text-white">Tasks & TKS</h3>
+          <h3 className="text-sm font-semibold text-white">Tasks, Knowledge & Skills</h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <TagEditor
-            label="Task IDs"
-            items={taskIds}
-            onChange={v => updateForm({ nice_task_ids: v })}
-            placeholder="e.g., T0001"
-          />
-          <TagEditor
-            label="TKS IDs (Task, Knowledge, Skills)"
-            items={tksIds}
-            onChange={v => updateForm({ nice_tks_ids: v })}
-            placeholder="e.g., K0001, S0001"
-          />
-        </div>
+        <NiceIdPicker
+          label="Task IDs"
+          dataset={NICE_TASKS}
+          items={taskIds}
+          onChange={v => updateForm({ nice_task_ids: v })}
+          placeholder="Search tasks... (e.g., T0163)"
+        />
+        <div className="border-t border-gray-700/50" />
+        <NiceIdPicker
+          label="Knowledge IDs"
+          dataset={NICE_KNOWLEDGE}
+          items={knowledgeIds}
+          onChange={v => updateForm({ nice_knowledge_ids: v })}
+          placeholder="Search knowledge... (e.g., K0001)"
+        />
+        <div className="border-t border-gray-700/50" />
+        <NiceIdPicker
+          label="Skill IDs"
+          dataset={NICE_SKILLS}
+          items={skillIds}
+          onChange={v => updateForm({ nice_skill_ids: v })}
+          placeholder="Search skills... (e.g., S0001)"
+        />
       </div>
     </div>
   );

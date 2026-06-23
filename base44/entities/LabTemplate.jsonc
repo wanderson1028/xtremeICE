@@ -30,12 +30,19 @@
         "type": "string"
       }
     },
-    "nice_tks_ids": {
+    "nice_knowledge_ids": {
       "type": "array",
       "items": {
         "type": "string"
       },
-      "description": "TKS (Task, Knowledge, Skills) framework competency IDs"
+      "description": "NICE Framework Knowledge competency IDs"
+    },
+    "nice_skill_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "NICE Framework Skill competency IDs"
     },
     "difficulty": {
       "type": "string",
