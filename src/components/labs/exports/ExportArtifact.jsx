@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Download, Loader2, AlertCircle } from "lucide-react";
+import { Download, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ReactMarkdown from "react-markdown";
 import { downloadText } from "./exportUtils";
@@ -9,18 +9,19 @@ export default function ExportArtifact({ title, icon: Icon, generate, template, 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const result = await generate(template);
-        if (!cancelled) { setContent(result); setLoading(false); }
-      } catch (err) {
-        if (!cancelled) { setError(err.message || "Generation failed"); setLoading(false); }
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+  const run = async () => {
+    setLoading(true); setError(null); setContent("");
+    try {
+      const result = await generate(template);
+      setContent(result);
+    } catch (err) {
+      setError(err.message || "Generation failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { run(); }, []);
 
   return (
     <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4">
@@ -29,12 +30,18 @@ export default function ExportArtifact({ title, icon: Icon, generate, template, 
           {Icon && <Icon className="h-4 w-4 text-gray-400" />}
           <h4 className="text-white text-sm font-medium">{title}</h4>
         </div>
-        {content && (
+        <div className="flex items-center gap-1">
           <Button size="sm" variant="ghost" className="text-gray-400 hover:text-white h-7"
-            onClick={() => downloadText(filename, content)}>
-            <Download className="h-3.5 w-3.5 mr-1" /> Download
+            onClick={run} disabled={loading}>
+            <RefreshCw className="h-3.5 w-3.5 mr-1" /> Regenerate
           </Button>
-        )}
+          {content && (
+            <Button size="sm" variant="ghost" className="text-gray-400 hover:text-white h-7"
+              onClick={() => downloadText(filename, content)}>
+              <Download className="h-3.5 w-3.5 mr-1" /> Download
+            </Button>
+          )}
+        </div>
       </div>
       {loading && (
         <div className="flex items-center gap-2 text-gray-400 text-sm py-4">
