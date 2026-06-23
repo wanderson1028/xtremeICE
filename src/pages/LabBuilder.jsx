@@ -127,12 +127,14 @@ export default function LabBuilder() {
           ))}
         </div>
 
-        {/* AI Generator — available on every step */}
-        <AIGeneratorPanel updateForm={updateForm} setModules={setModules} />
-
         {/* Step Content */}
         <div className="bg-gray-900 rounded-xl border border-gray-800 p-6 mb-6">
-          {step === 0 && <Step1Basics {...stepProps} />}
+          {step === 0 && (
+            <>
+              <AIGeneratorPanel updateForm={updateForm} setModules={setModules} />
+              <Step1Basics {...stepProps} />
+            </>
+          )}
           {step === 1 && <Step2Environment {...stepProps} />}
           {step === 2 && <Step3Content {...stepProps} modules={modules} setModules={setModules} />}
           {step === 3 && <Step5NiceMapping {...stepProps} />}
