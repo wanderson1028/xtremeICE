@@ -451,7 +451,7 @@ export default function LabRunner({ labTitle, chapterNum, difficulty, tags = [],
               <div className="bg-red-950/30 border border-red-800/40 rounded-lg px-3 py-2.5">
                 <p className="text-gray-200 text-xs leading-relaxed">
                   {step.explanation}{" "}
-                  <span className="text-red-300 font-mono font-semibold">{t("labRunner.objective", { label: step.stepLabel.toLowerCase() })}</span>
+                  <span className="text-red-300 font-mono font-semibold">{t("labRunner.objective", { label: (step?.stepLabel || "").toLowerCase() })}</span>
                 </p>
               </div>
 
