@@ -40,12 +40,6 @@
         "type": "object"
       }
     },
-    "abilities": {
-      "type": "array",
-      "items": {
-        "type": "object"
-      }
-    },
     "is_active": {
       "type": "boolean",
       "default": true

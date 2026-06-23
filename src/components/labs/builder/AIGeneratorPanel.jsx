@@ -25,7 +25,7 @@ Return a JSON object with these fields:
 - nice_category: one of "Securely Provision", "Operate and Maintain", "Oversee and Govern", "Protect and Defend", "Analyze", "Collect and Operate", "Investigate"
 - nice_work_role: string (specific work role within that category)
 - nice_task_ids: array of NICE task ID strings (e.g., "T0001", "T0023")
-- nice_ksa_ids: array of NICE KSA ID strings (e.g., "K0001", "K0602")
+- nice_tks_ids: array of NICE TKS ID strings (e.g., "K0001", "S0001") — TKS = Task, Knowledge, Skills
 - objectives: array of 3-5 learning objectives
 - prerequisites: array of 2-3 prerequisites
 - tags: array of relevant tags
@@ -40,7 +40,7 @@ Return a JSON object with these fields:
             nice_category: { type: "string" },
             nice_work_role: { type: "string" },
             nice_task_ids: { type: "array", items: { type: "string" } },
-            nice_ksa_ids: { type: "array", items: { type: "string" } },
+            nice_tks_ids: { type: "array", items: { type: "string" } },
             objectives: { type: "array", items: { type: "string" } },
             prerequisites: { type: "array", items: { type: "string" } },
             tags: { type: "array", items: { type: "string" } },
@@ -60,7 +60,7 @@ Return a JSON object with these fields:
               }
             }
           },
-          required: ["title", "description", "difficulty", "estimated_duration_minutes", "nice_category", "nice_work_role", "nice_task_ids", "nice_ksa_ids", "objectives", "prerequisites", "tags", "modules"]
+          required: ["title", "description", "difficulty", "estimated_duration_minutes", "nice_category", "nice_work_role", "nice_task_ids", "nice_tks_ids", "objectives", "prerequisites", "tags", "modules"]
         }
       });
 
@@ -72,7 +72,7 @@ Return a JSON object with these fields:
         nice_category: res.nice_category || "",
         nice_work_role: res.nice_work_role || "",
         nice_task_ids: res.nice_task_ids || [],
-        nice_ksa_ids: res.nice_ksa_ids || [],
+        nice_tks_ids: res.nice_tks_ids || [],
         objectives: res.objectives || [],
         prerequisites: res.prerequisites || [],
         tags: res.tags || [],

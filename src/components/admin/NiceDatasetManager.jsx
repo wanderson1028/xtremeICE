@@ -156,7 +156,6 @@ export default function NiceDatasetManager() {
         tasks: NICE_DATASET.tasks,
         knowledge: NICE_DATASET.knowledge,
         skills: NICE_DATASET.skills,
-        abilities: NICE_DATASET.abilities,
       });
       refresh();
       setShowAddForm(false);
@@ -275,7 +274,7 @@ export default function NiceDatasetManager() {
               <StatCard icon={Layers} label="Categories" value={totalCategories} accent="bg-blue-500/15 text-blue-400" />
               <StatCard icon={Users} label="Work Roles" value={totalWorkRoles} accent="bg-cyan-500/15 text-cyan-400" />
               <StatCard icon={ListChecks} label="Tasks" value={totalTasks} accent="bg-amber-500/15 text-amber-400" />
-              <StatCard icon={Database} label="KSAs" value={(activeVersion?.knowledge?.length || 0) + (activeVersion?.skills?.length || 0) + (activeVersion?.abilities?.length || 0)} accent="bg-purple-500/15 text-purple-400" />
+              <StatCard icon={Database} label="TKS" value={(activeVersion?.knowledge?.length || 0) + (activeVersion?.skills?.length || 0)} accent="bg-purple-500/15 text-purple-400" />
             </div>
           </CardContent>
         </Card>

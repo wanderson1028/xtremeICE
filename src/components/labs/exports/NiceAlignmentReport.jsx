@@ -4,7 +4,7 @@ import ExportArtifact from "./ExportArtifact";
 
 function generateNiceReport(template, modules) {
   const taskIds = template.nice_task_ids || [];
-  const ksaIds = template.nice_ksa_ids || [];
+  const tksIds = template.nice_tks_ids || [];
   const objectives = template.objectives || [];
   const prerequisites = template.prerequisites || [];
 
@@ -29,8 +29,8 @@ function generateNiceReport(template, modules) {
     `### Task IDs`,
     ...(taskIds.length ? taskIds.map(t => `- ${t}`) : ["- None specified"]),
     ``,
-    `### KSA IDs (Knowledge, Skills, Abilities)`,
-    ...(ksaIds.length ? ksaIds.map(k => `- ${k}`) : ["- None specified"]),
+    `### TKS IDs (Task, Knowledge, Skills)`,
+    ...(tksIds.length ? tksIds.map(k => `- ${k}`) : ["- None specified"]),
     ``,
     `---`,
     ``,
@@ -56,7 +56,7 @@ function generateNiceReport(template, modules) {
     ``,
     `This lab template is aligned with the **${template.nice_category || "unspecified"}** NICE Framework category` +
     `${template.nice_work_role ? ` for the **${template.nice_work_role}** work role` : ""}. ` +
-    `It contains ${modules?.length || 0} module(s), covers ${taskIds.length} task(s), and addresses ${ksaIds.length} KSA(s).`,
+    `It contains ${modules?.length || 0} module(s), covers ${taskIds.length} task(s), and addresses ${tksIds.length} TKS item(s).`,
   ];
 
   return Promise.resolve(lines.join("\n"));

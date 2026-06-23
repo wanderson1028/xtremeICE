@@ -71,10 +71,10 @@ export default function Step5NiceMapping({ form, updateForm }) {
   const category = form.nice_category;
   const workRole = form.nice_work_role;
   const taskIds = form.nice_task_ids || [];
-  const ksaIds = form.nice_ksa_ids || [];
+  const tksIds = form.nice_tks_ids || [];
   const roles = NICE_WORK_ROLES[category] || [];
 
-  const completedFields = [category, workRole, taskIds.length > 0, ksaIds.length > 0];
+  const completedFields = [category, workRole, taskIds.length > 0, tksIds.length > 0];
   const completedCount = completedFields.filter(Boolean).length;
   const completionPct = Math.round((completedCount / 4) * 100);
 
@@ -108,7 +108,7 @@ export default function Step5NiceMapping({ form, updateForm }) {
         <StatCard icon={Layers} label="Category" value={category} accent="bg-blue-500/15 text-blue-400" />
         <StatCard icon={Target} label="Work Role" value={workRole} accent="bg-cyan-500/15 text-cyan-400" />
         <StatCard icon={ClipboardList} label="Task IDs" value={`${taskIds.length} mapped`} accent="bg-amber-500/15 text-amber-400" />
-        <StatCard icon={GraduationCap} label="KSA IDs" value={`${ksaIds.length} mapped`} accent="bg-purple-500/15 text-purple-400" />
+        <StatCard icon={GraduationCap} label="TKS IDs" value={`${tksIds.length} mapped`} accent="bg-purple-500/15 text-purple-400" />
       </div>
 
       {/* Category & Work Role Panel */}
@@ -143,11 +143,11 @@ export default function Step5NiceMapping({ form, updateForm }) {
         </div>
       </div>
 
-      {/* Task & KSA Panel */}
+      {/* Task & TKS Panel */}
       <div className="bg-gray-800/30 border border-gray-700/50 rounded-xl p-5 space-y-4">
         <div className="flex items-center gap-2">
           <ClipboardList className="h-4 w-4 text-amber-400" />
-          <h3 className="text-sm font-semibold text-white">Tasks & KSAs</h3>
+          <h3 className="text-sm font-semibold text-white">Tasks & TKS</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <TagEditor
@@ -157,10 +157,10 @@ export default function Step5NiceMapping({ form, updateForm }) {
             placeholder="e.g., T0001"
           />
           <TagEditor
-            label="KSA IDs (Knowledge, Skills, Abilities)"
-            items={ksaIds}
-            onChange={v => updateForm({ nice_ksa_ids: v })}
-            placeholder="e.g., K0001"
+            label="TKS IDs (Task, Knowledge, Skills)"
+            items={tksIds}
+            onChange={v => updateForm({ nice_tks_ids: v })}
+            placeholder="e.g., K0001, S0001"
           />
         </div>
       </div>

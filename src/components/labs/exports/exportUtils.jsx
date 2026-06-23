@@ -16,7 +16,7 @@ Estimated Duration: ${template.estimated_duration_minutes || 60} minutes
 NICE Category: ${template.nice_category || "N/A"}
 NICE Work Role: ${template.nice_work_role || "N/A"}
 NICE Task IDs: ${(template.nice_task_ids || []).join(", ") || "N/A"}
-NICE KSA IDs: ${(template.nice_ksa_ids || []).join(", ") || "N/A"}
+NICE TKS IDs: ${(template.nice_tks_ids || []).join(", ") || "N/A"}
 Objectives: ${(template.objectives || []).join("; ") || "N/A"}
 Prerequisites: ${(template.prerequisites || []).join("; ") || "N/A"}
 

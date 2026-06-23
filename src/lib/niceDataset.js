@@ -1,6 +1,7 @@
 /**
  * NICE Cybersecurity Workforce Framework v2.2.0
  * Default seed dataset — exclusive source of truth for this workspace.
+ * Uses TKS (Task, Knowledge, Skills) competency model.
  */
 
 export const NICE_VERSION = "2.2.0";
@@ -196,23 +197,9 @@ export const NICE_SKILLS = [
   { id: "S0015", name: "Skill in technical writing and documentation", category: "communication" },
 ];
 
-export const NICE_ABILITIES = [
-  { id: "A0001", name: "Ability to analyze and interpret security event data", category: "analytic" },
-  { id: "A0002", name: "Ability to identify system vulnerabilities and risks", category: "analytic" },
-  { id: "A0003", name: "Ability to respond to cybersecurity incidents", category: "operational" },
-  { id: "A0004", name: "Ability to design secure network architectures", category: "technical" },
-  { id: "A0005", name: "Ability to conduct forensic analysis on digital evidence", category: "technical" },
-  { id: "A0006", name: "Ability to develop security policies and procedures", category: "governance" },
-  { id: "A0007", name: "Ability to evaluate security control effectiveness", category: "analytic" },
-  { id: "A0008", name: "Ability to communicate technical information to non-technical audiences", category: "communication" },
-  { id: "A0009", name: "Ability to manage multiple competing priorities under pressure", category: "operational" },
-  { id: "A0010", name: "Ability to conduct research and apply findings to problems", category: "analytic" },
-  { id: "A0011", name: "Ability to perform penetration testing and exploitation", category: "technical" },
-  { id: "A0012", name: "Ability to analyze threat actor tactics, techniques, and procedures", category: "analytic" },
-];
-
 /**
  * Complete dataset bundle for seeding.
+ * TKS competency model: Task, Knowledge, Skills.
  */
 export const NICE_DATASET = {
   version: NICE_VERSION,
@@ -222,5 +209,4 @@ export const NICE_DATASET = {
   tasks: NICE_TASKS,
   knowledge: NICE_KNOWLEDGE,
   skills: NICE_SKILLS,
-  abilities: NICE_ABILITIES,
 };

@@ -43,7 +43,6 @@ Deno.serve(async (req) => {
         tasks: dataset.tasks || [],
         knowledge: dataset.knowledge || [],
         skills: dataset.skills || [],
-        abilities: dataset.abilities || [],
         is_active: true,
         imported_at: new Date().toISOString(),
       });
@@ -115,7 +114,7 @@ Deno.serve(async (req) => {
 
     // ── ADD / UPDATE VERSION (overwrite mode) ─────────────────────
     if (action === 'add_version') {
-      const { version, label, categories, work_roles, tasks, knowledge, skills, abilities } = body;
+      const { version, label, categories, work_roles, tasks, knowledge, skills } = body;
       if (!version) return Response.json({ error: 'version is required' }, { status: 400 });
 
       // Overwrite: if a version with the same number exists, delete it
@@ -134,7 +133,6 @@ Deno.serve(async (req) => {
         tasks: tasks || [],
         knowledge: knowledge || [],
         skills: skills || [],
-        abilities: abilities || [],
         is_active: false,
         imported_at: new Date().toISOString(),
       });

@@ -30,11 +30,12 @@
         "type": "string"
       }
     },
-    "nice_ksa_ids": {
+    "nice_tks_ids": {
       "type": "array",
       "items": {
         "type": "string"
-      }
+      },
+      "description": "TKS (Task, Knowledge, Skills) framework competency IDs"
     },
     "difficulty": {
       "type": "string",
