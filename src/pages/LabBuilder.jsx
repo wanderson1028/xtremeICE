@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
 import { ChevronLeft, FileText, Server, BookOpen, Target, Download } from "lucide-react";
 
 import Step1Basics from "@/components/labs/builder/Step1Basics";
@@ -10,7 +11,6 @@ import Step2Environment from "@/components/labs/builder/Step2Environment";
 import LabContentEditor from "@/components/labs/builder/LabContentEditor";
 import Step5NiceMapping from "@/components/labs/builder/Step5NiceMapping";
 import StepExportConfig from "@/components/labs/builder/StepExportConfig";
-import ExportResultsModal from "@/components/labs/exports/ExportResultsModal";
 import AIGeneratorPanel from "@/components/labs/builder/AIGeneratorPanel";
 import SectionCard from "@/components/labs/builder/SectionCard";
 import BuilderSidebar from "@/components/labs/builder/BuilderSidebar";
@@ -22,7 +22,6 @@ const DEFAULT_FORM = {
   objectives: [], prerequisites: [], passing_score: 70,
   nice_category: "", nice_work_role: "", nice_task_ids: [], nice_knowledge_ids: [], nice_skill_ids: [],
   lab_content: { scenario: "", tasks: [], success_criteria: "" },
-  export_instructor_guide: false, export_student_guide: false, export_lms_outline: false,
 };
 
 const SECTIONS = [
@@ -41,7 +40,7 @@ export default function LabBuilder() {
 
   const [form, setForm] = useState(DEFAULT_FORM);
   const [saving, setSaving] = useState(false);
-  const [exportResults, setExportResults] = useState(null);
+  const { toast } = useToast();
 
   const { data: existing } = useQuery({
     queryKey: ["lab-template", editId],
@@ -70,7 +69,7 @@ export default function LabBuilder() {
         templateId = created.id;
       }
       queryClient.invalidateQueries({ queryKey: ["lab-templates"] });
-      setExportResults({ template: { ...form, id: templateId } });
+      toast({ title: "Lab saved", description: "Your lab template has been saved successfully." });
     } finally {
       setSaving(false);
     }
@@ -162,9 +161,9 @@ export default function LabBuilder() {
             <SectionCard
               id="exports"
               icon={Download}
-              title="Export Configuration"
-              subtitle="Choose which artifacts to generate"
-              tip="The NICE Alignment Report is always generated. Instructor Guide, Student Guide, and LMS Outline are optional — enable them to generate downloadable materials after saving."
+              title="Export Artifacts"
+              subtitle="Generate and download educational materials"
+              tip="Click Generate on any artifact to create it on demand. Use Regenerate to refresh content after editing your lab."
               complete={true}
             >
               <StepExportConfig form={form} updateForm={updateForm} />
@@ -172,15 +171,6 @@ export default function LabBuilder() {
           </div>
         </div>
 
-        {exportResults && (
-          <ExportResultsModal
-            template={exportResults.template}
-            onClose={() => {
-              setExportResults(null);
-              navigate("/LabTemplates");
-            }}
-          />
-        )}
       </div>
     </div>
   );

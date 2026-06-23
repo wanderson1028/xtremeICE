@@ -1,27 +1,27 @@
-import React, { useState, useEffect } from "react";
-import { Download, Loader2, AlertCircle, RefreshCw } from "lucide-react";
+import React, { useState } from "react";
+import { Download, Loader2, AlertCircle, RefreshCw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ReactMarkdown from "react-markdown";
 import { downloadText } from "./exportUtils";
 
 export default function ExportArtifact({ title, icon: Icon, generate, template, filename }) {
   const [content, setContent] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [hasGenerated, setHasGenerated] = useState(false);
 
   const run = async () => {
     setLoading(true); setError(null); setContent("");
     try {
       const result = await generate(template);
       setContent(result);
+      setHasGenerated(true);
     } catch (err) {
       setError(err.message || "Generation failed");
     } finally {
       setLoading(false);
     }
   };
-
-  useEffect(() => { run(); }, []);
 
   return (
     <div className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4">
@@ -31,10 +31,18 @@ export default function ExportArtifact({ title, icon: Icon, generate, template, 
           <h4 className="text-white text-sm font-medium">{title}</h4>
         </div>
         <div className="flex items-center gap-1">
-          <Button size="sm" variant="ghost" className="text-gray-400 hover:text-white h-7"
-            onClick={run} disabled={loading}>
-            <RefreshCw className="h-3.5 w-3.5 mr-1" /> Regenerate
-          </Button>
+          {!hasGenerated && !loading && (
+            <Button size="sm" variant="outline" className="text-gray-300 hover:text-white h-7"
+              onClick={run}>
+              <Sparkles className="h-3.5 w-3.5 mr-1" /> Generate
+            </Button>
+          )}
+          {hasGenerated && (
+            <Button size="sm" variant="ghost" className="text-gray-400 hover:text-white h-7"
+              onClick={run} disabled={loading}>
+              <RefreshCw className="h-3.5 w-3.5 mr-1" /> Regenerate
+            </Button>
+          )}
           {content && (
             <Button size="sm" variant="ghost" className="text-gray-400 hover:text-white h-7"
               onClick={() => downloadText(filename, content)}>

@@ -8,7 +8,7 @@ import { Zap, RefreshCw, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 export default function AIGeneratorPanel({ updateForm }) {
   const [prompt, setPrompt] = useState("");
   const [generating, setGenerating] = useState(false);
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
 
   const generate = async () => {
     if (!prompt.trim()) return;
