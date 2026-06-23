@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Plus, X, Search, Loader2 } from "lucide-react";
+import { Plus, X, Search } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
 function getItemDescription(item) {
@@ -12,8 +12,7 @@ function getItemDescription(item) {
 export default function NiceIdPicker({ label, dataset = [], items = [], onChange, placeholder }) {
   const [input, setInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [llmDescriptions, setLlmDescriptions] = useState({});
-  const [lookingUp, setLookingUp] = useState(false);
+  const [resolved, setResolved] = useState({});
   const ref = useRef(null);
 
   useEffect(() => {
@@ -24,37 +23,52 @@ export default function NiceIdPicker({ label, dataset = [], items = [], onChange
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Look up descriptions for IDs not in the reference dataset via LLM
+  // Look up descriptions for IDs not in the reference dataset via LLM with web search
   useEffect(() => {
-    const unknownIds = items.filter((id) => !dataset.find((d) => d.id === id));
+    const unknownIds = items.filter((id) => !dataset.find((d) => d.id === id) && !resolved[id]);
     if (unknownIds.length === 0) return;
 
-    setLookingUp(true);
+    // Mark as pending immediately
+    setResolved((prev) => {
+      const next = { ...prev };
+      for (const id of unknownIds) next[id] = "__pending__";
+      return next;
+    });
+
+    // Build schema with explicit property names per ID
+    const props = {};
+    for (const id of unknownIds) props[id] = { type: "string" };
+
     base44.integrations.Core.InvokeLLM({
-      prompt: `You are a NICE Cybersecurity Workforce Framework reference. For each ID below, return its official description text. If an ID is not a real NICE Framework ID, return "Unknown — not a valid NICE Framework ID".
+      prompt: `You are a NICE Cybersecurity Workforce Framework reference. For each ID below, search the web and return its official description text. If an ID is not a real NICE Framework ID, return "Description not available".
 
 IDs to look up:
-${unknownIds.join("\n")}
-
-Return a JSON object mapping each ID to its description string.`,
+${unknownIds.join("\n")}`,
+      add_context_from_internet: true,
       response_json_schema: {
         type: "object",
-        properties: {},
-        additionalProperties: { type: "string" },
+        properties: props,
       },
     })
       .then((res) => {
-        setLlmDescriptions((prev) => ({ ...prev, ...res }));
+        setResolved((prev) => ({ ...prev, ...res }));
       })
-      .catch(() => {})
-      .finally(() => setLookingUp(false));
-  }, [items.join(","), dataset.length]);
+      .catch(() => {
+        setResolved((prev) => {
+          const next = { ...prev };
+          for (const id of unknownIds) next[id] = "Description not available";
+          return next;
+        });
+      });
+  }, [items.join(",")]);
 
   const lookup = (id) => {
     const local = dataset.find((d) => d.id === id);
-    if (local) return { desc: getItemDescription(local), source: "dataset" };
-    if (llmDescriptions[id]) return { desc: llmDescriptions[id], source: "llm" };
-    return { desc: null, source: "none" };
+    if (local) return getItemDescription(local);
+    const llmVal = resolved[id];
+    if (llmVal && llmVal !== "__pending__") return llmVal;
+    if (llmVal === "__pending__") return "Looking up description...";
+    return "Looking up description...";
   };
 
   const suggestions = input.trim()
@@ -137,23 +151,18 @@ Return a JSON object mapping each ID to its description string.`,
         {items.length === 0 ? (
           <p className="text-gray-600 text-xs italic">No items added yet</p>
         ) : (
-          items.map((id, i) => {
-            const { desc, source } = lookup(id);
-            return (
-              <div key={i} className="flex items-start gap-2 bg-gray-800/50 rounded-lg px-3 py-2">
-                <span className="text-xs font-mono text-amber-400 flex-shrink-0 mt-0.5">{id}</span>
-                <span className="text-xs text-gray-300 flex-1 leading-relaxed">
-                  {desc || (lookingUp ? "Looking up description..." : "")}
-                </span>
-                <button
-                  onClick={() => onChange(items.filter((_, j) => j !== i))}
-                  className="text-gray-600 hover:text-red-400 flex-shrink-0 mt-0.5"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            );
-          })
+          items.map((id, i) => (
+            <div key={i} className="flex items-start gap-2 bg-gray-800/50 rounded-lg px-3 py-2">
+              <span className="text-xs font-mono text-amber-400 flex-shrink-0 mt-0.5">{id}</span>
+              <span className="text-xs text-gray-300 flex-1 leading-relaxed">{lookup(id)}</span>
+              <button
+                onClick={() => onChange(items.filter((_, j) => j !== i))}
+                className="text-gray-600 hover:text-red-400 flex-shrink-0 mt-0.5"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))
         )}
       </div>
     </div>
