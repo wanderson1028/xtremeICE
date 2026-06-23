@@ -87,6 +87,9 @@ Return a JSON object with these fields:
         prerequisites: res.prerequisites || [],
         tags: res.tags || [],
         lab_content: res.lab_content || { scenario: "", tasks: [], success_criteria: "" },
+        export_instructor_guide: true,
+        export_student_guide: true,
+        export_lms_outline: true,
       });
 
       setExpanded(false);
