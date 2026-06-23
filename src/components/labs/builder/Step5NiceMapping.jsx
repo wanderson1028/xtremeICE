@@ -1,4 +1,6 @@
 import React from "react";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CheckCircle2, Circle, Target, Layers, ClipboardList, BookOpen, Wrench } from "lucide-react";
@@ -15,6 +17,13 @@ const NICE_WORK_ROLES = {
   "Investigate": ["Cyber Crime Investigator", "Law Enforcement Counterintelligence Forensics Analyst", "Multi-Disciplined Language Analyst"],
 };
 const CATEGORIES = Object.keys(NICE_WORK_ROLES);
+
+function mergeDatasets(localArr, dbArr) {
+  const map = new Map();
+  for (const item of localArr) map.set(item.id, item);
+  if (dbArr) for (const item of dbArr) map.set(item.id, item);
+  return Array.from(map.values());
+}
 
 function StatCard({ icon: Icon, label, value, accent }) {
   return (
@@ -37,6 +46,25 @@ export default function Step5NiceMapping({ form, updateForm }) {
   const knowledgeIds = form.nice_knowledge_ids || [];
   const skillIds = form.nice_skill_ids || [];
   const roles = NICE_WORK_ROLES[category] || [];
+
+  // Load the active NICE framework version from the database
+  const { data: settings } = useQuery({
+    queryKey: ["nice-settings"],
+    queryFn: () => base44.entities.NiceAppSettings.filter({ setting_key: "global" }),
+  });
+
+  const activeVersionId = settings?.[0]?.active_version_id;
+
+  const { data: activeVersion } = useQuery({
+    queryKey: ["nice-version", activeVersionId],
+    queryFn: () => base44.entities.NiceFrameworkVersion.get(activeVersionId),
+    enabled: !!activeVersionId,
+  });
+
+  // Merge DB dataset (priority) with local static fallback
+  const allTasks = mergeDatasets(NICE_TASKS, activeVersion?.tasks);
+  const allKnowledge = mergeDatasets(NICE_KNOWLEDGE, activeVersion?.knowledge);
+  const allSkills = mergeDatasets(NICE_SKILLS, activeVersion?.skills);
 
   const completedFields = [category, workRole, taskIds.length > 0, knowledgeIds.length > 0, skillIds.length > 0];
   const completedCount = completedFields.filter(Boolean).length;
@@ -110,7 +138,7 @@ export default function Step5NiceMapping({ form, updateForm }) {
         </div>
         <NiceIdPicker
           label="Task IDs"
-          dataset={NICE_TASKS}
+          dataset={allTasks}
           items={taskIds}
           onChange={v => updateForm({ nice_task_ids: v })}
           placeholder="Search tasks... (e.g., T0163)"
@@ -118,7 +146,7 @@ export default function Step5NiceMapping({ form, updateForm }) {
         <div className="border-t border-gray-700/50" />
         <NiceIdPicker
           label="Knowledge IDs"
-          dataset={NICE_KNOWLEDGE}
+          dataset={allKnowledge}
           items={knowledgeIds}
           onChange={v => updateForm({ nice_knowledge_ids: v })}
           placeholder="Search knowledge... (e.g., K0001)"
@@ -126,7 +154,7 @@ export default function Step5NiceMapping({ form, updateForm }) {
         <div className="border-t border-gray-700/50" />
         <NiceIdPicker
           label="Skill IDs"
-          dataset={NICE_SKILLS}
+          dataset={allSkills}
           items={skillIds}
           onChange={v => updateForm({ nice_skill_ids: v })}
           placeholder="Search skills... (e.g., S0001)"
