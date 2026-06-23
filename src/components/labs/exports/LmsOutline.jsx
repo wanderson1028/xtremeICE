@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import ExportArtifact from "./ExportArtifact";
 import { buildTemplateContext } from "./exportUtils";
 
-async function generateLmsOutline(template) {
+export async function generateLmsOutline(template) {
   const prompt = `You are an instructional designer. Generate an LMS-compatible course outline in Markdown format for the following lab:\n\n${buildTemplateContext(template)}\n\nInclude:\n1. Course Title and Description\n2. Module Structure (sequenced lessons with objectives)\n3. Assessment Items (quizzes, hands-on tasks, rubrics)\n4. SCORM-compatible Metadata (title, duration, completion criteria)\n5. Gradebook Configuration (points, weights)\n\nFormat as clean Markdown with clear hierarchical structure.`;
   const result = await base44.integrations.Core.InvokeLLM({ prompt });
   return typeof result === "string" ? result : JSON.stringify(result, null, 2);
