@@ -7,7 +7,7 @@ import { ChevronLeft, FileText, Server, BookOpen, Target, Download } from "lucid
 
 import Step1Basics from "@/components/labs/builder/Step1Basics";
 import Step2Environment from "@/components/labs/builder/Step2Environment";
-import Step3Content from "@/components/labs/builder/Step3Content";
+import LabContentEditor from "@/components/labs/builder/LabContentEditor";
 import Step5NiceMapping from "@/components/labs/builder/Step5NiceMapping";
 import StepExportConfig from "@/components/labs/builder/StepExportConfig";
 import ExportResultsModal from "@/components/labs/exports/ExportResultsModal";
@@ -21,13 +21,14 @@ const DEFAULT_FORM = {
   environment_profile_id: "",
   objectives: [], prerequisites: [], passing_score: 70,
   nice_category: "", nice_work_role: "", nice_task_ids: [], nice_tks_ids: [],
+  lab_content: { scenario: "", tasks: [], success_criteria: "" },
   export_instructor_guide: false, export_student_guide: false, export_lms_outline: false,
 };
 
 const SECTIONS = [
   { id: "basics", label: "Basics & Objectives", icon: FileText },
   { id: "environment", label: "Environment", icon: Server },
-  { id: "content", label: "Course Content", icon: BookOpen },
+  { id: "content", label: "Lab Content", icon: BookOpen },
   { id: "nice", label: "NICE Mapping", icon: Target },
   { id: "exports", label: "Export Config", icon: Download },
 ];
@@ -39,7 +40,6 @@ export default function LabBuilder() {
   const editId = urlParams.get("id");
 
   const [form, setForm] = useState(DEFAULT_FORM);
-  const [modules, setModules] = useState([]);
   const [saving, setSaving] = useState(false);
   const [exportResults, setExportResults] = useState(null);
 
@@ -49,19 +49,9 @@ export default function LabBuilder() {
     enabled: !!editId,
   });
 
-  const { data: existingModules = [] } = useQuery({
-    queryKey: ["lab-modules", editId],
-    queryFn: () => base44.entities.CourseModule.filter({ template_id: editId }),
-    enabled: !!editId,
-  });
-
   useEffect(() => {
     if (existing) setForm({ ...DEFAULT_FORM, ...existing });
   }, [existing]);
-
-  useEffect(() => {
-    if (existingModules.length) setModules(existingModules);
-  }, [existingModules]);
 
   const updateForm = (updates) => setForm((prev) => ({ ...prev, ...updates }));
 
@@ -79,27 +69,17 @@ export default function LabBuilder() {
         const created = await base44.entities.LabTemplate.create(form);
         templateId = created.id;
       }
-      for (const mod of existingModules) {
-        if (!modules.find((m) => m.id === mod.id)) {
-          await base44.entities.CourseModule.delete(mod.id);
-        }
-      }
-      for (const mod of modules) {
-        if (mod.id) {
-          await base44.entities.CourseModule.update(mod.id, { ...mod, template_id: templateId });
-        } else {
-          await base44.entities.CourseModule.create({ ...mod, template_id: templateId });
-        }
-      }
       queryClient.invalidateQueries({ queryKey: ["lab-templates"] });
-      setExportResults({ template: { ...form, id: templateId }, modules });
+      setExportResults({ template: { ...form, id: templateId } });
     } finally {
       setSaving(false);
     }
   };
 
+  const labContent = form.lab_content || {};
+  const taskCount = (labContent.tasks || []).length;
   const basicsComplete = !!form.title;
-  const contentComplete = modules.length > 0;
+  const contentComplete = taskCount > 0;
   const niceComplete = !!(form.nice_category && form.nice_work_role);
 
   return (
@@ -117,7 +97,7 @@ export default function LabBuilder() {
             {editId ? "Edit Lab Template" : "Create Lab Template"}
           </h1>
           <p className="text-gray-400 text-sm mt-1">
-            Build a NICE Framework-aligned lab course — all sections are editable below
+            Build a NICE Framework-aligned lab — all sections are editable below
           </p>
         </div>
 
@@ -125,7 +105,6 @@ export default function LabBuilder() {
           {/* Sidebar */}
           <BuilderSidebar
             form={form}
-            modules={modules}
             saving={saving}
             onSave={handleSave}
             sections={SECTIONS}
@@ -134,7 +113,7 @@ export default function LabBuilder() {
 
           {/* Main Canvas */}
           <div className="space-y-4 min-w-0">
-            <AIGeneratorPanel updateForm={updateForm} setModules={setModules} />
+            <AIGeneratorPanel updateForm={updateForm} />
 
             <SectionCard
               id="basics"
@@ -161,12 +140,12 @@ export default function LabBuilder() {
             <SectionCard
               id="content"
               icon={BookOpen}
-              title="Course Content"
-              subtitle="Build modules with guided pacing and instructional mix"
-              tip="A balanced lab mixes reading, hands-on practice, and assessment. Use the pacing bar to monitor your instructional mix, and the Preview button to see how students will view each module."
+              title="Lab Content"
+              subtitle="Scenario narrative, step-by-step tasks, and success criteria"
+              tip="This section holds the lab-specific courseware: the scenario students work through, the tasks they must complete, and how to verify success. Full course module structures are managed elsewhere."
               complete={contentComplete}
             >
-              <Step3Content modules={modules} setModules={setModules} />
+              <LabContentEditor form={form} updateForm={updateForm} />
             </SectionCard>
 
             <SectionCard
@@ -196,7 +175,6 @@ export default function LabBuilder() {
         {exportResults && (
           <ExportResultsModal
             template={exportResults.template}
-            modules={exportResults.modules}
             onClose={() => {
               setExportResults(null);
               navigate("/LabTemplates");

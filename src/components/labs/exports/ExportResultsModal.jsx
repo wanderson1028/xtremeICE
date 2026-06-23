@@ -6,7 +6,7 @@ import InstructorGuide from "./InstructorGuide";
 import StudentGuide from "./StudentGuide";
 import LmsOutline from "./LmsOutline";
 
-export default function ExportResultsModal({ template, modules, onClose }) {
+export default function ExportResultsModal({ template, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
       <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
@@ -20,10 +20,10 @@ export default function ExportResultsModal({ template, modules, onClose }) {
           </Button>
         </div>
         <div className="overflow-y-auto p-5 space-y-4">
-          <NiceAlignmentReport template={template} modules={modules} />
-          {template.export_instructor_guide && <InstructorGuide template={template} modules={modules} />}
-          {template.export_student_guide && <StudentGuide template={template} modules={modules} />}
-          {template.export_lms_outline && <LmsOutline template={template} modules={modules} />}
+          <NiceAlignmentReport template={template} />
+          {template.export_instructor_guide && <InstructorGuide template={template} />}
+          {template.export_student_guide && <StudentGuide template={template} />}
+          {template.export_lms_outline && <LmsOutline template={template} />}
         </div>
         <div className="p-5 border-t border-gray-800 flex justify-end flex-shrink-0">
           <Button onClick={onClose} className="bg-red-700 hover:bg-red-600 text-white">Done</Button>

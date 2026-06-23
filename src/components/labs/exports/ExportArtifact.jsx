@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import ReactMarkdown from "react-markdown";
 import { downloadText } from "./exportUtils";
 
-export default function ExportArtifact({ title, icon: Icon, generate, template, modules, filename }) {
+export default function ExportArtifact({ title, icon: Icon, generate, template, filename }) {
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -13,7 +13,7 @@ export default function ExportArtifact({ title, icon: Icon, generate, template, 
     let cancelled = false;
     (async () => {
       try {
-        const result = await generate(template, modules);
+        const result = await generate(template);
         if (!cancelled) { setContent(result); setLoading(false); }
       } catch (err) {
         if (!cancelled) { setError(err.message || "Generation failed"); setLoading(false); }

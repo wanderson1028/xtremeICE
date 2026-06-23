@@ -2,11 +2,13 @@ import React from "react";
 import { FileCheck } from "lucide-react";
 import ExportArtifact from "./ExportArtifact";
 
-function generateNiceReport(template, modules) {
+function generateNiceReport(template) {
   const taskIds = template.nice_task_ids || [];
   const tksIds = template.nice_tks_ids || [];
   const objectives = template.objectives || [];
   const prerequisites = template.prerequisites || [];
+  const labContent = template.lab_content || {};
+  const tasks = labContent.tasks || [];
 
   const lines = [
     `# NICE Alignment Report`,
@@ -42,13 +44,18 @@ function generateNiceReport(template, modules) {
     ``,
     `---`,
     ``,
-    `## Module Alignment`,
+    `## Lab Content Alignment`,
     ``,
-    ...(modules && modules.length
-      ? modules.map((m, i) =>
-          `### ${i + 1}. ${m.title}\n- **Type:** ${m.type || "hands_on"}\n- **Description:** ${m.description || "N/A"}\n- **Duration:** ${m.duration_minutes || "N/A"} minutes\n- **Points:** ${m.points || 10}\n`
-        )
-      : ["- No modules defined"]),
+    `### Scenario`,
+    labContent.scenario || "- No scenario defined",
+    ``,
+    `### Tasks`,
+    ...(tasks.length
+      ? tasks.map((t, i) => `${i + 1}. ${t.title}`)
+      : ["- No tasks defined"]),
+    ``,
+    `### Success Criteria`,
+    labContent.success_criteria || "- No success criteria defined",
     ``,
     `---`,
     ``,
@@ -56,20 +63,19 @@ function generateNiceReport(template, modules) {
     ``,
     `This lab template is aligned with the **${template.nice_category || "unspecified"}** NICE Framework category` +
     `${template.nice_work_role ? ` for the **${template.nice_work_role}** work role` : ""}. ` +
-    `It contains ${modules?.length || 0} module(s), covers ${taskIds.length} task(s), and addresses ${tksIds.length} TKS item(s).`,
+    `It contains ${tasks.length} task(s), covers ${taskIds.length} NICE task(s), and addresses ${tksIds.length} TKS item(s).`,
   ];
 
   return Promise.resolve(lines.join("\n"));
 }
 
-export default function NiceAlignmentReport({ template, modules }) {
+export default function NiceAlignmentReport({ template }) {
   return (
     <ExportArtifact
       title="NICE Alignment Report"
       icon={FileCheck}
       generate={generateNiceReport}
       template={template}
-      modules={modules}
       filename={`nice-report-${(template.title || "lab").replace(/\s+/g, "-").toLowerCase()}.md`}
     />
   );

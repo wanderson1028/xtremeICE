@@ -62,6 +62,35 @@
         "type": "string"
       }
     },
+    "lab_content": {
+      "type": "object",
+      "description": "Lab-specific content: scenario, tasks, and validation criteria",
+      "properties": {
+        "scenario": {
+          "type": "string",
+          "description": "Lab scenario narrative (markdown)"
+        },
+        "tasks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "instructions": {
+                "type": "string",
+                "description": "Step-by-step instructions (markdown)"
+              }
+            }
+          }
+        },
+        "success_criteria": {
+          "type": "string",
+          "description": "How to verify the lab is complete (markdown)"
+        }
+      }
+    },
     "environment_profile_id": {
       "type": "string"
     },

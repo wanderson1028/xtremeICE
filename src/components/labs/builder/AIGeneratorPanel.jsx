@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Zap, RefreshCw, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 
-export default function AIGeneratorPanel({ updateForm, setModules }) {
+export default function AIGeneratorPanel({ updateForm }) {
   const [prompt, setPrompt] = useState("");
   const [generating, setGenerating] = useState(false);
   const [expanded, setExpanded] = useState(true);
@@ -15,7 +15,7 @@ export default function AIGeneratorPanel({ updateForm, setModules }) {
     setGenerating(true);
     try {
       const res = await base44.integrations.Core.InvokeLLM({
-        prompt: `You are a cybersecurity lab curriculum designer aligned to the NICE Cybersecurity Workforce Framework. Generate a complete lab template based on this request: "${prompt}"
+        prompt: `You are a cybersecurity lab designer aligned to the NICE Cybersecurity Workforce Framework. Generate a complete lab template based on this request: "${prompt}"
 
 Return a JSON object with these fields:
 - title: string (concise lab title)
@@ -29,7 +29,10 @@ Return a JSON object with these fields:
 - objectives: array of 3-5 learning objectives
 - prerequisites: array of 2-3 prerequisites
 - tags: array of relevant tags
-- modules: array of 3-6 objects each with: title (string), description (string), type (one of "hands_on", "reading", "quiz", "challenge"), duration_minutes (number), points (number), content (detailed step-by-step instructions string)`,
+- lab_content: object with:
+  - scenario: string (markdown narrative describing the real-world scenario students will work through)
+  - tasks: array of 3-6 objects each with: title (string), instructions (detailed step-by-step markdown instructions string)
+  - success_criteria: string (markdown describing how to verify the lab is complete, including expected outputs or states)`,
         response_json_schema: {
           type: "object",
           properties: {
@@ -44,23 +47,27 @@ Return a JSON object with these fields:
             objectives: { type: "array", items: { type: "string" } },
             prerequisites: { type: "array", items: { type: "string" } },
             tags: { type: "array", items: { type: "string" } },
-            modules: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  title: { type: "string" },
-                  description: { type: "string" },
-                  type: { type: "string" },
-                  duration_minutes: { type: "number" },
-                  points: { type: "number" },
-                  content: { type: "string" }
+            lab_content: {
+              type: "object",
+              properties: {
+                scenario: { type: "string" },
+                tasks: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      title: { type: "string" },
+                      instructions: { type: "string" }
+                    },
+                    required: ["title", "instructions"]
+                  }
                 },
-                required: ["title", "description", "type", "duration_minutes", "points", "content"]
-              }
+                success_criteria: { type: "string" }
+              },
+              required: ["scenario", "tasks", "success_criteria"]
             }
           },
-          required: ["title", "description", "difficulty", "estimated_duration_minutes", "nice_category", "nice_work_role", "nice_task_ids", "nice_tks_ids", "objectives", "prerequisites", "tags", "modules"]
+          required: ["title", "description", "difficulty", "estimated_duration_minutes", "nice_category", "nice_work_role", "nice_task_ids", "nice_tks_ids", "objectives", "prerequisites", "tags", "lab_content"]
         }
       });
 
@@ -76,20 +83,8 @@ Return a JSON object with these fields:
         objectives: res.objectives || [],
         prerequisites: res.prerequisites || [],
         tags: res.tags || [],
+        lab_content: res.lab_content || { scenario: "", tasks: [], success_criteria: "" },
       });
-
-      if (res.modules?.length) {
-        setModules(res.modules.map((m, i) => ({
-          title: m.title || "",
-          description: m.description || "",
-          type: m.type || "hands_on",
-          duration_minutes: m.duration_minutes || 30,
-          points: m.points || 10,
-          content: m.content || "",
-          hints: [],
-          order: i + 1,
-        })));
-      }
 
       setExpanded(false);
     } finally {
@@ -98,7 +93,7 @@ Return a JSON object with these fields:
   };
 
   return (
-    <div className="bg-gray-900 rounded-xl border border-red-900/30 overflow-hidden mb-6">
+    <div className="bg-gray-900 rounded-xl border border-red-900/30 overflow-hidden mb-4">
       <button
         onClick={() => setExpanded(!expanded)}
         className="flex items-center justify-between w-full p-4 hover:bg-gray-800/50 transition-colors"
@@ -109,7 +104,7 @@ Return a JSON object with these fields:
           </div>
           <div className="text-left">
             <h3 className="text-sm font-semibold text-white">AI Lab Generator</h3>
-            <p className="text-xs text-gray-500">Describe your lab goals — AI populates all fields across every step</p>
+            <p className="text-xs text-gray-500">Describe your lab goals — AI populates all fields</p>
           </div>
         </div>
         {expanded
@@ -138,7 +133,7 @@ Return a JSON object with these fields:
             )}
           </Button>
           <p className="text-xs text-gray-600 text-center">
-            Fills Basics, Content modules, and NICE Mapping automatically
+            Fills Basics, Lab Content, and NICE Mapping automatically
           </p>
         </div>
       )}
