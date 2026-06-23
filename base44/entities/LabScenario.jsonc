@@ -99,6 +99,15 @@
     "max_attempts": {
       "type": "number",
       "default": 0
+    },
+    "nice_stale": {
+      "type": "boolean",
+      "default": false,
+      "description": "Set true when NICE framework version changes; scenario mapping may need review"
+    },
+    "nice_version_id": {
+      "type": "string",
+      "description": "ID of the NiceFrameworkVersion this scenario was last mapped against"
     }
   },
   "required": [

@@ -101,6 +101,15 @@
     "export_lms_outline": {
       "type": "boolean",
       "default": false
+    },
+    "nice_stale": {
+      "type": "boolean",
+      "default": false,
+      "description": "Set true when NICE framework version changes; lab mapping may need review"
+    },
+    "nice_version_id": {
+      "type": "string",
+      "description": "ID of the NiceFrameworkVersion this lab was last mapped against"
     }
   },
   "required": [
