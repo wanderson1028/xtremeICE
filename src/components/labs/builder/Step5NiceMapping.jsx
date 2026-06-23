@@ -80,19 +80,13 @@ export default function Step5NiceMapping({ form, updateForm }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-white">NICE Framework Mapping</h2>
-          <p className="text-gray-400 text-sm">Align this lab with the NICE Cybersecurity Workforce Framework.</p>
-        </div>
-        <div className="flex items-center gap-2 text-sm">
-          {completionPct === 100 ? (
-            <CheckCircle2 className="h-4 w-4 text-green-400" />
-          ) : (
-            <Circle className="h-4 w-4 text-gray-600" />
-          )}
-          <span className="text-gray-300 font-medium">{completionPct}% Complete</span>
-        </div>
+      <div className="flex items-center justify-end gap-2 text-sm">
+        {completionPct === 100 ? (
+          <CheckCircle2 className="h-4 w-4 text-green-400" />
+        ) : (
+          <Circle className="h-4 w-4 text-gray-600" />
+        )}
+        <span className="text-gray-300 font-medium">{completionPct}% Complete</span>
       </div>
 
       {/* Progress Bar */}

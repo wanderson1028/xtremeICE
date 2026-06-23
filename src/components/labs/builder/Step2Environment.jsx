@@ -12,9 +12,6 @@ export default function Step2Environment({ form, updateForm }) {
 
   return (
     <div className="space-y-5">
-      <h2 className="text-lg font-semibold text-white">Lab Environment</h2>
-      <p className="text-gray-400 text-sm">Select the Kasm workspace image for this lab. <span className="text-gray-500">(Optional)</span></p>
-
       {isLoading && <p className="text-gray-500 text-sm animate-pulse">Loading environments...</p>}
 
       {!isLoading && profiles.length === 0 && (

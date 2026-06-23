@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { ChevronLeft, FileText, Server, BookOpen, Target, Download } from "lucide-react";
 
 import Step1Basics from "@/components/labs/builder/Step1Basics";
 import Step2Environment from "@/components/labs/builder/Step2Environment";
@@ -12,8 +12,8 @@ import Step5NiceMapping from "@/components/labs/builder/Step5NiceMapping";
 import StepExportConfig from "@/components/labs/builder/StepExportConfig";
 import ExportResultsModal from "@/components/labs/exports/ExportResultsModal";
 import AIGeneratorPanel from "@/components/labs/builder/AIGeneratorPanel";
-
-const STEPS = ["Basics", "Environment", "Content", "NICE Mapping", "Export Config"];
+import SectionCard from "@/components/labs/builder/SectionCard";
+import BuilderSidebar from "@/components/labs/builder/BuilderSidebar";
 
 const DEFAULT_FORM = {
   title: "", description: "", difficulty: "Beginner",
@@ -24,13 +24,20 @@ const DEFAULT_FORM = {
   export_instructor_guide: false, export_student_guide: false, export_lms_outline: false,
 };
 
+const SECTIONS = [
+  { id: "basics", label: "Basics & Objectives", icon: FileText },
+  { id: "environment", label: "Environment", icon: Server },
+  { id: "content", label: "Course Content", icon: BookOpen },
+  { id: "nice", label: "NICE Mapping", icon: Target },
+  { id: "exports", label: "Export Config", icon: Download },
+];
+
 export default function LabBuilder() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const urlParams = new URLSearchParams(window.location.search);
   const editId = urlParams.get("id");
 
-  const [step, setStep] = useState(0);
   const [form, setForm] = useState(DEFAULT_FORM);
   const [modules, setModules] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -38,7 +45,7 @@ export default function LabBuilder() {
 
   const { data: existing } = useQuery({
     queryKey: ["lab-template", editId],
-    queryFn: () => base44.entities.LabTemplate.filter({ id: editId }).then(r => r[0]),
+    queryFn: () => base44.entities.LabTemplate.filter({ id: editId }).then((r) => r[0]),
     enabled: !!editId,
   });
 
@@ -56,7 +63,11 @@ export default function LabBuilder() {
     if (existingModules.length) setModules(existingModules);
   }, [existingModules]);
 
-  const updateForm = (updates) => setForm(prev => ({ ...prev, ...updates }));
+  const updateForm = (updates) => setForm((prev) => ({ ...prev, ...updates }));
+
+  const scrollToSection = (id) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -68,9 +79,8 @@ export default function LabBuilder() {
         const created = await base44.entities.LabTemplate.create(form);
         templateId = created.id;
       }
-      // Sync modules: delete removed, create/update remaining
       for (const mod of existingModules) {
-        if (!modules.find(m => m.id === mod.id)) {
+        if (!modules.find((m) => m.id === mod.id)) {
           await base44.entities.CourseModule.delete(mod.id);
         }
       }
@@ -88,85 +98,109 @@ export default function LabBuilder() {
     }
   };
 
-  const stepProps = { form, updateForm };
+  const basicsComplete = !!form.title;
+  const contentComplete = modules.length > 0;
+  const niceComplete = !!(form.nice_category && form.nice_work_role);
 
   return (
-    <div className="min-h-screen bg-gray-950 p-6">
-      <div className="max-w-3xl mx-auto">
-        <Link to="/LabBuilderDashboard" className="inline-flex items-center gap-1 text-gray-400 hover:text-white text-sm mb-5 transition-colors">
+    <div className="min-h-screen bg-gray-950 p-4 lg:p-6">
+      <div className="max-w-7xl mx-auto">
+        <Link
+          to="/LabBuilderDashboard"
+          className="inline-flex items-center gap-1 text-gray-400 hover:text-white text-sm mb-5 transition-colors"
+        >
           <ChevronLeft className="h-4 w-4" /> Course Lab Builder
         </Link>
 
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-white">{editId ? "Edit Lab Template" : "Create Lab Template"}</h1>
-          <p className="text-gray-400 text-sm mt-1">Build a NICE Framework-aligned lab course</p>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-white">
+            {editId ? "Edit Lab Template" : "Create Lab Template"}
+          </h1>
+          <p className="text-gray-400 text-sm mt-1">
+            Build a NICE Framework-aligned lab course — all sections are editable below
+          </p>
         </div>
 
-        {/* Step Indicator */}
-        <div className="flex items-center mb-8">
-          {STEPS.map((s, i) => (
-            <React.Fragment key={s}>
-              <button
-                onClick={() => i < step && setStep(i)}
-                className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-all ${
-                  i === step ? "text-white font-semibold" :
-                  i < step ? "text-green-400 cursor-pointer hover:text-green-300" : "text-gray-600"
-                }`}
-              >
-                <span className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                  i < step ? "bg-green-700" : i === step ? "bg-red-700" : "bg-gray-800"
-                }`}>
-                  {i < step ? <Check className="h-3 w-3" /> : i + 1}
-                </span>
-                <span className="hidden sm:inline">{s}</span>
-              </button>
-              {i < STEPS.length - 1 && (
-                <div className={`flex-1 h-px mx-1 ${i < step ? "bg-green-800" : "bg-gray-800"}`} />
-              )}
-            </React.Fragment>
-          ))}
-        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
+          {/* Sidebar */}
+          <BuilderSidebar
+            form={form}
+            modules={modules}
+            saving={saving}
+            onSave={handleSave}
+            sections={SECTIONS}
+            onNavigate={scrollToSection}
+          />
 
-        {/* Step Content */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-6 mb-6">
-          {step === 0 && (
-            <>
-              <AIGeneratorPanel updateForm={updateForm} setModules={setModules} />
-              <Step1Basics {...stepProps} />
-            </>
-          )}
-          {step === 1 && <Step2Environment {...stepProps} />}
-          {step === 2 && <Step3Content {...stepProps} modules={modules} setModules={setModules} />}
-          {step === 3 && <Step5NiceMapping {...stepProps} />}
-          {step === 4 && <StepExportConfig {...stepProps} />}
-        </div>
+          {/* Main Canvas */}
+          <div className="space-y-4 min-w-0">
+            <AIGeneratorPanel updateForm={updateForm} setModules={setModules} />
 
-        {/* Navigation */}
-        <div className="flex justify-between">
-          <Button variant="outline"
-            onClick={() => step === 0 ? navigate("/LabTemplates") : setStep(s => s - 1)}
-            className="bg-transparent border-gray-700 text-gray-300 hover:bg-gray-800">
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            {step === 0 ? "Cancel" : "Back"}
-          </Button>
-          {step < STEPS.length - 1 ? (
-            <Button onClick={() => setStep(s => s + 1)} disabled={!form.title}
-              className="bg-red-700 hover:bg-red-600 text-white">
-              Next <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          ) : (
-            <Button onClick={handleSave} disabled={saving || !form.title}
-              className="bg-green-700 hover:bg-green-600 text-white">
-              {saving ? "Saving..." : editId ? "Update Template" : "Create Template"}
-            </Button>
-          )}
+            <SectionCard
+              id="basics"
+              icon={FileText}
+              title="Basics & Objectives"
+              subtitle="Title, description, difficulty, and learning objectives"
+              tip="Clear learning objectives help students understand what they'll achieve and guide your assessment design. Aim for 3–5 measurable objectives."
+              complete={basicsComplete}
+            >
+              <Step1Basics form={form} updateForm={updateForm} />
+            </SectionCard>
+
+            <SectionCard
+              id="environment"
+              icon={Server}
+              title="Lab Environment"
+              subtitle="Select the workspace image for this lab"
+              tip="The environment provides students with a consistent, isolated workspace. You can skip this and configure it later."
+              complete={true}
+            >
+              <Step2Environment form={form} updateForm={updateForm} />
+            </SectionCard>
+
+            <SectionCard
+              id="content"
+              icon={BookOpen}
+              title="Course Content"
+              subtitle="Build modules with guided pacing and instructional mix"
+              tip="A balanced lab mixes reading, hands-on practice, and assessment. Use the pacing bar to monitor your instructional mix, and the Preview button to see how students will view each module."
+              complete={contentComplete}
+            >
+              <Step3Content modules={modules} setModules={setModules} />
+            </SectionCard>
+
+            <SectionCard
+              id="nice"
+              icon={Target}
+              title="NICE Framework Mapping"
+              subtitle="Align with the NICE Cybersecurity Workforce Framework"
+              tip="NICE mapping helps students and employers understand how this lab develops specific workforce competencies."
+              complete={niceComplete}
+            >
+              <Step5NiceMapping form={form} updateForm={updateForm} />
+            </SectionCard>
+
+            <SectionCard
+              id="exports"
+              icon={Download}
+              title="Export Configuration"
+              subtitle="Choose which artifacts to generate"
+              tip="The NICE Alignment Report is always generated. Instructor Guide, Student Guide, and LMS Outline are optional — enable them to generate downloadable materials after saving."
+              complete={true}
+            >
+              <StepExportConfig form={form} updateForm={updateForm} />
+            </SectionCard>
+          </div>
         </div>
 
         {exportResults && (
           <ExportResultsModal
             template={exportResults.template}
             modules={exportResults.modules}
-            onClose={() => { setExportResults(null); navigate("/LabTemplates"); }}
+            onClose={() => {
+              setExportResults(null);
+              navigate("/LabTemplates");
+            }}
           />
         )}
       </div>

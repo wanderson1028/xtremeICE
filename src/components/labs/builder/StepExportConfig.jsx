@@ -13,11 +13,6 @@ const OPTIONAL_EXPORTS = [
 export default function StepExportConfig({ form, updateForm }) {
   return (
     <div className="space-y-6">
-      <h2 className="text-lg font-semibold text-white">Export Configuration</h2>
-      <p className="text-gray-400 text-sm">
-        Configure which artifacts to generate for this lab template. The NICE Alignment Report is always generated.
-      </p>
-
       {/* NICE Report — always on */}
       <div className="flex items-center justify-between p-4 bg-green-950/20 border border-green-800/30 rounded-lg">
         <div className="flex items-center gap-3">
