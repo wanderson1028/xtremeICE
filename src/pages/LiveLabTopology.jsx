@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, Terminal, Wifi, Plus, X, Play, Square, RefreshCw, ExternalLink,
-  ChevronRight, Cpu, HardDrive, Network, Globe, Zap, Download, Key, Check,
+  ChevronRight, Cpu, HardDrive, Network, Globe, Zap, Download, Key, Check, Copy,
   Power, PowerOff, Rocket, Server, Wand2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -92,6 +92,7 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
   const [verifying, setVerifying] = useState(false);
   const [deviceAction, setDeviceAction] = useState(null); // 'stopping' | 'starting'
   const [rdpCopied, setRdpCopied] = useState(false);
+  const [pwdCopied, setPwdCopied] = useState(false);
   const [showIconPicker, setShowIconPicker] = useState(false);
   const status = deployed?.status || "pending";
   const isWindows = (deployed?.access_method || device.access_method) === "rdp";
@@ -475,6 +476,23 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
                         {passwordData.password}
                       </code>
                     </div>
+                    <Button
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(passwordData.password);
+                          setPwdCopied(true);
+                          setTimeout(() => setPwdCopied(false), 2000);
+                        } catch { /* clipboard may not be available */ }
+                      }}
+                      size="sm"
+                      className="w-full bg-green-800 hover:bg-green-700 text-white text-xs"
+                    >
+                      {pwdCopied ? (
+                        <><Check className="h-3.5 w-3.5 mr-1.5" /> Copied to Clipboard</>
+                      ) : (
+                        <><Copy className="h-3.5 w-3.5 mr-1.5" /> Copy Password</>
+                      )}
+                    </Button>
                     <p className="text-[8px] font-mono text-gray-500 text-center">
                       Connect via RDP with username <code className="text-amber-400">{deployed?.default_username || "Administrator"}</code>
                     </p>
