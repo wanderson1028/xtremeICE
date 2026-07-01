@@ -131,6 +131,7 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
     setLoadingPassword(true);
     setPasswordError(null);
     setPasswordData(null);
+    setVerifyResult(null);
     try {
       console.log("[GetPassword] calling decryptWindowsPassword with instance:", deployed.instance_id);
       const res = await base44.functions.invoke("cloudProviderAWS", {
@@ -417,19 +418,40 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
         {isWindows && deployed?.instance_id && status === "running" && lab?.ssh_private_key && (
           <div className="space-y-2 pt-2 border-t border-gray-800">
             <p className="text-[9px] font-mono text-gray-500">Windows Admin Password is encrypted with the PEM key. Retrieve it from AWS:</p>
-            <Button
-              onClick={handleGetPassword}
-              disabled={loadingPassword}
-              size="sm"
-              variant="outline"
-              className="w-full border-purple-700/40 text-purple-400 hover:bg-purple-950/30 hover:text-purple-300 text-xs"
-            >
-              {loadingPassword ? (
-                <><RefreshCw className="h-3.5 w-3.5 animate-spin mr-1.5" /> Fetching...</>
-              ) : (
-                <><Key className="h-3.5 w-3.5 mr-1.5" /> Get Windows Admin Password</>
-              )}
-            </Button>
+
+            {/* Get Password + Copy icon side by side */}
+            <div className="flex gap-2">
+              <Button
+                onClick={handleGetPassword}
+                disabled={loadingPassword}
+                size="sm"
+                variant="outline"
+                className="flex-1 border-purple-700/40 text-purple-400 hover:bg-purple-950/30 hover:text-purple-300 text-xs"
+              >
+                {loadingPassword ? (
+                  <><RefreshCw className="h-3.5 w-3.5 animate-spin mr-1.5" /> Fetching...</>
+                ) : (
+                  <><Key className="h-3.5 w-3.5 mr-1.5" /> Get Windows Admin Password</>
+                )}
+              </Button>
+              <Button
+                onClick={async () => {
+                  if (!passwordData?.password) return;
+                  try {
+                    await navigator.clipboard.writeText(passwordData.password);
+                    setPwdCopied(true);
+                    setTimeout(() => setPwdCopied(false), 2000);
+                  } catch { /* clipboard may not be available */ }
+                }}
+                disabled={!passwordData?.password}
+                size="sm"
+                variant="outline"
+                className="border-green-700/40 text-green-400 hover:bg-green-950/30 hover:text-green-300 text-xs px-3"
+                title={passwordData?.password ? "Copy password to clipboard" : "Retrieve password first"}
+              >
+                {pwdCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              </Button>
+            </div>
 
             {/* Diagnostic: Verify key match */}
             <Button
@@ -446,14 +468,22 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
               )}
             </Button>
 
+            {/* Verify result — dismissible */}
             {verifyResult && (
-              <div className={`bg-gray-800/60 rounded-lg p-2 border text-[9px] font-mono ${
+              <div className={`relative bg-gray-800/60 rounded-lg p-2 pr-7 border text-[9px] font-mono ${
                 verifyResult.fingerprintsMatch === true
                   ? "border-green-700/40 text-green-400"
                   : verifyResult.fingerprintsMatch === false
                     ? "border-red-700/40 text-red-400"
                     : "border-yellow-700/40 text-yellow-400"
               }`}>
+                <button
+                  onClick={() => setVerifyResult(null)}
+                  className="absolute top-1 right-1 text-gray-500 hover:text-white"
+                  title="Dismiss"
+                >
+                  <X className="h-3 w-3" />
+                </button>
                 <p className="font-bold">{verifyResult.verdict}</p>
                 {verifyResult.instanceKeyName && <p className="mt-1 text-gray-500">Instance key: {verifyResult.instanceKeyName}</p>}
                 {verifyResult.awsFingerprint && <p className="text-gray-500">AWS fingerprint: {verifyResult.awsFingerprint}</p>}
@@ -462,11 +492,18 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
               </div>
             )}
 
+            {/* Password error — dismissible, does NOT block password display */}
             {passwordError && (
-              <p className="text-[9px] text-red-400 font-mono text-center">{passwordError}</p>
+              <div className="flex items-start justify-between gap-2 bg-red-950/30 border border-red-800/40 rounded-lg px-2 py-1.5">
+                <p className="text-[9px] text-red-400 font-mono">{passwordError}</p>
+                <button onClick={() => setPasswordError(null)} className="text-red-500 hover:text-red-300 shrink-0" title="Dismiss">
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
             )}
 
-            {passwordData && !passwordError && (
+            {/* Password display — shows independently of passwordError */}
+            {passwordData && (
               <div className="bg-gray-800/60 rounded-lg p-3 space-y-2">
                 {passwordData.password ? (
                   <>
@@ -476,23 +513,6 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
                         {passwordData.password}
                       </code>
                     </div>
-                    <Button
-                      onClick={async () => {
-                        try {
-                          await navigator.clipboard.writeText(passwordData.password);
-                          setPwdCopied(true);
-                          setTimeout(() => setPwdCopied(false), 2000);
-                        } catch { /* clipboard may not be available */ }
-                      }}
-                      size="sm"
-                      className="w-full bg-green-800 hover:bg-green-700 text-white text-xs"
-                    >
-                      {pwdCopied ? (
-                        <><Check className="h-3.5 w-3.5 mr-1.5" /> Copied to Clipboard</>
-                      ) : (
-                        <><Copy className="h-3.5 w-3.5 mr-1.5" /> Copy Password</>
-                      )}
-                    </Button>
                     <p className="text-[8px] font-mono text-gray-500 text-center">
                       Connect via RDP with username <code className="text-amber-400">{deployed?.default_username || "Administrator"}</code>
                     </p>
