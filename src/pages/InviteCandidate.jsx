@@ -48,7 +48,7 @@ export default function InviteCandidate() {
     setSending(true);
 
     try {
-      await base44.functions.invoke("sendCandidateInvite", {
+      const res = await base44.functions.invoke("sendCandidateInvite", {
         candidate_name: form.candidate_name,
         candidate_email: form.candidate_email,
         assessment_id: assessmentId,
@@ -58,8 +58,18 @@ export default function InviteCandidate() {
         custom_body: emailBody,
       });
 
-      setSent(true);
-      setEditMode(false);
+      if (res?.data?.emailSent === false) {
+        const reason = res?.data?.emailFailReason || "";
+        const isDomainIssue = reason.toLowerCase().includes("verify a domain");
+        setError(
+          isDomainIssue
+            ? "Email not delivered — your sending domain isn't verified in Resend yet. Go to resend.com/domains to verify it. Meanwhile, share this direct link with the candidate: " + res?.data?.assessmentLink
+            : "The invitation was created, but the email could not be delivered (" + reason + "). Direct link: " + res?.data?.assessmentLink
+        );
+      } else {
+        setSent(true);
+        setEditMode(false);
+      }
       } catch (e) {
       setError(e.message || "Failed to send invitation. Please try again.");
       } finally {

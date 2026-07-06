@@ -30,6 +30,7 @@ Deno.serve(async (req) => {
 
     // Send email via Resend
     let emailSent = false;
+    let emailFailReason = null;
     try {
       const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
       const emailSubject = custom_subject || `Skills Assessment Invitation — ${position_title}${company_name ? ` at ${company_name}` : ''}`;
@@ -37,8 +38,19 @@ Deno.serve(async (req) => {
         ? custom_body.replace(/\n/g, '<br/>')
         : `Hello <strong style="color: #fff;">${candidate_name}</strong>,<br/><br/>You have been invited to complete a hands-on cybersecurity skills assessment for the <strong style="color: #ef4444;">${position_title}</strong> position${company_name ? ` at <strong style="color: #ef4444;">${company_name}</strong>` : ''}.`;
 
+      // Build a valid "from" field — RESEND_FROM_EMAIL must be a plain email;
+      // if it's missing/invalid, fall back to Resend's sandbox address.
+      const rawFromEmail = Deno.env.get('RESEND_FROM_EMAIL') || '';
+      const fromName = company_name || 'Xtreme I.C.E. Assessments';
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const fromField = rawFromEmail.includes('<')
+        ? rawFromEmail
+        : emailRegex.test(rawFromEmail)
+          ? `${fromName} <${rawFromEmail}>`
+          : `${fromName} <onboarding@resend.dev>`;
+
       const { error: resendError } = await resend.emails.send({
-        from: `${company_name || 'Xtreme I.C.E. Assessments'} <${Deno.env.get('RESEND_FROM_EMAIL') || 'onboarding@resend.dev'}>`,
+        from: fromField,
         to: candidate_email,
         subject: emailSubject,
         html: `
@@ -62,15 +74,17 @@ Deno.serve(async (req) => {
 </html>`,
       });
       if (resendError) {
-        console.warn('Resend error:', resendError.message);
+        emailFailReason = resendError.message || JSON.stringify(resendError);
+        console.warn('Resend error:', emailFailReason);
       } else {
         emailSent = true;
       }
     } catch (emailErr) {
-      console.warn('Email send failed:', emailErr.message);
+      emailFailReason = emailErr.message || String(emailErr);
+      console.warn('Email send failed:', emailFailReason);
     }
 
-    return Response.json({ success: true, invite_token, assessmentLink, emailSent });
+    return Response.json({ success: true, invite_token, assessmentLink, emailSent, emailFailReason });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
