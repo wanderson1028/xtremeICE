@@ -5,7 +5,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, Terminal, Wifi, Plus, X, Play, Square, RefreshCw, ExternalLink,
   ChevronRight, Cpu, HardDrive, Network, Globe, Zap, Download, Key, Check, Copy,
-  Power, PowerOff, Rocket, Server, Wand2, Sun, Moon, ImagePlus, Lock, Unlock, Trash2
+  Power, PowerOff, Rocket, Server, Wand2, Sun, Moon, ImagePlus, Lock, Unlock, Trash2,
+  Lightbulb, LayoutGrid
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,11 +36,41 @@ const DEVICE_TEMPLATES = [
 ];
 
 // ---- Device Node on Canvas (EVE-NG style) ----
-function DeviceNode({ device, deployed, isSelected, onClick, style, isDark }) {
+function DeviceNode({ device, deployed, isSelected, onClick, style, isDark, ledMode }) {
   const status = deployed?.status || "pending";
   const statusColor = STATUS_COLORS[status] || STATUS_COLORS.pending;
   const iconId = device.icon_id || `eve_${device.type}`;
   const EveIcon = EVE_NG_ICONS[iconId] || EVE_NG_ICONS[`eve_${device.type}`];
+
+  // LED status colors: green=running, red=off/failed/terminated, yellow=degraded
+  const ledColor = status === "running" ? "bg-green-500"
+    : (status === "stopped" || status === "failed" || status === "terminated") ? "bg-red-500"
+    : "bg-yellow-500";
+  const ledPulse = (status === "provisioning" || status === "pending") ? "animate-pulse" : "";
+
+  if (ledMode) {
+    return (
+      <div
+        onClick={(e) => onClick(device.id, e)}
+        className={`absolute flex items-center gap-1.5 cursor-pointer transition-all ${isSelected ? "z-20" : "z-10"}`}
+        style={{ left: style.x, top: style.y }}
+      >
+        <div className={`w-3.5 h-3.5 rounded-full ${ledColor} ${ledPulse} ring-2 ${
+          isSelected ? "ring-red-500" : isDark ? "ring-gray-900/80" : "ring-white/80"
+        } shadow-lg shrink-0`} />
+        <div className={`flex flex-col leading-tight backdrop-blur-sm px-1.5 py-0.5 rounded ${
+          isSelected ? "ring-1 ring-red-500" : ""
+        } ${isDark ? "bg-gray-950/70" : "bg-white/70"}`}>
+          <span className={`text-[9px] font-mono truncate max-w-[110px] ${isDark ? "text-gray-200" : "text-gray-800"}`}>
+            {device.name}
+          </span>
+          {(deployed?.public_ip || deployed?.private_ip) && (
+            <span className="text-[8px] font-mono text-green-500">{deployed.public_ip || deployed.private_ip}</span>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -722,6 +753,7 @@ export default function LiveLabTopology() {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [bgUploading, setBgUploading] = useState(false);
+  const [ledMode, setLedMode] = useState(false);
   const fileInputRef = useRef(null);
 
   // Fetch lab
@@ -1151,6 +1183,17 @@ export default function LiveLabTopology() {
           {bgImage && (
             <>
               <button
+                onClick={() => setLedMode(v => !v)}
+                className={`p-2 rounded-lg border transition-colors ${
+                  ledMode
+                    ? "bg-cyan-900/40 border-cyan-700/50 text-cyan-400"
+                    : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white"
+                }`}
+                title={ledMode ? "Switch to full icons" : "Switch to compact status LEDs"}
+              >
+                {ledMode ? <LayoutGrid className="h-4 w-4" /> : <Lightbulb className="h-4 w-4" />}
+              </button>
+              <button
                 onClick={handleToggleBgLock}
                 disabled={bgLocked && !isOwnerOrAdmin}
                 className={`p-2 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
@@ -1288,6 +1331,7 @@ export default function LiveLabTopology() {
                 onClick={handleDeviceClick}
                 style={{ x: device.position_x || 100, y: device.position_y || 100 }}
                 isDark={isDarkMode}
+                ledMode={ledMode}
               />
             );
           })}
