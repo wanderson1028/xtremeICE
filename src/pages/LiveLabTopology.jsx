@@ -1202,18 +1202,15 @@ export default function LiveLabTopology() {
         onMouseLeave={handleMouseUp}
         onClick={handleCanvasClick}
       >
-        {/* Background — uploaded image or EVE-NG graph paper grid */}
+        {/* Background — uploaded image or EVE-NG graph paper grid (stays fixed, pointer-events-none so canvas panning works) */}
         {bgImage ? (
           <div
-            className="absolute inset-0 bg-cover bg-center"
-            style={{
-              backgroundImage: `url(${bgImage})`,
-              backgroundPosition: `${pan.x}px ${pan.y}px`,
-            }}
+            className="absolute inset-0 bg-cover bg-center pointer-events-none"
+            style={{ backgroundImage: `url(${bgImage})` }}
           />
         ) : (
           <div
-            className="absolute inset-0"
+            className="absolute inset-0 pointer-events-none"
             style={{
               backgroundColor: isDarkMode ? "#0a0a0a" : "#f0f0f0",
               backgroundImage: isDarkMode
