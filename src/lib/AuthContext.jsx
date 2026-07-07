@@ -47,6 +47,7 @@ export const AuthProvider = ({ children }) => {
       try {
         const publicSettings = await appClient.get(`/prod/public-settings/by-id/${appParams.appId}`);
         setAppPublicSettings(publicSettings);
+        setIsLoadingPublicSettings(false);
         
         // If we got the app public settings successfully, check if user is authenticated
         if (appParams.token) {
@@ -55,7 +56,6 @@ export const AuthProvider = ({ children }) => {
           setIsLoadingAuth(false);
           setIsAuthenticated(false);
         }
-        setIsLoadingPublicSettings(false);
       } catch (appError) {
         console.error('App state check failed:', appError);
         
@@ -102,7 +102,13 @@ export const AuthProvider = ({ children }) => {
     try {
       // Now check if the user is authenticated
       setIsLoadingAuth(true);
-      const currentUser = await base44.auth.me();
+      // Race the auth check against a timeout so the app never hangs forever
+      const currentUser = await Promise.race([
+        base44.auth.me(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Auth check timed out')), 15000)
+        ),
+      ]);
       setUser(currentUser);
       setIsAuthenticated(true);
       setIsLoadingAuth(false);
