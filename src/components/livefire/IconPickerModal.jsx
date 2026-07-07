@@ -83,7 +83,7 @@ export default function IconPickerModal({ open, onClose, onSelect, currentIconId
         </div>
 
         {/* Icon grid */}
-        <div className="grid grid-cols-5 sm:grid-cols-6 gap-2 max-h-[400px] overflow-y-auto p-1">
+        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[400px] overflow-y-auto p-1">
           {filtered.map(opt => {
             const isActive = currentIconId === opt.id;
             const Icon = opt.icon;
@@ -98,10 +98,10 @@ export default function IconPickerModal({ open, onClose, onSelect, currentIconId
                 }`}
                 title={opt.label}
               >
-                <div className={`w-8 h-8 ${isActive ? colorClass : "text-gray-400"}`}>
+                <div className={`w-12 h-12 ${isActive ? colorClass : "text-gray-400"}`}>
                   <Icon className={isActive ? colorClass : "text-gray-400"} />
                 </div>
-                <span className={`text-[8px] font-mono truncate w-full text-center ${isActive ? "text-red-300" : "text-gray-500"}`}>
+                <span className={`text-[9px] font-mono truncate w-full text-center ${isActive ? "text-red-300" : "text-gray-500"}`}>
                   {opt.label}
                 </span>
                 {isActive && (

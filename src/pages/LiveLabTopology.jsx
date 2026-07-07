@@ -1118,7 +1118,7 @@ export default function LiveLabTopology() {
                  linear-gradient(90deg, rgba(100,110,125,0.3) 1px, transparent 1px),
                  linear-gradient(rgba(100,110,125,0.15) 1px, transparent 1px),
                  linear-gradient(90deg, rgba(100,110,125,0.15) 1px, transparent 1px)`,
-            backgroundSize: `${60 * zoom}px ${60 * zoom}px, ${60 * zoom}px ${60 * zoom}px, ${15 * zoom}px ${15 * zoom}px, ${15 * zoom}px ${15 * zoom}px`,
+            backgroundSize: `${40 * zoom}px ${40 * zoom}px, ${40 * zoom}px ${40 * zoom}px, ${10 * zoom}px ${10 * zoom}px, ${10 * zoom}px ${10 * zoom}px`,
             backgroundPosition: `${pan.x}px ${pan.y}px`,
           }}
         />
