@@ -36,7 +36,7 @@ const DEVICE_TEMPLATES = [
 ];
 
 // ---- Device Node on Canvas (EVE-NG style) ----
-function DeviceNode({ device, deployed, isSelected, onClick, style, isDark, ledMode }) {
+function DeviceNode({ device, deployed, isSelected, onClick, onDragStart, style, isDark, ledMode }) {
   const status = deployed?.status || "pending";
   const statusColor = STATUS_COLORS[status] || STATUS_COLORS.pending;
   const iconId = device.icon_id || `eve_${device.type}`;
@@ -51,8 +51,9 @@ function DeviceNode({ device, deployed, isSelected, onClick, style, isDark, ledM
   if (ledMode) {
     return (
       <div
+        onMouseDown={(e) => onDragStart(device, e)}
         onClick={(e) => onClick(device.id, e)}
-        className={`absolute flex items-center gap-1.5 cursor-pointer transition-all group ${isSelected ? "z-20" : "z-10"}`}
+        className={`absolute flex items-center gap-1.5 cursor-grab active:cursor-grabbing transition-all group ${isSelected ? "z-20" : "z-10"}`}
         style={{ left: style.x, top: style.y }}
       >
         <div className={`w-3.5 h-3.5 rounded-full ${ledColor} ${ledPulse} ring-2 ${
@@ -74,8 +75,9 @@ function DeviceNode({ device, deployed, isSelected, onClick, style, isDark, ledM
 
   return (
     <div
+      onMouseDown={(e) => onDragStart(device, e)}
       onClick={(e) => onClick(device.id, e)}
-      className={`absolute flex flex-col items-center cursor-pointer transition-all ${isSelected ? "z-20" : "z-10"}`}
+      className={`absolute flex flex-col items-center cursor-grab active:cursor-grabbing transition-all ${isSelected ? "z-20" : "z-10"}`}
       style={{ left: style.x, top: style.y }}
     >
       {/* Status dot */}
@@ -756,6 +758,9 @@ export default function LiveLabTopology() {
   const [ledMode, setLedMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(null);
+  const [draggingDevice, setDraggingDevice] = useState(null);
+  const [localPositions, setLocalPositions] = useState({});
+  const dragMovedRef = useRef(false);
   const fileInputRef = useRef(null);
 
   // Fetch lab
@@ -791,12 +796,29 @@ export default function LiveLabTopology() {
   });
 
   const handleDeviceClick = useCallback((deviceId, e) => {
+    if (dragMovedRef.current) { e.stopPropagation(); return; }
     e.stopPropagation();
     const device = topologyDevices.find(d => d.id === deviceId);
     const deployed = deployedDevices.find(d => d.name?.toLowerCase() === device?.name?.toLowerCase());
     setSelectedDevice(selectedDevice?.id === deviceId ? null : { ...device, deployed_id: deployed?.id });
     setShowAddDevice(false);
   }, [topologyDevices, deployedDevices, selectedDevice]);
+
+  // Start dragging a device icon
+  const handleDeviceDragStart = useCallback((device, e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const devX = localPositions[device.id]?.x ?? device.position_x ?? 100;
+    const devY = localPositions[device.id]?.y ?? device.position_y ?? 100;
+    setDraggingDevice({
+      deviceId: device.id,
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+      startDevX: devX,
+      startDevY: devY,
+    });
+    dragMovedRef.current = false;
+  }, [localPositions]);
 
   const handleRefreshStatus = useCallback(async () => {
     setRefreshing(true);
@@ -990,10 +1012,42 @@ export default function LiveLabTopology() {
   const handleMouseMove = (e) => {
     if (dragging) {
       setPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
+    } else if (draggingDevice) {
+      const dx = (e.clientX - draggingDevice.startMouseX) / zoom;
+      const dy = (e.clientY - draggingDevice.startMouseY) / zoom;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragMovedRef.current = true;
+      setLocalPositions(prev => ({
+        ...prev,
+        [draggingDevice.deviceId]: {
+          x: draggingDevice.startDevX + dx,
+          y: draggingDevice.startDevY + dy,
+        },
+      }));
     }
   };
 
-  const handleMouseUp = () => setDragging(false);
+  const handleMouseUp = async () => {
+    setDragging(false);
+    if (draggingDevice) {
+      const devId = draggingDevice.deviceId;
+      const pos = localPositions[devId];
+      if (pos && dragMovedRef.current) {
+        const devices = topologyDevices.map(d =>
+          d.id === devId ? { ...d, position_x: Math.round(pos.x), position_y: Math.round(pos.y) } : d
+        );
+        try {
+          await base44.entities.LiveFireLab.update(labId, {
+            topology_data: { ...topologyData, devices },
+          });
+          queryClient.invalidateQueries(["livefire-lab", labId]);
+        } catch (err) {
+          setError("Failed to save device position");
+        }
+      }
+      setDraggingDevice(null);
+      setLocalPositions({});
+    }
+  };
 
   // Background image management
   const bgImage = topologyData.background_image;
@@ -1393,6 +1447,7 @@ export default function LiveLabTopology() {
           {/* Device Nodes */}
           {topologyDevices.map(device => {
             const deployed = deployedDevices.find(d => d.name?.toLowerCase() === device.name?.toLowerCase());
+            const pos = localPositions[device.id] || { x: device.position_x || 100, y: device.position_y || 100 };
             return (
               <DeviceNode
                 key={device.id}
@@ -1400,7 +1455,8 @@ export default function LiveLabTopology() {
                 deployed={deployed}
                 isSelected={selectedDevice?.id === device.id}
                 onClick={handleDeviceClick}
-                style={{ x: device.position_x || 100, y: device.position_y || 100 }}
+                onDragStart={handleDeviceDragStart}
+                style={{ x: pos.x, y: pos.y }}
                 isDark={isDarkMode}
                 ledMode={ledMode}
               />
