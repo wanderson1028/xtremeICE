@@ -5,7 +5,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, Terminal, Wifi, Plus, X, Play, Square, RefreshCw, ExternalLink,
   ChevronRight, Cpu, HardDrive, Network, Globe, Zap, Download, Key, Check, Copy,
-  Power, PowerOff, Rocket, Server, Wand2, Sun, Moon
+  Power, PowerOff, Rocket, Server, Wand2, Sun, Moon, ImagePlus, Lock, Unlock, Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -721,12 +721,20 @@ export default function LiveLabTopology() {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [bgUploading, setBgUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
   // Fetch lab
   const { data: lab, isLoading: labLoading } = useQuery({
     queryKey: ["livefire-lab", labId],
     queryFn: () => base44.entities.LiveFireLab.get(labId),
     enabled: !!labId,
+  });
+
+  // Fetch current user for background lock permissions
+  const { data: currentUser } = useQuery({
+    queryKey: ["me"],
+    queryFn: () => base44.auth.me(),
   });
 
   // Fetch deployed devices
@@ -953,6 +961,58 @@ export default function LiveLabTopology() {
 
   const handleMouseUp = () => setDragging(false);
 
+  // Background image management
+  const bgImage = topologyData.background_image;
+  const bgLocked = topologyData.bg_locked || false;
+  const isOwnerOrAdmin = currentUser?.role === "admin" || lab?.created_by_id === currentUser?.id;
+  const canModifyBg = !bgLocked || isOwnerOrAdmin;
+
+  const handleUploadBackground = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!canModifyBg) return;
+    setBgUploading(true);
+    setError(null);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      await base44.entities.LiveFireLab.update(labId, {
+        topology_data: { ...topologyData, background_image: file_url },
+      });
+      queryClient.invalidateQueries(["livefire-lab", labId]);
+    } catch (err) {
+      setError("Failed to upload background image");
+    } finally {
+      setBgUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleRemoveBackground = async () => {
+    if (!canModifyBg) return;
+    if (!confirm("Remove background image? The grid will be restored.")) return;
+    const { background_image, ...rest } = topologyData;
+    try {
+      await base44.entities.LiveFireLab.update(labId, {
+        topology_data: { ...rest, bg_locked: false },
+      });
+      queryClient.invalidateQueries(["livefire-lab", labId]);
+    } catch (err) {
+      setError("Failed to remove background image");
+    }
+  };
+
+  const handleToggleBgLock = async () => {
+    if (bgLocked && !isOwnerOrAdmin) return;
+    try {
+      await base44.entities.LiveFireLab.update(labId, {
+        topology_data: { ...topologyData, bg_locked: !bgLocked },
+      });
+      queryClient.invalidateQueries(["livefire-lab", labId]);
+    } catch (err) {
+      setError("Failed to toggle background lock");
+    }
+  };
+
   const isRunning = lab?.status === "running";
   const isDeploying = lab?.status === "deploying";
 
@@ -1074,6 +1134,44 @@ export default function LiveLabTopology() {
           >
             {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
+          {/* Background image controls */}
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleUploadBackground} />
+          <button
+            onClick={() => canModifyBg && fileInputRef.current?.click()}
+            disabled={bgUploading || !canModifyBg}
+            className={`p-2 rounded-lg border transition-colors ${
+              bgImage
+                ? "bg-cyan-900/40 border-cyan-700/50 text-cyan-400"
+                : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white"
+            } disabled:opacity-40 disabled:cursor-not-allowed`}
+            title={canModifyBg ? (bgImage ? "Update background image" : "Upload background image") : "Background is locked"}
+          >
+            {bgUploading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+          </button>
+          {bgImage && (
+            <>
+              <button
+                onClick={handleToggleBgLock}
+                disabled={bgLocked && !isOwnerOrAdmin}
+                className={`p-2 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                  bgLocked
+                    ? "bg-amber-900/40 border-amber-700/50 text-amber-400"
+                    : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white"
+                }`}
+                title={bgLocked ? "Locked — only owner/admin can modify" : "Lock background to prevent changes"}
+              >
+                {bgLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+              </button>
+              <button
+                onClick={handleRemoveBackground}
+                disabled={!canModifyBg}
+                className="p-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-400 hover:text-red-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                title={canModifyBg ? "Remove background image" : "Background is locked"}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </>
+          )}
           {/* Add Device */}
           {isRunning && (
             <Button onClick={() => { setShowAddDevice(!showAddDevice); setSelectedDevice(null); }}
@@ -1104,24 +1202,34 @@ export default function LiveLabTopology() {
         onMouseLeave={handleMouseUp}
         onClick={handleCanvasClick}
       >
-        {/* Grid background — EVE-NG graph paper style */}
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundColor: isDarkMode ? "#0a0a0a" : "#f0f0f0",
-            backgroundImage: isDarkMode
-              ? `linear-gradient(rgba(120,130,145,0.25) 1px, transparent 1px),
-                 linear-gradient(90deg, rgba(120,130,145,0.25) 1px, transparent 1px),
-                 linear-gradient(rgba(120,130,145,0.12) 1px, transparent 1px),
-                 linear-gradient(90deg, rgba(120,130,145,0.12) 1px, transparent 1px)`
-              : `linear-gradient(rgba(100,110,125,0.3) 1px, transparent 1px),
-                 linear-gradient(90deg, rgba(100,110,125,0.3) 1px, transparent 1px),
-                 linear-gradient(rgba(100,110,125,0.15) 1px, transparent 1px),
-                 linear-gradient(90deg, rgba(100,110,125,0.15) 1px, transparent 1px)`,
-            backgroundSize: `${30 * zoom}px ${30 * zoom}px, ${30 * zoom}px ${30 * zoom}px, ${6 * zoom}px ${6 * zoom}px, ${6 * zoom}px ${6 * zoom}px`,
-            backgroundPosition: `${pan.x}px ${pan.y}px`,
-          }}
-        />
+        {/* Background — uploaded image or EVE-NG graph paper grid */}
+        {bgImage ? (
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{
+              backgroundImage: `url(${bgImage})`,
+              backgroundPosition: `${pan.x}px ${pan.y}px`,
+            }}
+          />
+        ) : (
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundColor: isDarkMode ? "#0a0a0a" : "#f0f0f0",
+              backgroundImage: isDarkMode
+                ? `linear-gradient(rgba(120,130,145,0.25) 1px, transparent 1px),
+                   linear-gradient(90deg, rgba(120,130,145,0.25) 1px, transparent 1px),
+                   linear-gradient(rgba(120,130,145,0.12) 1px, transparent 1px),
+                   linear-gradient(90deg, rgba(120,130,145,0.12) 1px, transparent 1px)`
+                : `linear-gradient(rgba(100,110,125,0.3) 1px, transparent 1px),
+                   linear-gradient(90deg, rgba(100,110,125,0.3) 1px, transparent 1px),
+                   linear-gradient(rgba(100,110,125,0.15) 1px, transparent 1px),
+                   linear-gradient(90deg, rgba(100,110,125,0.15) 1px, transparent 1px)`,
+              backgroundSize: `${25 * zoom}px ${25 * zoom}px, ${25 * zoom}px ${25 * zoom}px, ${5 * zoom}px ${5 * zoom}px, ${5 * zoom}px ${5 * zoom}px`,
+              backgroundPosition: `${pan.x}px ${pan.y}px`,
+            }}
+          />
+        )}
 
         {/* Zoom + Pan wrapper */}
         <div
