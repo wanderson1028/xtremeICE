@@ -756,6 +756,7 @@ export default function LiveLabTopology() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [bgUploading, setBgUploading] = useState(false);
   const [ledMode, setLedMode] = useState(false);
+  const [ledSynced, setLedSynced] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(null);
   const [draggingDevice, setDraggingDevice] = useState(null);
@@ -1114,13 +1115,35 @@ export default function LiveLabTopology() {
     }
   };
 
+  // Sync LED mode from lab data once it loads
+  useEffect(() => {
+    if (lab?.topology_data?.led_mode !== undefined && !ledSynced) {
+      setLedMode(!!lab.topology_data.led_mode);
+      setLedSynced(true);
+    }
+  }, [lab, ledSynced]);
+
+  // Toggle LED mode and persist immediately
+  const handleToggleLedMode = async () => {
+    const newVal = !ledMode;
+    setLedMode(newVal);
+    try {
+      await base44.entities.LiveFireLab.update(labId, {
+        topology_data: { ...topologyData, led_mode: newVal },
+      });
+      queryClient.invalidateQueries(["livefire-lab", labId]);
+    } catch (err) {
+      setError("Failed to save LED mode setting");
+    }
+  };
+
   // Save the current lab topology state
   const handleSaveLab = async () => {
     setSaving(true);
     setError(null);
     try {
       await base44.entities.LiveFireLab.update(labId, {
-        topology_data: topologyData,
+        topology_data: { ...topologyData, led_mode: ledMode },
         device_count: topologyDevices.length,
       });
       setSavedAt(new Date());
@@ -1270,7 +1293,7 @@ export default function LiveLabTopology() {
           {bgImage && (
             <>
               <button
-                onClick={() => setLedMode(v => !v)}
+                onClick={handleToggleLedMode}
                 className={`p-2 rounded-lg border transition-colors ${
                   ledMode
                     ? "bg-cyan-900/40 border-cyan-700/50 text-cyan-400"
