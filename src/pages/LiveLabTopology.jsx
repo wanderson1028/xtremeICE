@@ -6,7 +6,7 @@ import {
   ArrowLeft, Terminal, Wifi, Plus, X, Play, Square, RefreshCw, ExternalLink,
   ChevronRight, Cpu, HardDrive, Network, Globe, Zap, Download, Key, Check, Copy,
   Power, PowerOff, Rocket, Server, Wand2, Sun, Moon, ImagePlus, Lock, Unlock, Trash2,
-  Lightbulb, LayoutGrid
+  Lightbulb, LayoutGrid, Save
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,14 +52,14 @@ function DeviceNode({ device, deployed, isSelected, onClick, style, isDark, ledM
     return (
       <div
         onClick={(e) => onClick(device.id, e)}
-        className={`absolute flex items-center gap-1.5 cursor-pointer transition-all ${isSelected ? "z-20" : "z-10"}`}
+        className={`absolute flex items-center gap-1.5 cursor-pointer transition-all group ${isSelected ? "z-20" : "z-10"}`}
         style={{ left: style.x, top: style.y }}
       >
         <div className={`w-3.5 h-3.5 rounded-full ${ledColor} ${ledPulse} ring-2 ${
           isSelected ? "ring-red-500" : isDark ? "ring-gray-900/80" : "ring-white/80"
         } shadow-lg shrink-0`} />
-        <div className={`flex flex-col leading-tight backdrop-blur-sm px-1.5 py-0.5 rounded ${
-          isSelected ? "ring-1 ring-red-500" : ""
+        <div className={`flex flex-col leading-tight backdrop-blur-sm px-1.5 py-0.5 rounded transition-opacity ${
+          isSelected ? "ring-1 ring-red-500 opacity-100" : "opacity-0 group-hover:opacity-100"
         } ${isDark ? "bg-gray-950/70" : "bg-white/70"}`}>
           <span className={`text-[9px] font-mono truncate max-w-[110px] ${isDark ? "text-gray-200" : "text-gray-800"}`}>
             {device.name}
@@ -754,6 +754,8 @@ export default function LiveLabTopology() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [bgUploading, setBgUploading] = useState(false);
   const [ledMode, setLedMode] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState(null);
   const fileInputRef = useRef(null);
 
   // Fetch lab
@@ -1045,6 +1047,24 @@ export default function LiveLabTopology() {
     }
   };
 
+  // Save the current lab topology state
+  const handleSaveLab = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      await base44.entities.LiveFireLab.update(labId, {
+        topology_data: topologyData,
+        device_count: topologyDevices.length,
+      });
+      setSavedAt(new Date());
+      queryClient.invalidateQueries(["livefire-lab", labId]);
+    } catch (err) {
+      setError(err?.response?.data?.error || "Failed to save lab");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const isRunning = lab?.status === "running";
   const isDeploying = lab?.status === "deploying";
 
@@ -1215,6 +1235,25 @@ export default function LiveLabTopology() {
               </button>
             </>
           )}
+          {/* Save Lab */}
+          <button
+            onClick={handleSaveLab}
+            disabled={saving}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-mono transition-colors ${
+              savedAt && !saving
+                ? "bg-green-900/40 border border-green-700/40 text-green-300"
+                : "bg-amber-900/30 border border-amber-700/40 text-amber-400 hover:bg-amber-900/50"
+            } disabled:opacity-50`}
+            title={savedAt ? `Last saved: ${savedAt.toLocaleTimeString()}` : "Save lab topology"}
+          >
+            {saving ? (
+              <><RefreshCw className="h-3.5 w-3.5 animate-spin" /> Saving...</>
+            ) : savedAt ? (
+              <><Check className="h-3.5 w-3.5" /> Saved</>
+            ) : (
+              <><Save className="h-3.5 w-3.5" /> Save</>
+            )}
+          </button>
           {/* Add Device */}
           {isRunning && (
             <Button onClick={() => { setShowAddDevice(!showAddDevice); setSelectedDevice(null); }}
