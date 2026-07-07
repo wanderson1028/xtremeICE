@@ -5,13 +5,13 @@ import { Link, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, Terminal, Wifi, Plus, X, Play, Square, RefreshCw, ExternalLink,
   ChevronRight, Cpu, HardDrive, Network, Globe, Zap, Download, Key, Check, Copy,
-  Power, PowerOff, Rocket, Server, Wand2
+  Power, PowerOff, Rocket, Server, Wand2, Sun, Moon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import DeviceIconRenderer, { getDeviceIcon, getIconOptions } from "@/components/livefire/DeviceIcons";
-import { EVE_NG_ICONS } from "@/components/livefire/EveNgIcons";
+import { EVE_NG_ICONS, EVE_NG_ICON_LIST } from "@/components/livefire/EveNgIcons";
 
 const TYPE_COLORS = {
   router: "border-amber-500 bg-amber-500/10", switch: "border-cyan-500 bg-cyan-500/10",
@@ -35,10 +35,10 @@ const DEVICE_TEMPLATES = [
 ];
 
 // ---- Device Node on Canvas (EVE-NG style) ----
-function DeviceNode({ device, deployed, isSelected, onClick, style }) {
+function DeviceNode({ device, deployed, isSelected, onClick, style, isDark }) {
   const status = deployed?.status || "pending";
   const statusColor = STATUS_COLORS[status] || STATUS_COLORS.pending;
-  const iconId = device.icon_id || device.type;
+  const iconId = device.icon_id || `eve_${device.type}`;
   const EveIcon = EVE_NG_ICONS[iconId] || EVE_NG_ICONS[`eve_${device.type}`];
 
   return (
@@ -48,31 +48,33 @@ function DeviceNode({ device, deployed, isSelected, onClick, style }) {
       style={{ left: style.x, top: style.y }}
     >
       {/* Status dot */}
-      <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-gray-900 ${statusColor} z-10`} />
+      <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 ${isDark ? "border-gray-900" : "border-white"} ${statusColor} z-10`} />
       {/* Device box — EVE-NG style square */}
-      <div className={`w-16 h-16 rounded-lg border-2 bg-gray-900/90 backdrop-blur-sm flex items-center justify-center shadow-lg transition-all ${
+      <div className={`w-16 h-16 rounded-lg border-2 backdrop-blur-sm flex items-center justify-center shadow-lg transition-all ${
         isSelected
           ? "border-red-500 ring-2 ring-red-500/40"
-          : "border-gray-600/60 hover:border-gray-400"
+          : isDark
+            ? "border-gray-500/60 hover:border-gray-300 bg-gray-900/90"
+            : "border-gray-400 hover:border-gray-600 bg-white/90"
       }`}>
         {EveIcon ? (
-          <EveIcon className="w-10 h-10 text-gray-200" />
+          <EveIcon className={`w-10 h-10 ${isDark ? "text-gray-200" : "text-gray-700"}`} />
         ) : (
-          <DeviceIconRenderer type={device.type} iconId={iconId} className="text-gray-200 w-8 h-8" />
+          <DeviceIconRenderer type={device.type} iconId={iconId} className={`w-8 h-8 ${isDark ? "text-gray-200" : "text-gray-700"}`} />
         )}
       </div>
-      <span className="text-[9px] font-mono text-gray-300 mt-1 text-center leading-tight max-w-[90px] truncate">
+      <span className={`text-[9px] font-mono mt-1 text-center leading-tight max-w-[90px] truncate ${isDark ? "text-gray-300" : "text-gray-700"}`}>
         {device.name}
       </span>
       {deployed?.public_ip && (
-        <span className="text-[8px] font-mono text-green-500/70 mt-0.5">{deployed.public_ip}</span>
+        <span className="text-[8px] font-mono text-green-500 mt-0.5">{deployed.public_ip}</span>
       )}
     </div>
   );
 }
 
 // ---- Connection Line (EVE-NG style with link labels) ----
-function ConnectionLine({ conn, topologyDevices, deployedMap }) {
+function ConnectionLine({ conn, topologyDevices, deployedMap, isDark }) {
   const from = topologyDevices.find(d => d.id === conn.from || d.id === conn.target_device_id);
   const to = topologyDevices.find(d => d.id === conn.to || d.id === conn.target_device_id);
   if (!from || !to) return null;
@@ -87,23 +89,25 @@ function ConnectionLine({ conn, topologyDevices, deployedMap }) {
   const midY = (y1 + y2) / 2;
   const label = conn.source_interface || conn.label;
   const ipLabel = conn.source_ip;
+  const lineColor = isDark ? "rgba(156,163,175,0.5)" : "rgba(80,90,100,0.6)";
+  const textColor = isDark ? "rgba(156,163,175,0.8)" : "rgba(60,70,80,0.8)";
 
   return (
     <g>
       <line
         x1={x1} y1={y1} x2={x2} y2={y2}
-        stroke="rgba(156,163,175,0.4)" strokeWidth={1.5}
+        stroke={lineColor} strokeWidth={1.5}
         strokeDasharray={conn.type === "internet" || conn.connection_type === "internet" ? "4,3" : "none"}
       />
       {label && (
         <text x={midX} y={midY - 4} textAnchor="middle"
-          className="font-mono" fontSize={8} fill="rgba(156,163,175,0.7)">
+          className="font-mono" fontSize={8} fill={textColor}>
           {label}
         </text>
       )}
       {ipLabel && (
         <text x={midX} y={midY + 8} textAnchor="middle"
-          className="font-mono" fontSize={7} fill="rgba(74,222,128,0.6)">
+          className="font-mono" fontSize={7} fill="rgba(74,222,128,0.7)">
           {ipLabel}
         </text>
       )}
@@ -309,8 +313,9 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
           </button>
           {showIconPicker && (
             <div className="px-3 pb-3 grid grid-cols-5 gap-1.5">
-              {getIconOptions(device.type).map(opt => {
-                const isActive = (device.icon_id || device.type) === opt.id;
+              {EVE_NG_ICON_LIST.map(opt => {
+                const Icon = opt.icon;
+                const isActive = (device.icon_id || `eve_${device.type}`) === opt.id;
                 return (
                   <button key={opt.id}
                     onClick={() => handleChangeIcon(opt.id)}
@@ -321,8 +326,8 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
                     }`}
                     title={opt.label}
                   >
-                    <div className={`w-7 h-7 ${isActive ? "text-red-400" : "text-gray-400"}`}>
-                      <DeviceIconRenderer type={opt.id} iconId={opt.id} className={isActive ? "text-red-400" : "text-gray-400"} />
+                    <div className="w-7 h-7">
+                      {Icon && <Icon className={isActive ? "text-red-400 w-full h-full" : "text-gray-400 w-full h-full"} />}
                     </div>
                     <span className={`text-[8px] font-mono leading-tight text-center ${isActive ? "text-red-300 font-bold" : "text-gray-500"}`}>
                       {opt.label}
@@ -715,6 +720,7 @@ export default function LiveLabTopology() {
   const [error, setError] = useState(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDarkMode, setIsDarkMode] = useState(true);
 
   // Fetch lab
   const { data: lab, isLoading: labLoading } = useQuery({
@@ -1060,6 +1066,14 @@ export default function LiveLabTopology() {
             <span className="text-[10px] font-mono text-gray-400 w-10 text-center">{Math.round(zoom * 100)}%</span>
             <button onClick={() => setZoom(z => Math.min(2, z + 0.1))} className="text-gray-400 hover:text-white text-xs px-1">+</button>
           </div>
+          {/* Dark/Light toggle */}
+          <button
+            onClick={() => setIsDarkMode(d => !d)}
+            className="p-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-400 hover:text-white transition-colors"
+            title={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
           {/* Add Device */}
           {isRunning && (
             <Button onClick={() => { setShowAddDevice(!showAddDevice); setSelectedDevice(null); }}
@@ -1082,7 +1096,7 @@ export default function LiveLabTopology() {
       {/* Canvas */}
       <div
         ref={canvasRef}
-        className="flex-1 relative overflow-hidden cursor-grab"
+        className={`flex-1 relative overflow-hidden cursor-grab ${isDarkMode ? "" : "bg-gray-100"}`}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -1094,13 +1108,17 @@ export default function LiveLabTopology() {
         <div
           className="absolute inset-0"
           style={{
-            backgroundImage: `
-              linear-gradient(rgba(75,85,99,0.15) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(75,85,99,0.15) 1px, transparent 1px),
-              linear-gradient(rgba(75,85,99,0.07) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(75,85,99,0.07) 1px, transparent 1px)
-            `,
-            backgroundSize: `${80 * zoom}px ${80 * zoom}px, ${80 * zoom}px ${80 * zoom}px, ${20 * zoom}px ${20 * zoom}px, ${20 * zoom}px ${20 * zoom}px`,
+            backgroundColor: isDarkMode ? "#0a0a0a" : "#f0f0f0",
+            backgroundImage: isDarkMode
+              ? `linear-gradient(rgba(120,130,145,0.25) 1px, transparent 1px),
+                 linear-gradient(90deg, rgba(120,130,145,0.25) 1px, transparent 1px),
+                 linear-gradient(rgba(120,130,145,0.12) 1px, transparent 1px),
+                 linear-gradient(90deg, rgba(120,130,145,0.12) 1px, transparent 1px)`
+              : `linear-gradient(rgba(100,110,125,0.3) 1px, transparent 1px),
+                 linear-gradient(90deg, rgba(100,110,125,0.3) 1px, transparent 1px),
+                 linear-gradient(rgba(100,110,125,0.15) 1px, transparent 1px),
+                 linear-gradient(90deg, rgba(100,110,125,0.15) 1px, transparent 1px)`,
+            backgroundSize: `${60 * zoom}px ${60 * zoom}px, ${60 * zoom}px ${60 * zoom}px, ${15 * zoom}px ${15 * zoom}px, ${15 * zoom}px ${15 * zoom}px`,
             backgroundPosition: `${pan.x}px ${pan.y}px`,
           }}
         />
@@ -1149,7 +1167,7 @@ export default function LiveLabTopology() {
           {/* Connection Lines SVG */}
           <svg className="absolute inset-0 pointer-events-none" style={{ width: "100%", height: "100%" }}>
             {topologyConnections.map((conn, i) => (
-              <ConnectionLine key={i} conn={conn} topologyDevices={topologyDevices} deployedMap={deployedMap} />
+              <ConnectionLine key={i} conn={conn} topologyDevices={topologyDevices} deployedMap={deployedMap} isDark={isDarkMode} />
             ))}
           </svg>
 
@@ -1164,6 +1182,7 @@ export default function LiveLabTopology() {
                 isSelected={selectedDevice?.id === device.id}
                 onClick={handleDeviceClick}
                 style={{ x: device.position_x || 100, y: device.position_y || 100 }}
+                isDark={isDarkMode}
               />
             );
           })}
