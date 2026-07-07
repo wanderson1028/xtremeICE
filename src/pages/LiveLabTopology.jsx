@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import DeviceIconRenderer, { getDeviceIcon, getIconOptions } from "@/components/livefire/DeviceIcons";
+import { EVE_NG_ICONS } from "@/components/livefire/EveNgIcons";
 
 const TYPE_COLORS = {
   router: "border-amber-500 bg-amber-500/10", switch: "border-cyan-500 bg-cyan-500/10",
@@ -33,26 +34,34 @@ const DEVICE_TEMPLATES = [
   { type: "firewall", name: "Firewall", cpu: 2, ram: 4096, storage: 20, access: "ssh", subtitle: "Security appliance" },
 ];
 
-// ---- Device Node on Canvas ----
+// ---- Device Node on Canvas (EVE-NG style) ----
 function DeviceNode({ device, deployed, isSelected, onClick, style }) {
-  const colors = TYPE_COLORS[device.type] || TYPE_COLORS.server;
   const status = deployed?.status || "pending";
   const statusColor = STATUS_COLORS[status] || STATUS_COLORS.pending;
   const iconId = device.icon_id || device.type;
+  const EveIcon = EVE_NG_ICONS[iconId] || EVE_NG_ICONS[`eve_${device.type}`];
 
   return (
     <div
       onClick={(e) => onClick(device.id, e)}
-      className={`absolute flex flex-col items-center cursor-pointer transition-all ${isSelected ? "scale-110 z-20" : "z-10 hover:scale-105"}`}
+      className={`absolute flex flex-col items-center cursor-pointer transition-all ${isSelected ? "z-20" : "z-10"}`}
       style={{ left: style.x, top: style.y }}
     >
       {/* Status dot */}
       <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-gray-900 ${statusColor} z-10`} />
-      {/* Device pill */}
-      <div className={`w-[72px] h-[44px] rounded-xl border-2 ${colors} bg-gray-900/90 backdrop-blur-sm flex items-center justify-center shadow-lg ${isSelected ? "ring-2 ring-red-500/50" : ""}`}>
-        <DeviceIconRenderer type={device.type} iconId={iconId} className="text-white/80 w-7 h-7" />
+      {/* Device box — EVE-NG style square */}
+      <div className={`w-16 h-16 rounded-lg border-2 bg-gray-900/90 backdrop-blur-sm flex items-center justify-center shadow-lg transition-all ${
+        isSelected
+          ? "border-red-500 ring-2 ring-red-500/40"
+          : "border-gray-600/60 hover:border-gray-400"
+      }`}>
+        {EveIcon ? (
+          <EveIcon className="w-10 h-10 text-gray-200" />
+        ) : (
+          <DeviceIconRenderer type={device.type} iconId={iconId} className="text-gray-200 w-8 h-8" />
+        )}
       </div>
-      <span className="text-[9px] font-mono text-gray-400 mt-1 text-center leading-tight max-w-[80px] truncate">
+      <span className="text-[9px] font-mono text-gray-300 mt-1 text-center leading-tight max-w-[90px] truncate">
         {device.name}
       </span>
       {deployed?.public_ip && (
@@ -62,23 +71,43 @@ function DeviceNode({ device, deployed, isSelected, onClick, style }) {
   );
 }
 
-// ---- Connection Line ----
+// ---- Connection Line (EVE-NG style with link labels) ----
 function ConnectionLine({ conn, topologyDevices, deployedMap }) {
   const from = topologyDevices.find(d => d.id === conn.from || d.id === conn.target_device_id);
   const to = topologyDevices.find(d => d.id === conn.to || d.id === conn.target_device_id);
   if (!from || !to) return null;
 
-  const x1 = (from.position_x || 100) + 36;
-  const y1 = (from.position_y || 100) + 22;
-  const x2 = (to.position_x || 300) + 36;
-  const y2 = (to.position_y || 200) + 22;
+  const cx = 32, cy = 32; // half of 64px node
+  const x1 = (from.position_x || 100) + cx;
+  const y1 = (from.position_y || 100) + cy;
+  const x2 = (to.position_x || 300) + cx;
+  const y2 = (to.position_y || 200) + cy;
+
+  const midX = (x1 + x2) / 2;
+  const midY = (y1 + y2) / 2;
+  const label = conn.source_interface || conn.label;
+  const ipLabel = conn.source_ip;
 
   return (
-    <line
-      x1={x1} y1={y1} x2={x2} y2={y2}
-      stroke="rgba(239,68,68,0.3)" strokeWidth={1.5}
-      strokeDasharray={conn.type === "internet" ? "4,2" : "none"}
-    />
+    <g>
+      <line
+        x1={x1} y1={y1} x2={x2} y2={y2}
+        stroke="rgba(156,163,175,0.4)" strokeWidth={1.5}
+        strokeDasharray={conn.type === "internet" || conn.connection_type === "internet" ? "4,3" : "none"}
+      />
+      {label && (
+        <text x={midX} y={midY - 4} textAnchor="middle"
+          className="font-mono" fontSize={8} fill="rgba(156,163,175,0.7)">
+          {label}
+        </text>
+      )}
+      {ipLabel && (
+        <text x={midX} y={midY + 8} textAnchor="middle"
+          className="font-mono" fontSize={7} fill="rgba(74,222,128,0.6)">
+          {ipLabel}
+        </text>
+      )}
+    </g>
   );
 }
 
@@ -1061,12 +1090,17 @@ export default function LiveLabTopology() {
         onMouseLeave={handleMouseUp}
         onClick={handleCanvasClick}
       >
-        {/* Grid background */}
+        {/* Grid background — EVE-NG graph paper style */}
         <div
           className="absolute inset-0"
           style={{
-            backgroundImage: "radial-gradient(circle, #1f2937 1px, transparent 1px)",
-            backgroundSize: `${40 * zoom}px ${40 * zoom}px`,
+            backgroundImage: `
+              linear-gradient(rgba(75,85,99,0.15) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(75,85,99,0.15) 1px, transparent 1px),
+              linear-gradient(rgba(75,85,99,0.07) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(75,85,99,0.07) 1px, transparent 1px)
+            `,
+            backgroundSize: `${80 * zoom}px ${80 * zoom}px, ${80 * zoom}px ${80 * zoom}px, ${20 * zoom}px ${20 * zoom}px, ${20 * zoom}px ${20 * zoom}px`,
             backgroundPosition: `${pan.x}px ${pan.y}px`,
           }}
         />
@@ -1081,6 +1115,37 @@ export default function LiveLabTopology() {
             height: "100%",
           }}
         >
+          {/* Area Regions — EVE-NG style dashed ellipses */}
+          {(topologyData.areas || []).map(area => (
+            <div
+              key={area.id}
+              className="absolute border-2 border-dashed border-cyan-600/30 rounded-[50%] pointer-events-none"
+              style={{
+                left: area.x || 50,
+                top: area.y || 50,
+                width: area.width || 320,
+                height: area.height || 200,
+              }}
+            >
+              <span className="absolute -top-4 left-2 text-[10px] font-mono text-cyan-400/60 bg-gray-950/60 px-1.5 rounded">
+                {area.label || "Area"}
+              </span>
+            </div>
+          ))}
+
+          {/* Floating Text Annotations */}
+          {(topologyData.annotations || []).map(ann => (
+            <div
+              key={ann.id}
+              className="absolute pointer-events-none"
+              style={{ left: ann.x, top: ann.y }}
+            >
+              <span className="text-[10px] font-mono text-gray-400 bg-gray-950/50 px-1.5 py-0.5 rounded">
+                {ann.text}
+              </span>
+            </div>
+          ))}
+
           {/* Connection Lines SVG */}
           <svg className="absolute inset-0 pointer-events-none" style={{ width: "100%", height: "100%" }}>
             {topologyConnections.map((conn, i) => (
