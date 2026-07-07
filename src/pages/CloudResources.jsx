@@ -7,7 +7,7 @@ import {
   Settings, BarChart3, HardDrive, Cpu, Globe, Trash2,
   Network, AlertTriangle, ChevronDown, ChevronRight,
   Wifi, Shield, ExternalLink, RefreshCw, Filter,
-  Server, Play, Square, StopCircle, Power, Terminal, Check
+  Server, Play, Square, StopCircle, Power, Terminal, Check, Lock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { isVpcProtected } from "@/lib/protectedVpcs";
 
 const STATE_COLORS = {
   running: "text-green-400 bg-green-900/30 border-green-700/30",
@@ -86,7 +87,9 @@ export default function CloudResources() {
       });
       return res.data;
     },
-    staleTime: 30000,
+    staleTime: 120_000,
+    refetchInterval: 120_000,
+    placeholderData: (prev) => prev,
   });
 
   const { data: accounts = [], isLoading: acctsLoading } = useQuery({
@@ -543,6 +546,11 @@ export default function CloudResources() {
                               <AlertTriangle className="h-2.5 w-2.5" /> Orphaned
                             </span>
                           )}
+                          {isVpcProtected(vpc.vpcId, vpc.region) && (
+                            <span className="flex items-center gap-1 text-[9px] font-mono px-2 py-0.5 rounded-full bg-red-900/30 text-red-400 border border-red-700/40">
+                              <Lock className="h-2.5 w-2.5" /> Protected
+                            </span>
+                          )}
                           {vpc.linkedLab && (
                             <Link to={`/live-lab-topology?lab=${vpc.linkedLab.id}`}
                               className="flex items-center gap-1 text-[9px] font-mono px-2 py-0.5 rounded-full bg-green-900/30 text-green-400 border border-green-700/30 hover:bg-green-800/30 transition-colors">
@@ -564,7 +572,11 @@ export default function CloudResources() {
                           }`}>{vpc.state}</span>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
-                          {!isDefault && vpc.linkedLab && (
+                          {isVpcProtected(vpc.vpcId, vpc.region) ? (
+                            <span className="text-[9px] font-mono text-red-400/70 flex items-center gap-1 px-2 py-1" title="This VPC is protected and cannot be deleted">
+                              <Lock className="h-3 w-3" /> Locked
+                            </span>
+                          ) : !isDefault && vpc.linkedLab ? (
                             <button
                               onClick={() => setDeleteConfirm({ vpcId: vpc.vpcId, vpcName: vpc.name || vpc.cidrBlock, hasInstances: vpc.instanceCount > 0 })}
                               className="p-1.5 rounded-lg bg-red-900/20 border border-red-800/30 text-red-400 hover:bg-red-800/40 hover:border-red-700/50 transition-colors"
@@ -572,10 +584,9 @@ export default function CloudResources() {
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
-                          )}
-                          {!isDefault && !vpc.linkedLab && (
+                          ) : !isDefault && !vpc.linkedLab ? (
                             <span className="text-[8px] font-mono text-gray-600 italic">External VPC — view only</span>
-                          )}
+                          ) : null}
                         </div>
                       </div>
 

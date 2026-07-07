@@ -1,6 +1,38 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 import { Buffer } from "node:buffer";
 
+// ── Protected VPCs — cannot be deleted/modified without admin override ──
+const PROTECTED_VPCS = [
+  { vpcId: "vpc-01a9967b30a72ffa6", region: "us-west-2" },
+  { vpcId: "vpc-0f54ea2e61b429034", region: "us-west-2" },
+  { vpcId: "vpc-046420cc1460d218f", region: "us-west-2" },
+];
+
+function isVpcProtected(vpcId, region) {
+  return PROTECTED_VPCS.some(v => v.vpcId === vpcId && (!region || v.region === region));
+}
+
+async function checkVpcProtection(vpcId, region, params, user) {
+  if (!isVpcProtected(vpcId, region)) return { protected: false };
+  const adminOverride = params.admin_override === true;
+  if (!adminOverride) {
+    return {
+      protected: true,
+      error: "VPC_PROTECTED",
+      message: `VPC ${vpcId} in ${region} is protected and cannot be modified or deleted without admin acknowledgment.`,
+    };
+  }
+  // Admin override requires actual admin role
+  if (user?.role !== "admin") {
+    return {
+      protected: true,
+      error: "VPC_PROTECTED",
+      message: `VPC ${vpcId} is protected. Admin role required to override protection.`,
+    };
+  }
+  return { protected: false };
+}
+
 // ── Instance cost tier enforcement ──
 const COST_TIERS = {
   standard:  { maxCpu: 2,  maxRamMB: 4096,  label: "Standard" },
@@ -406,6 +438,11 @@ Deno.serve(async (req) => {
 
       case "deleteNetwork": {
         const { vpc_id } = params;
+        // Check 1: Protected VPC list
+        const protCheck = await checkVpcProtection(vpc_id, region, params, user);
+        if (protCheck.protected) {
+          return Response.json({ success: false, error: protCheck.error, message: protCheck.message, vpcId: vpc_id }, { status: 403 });
+        }
         try {
           // Find and delete IGWs
           let xml = await ec2Call("DescribeInternetGateways", { Filter: [{ Name: "attachment.vpc-id", Value: [vpc_id] }] }, region);
@@ -696,6 +733,12 @@ Deno.serve(async (req) => {
         // Force-delete a VPC — cleans up dependent resources first
         const { vpc_id, force = false } = params;
         if (!vpc_id) return Response.json({ error: "vpc_id required" }, { status: 400 });
+
+        // Check: Protected VPC list
+        const protCheck = await checkVpcProtection(vpc_id, region, params, user);
+        if (protCheck.protected) {
+          return Response.json({ error: protCheck.error, message: protCheck.message, vpcId: vpc_id }, { status: 403 });
+        }
 
         const result = { vpcId: vpc_id, steps: [], error: null };
         const runStep = (name, fn) => fn().then(r => { result.steps.push(`${name}: ok`); return r; }).catch(e => { result.steps.push(`${name}: ${e.message}`); throw e; });

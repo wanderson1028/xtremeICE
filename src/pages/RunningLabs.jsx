@@ -7,10 +7,11 @@ import {
   Monitor, Server, Globe, ExternalLink, Terminal, Shield,
   DollarSign, AlertTriangle, XCircle, RefreshCw, BarChart3,
   Network, Save, Layers, Timer, Clock, Ban, CheckCircle,
-  HardDrive, Key
+  HardDrive, Key, Lock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { isVpcProtected } from "@/lib/protectedVpcs";
 
 const DEVICE_COST_MAP = {
   router: 0.18, switch: 0.14, firewall: 0.22, server: 0.15,
@@ -90,20 +91,20 @@ export default function RunningLabs() {
   })();
 
   // Live AWS VPC scan across ALL regions — backend resolves lab ownership
+  // Query takes ~20s (16 regions), so we use placeholderData to keep previous
+  // results visible during refetch — prevents the "hit or miss" flicker.
   const { data: liveVpcs = [], isLoading: networksLoading, refetch: refetchNetworks } = useQuery({
     queryKey: ["livefire-networks-all"],
     queryFn: async () => {
-      try {
-        const res = await base44.functions.invoke("cloudProviderAWS", {
-          action: "listAllRegionVpcs",
-          params: {},
-        });
-        return (res.data?.vpcs || []).map(v => ({ ...v, source: "aws" }));
-      } catch {
-        return [];
-      }
+      const res = await base44.functions.invoke("cloudProviderAWS", {
+        action: "listAllRegionVpcs",
+        params: {},
+      });
+      return (res.data?.vpcs || []).map(v => ({ ...v, source: "aws" }));
     },
-    refetchInterval: 30000,
+    staleTime: 120_000,
+    refetchInterval: 120_000,
+    placeholderData: (prev) => prev,
   });
 
   // Labs lookup for name resolution (fallback if backend didn't resolve)
@@ -556,6 +557,11 @@ export default function RunningLabs() {
                           {vpc.managedBy === "XtremeICE" && (
                             <span className="ml-1 text-[9px] font-mono text-cyan-400 bg-cyan-900/20 px-1.5 py-0.5 rounded">MANAGED</span>
                           )}
+                          {isVpcProtected(vpc.vpcId, vpc.region) && (
+                            <span className="ml-1 text-[9px] font-mono text-red-400 bg-red-900/30 border border-red-700/40 px-1.5 py-0.5 rounded flex items-center gap-0.5 inline-flex">
+                              <Lock className="h-2.5 w-2.5" /> PROTECTED
+                            </span>
+                          )}
                         </h3>
                         <p className="text-[10px] font-mono text-gray-500">
                           {vpc.vpcId} · {vpc.cidrBlock} · {vpc.state}
@@ -613,8 +619,12 @@ export default function RunningLabs() {
                         </button>
                       )}
 
-                      {/* Delete Button */}
-                      {confirmDeleteNetwork === vpc.vpcId ? (
+                      {/* Delete Button — blocked for protected VPCs */}
+                      {isVpcProtected(vpc.vpcId, vpc.region) ? (
+                        <span className="text-[9px] font-mono text-red-400/70 flex items-center gap-1 px-2 py-1" title="This VPC is protected and cannot be deleted">
+                          <Lock className="h-3 w-3" /> Locked
+                        </span>
+                      ) : confirmDeleteNetwork === vpc.vpcId ? (
                         <div className="flex items-center gap-1">
                           <button onClick={() => deleteNetworkMutation.mutate(vpc.vpcId)}
                             disabled={deletingNetworks.has(vpc.vpcId)}
