@@ -7,7 +7,7 @@ import {
   Settings, BarChart3, HardDrive, Cpu, Globe, Trash2,
   Network, AlertTriangle, ChevronDown, ChevronRight,
   Wifi, Shield, ExternalLink, RefreshCw, Filter,
-  Server, Play, Square, StopCircle, Power
+  Server, Play, Square, StopCircle, Power, Terminal, Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +45,8 @@ export default function CloudResources() {
   const [subnetSuggestions, setSubnetSuggestions] = useState(null);
   const [loadingSubnets, setLoadingSubnets] = useState(null);
   const [actionConfirm, setActionConfirm] = useState(null); // { instanceId, action, label }
+  const [expandedInstance, setExpandedInstance] = useState(null);
+  const [copiedRdp, setCopiedRdp] = useState(null);
 
   // ── Instances query ──
   const { data: instancesData, isLoading: instLoading, refetch: refetchInstances } = useQuery({
@@ -109,6 +111,7 @@ export default function CloudResources() {
     onSuccess: () => {
       setActionConfirm(null);
       refetchInstances();
+      refetchVpcs();
       queryClient.invalidateQueries({ queryKey: ["all-livefire-devices"] });
     },
     onError: (err) => {
@@ -144,6 +147,20 @@ export default function CloudResources() {
 
   const handleInstanceAction = (action, instanceId, label) => {
     setActionConfirm({ instanceId, action, label });
+  };
+
+  const handleConnect = (inst) => {
+    const method = inst.accessMethod || "ssh";
+    const port = method === "rdp" ? 3389 : 22;
+    const user = inst.isWindows ? "Administrator" : "ec2-user";
+    if (method === "ssh" && inst.publicIp) {
+      window.open(`ssh://${user}@${inst.publicIp}:${port}`, "_blank");
+    } else if (method === "rdp" && inst.publicIp) {
+      navigator.clipboard.writeText(`IP: ${inst.publicIp}\nPort: ${port}\nUsername: ${user}`).then(() => {
+        setCopiedRdp(inst.instanceId);
+        setTimeout(() => setCopiedRdp(null), 3000);
+      }).catch(() => {});
+    }
   };
 
   const executeInstanceAction = () => {
@@ -338,81 +355,130 @@ export default function CloudResources() {
               </div>
             ) : (
               <div className="space-y-2">
-                {filteredInstances.map(inst => (
-                  <div
-                    key={inst.instanceId}
-                    className="bg-gray-900/60 border border-gray-800 rounded-xl p-4 flex items-center gap-3 hover:border-gray-700 transition-colors"
-                  >
-                    <Server className={`h-4 w-4 shrink-0 ${
-                      inst.state === "running" ? "text-green-400" :
-                      inst.state === "stopped" ? "text-amber-400" :
-                      "text-gray-500"
-                    }`} />
+                {filteredInstances.map(inst => {
+                  const isExpanded = expandedInstance === inst.instanceId;
+                  return (
+                  <div key={inst.instanceId} className="bg-gray-900/60 border border-gray-800 rounded-xl overflow-hidden hover:border-gray-700 transition-colors">
+                    <div
+                      className="p-4 flex items-center gap-3 cursor-pointer"
+                      onClick={() => setExpandedInstance(isExpanded ? null : inst.instanceId)}
+                    >
+                      {isExpanded ? <ChevronDown className="h-3 w-3 text-gray-500 shrink-0" /> : <ChevronRight className="h-3 w-3 text-gray-500 shrink-0" />}
+                      <Server className={`h-4 w-4 shrink-0 ${
+                        inst.state === "running" ? "text-green-400" :
+                        inst.state === "stopped" ? "text-amber-400" :
+                        "text-gray-500"
+                      }`} />
 
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-white truncate">{inst.deviceName}</span>
-                        <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full border ${STATE_COLORS[inst.state] || "text-gray-500 bg-gray-800 border-gray-700"}`}>
-                          {inst.state}
-                        </span>
-                        {inst.isWindows && <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-blue-900/30 text-blue-400 border border-blue-700/30">Windows</span>}
-                        {!inst.isManaged && (
-                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-gray-800 text-gray-500 border border-gray-700">External</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-white truncate">{inst.deviceName}</span>
+                          <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full border ${STATE_COLORS[inst.state] || "text-gray-500 bg-gray-800 border-gray-700"}`}>
+                            {inst.state}
+                          </span>
+                          {inst.isWindows && <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-blue-900/30 text-blue-400 border border-blue-700/30">Windows</span>}
+                          {!inst.isManaged && (
+                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-gray-800 text-gray-500 border border-gray-700">External</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[10px] font-mono text-gray-500">{inst.instanceId}</span>
+                          {inst.labName && (
+                            <Link to={`/live-lab-topology?lab=${inst.labId}`} onClick={e => e.stopPropagation()} className="text-[10px] font-mono text-cyan-400 hover:text-cyan-300 flex items-center gap-0.5">
+                              {inst.labName} <ExternalLink className="h-2.5 w-2.5" />
+                            </Link>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 mt-1 flex-wrap">
+                          {inst.publicIp && (
+                            <span className="text-[9px] font-mono text-green-400">{inst.publicIp}</span>
+                          )}
+                          {inst.privateIp && (
+                            <span className="text-[9px] font-mono text-gray-500">{inst.privateIp}</span>
+                          )}
+                          <span className="text-[9px] font-mono text-gray-600">{inst.cpu}vCPU / {inst.ram}MB</span>
+                          <span className="text-[9px] font-mono text-blue-400/70">{inst.region}</span>
+                          {inst.vpcId && (
+                            <span className="text-[9px] font-mono text-cyan-400/70" title={inst.vpcId}>VPC: {inst.vpcId}</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+                        {inst.state === "running" && inst.publicIp && (
+                          <button
+                            onClick={() => handleConnect(inst)}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-900/30 border border-green-700/40 text-green-400 hover:bg-green-800/40 text-[10px] font-mono transition-colors"
+                            title={inst.isWindows ? "Copy RDP connection info" : "Connect via SSH"}
+                          >
+                            {inst.isWindows && copiedRdp === inst.instanceId ? (
+                              <><Check className="h-3 w-3" /> Copied</>
+                            ) : (
+                              <><Terminal className="h-3 w-3" /> {inst.isWindows ? "RDP Info" : "Connect"}</>
+                            )}
+                          </button>
+                        )}
+                        {inst.isManaged ? (
+                          <>
+                            {inst.state === "stopped" && (
+                              <button
+                                onClick={() => handleInstanceAction("start", inst.instanceId, `Start ${inst.deviceName}`)}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-900/30 border border-green-700/40 text-green-400 hover:bg-green-800/40 text-[10px] font-mono transition-colors"
+                              >
+                                <Play className="h-3 w-3" /> Start
+                              </button>
+                            )}
+                            {inst.state === "running" && (
+                              <button
+                                onClick={() => handleInstanceAction("stop", inst.instanceId, `Stop ${inst.deviceName}`)}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-900/30 border border-amber-700/40 text-amber-400 hover:bg-amber-800/40 text-[10px] font-mono transition-colors"
+                              >
+                                <Square className="h-3 w-3" /> Stop
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleInstanceAction("terminate", inst.instanceId, `Terminate ${inst.deviceName}`)}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-900/20 border border-red-800/40 text-red-400 hover:bg-red-800/40 text-[10px] font-mono transition-colors"
+                            >
+                              <Trash2 className="h-3 w-3" /> Terminate
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-[9px] font-mono text-gray-600 italic px-2">View only</span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] font-mono text-gray-500">{inst.instanceId}</span>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="border-t border-gray-800 px-4 py-3 bg-black/20">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          <div>
+                            <p className="text-[8px] font-mono text-gray-600 uppercase">Instance Type</p>
+                            <p className="text-[10px] font-mono text-gray-300">{inst.instanceType || "—"}</p>
+                          </div>
+                          <div>
+                            <p className="text-[8px] font-mono text-gray-600 uppercase">VPC</p>
+                            <p className="text-[10px] font-mono text-cyan-400">{inst.vpcId || "—"}</p>
+                          </div>
+                          <div>
+                            <p className="text-[8px] font-mono text-gray-600 uppercase">Subnet</p>
+                            <p className="text-[10px] font-mono text-gray-300">{inst.subnetId || "—"}</p>
+                          </div>
+                          <div>
+                            <p className="text-[8px] font-mono text-gray-600 uppercase">Launch Time</p>
+                            <p className="text-[10px] font-mono text-gray-300">{inst.launchTime ? new Date(inst.launchTime).toLocaleString() : "—"}</p>
+                          </div>
+                        </div>
                         {inst.labName && (
-                          <Link to={`/live-lab-topology?labId=${inst.labId}`} className="text-[10px] font-mono text-cyan-400 hover:text-cyan-300 flex items-center gap-0.5">
-                            {inst.labName} <ExternalLink className="h-2.5 w-2.5" />
+                          <Link to={`/live-lab-topology?lab=${inst.labId}`} className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-lg bg-cyan-900/30 border border-cyan-700/40 text-cyan-400 hover:bg-cyan-800/40 text-[10px] font-mono transition-colors">
+                            Open Lab Topology <ExternalLink className="h-3 w-3" />
                           </Link>
                         )}
                       </div>
-                      <div className="flex items-center gap-3 mt-1">
-                        {inst.publicIp && (
-                          <span className="text-[9px] font-mono text-green-400">{inst.publicIp}</span>
-                        )}
-                        {inst.privateIp && (
-                          <span className="text-[9px] font-mono text-gray-500">{inst.privateIp}</span>
-                        )}
-                        <span className="text-[9px] font-mono text-gray-600">{inst.cpu}vCPU / {inst.ram}MB</span>
-                        <span className="text-[9px] font-mono text-blue-400/70">{inst.region}</span>
-                      </div>
-                    </div>
-
-                    {/* Lifecycle Actions — only for managed (lab-linked) instances */}
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {inst.isManaged ? (
-                        <>
-                          {inst.state === "stopped" && (
-                            <button
-                              onClick={() => handleInstanceAction("start", inst.instanceId, `Start ${inst.deviceName}`)}
-                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-900/30 border border-green-700/40 text-green-400 hover:bg-green-800/40 text-[10px] font-mono transition-colors"
-                            >
-                              <Play className="h-3 w-3" /> Start
-                            </button>
-                          )}
-                          {inst.state === "running" && (
-                            <button
-                              onClick={() => handleInstanceAction("stop", inst.instanceId, `Stop ${inst.deviceName}`)}
-                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-900/30 border border-amber-700/40 text-amber-400 hover:bg-amber-800/40 text-[10px] font-mono transition-colors"
-                            >
-                              <Square className="h-3 w-3" /> Stop
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleInstanceAction("terminate", inst.instanceId, `Terminate ${inst.deviceName}`)}
-                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-900/20 border border-red-800/40 text-red-400 hover:bg-red-800/40 text-[10px] font-mono transition-colors"
-                          >
-                            <Trash2 className="h-3 w-3" /> Terminate
-                          </button>
-                        </>
-                      ) : (
-                        <span className="text-[9px] font-mono text-gray-600 italic px-2">View only — not linked to any lab</span>
-                      )}
-                    </div>
+                    )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -475,7 +541,7 @@ export default function CloudResources() {
                             </span>
                           )}
                           {vpc.linkedLab && (
-                            <Link to={`/live-lab-topology?labId=${vpc.linkedLab.id}`}
+                            <Link to={`/live-lab-topology?lab=${vpc.linkedLab.id}`}
                               className="flex items-center gap-1 text-[9px] font-mono px-2 py-0.5 rounded-full bg-green-900/30 text-green-400 border border-green-700/30 hover:bg-green-800/30 transition-colors">
                               {vpc.linkedLab.name} <ExternalLink className="h-2.5 w-2.5" />
                             </Link>
@@ -512,6 +578,53 @@ export default function CloudResources() {
 
                       {isExpanded && (
                         <div className="border-t border-gray-800 px-4 py-3 bg-black/20">
+                          {/* Instances in this VPC */}
+                          <div className="flex items-center gap-2 mb-3">
+                            <Server className="h-3.5 w-3.5 text-green-400" />
+                            <span className="text-[10px] font-mono text-gray-400 uppercase tracking-wider">
+                              Instances {vpc.instances?.length > 0 ? `(${vpc.instances.length})` : "(0)"}
+                            </span>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); refetchVpcs(); }}
+                              className="ml-auto p-1 rounded hover:bg-gray-800 text-gray-500 hover:text-white transition-colors"
+                              title="Refresh VPC resources"
+                            >
+                              <RefreshCw className="h-3 w-3" />
+                            </button>
+                          </div>
+                          {vpc.instances?.length > 0 ? (
+                            <div className="space-y-1.5 mb-4">
+                              {vpc.instances.map(vi => {
+                                const viDevice = deviceByInstanceId[vi.instanceId];
+                                const viLab = viDevice ? labById[viDevice.lab_id] : null;
+                                return (
+                                  <div key={vi.instanceId} className="flex items-center gap-3 bg-gray-800/30 rounded-lg px-3 py-2 border border-gray-800">
+                                    <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                      vi.state === "running" ? "bg-green-400" :
+                                      vi.state === "stopped" ? "bg-amber-400" : "bg-gray-500"
+                                    }`} />
+                                    <div className="flex-1 min-w-0">
+                                      <span className="text-[10px] font-mono text-gray-200">{vi.name || vi.instanceId}</span>
+                                      <span className="text-[8px] font-mono text-gray-600 block truncate">{vi.instanceId}</span>
+                                    </div>
+                                    {vi.publicIp && <span className="text-[9px] font-mono text-green-400">{vi.publicIp}</span>}
+                                    {vi.privateIp && <span className="text-[9px] font-mono text-gray-500 hidden sm:inline">{vi.privateIp}</span>}
+                                    <span className={`text-[9px] font-mono ${vi.state === "running" ? "text-green-400" : "text-gray-500"}`}>{vi.state}</span>
+                                    {viLab && (
+                                      <Link to={`/live-lab-topology?lab=${viLab.id}`} onClick={e => e.stopPropagation()}
+                                        className="text-[9px] font-mono text-cyan-400 hover:text-cyan-300 flex items-center gap-0.5">
+                                        {viLab.name} <ExternalLink className="h-2.5 w-2.5" />
+                                      </Link>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-[10px] font-mono text-gray-600 mb-4">No instances in this VPC</p>
+                          )}
+
+                          {/* Subnets */}
                           <div className="flex items-center gap-2 mb-3">
                             <Wifi className="h-3.5 w-3.5 text-cyan-400" />
                             <span className="text-[10px] font-mono text-gray-400 uppercase tracking-wider">

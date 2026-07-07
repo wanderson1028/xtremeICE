@@ -989,6 +989,8 @@ Deno.serve(async (req) => {
               const privMatch = block.match(/<privateIpAddress>([^<]+)<\/privateIpAddress>/);
               const typeMatch = block.match(/<instanceType>([^<]+)<\/instanceType>/);
               const launchMatch = block.match(/<launchTime>([^<]+)<\/launchTime>/);
+              const vpcMatch = block.match(/<vpcId>([^<]+)<\/vpcId>/);
+              const subnetMatch = block.match(/<subnetId>([^<]+)<\/subnetId>/);
               if (idMatch && stateMatch?.[1] !== "terminated" && stateMatch?.[1] !== "shutting-down") {
                 allInstances.push({
                   instanceId: idMatch[1],
@@ -997,6 +999,8 @@ Deno.serve(async (req) => {
                   privateIp: privMatch?.[1] || null,
                   instanceType: typeMatch?.[1] || "unknown",
                   launchTime: launchMatch?.[1] || null,
+                  vpcId: vpcMatch?.[1] || null,
+                  subnetId: subnetMatch?.[1] || null,
                   region: r,
                 });
                 count++;
@@ -1060,7 +1064,7 @@ Deno.serve(async (req) => {
               }
             } catch (e) { /* skip */ }
 
-            // Get instance counts per VPC in this region
+            // Get instance details per VPC in this region
             let instancesByVpc = {};
             try {
               const instXml = await ec2Call("DescribeInstances", {}, r);
@@ -1070,16 +1074,32 @@ Deno.serve(async (req) => {
                 const vpcMatch = block.match(/<vpcId>([^<]+)<\/vpcId>/);
                 const stateMatch = block.match(/<name>([^<]+)<\/name>/);
                 if (vpcMatch && stateMatch?.[1] !== "terminated" && stateMatch?.[1] !== "shutting-down") {
-                  instancesByVpc[vpcMatch[1]] = (instancesByVpc[vpcMatch[1]] || 0) + 1;
+                  const vpcId = vpcMatch[1];
+                  if (!instancesByVpc[vpcId]) instancesByVpc[vpcId] = [];
+                  const idMatch = block.match(/<instanceId>([^<]+)<\/instanceId>/);
+                  const ipMatch = block.match(/<ipAddress>([^<]+)<\/ipAddress>/);
+                  const privMatch = block.match(/<privateIpAddress>([^<]+)<\/privateIpAddress>/);
+                  const typeMatch = block.match(/<instanceType>([^<]+)<\/instanceType>/);
+                  const nameMatch = block.match(/<key>Name<\/key>\s*<value>([^<]*)<\/value>/);
+                  instancesByVpc[vpcId].push({
+                    instanceId: idMatch?.[1] || "",
+                    state: stateMatch?.[1] || "unknown",
+                    publicIp: ipMatch?.[1] || null,
+                    privateIp: privMatch?.[1] || null,
+                    instanceType: typeMatch?.[1] || "unknown",
+                    name: nameMatch?.[1] || null,
+                  });
                 }
               }
             } catch (e) { /* skip */ }
 
             for (const vpc of vpcs) {
+              const vpcInstances = instancesByVpc[vpc.vpcId] || [];
               allVpcs.push({
                 ...vpc,
                 subnets: subnetsByVpc[vpc.vpcId] || [],
-                instanceCount: instancesByVpc[vpc.vpcId] || 0,
+                instanceCount: vpcInstances.length,
+                instances: vpcInstances,
               });
             }
             regionResults.push({ region: r, vpcCount: vpcs.length });
