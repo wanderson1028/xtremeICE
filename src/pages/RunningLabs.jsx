@@ -89,14 +89,14 @@ export default function RunningLabs() {
     return liveInstances.filter(i => knownInstanceIds.has(i.instanceId) && i.state !== "terminated");
   })();
 
-  // Live AWS VPC scan (may fail if region/creds mismatch)
+  // Live AWS VPC scan across ALL regions — backend resolves lab ownership
   const { data: liveVpcs = [], isLoading: networksLoading, refetch: refetchNetworks } = useQuery({
-    queryKey: ["livefire-networks"],
+    queryKey: ["livefire-networks-all"],
     queryFn: async () => {
       try {
         const res = await base44.functions.invoke("cloudProviderAWS", {
-          action: "listNetworks",
-          params: { region: selectedRegion },
+          action: "listAllRegionVpcs",
+          params: {},
         });
         return (res.data?.vpcs || []).map(v => ({ ...v, source: "aws" }));
       } catch {
@@ -104,38 +104,23 @@ export default function RunningLabs() {
       }
     },
     refetchInterval: 30000,
-    enabled: activeTab === "networks",
   });
 
-  // Merge deployed VPCs from DB with live AWS results
-  const networksData = (() => {
-    const seen = new Set();
-    const merged = [];
-    // Add DB deployments with VPC IDs
-    for (const dep of deployments) {
-      if (dep.vpc_id && !seen.has(dep.vpc_id)) {
-        seen.add(dep.vpc_id);
-        merged.push({
-          vpcId: dep.vpc_id,
-          cidrBlock: dep.vpc_cidr || "—",
-          state: dep.status === "running" ? "available" : dep.status,
-          name: dep.vpc_id,
-          labId: dep.lab_id,
-          source: "deployment",
-          deploymentId: dep.id,
-          region: dep.region,
-        });
-      }
-    }
-    // Add live AWS VPCs not already in DB
-    for (const v of liveVpcs) {
-      if (!seen.has(v.vpcId)) {
-        seen.add(v.vpcId);
-        merged.push(v);
-      }
-    }
-    return merged;
-  })();
+  // Labs lookup for name resolution (fallback if backend didn't resolve)
+  const labById = {};
+  labs.forEach(l => { labById[l.id] = l; });
+
+  // Use live AWS data directly — backend already resolves linkedLab, labId, managedBy
+  const networksData = liveVpcs.map(vpc => {
+    const linkedLab = vpc.linkedLab || (vpc.labId && labById[vpc.labId] ? { id: vpc.labId, name: labById[vpc.labId].name, status: labById[vpc.labId].status } : null);
+    return {
+      ...vpc,
+      labId: vpc.labId || null,
+      labName: linkedLab?.name || null,
+      labStatus: linkedLab?.status || null,
+      linkedLab,
+    };
+  });
 
   const deleteNetworkMutation = useMutation({
     mutationFn: async (vpcId) => {
@@ -305,7 +290,7 @@ export default function RunningLabs() {
                 <option key={r} value={r}>{r}</option>
               ))}
             </select>
-            <button onClick={() => { queryClient.invalidateQueries(["running-livefire-labs"]); queryClient.invalidateQueries(["running-devices"]); refetchNetworks(); }}
+            <button onClick={() => { queryClient.invalidateQueries(["running-livefire-labs"]); queryClient.invalidateQueries(["running-devices"]); queryClient.invalidateQueries(["livefire-networks-all"]); }}
               className="p-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-400 hover:text-white transition-colors">
               <RefreshCw className="h-4 w-4" />
             </button>
@@ -543,7 +528,7 @@ export default function RunningLabs() {
                 {networksData.length} network{networksData.length !== 1 ? "s" : ""} found
                 {liveVpcs.length > 0 && <span className="text-green-500 ml-1">({liveVpcs.length} live)</span>}
               </p>
-              <button onClick={() => { refetchNetworks(); queryClient.invalidateQueries(["livefire-deployments-vpc"]); }}
+              <button onClick={() => { refetchNetworks(); queryClient.invalidateQueries(["running-livefire-labs"]); }}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 border border-gray-700 text-gray-400 hover:text-white rounded-lg text-[10px] font-mono transition-colors">
                 <RefreshCw className="h-3 w-3" /> Refresh
               </button>
@@ -566,14 +551,26 @@ export default function RunningLabs() {
                       <div className={`h-3 w-3 rounded-full ${vpc.state === "available" ? "bg-green-500 animate-pulse" : "bg-yellow-500"}`} />
                       <div>
                         <h3 className="text-sm font-bold text-white">
-                          {vpc.name}
-                          {vpc.source === "aws" && <span className="ml-2 text-[9px] font-mono text-green-500 bg-green-900/20 px-1.5 py-0.5 rounded">LIVE</span>}
-                          {vpc.source === "deployment" && <span className="ml-2 text-[9px] font-mono text-blue-400 bg-blue-900/20 px-1.5 py-0.5 rounded">SAVED</span>}
+                          {vpc.name || vpc.vpcId}
+                          <span className="ml-2 text-[9px] font-mono text-green-500 bg-green-900/20 px-1.5 py-0.5 rounded">LIVE</span>
+                          {vpc.managedBy === "XtremeICE" && (
+                            <span className="ml-1 text-[9px] font-mono text-cyan-400 bg-cyan-900/20 px-1.5 py-0.5 rounded">MANAGED</span>
+                          )}
                         </h3>
                         <p className="text-[10px] font-mono text-gray-500">
                           {vpc.vpcId} · {vpc.cidrBlock} · {vpc.state}
                           {vpc.region && <span className="ml-1">· {vpc.region}</span>}
-                          {vpc.labId && vpc.labId !== "standalone" && <span className="ml-2 text-cyan-400">· Lab: {vpc.labId}</span>}
+                          {vpc.labName && (
+                            <Link to={`/live-lab-topology?lab=${vpc.labId}`} onClick={e => e.stopPropagation()} className="ml-2 text-cyan-400 hover:text-cyan-300 flex items-center gap-0.5 inline-flex">
+                              Lab: {vpc.labName} <ExternalLink className="h-2.5 w-2.5" />
+                            </Link>
+                          )}
+                          {!vpc.labName && vpc.labId && vpc.labId !== "standalone" && (
+                            <span className="ml-2 text-gray-500">Lab: {vpc.labId}</span>
+                          )}
+                          {!vpc.labName && !vpc.labId && (
+                            <span className="ml-2 text-amber-500/70">Unassigned</span>
+                          )}
                         </p>
                       </div>
                     </div>
@@ -648,7 +645,7 @@ export default function RunningLabs() {
                       { label: "VPC ID", value: vpc.vpcId },
                       { label: "CIDR Block", value: vpc.cidrBlock },
                       { label: "State", value: vpc.state },
-                      { label: "Lab", value: vpc.labId || "Unassigned" },
+                      { label: "Lab", value: vpc.labName || (vpc.labId && vpc.labId !== "standalone" ? vpc.labId : "Unassigned") },
                     ].map(d => (
                       <div key={d.label}>
                         <p className="text-[9px] font-mono text-gray-600 uppercase">{d.label}</p>
@@ -656,6 +653,35 @@ export default function RunningLabs() {
                       </div>
                     ))}
                   </div>
+                  {/* Subnets */}
+                  {vpc.subnets && vpc.subnets.length > 0 && (
+                    <div className="px-4 pb-3">
+                      <p className="text-[9px] font-mono text-gray-600 uppercase mb-1">Subnets ({vpc.subnets.length})</p>
+                      <div className="flex flex-wrap gap-2">
+                        {vpc.subnets.map(s => (
+                          <span key={s.subnetId} className="text-[10px] font-mono text-gray-400 bg-gray-800/50 border border-gray-700/50 px-2 py-1 rounded" title={s.subnetId}>
+                            {s.cidrBlock} <span className="text-gray-600">({s.availabilityZone})</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* Instances in this VPC */}
+                  {vpc.instances && vpc.instances.length > 0 && (
+                    <div className="px-4 pb-3">
+                      <p className="text-[9px] font-mono text-gray-600 uppercase mb-1">Instances ({vpc.instances.length})</p>
+                      <div className="space-y-1">
+                        {vpc.instances.map(i => (
+                          <div key={i.instanceId || i.privateIp} className="flex items-center gap-2 text-[10px] font-mono">
+                            <span className={`h-1.5 w-1.5 rounded-full ${i.state === "running" ? "bg-green-500" : "bg-gray-600"}`} />
+                            <span className="text-gray-300">{i.instanceId || "—"}</span>
+                            <span className="text-gray-500">{i.privateIp || "—"}</span>
+                            {i.instanceType && <span className="text-gray-600">{i.instanceType}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))
             )}
