@@ -401,6 +401,9 @@ export default function CloudResources() {
                           {inst.vpcId && (
                             <span className="text-[9px] font-mono text-cyan-400/70" title={inst.vpcId}>VPC: {inst.vpcId}</span>
                           )}
+                          {inst.subnetId && (
+                            <span className="text-[9px] font-mono text-purple-400/70" title={inst.subnetId}>Subnet: {inst.subnetId}</span>
+                          )}
                         </div>
                       </div>
 
