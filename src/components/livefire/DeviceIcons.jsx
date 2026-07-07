@@ -1,4 +1,5 @@
 import React from "react";
+import { EVE_NG_ICONS, EVE_NG_ICON_LIST } from "@/components/livefire/EveNgIcons";
 
 const baseClasses = "w-full h-full drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]";
 
@@ -354,21 +355,24 @@ export const DEVICE_ICONS = {
   load_balancer: LoadBalancerIcon,
   security_appliance: SecurityApplianceIcon,
   monitoring: MonitoringIcon,
+  ...EVE_NG_ICONS,
 };
 
 /* ── Icon Catalog ───────────────────────────────────────────── */
-const ALL_ICONS = [
-  { id: "server", label: "Server", icon: ServerIcon },
-  { id: "workstation", label: "Desktop", icon: WorkstationIcon },
-  { id: "router", label: "Router", icon: RouterIcon },
-  { id: "switch", label: "Switch", icon: SwitchIcon },
-  { id: "firewall", label: "Firewall", icon: FirewallIcon },
-  { id: "cloud_resource", label: "Cloud", icon: CloudIcon },
-  { id: "container", label: "Container", icon: ContainerIcon },
-  { id: "load_balancer", label: "LB", icon: LoadBalancerIcon },
-  { id: "security_appliance", label: "SecApp", icon: SecurityApplianceIcon },
-  { id: "monitoring", label: "Monitor", icon: MonitoringIcon },
+const DETAILED_ICONS = [
+  { id: "server", label: "Server", icon: ServerIcon, category: "Detailed" },
+  { id: "workstation", label: "Desktop", icon: WorkstationIcon, category: "Detailed" },
+  { id: "router", label: "Router", icon: RouterIcon, category: "Detailed" },
+  { id: "switch", label: "Switch", icon: SwitchIcon, category: "Detailed" },
+  { id: "firewall", label: "Firewall", icon: FirewallIcon, category: "Detailed" },
+  { id: "cloud_resource", label: "Cloud", icon: CloudIcon, category: "Detailed" },
+  { id: "container", label: "Container", icon: ContainerIcon, category: "Detailed" },
+  { id: "load_balancer", label: "Load Balancer", icon: LoadBalancerIcon, category: "Detailed" },
+  { id: "security_appliance", label: "Security", icon: SecurityApplianceIcon, category: "Detailed" },
+  { id: "monitoring", label: "Monitor", icon: MonitoringIcon, category: "Detailed" },
 ];
+
+const ALL_ICONS = [...DETAILED_ICONS, ...EVE_NG_ICON_LIST];
 
 export function getIconOptions() {
   return ALL_ICONS;
@@ -377,6 +381,8 @@ export function getIconOptions() {
 export function getDeviceIcon(iconId, fallbackType) {
   const icon = DEVICE_ICONS[iconId];
   if (icon) return icon;
+  // If fallback is an EVE-NG id, resolve through the EVE-NG map
+  if (EVE_NG_ICONS[fallbackType]) return EVE_NG_ICONS[fallbackType];
   return DEVICE_ICONS[fallbackType] || ServerIcon;
 }
 

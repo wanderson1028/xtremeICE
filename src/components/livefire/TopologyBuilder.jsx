@@ -6,9 +6,10 @@ import {
   Trash2, Plus, Maximize2, Minimize2, Eye, Copy, Layers, Network, Globe,
   DollarSign, X, Check, AlertTriangle, Settings, ShieldAlert,
   Link2, Database, Terminal, Key, MonitorPlay, RefreshCw, Zap, Wand2,
-  GitBranch, Lock, Server
+  GitBranch, Lock, Server, Sun, Moon, Shapes, StickyNote, Circle
 } from "lucide-react";
 import DeviceIconRenderer, { getIconOptions, DEVICE_ICONS } from "@/components/livefire/DeviceIcons";
+import IconPickerModal from "@/components/livefire/IconPickerModal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -99,7 +100,29 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
   const [vpcSubnetOptions, setVpcSubnetOptions] = useState(null);
   const [loadingVpcs, setLoadingVpcs] = useState(false);
   const [loadingSubnets, setLoadingSubnets] = useState(false);
+  const [canvasTheme, setCanvasTheme] = useState("dark"); // "dark" | "light"
+  const [iconPickerOpen, setIconPickerOpen] = useState(false);
+  const [iconPickerDeviceId, setIconPickerDeviceId] = useState(null);
   const canvasRef = useRef(null);
+
+  const areas = topology?.areas || [];
+  const annotations = topology?.annotations || [];
+
+  const isLight = canvasTheme === "light";
+  const themeBg = isLight
+    ? "bg-white"
+    : "bg-[radial-gradient(circle,#1f2937_1px,transparent_1px)] bg-[size:20px_20px]";
+  const themeGrid = isLight
+    ? "bg-[linear-gradient(#e0e0e0_1px,transparent_1px),linear-gradient(90deg,#e0e0e0_1px,transparent_1px)] bg-[size:20px_20px]"
+    : "";
+  const themeText = isLight ? "text-gray-900" : "text-gray-200";
+  const themeSubtext = isLight ? "text-gray-500" : "text-gray-500";
+  const themeLine = isLight ? "#0066CC" : "#4B5563";
+  const themeAreaStroke = isLight ? "#000000" : "#9CA3AF";
+  const themeAreaFill = isLight ? "rgba(0,0,0,0.03)" : "rgba(156,163,175,0.05)";
+  const themePanel = isLight ? "bg-white border-gray-300" : "bg-gray-800/60 border-gray-700";
+  const themePanelHover = isLight ? "hover:border-gray-400" : "hover:border-gray-600";
+  const themeInput = isLight ? "bg-white border-gray-300 text-gray-900" : "bg-gray-800 border-gray-700 text-white";
 
   const checkCidrConflict = async (cidr) => {
     if (!cidr) return;
@@ -252,6 +275,48 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
   const removeSubnet = (idx) => {
     const subnets = vpcConfig.subnets.filter((_, i) => i !== idx);
     updateVpcConfig({ subnets });
+  };
+
+  // --- Area regions (EVE-NG style OSPF areas) ---
+  const addArea = () => {
+    const newArea = {
+      id: `area_${Date.now()}`,
+      label: `Area ${areas.length}`,
+      x: 80 + areas.length * 40,
+      y: 60 + areas.length * 30,
+      width: 320,
+      height: 200,
+    };
+    onChange({ ...topology, areas: [...areas, newArea] });
+  };
+
+  const updateArea = (areaId, updates) => {
+    const updated = areas.map(a => a.id === areaId ? { ...a, ...updates } : a);
+    onChange({ ...topology, areas: updated });
+  };
+
+  const removeArea = (areaId) => {
+    onChange({ ...topology, areas: areas.filter(a => a.id !== areaId) });
+  };
+
+  // --- Text annotations ---
+  const addAnnotation = () => {
+    const newAnn = {
+      id: `ann_${Date.now()}`,
+      text: "New note",
+      x: 120 + annotations.length * 20,
+      y: 120 + annotations.length * 20,
+    };
+    onChange({ ...topology, annotations: [...annotations, newAnn] });
+  };
+
+  const updateAnnotation = (annId, updates) => {
+    const updated = annotations.map(a => a.id === annId ? { ...a, ...updates } : a);
+    onChange({ ...topology, annotations: updated });
+  };
+
+  const removeAnnotation = (annId) => {
+    onChange({ ...topology, annotations: annotations.filter(a => a.id !== annId) });
   };
 
   // --- Connection logic (EVE-NG style) ---
@@ -410,26 +475,71 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
         const ex = (target.position_x || 0) + 65;
         const ey = (target.position_y || 0) + 32;
         const midX = (sx + ex) / 2;
+        const midY = (sy + ey) / 2;
+        // Build link label: interfaces + IPs
+        const srcIf = conn.source_interface || "";
+        const tgtIf = conn.target_interface || "";
+        const srcIp = conn.source_ip || "";
+        const tgtIp = conn.target_ip || "";
+        const hasLabel = srcIf || tgtIf || srcIp || tgtIp;
+        const labelText = [srcIf && (srcIp ? `${srcIf}: ${srcIp}` : srcIf), tgtIf && (tgtIp ? `${tgtIf}: ${tgtIp}` : tgtIf)].filter(Boolean).join("  ↔  ");
         lines.push(
           <g key={pairKey}>
-            {/* Clickable wider hit area */}
             <line x1={sx} y1={sy} x2={ex} y2={ey}
               stroke="transparent" strokeWidth={14} className="cursor-pointer"
               onClick={(e) => removeConnection(device.id, conn.target_device_id, e)} />
-            {/* Visible line */}
             <line x1={sx} y1={sy} x2={ex} y2={ey}
-              stroke="#4B5563" strokeWidth={2.5} opacity={0.7} />
-            {/* Delete X on hover */}
+              stroke={themeLine} strokeWidth={2.5} opacity={0.8} />
+            {hasLabel && (
+              <g>
+                <rect x={midX - (labelText.length * 3.1) - 4} y={midY - 8}
+                  width={labelText.length * 6.2 + 8} height={16} rx={3}
+                  fill={isLight ? "#ffffff" : "#1f2937"} stroke={isLight ? "#d1d5db" : "#374151"} strokeWidth={0.5} opacity={0.95} />
+                <text x={midX} y={midY + 3} textAnchor="middle"
+                  fill={isLight ? "#111827" : "#d1d5db"} fontSize={8} fontFamily="monospace">
+                  {labelText}
+                </text>
+              </g>
+            )}
             <g className="opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
               onClick={(e) => removeConnection(device.id, conn.target_device_id, e)}>
-              <circle cx={midX} cy={(sy + ey) / 2} r={8} fill="#1f2937" stroke="#ef4444" strokeWidth={1} />
-              <text x={midX} y={(sy + ey) / 2 + 3} textAnchor="middle" fill="#ef4444" fontSize={10} fontWeight="bold">×</text>
+              <circle cx={midX} cy={midY} r={8} fill={isLight ? "#fff" : "#1f2937"} stroke="#ef4444" strokeWidth={1} />
+              <text x={midX} y={midY + 3} textAnchor="middle" fill="#ef4444" fontSize={10} fontWeight="bold">×</text>
             </g>
           </g>
         );
       });
     });
     return lines;
+  };
+
+  const renderAreas = () => {
+    return areas.map(area => (
+      <g key={area.id}>
+        <ellipse
+          cx={(area.x || 0) + (area.width || 320) / 2}
+          cy={(area.y || 0) + (area.height || 200) / 2}
+          rx={(area.width || 320) / 2}
+          ry={(area.height || 200) / 2}
+          fill={themeAreaFill}
+          stroke={themeAreaStroke}
+          strokeWidth={2}
+          strokeDasharray="6 4"
+          opacity={0.6}
+        />
+        <text
+          x={(area.x || 0) + 12}
+          y={(area.y || 0) + 20}
+          fill={isLight ? "#000" : "#9CA3AF"}
+          fontSize={11}
+          fontWeight="bold"
+          fontFamily="monospace"
+          opacity={0.7}
+        >
+          {area.label}
+        </text>
+      </g>
+    ));
   };
 
   const selectedDeviceData = selectedDevice ? devices.find(d => d.id === selectedDevice) : null;
@@ -520,11 +630,30 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
           )}
 
           {/* Canvas Toolbar */}
-          <div className="flex items-center gap-2 px-3 py-2 border-b border-red-900/20 bg-black/20 shrink-0">
-            <button onClick={() => setScale(s => Math.max(0.25, s - 0.25))} className="p-1.5 rounded bg-gray-800 border border-gray-700 text-gray-400 hover:text-white transition-colors"><Minimize2 className="h-3.5 w-3.5" /></button>
-            <span className="text-[10px] font-mono text-gray-500 w-10 text-center">{Math.round(scale * 100)}%</span>
-            <button onClick={() => setScale(s => Math.min(2, s + 0.25))} className="p-1.5 rounded bg-gray-800 border border-gray-700 text-gray-400 hover:text-white transition-colors"><Maximize2 className="h-3.5 w-3.5" /></button>
-            <div className="h-4 w-px bg-gray-700 mx-1" />
+          <div className={`flex items-center gap-2 px-3 py-2 border-b shrink-0 ${isLight ? "border-gray-200 bg-gray-50" : "border-red-900/20 bg-black/20"}`}>
+            <button onClick={() => setScale(s => Math.max(0.25, s - 0.25))} className={`p-1.5 rounded border transition-colors ${isLight ? "bg-white border-gray-300 text-gray-600 hover:text-gray-900" : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white"}`}><Minimize2 className="h-3.5 w-3.5" /></button>
+            <span className={`text-[10px] font-mono w-10 text-center ${themeSubtext}`}>{Math.round(scale * 100)}%</span>
+            <button onClick={() => setScale(s => Math.min(2, s + 0.25))} className={`p-1.5 rounded border transition-colors ${isLight ? "bg-white border-gray-300 text-gray-600 hover:text-gray-900" : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white"}`}><Maximize2 className="h-3.5 w-3.5" /></button>
+            <div className={`h-4 w-px mx-1 ${isLight ? "bg-gray-300" : "bg-gray-700"}`} />
+            {/* Dark/Light toggle */}
+            <button onClick={() => setCanvasTheme(t => t === "dark" ? "light" : "dark")}
+              className={`p-1.5 rounded border transition-colors flex items-center gap-1 ${isLight ? "bg-white border-gray-300 text-gray-600 hover:text-gray-900" : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white"}`}
+              title="Toggle light/dark canvas">
+              {isLight ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
+            </button>
+            {/* Add Area */}
+            <button onClick={addArea}
+              className={`p-1.5 rounded border transition-colors flex items-center gap-1 ${isLight ? "bg-white border-gray-300 text-gray-600 hover:text-gray-900" : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white"}`}
+              title="Add area region">
+              <Circle className="h-3.5 w-3.5" />
+            </button>
+            {/* Add Text Annotation */}
+            <button onClick={addAnnotation}
+              className={`p-1.5 rounded border transition-colors flex items-center gap-1 ${isLight ? "bg-white border-gray-300 text-gray-600 hover:text-gray-900" : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white"}`}
+              title="Add text note">
+              <StickyNote className="h-3.5 w-3.5" />
+            </button>
+            <div className={`h-4 w-px mx-1 ${isLight ? "bg-gray-300" : "bg-gray-700"}`} />
             {connectingFrom ? (
               <div className="flex items-center gap-2 text-[10px] font-mono">
                 <Zap className="h-3 w-3 text-yellow-400 animate-pulse" />
@@ -551,11 +680,12 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
           <Droppable droppableId="canvas" type="DEVICE">
             {(provided, snapshot) => (
               <div ref={(el) => { canvasRef.current = el; provided.innerRef(el); }} {...provided.droppableProps}
-                className={`canvas-bg flex-1 relative overflow-hidden ${snapshot.isDraggingOver ? "bg-red-950/10" : "bg-[radial-gradient(circle,#1f2937_1px,transparent_1px)] bg-[size:20px_20px]"}`}
+                className={`canvas-bg flex-1 relative overflow-hidden ${snapshot.isDraggingOver ? (isLight ? "bg-blue-50" : "bg-red-950/10") : isLight ? "bg-[linear-gradient(#e0e0e0_1px,transparent_1px),linear-gradient(90deg,#e0e0e0_1px,transparent_1px)] bg-[size:20px_20px] bg-white" : "bg-[radial-gradient(circle,#1f2937_1px,transparent_1px)] bg-[size:20px_20px]"}`}
                 onMouseDown={handleCanvasMouseDown} onMouseMove={handleCanvasMouseMove} onMouseUp={handleCanvasMouseUp} onMouseLeave={handleCanvasMouseUp}
                 style={{ cursor: isPanning ? "grabbing" : connectingFrom ? "crosshair" : "default" }}>
                 <svg className="absolute inset-0 pointer-events-none" style={{ width: "100%", height: "100%" }}>
                   <g transform={`translate(${pan.x},${pan.y}) scale(${scale})`}>
+                    {renderAreas()}
                     {renderConnections()}
                     {/* Rubber-band preview line */}
                     {connectingFrom && connectLinePos && (() => {
@@ -571,6 +701,26 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                   </g>
                 </svg>
                 <div style={{ transform: `translate(${pan.x}px,${pan.y}px) scale(${scale})`, transformOrigin: "0 0" }} className="absolute inset-0">
+                  {/* Text annotations */}
+                  {annotations.map(ann => (
+                    <div key={ann.id}
+                      className={`absolute group ${isLight ? "" : ""}`}
+                      style={{ left: ann.x || 0, top: ann.y || 0 }}>
+                      <div className={`relative p-2.5 rounded-lg border max-w-[220px] ${isLight ? "bg-yellow-50 border-yellow-300" : "bg-yellow-950/30 border-yellow-800/40"}`}>
+                        <textarea
+                          value={ann.text || ""}
+                          onChange={(e) => updateAnnotation(ann.id, { text: e.target.value })}
+                          rows={3}
+                          className={`w-full bg-transparent text-[10px] font-mono resize-none outline-none ${isLight ? "text-gray-800" : "text-yellow-200"}`}
+                          placeholder="Enter note..."
+                        />
+                        <button onClick={() => removeAnnotation(ann.id)}
+                          className="absolute -top-2 -right-2 h-4 w-4 rounded-full bg-red-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <X className="h-2.5 w-2.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                   {devices.map((device, idx) => {
                     const isSelected = selectedDevice === device.id;
                     const isConnectingSource = connectingFrom === device.id;
@@ -586,7 +736,7 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                       <Draggable key={device.id} draggableId={`device-${device.id}`} index={idx}>
                         {(provided, snapshot) => (
                           <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}
-                            className={`absolute w-[140px] rounded-xl border-2 transition-all ${TYPE_COLORS[device.type] || TYPE_COLORS.server} ${borderColor} ${
+                            className={`absolute w-[140px] rounded-xl border-2 transition-all ${isLight ? "bg-white" : ""} ${TYPE_COLORS[device.type] || TYPE_COLORS.server} ${borderColor} ${
                               snapshot.isDragging ? "opacity-80 shadow-2xl scale-105 z-50" : "hover:scale-[1.02]"
                             }`}
                             style={{ left: device.position_x || 0, top: device.position_y || 0, ...provided.draggableProps.style }}
@@ -596,7 +746,7 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                                 <div className={`w-5 h-5 shrink-0 ${TYPE_ICON_COLORS[device.type] || "text-gray-400"}`}>
                                   <DeviceIconRenderer type={device.type} iconId={iconId} className={TYPE_ICON_COLORS[device.type] || "text-gray-400"} />
                                 </div>
-                                <span className="text-[9px] font-mono text-gray-200 truncate font-bold">{device.name}</span>
+                                <span className={`text-[9px] font-mono truncate font-bold ${isLight ? "text-gray-900" : "text-gray-200"}`}>{device.name}</span>
                                 {(() => {
                                   const tier = getCostTier(device.cpu_cores || 2, device.ram_mb || 4096);
                                   const tc = COST_TIERS[tier];
@@ -668,11 +818,11 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                 {devices.length === 0 && !connectingFrom && (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <div className="text-center">
-                      <div className="h-14 w-14 rounded-2xl bg-gray-800/40 border border-gray-700/50 flex items-center justify-center mx-auto mb-4">
-                        <Network className="h-7 w-7 text-gray-600" />
+                      <div className={`h-14 w-14 rounded-2xl border flex items-center justify-center mx-auto mb-4 ${isLight ? "bg-gray-100 border-gray-300" : "bg-gray-800/40 border-gray-700/50"}`}>
+                        <Network className={`h-7 w-7 ${isLight ? "text-gray-400" : "text-gray-600"}`} />
                       </div>
-                      <p className="text-xs font-mono text-gray-600 mb-1">Click devices in the palette to add them</p>
-                      <p className="text-[10px] font-mono text-gray-700">Select a device → Connect → Click target</p>
+                      <p className={`text-xs font-mono mb-1 ${isLight ? "text-gray-500" : "text-gray-600"}`}>Click devices in the palette to add them</p>
+                      <p className={`text-[10px] font-mono ${isLight ? "text-gray-400" : "text-gray-700"}`}>Select a device → Connect → Click target</p>
                     </div>
                   </div>
                 )}
@@ -744,30 +894,55 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                     <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1 flex items-center gap-1">
                       <Wand2 className="h-2.5 w-2.5" /> Icon Style
                     </label>
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {getIconOptions(selectedDeviceData.type).map(opt => {
-                        const isActive = (selectedDeviceData.icon_id || selectedDeviceData.type) === opt.id;
-                        return (
-                          <button key={opt.id}
-                            onClick={() => updateDevice(selectedDeviceData.id, { icon_id: opt.id })}
-                            className={`flex flex-col items-center gap-1 p-2 rounded-lg border transition-all ${
-                              isActive
-                                ? "bg-red-900/30 border-red-600/60"
-                                : "bg-gray-800/60 border-gray-700 hover:border-gray-600"
-                            }`}
-                            title={opt.label}
-                          >
-                            <div className={`w-6 h-6 ${isActive ? TYPE_ICON_COLORS[selectedDeviceData.type] || "text-gray-400" : "text-gray-500"}`}>
-                              <DeviceIconRenderer type={opt.id} iconId={opt.id} className={isActive ? TYPE_ICON_COLORS[selectedDeviceData.type] || "text-gray-400" : "text-gray-500"} />
-                            </div>
-                            <span className={`text-[7px] font-mono truncate w-full text-center ${isActive ? "text-red-300" : "text-gray-600"}`}>
-                              {opt.label}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <button
+                      onClick={() => { setIconPickerDeviceId(selectedDeviceData.id); setIconPickerOpen(true); }}
+                      className="w-full flex items-center gap-2 p-2.5 rounded-lg border bg-gray-800/60 border-gray-700 hover:border-red-600/40 transition-colors"
+                    >
+                      <div className={`w-7 h-7 ${TYPE_ICON_COLORS[selectedDeviceData.type] || "text-gray-400"}`}>
+                        <DeviceIconRenderer type={selectedDeviceData.type} iconId={selectedDeviceData.icon_id || selectedDeviceData.type}
+                          className={TYPE_ICON_COLORS[selectedDeviceData.type] || "text-gray-400"} />
+                      </div>
+                      <div className="flex-1 text-left">
+                        <p className="text-[10px] font-mono text-gray-300">Browse Icon Library</p>
+                        <p className="text-[8px] font-mono text-gray-600">{(selectedDeviceData.icon_id || selectedDeviceData.type).replace(/_/g, " ")}</p>
+                      </div>
+                      <Wand2 className="h-3.5 w-3.5 text-gray-500" />
+                    </button>
                   </div>
+                  {/* Link Annotations */}
+                  {selectedDeviceData.connections && selectedDeviceData.connections.length > 0 && (
+                    <div>
+                      <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1 flex items-center gap-1">
+                        <GitBranch className="h-2.5 w-2.5" /> Link Annotations
+                      </label>
+                      <div className="space-y-1.5">
+                        {selectedDeviceData.connections.map((conn, ci) => {
+                          const tgt = devices.find(d => d.id === conn.target_device_id);
+                          return (
+                            <div key={ci} className="bg-gray-800/40 rounded-lg border border-gray-700 p-2 space-y-1.5">
+                              <p className="text-[8px] font-mono text-gray-400 truncate">→ {tgt?.name || conn.target_device_id}</p>
+                              <div className="grid grid-cols-2 gap-1.5">
+                                <input value={conn.source_interface || ""}
+                                  onChange={(e) => {
+                                    const newConns = selectedDeviceData.connections.map((c, idx) => idx === ci ? { ...c, source_interface: e.target.value } : c);
+                                    updateDevice(selectedDeviceData.id, { connections: newConns });
+                                  }}
+                                  placeholder="e.g. em4 / ge-0/0/2"
+                                  className="bg-gray-800 border border-gray-700 rounded text-white text-[9px] font-mono px-2 py-1 outline-none focus:border-blue-500/50" />
+                                <input value={conn.source_ip || ""}
+                                  onChange={(e) => {
+                                    const newConns = selectedDeviceData.connections.map((c, idx) => idx === ci ? { ...c, source_ip: e.target.value } : c);
+                                    updateDevice(selectedDeviceData.id, { connections: newConns });
+                                  }}
+                                  placeholder="e.g. 10.255.255.12/30"
+                                  className="bg-gray-800 border border-gray-700 rounded text-white text-[9px] font-mono px-2 py-1 outline-none focus:border-blue-500/50" />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   <div>
                     <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">AMI / Image</label>
                     {selectedDeviceData.ami_image_id ? (
@@ -904,13 +1079,79 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                       SSH key and IP are available after deployment
                     </p>
                   </div>
+
+                  {/* Area management quick access */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                        <Circle className="h-2.5 w-2.5" /> Areas
+                      </label>
+                      <button onClick={addArea} className="text-[8px] font-mono text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+                        <Plus className="h-2.5 w-2.5" /> Add
+                      </button>
+                    </div>
+                    {areas.length === 0 ? (
+                      <p className="text-[8px] font-mono text-gray-600 italic">No areas. Click + to add an OSPF region.</p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {areas.map(area => (
+                          <div key={area.id} className="bg-gray-800/40 rounded-lg border border-gray-700 p-2 space-y-1.5">
+                            <div className="flex items-center gap-1.5">
+                              <input value={area.label} onChange={(e) => updateArea(area.id, { label: e.target.value })}
+                                className="flex-1 bg-gray-800 border border-gray-700 rounded text-white text-[10px] font-mono px-2 py-1"
+                                placeholder="Area label" />
+                              <button onClick={() => removeArea(area.id)} className="text-gray-500 hover:text-red-400"><X className="h-3 w-3" /></button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-1.5">
+                              <input type="number" value={Math.round(area.width || 320)} onChange={(e) => updateArea(area.id, { width: parseInt(e.target.value) || 320 })}
+                                className="bg-gray-800 border border-gray-700 rounded text-white text-[9px] font-mono px-2 py-1" placeholder="W" />
+                              <input type="number" value={Math.round(area.height || 200)} onChange={(e) => updateArea(area.id, { height: parseInt(e.target.value) || 200 })}
+                                className="bg-gray-800 border border-gray-700 rounded text-white text-[9px] font-mono px-2 py-1" placeholder="H" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
               {rightPanel === "properties" && !selectedDeviceData && (
-                <div className="text-center py-12">
-                  <Server className="h-8 w-8 text-gray-700 mx-auto mb-2" />
-                  <p className="text-[10px] text-gray-600 font-mono">Select a device to edit</p>
+                <div className="space-y-3">
+                  <div className="text-center py-6">
+                    <Server className="h-8 w-8 text-gray-700 mx-auto mb-2" />
+                    <p className="text-[10px] text-gray-600 font-mono">Select a device to edit</p>
+                  </div>
+                  {areas.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                          <Circle className="h-2.5 w-2.5" /> Area Regions
+                        </label>
+                        <button onClick={addArea} className="text-[8px] font-mono text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+                          <Plus className="h-2.5 w-2.5" /> Add
+                        </button>
+                      </div>
+                      <div className="space-y-1.5">
+                        {areas.map(area => (
+                          <div key={area.id} className="bg-gray-800/40 rounded-lg border border-gray-700 p-2 space-y-1.5">
+                            <div className="flex items-center gap-1.5">
+                              <input value={area.label} onChange={(e) => updateArea(area.id, { label: e.target.value })}
+                                className="flex-1 bg-gray-800 border border-gray-700 rounded text-white text-[10px] font-mono px-2 py-1"
+                                placeholder="Area label" />
+                              <button onClick={() => removeArea(area.id)} className="text-gray-500 hover:text-red-400"><X className="h-3 w-3" /></button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-1.5">
+                              <input type="number" value={Math.round(area.width || 320)} onChange={(e) => updateArea(area.id, { width: parseInt(e.target.value) || 320 })}
+                                className="bg-gray-800 border border-gray-700 rounded text-white text-[9px] font-mono px-2 py-1" placeholder="W" />
+                              <input type="number" value={Math.round(area.height || 200)} onChange={(e) => updateArea(area.id, { height: parseInt(e.target.value) || 200 })}
+                                className="bg-gray-800 border border-gray-700 rounded text-white text-[9px] font-mono px-2 py-1" placeholder="H" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1277,6 +1518,17 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Icon Picker Modal */}
+      <IconPickerModal
+        open={iconPickerOpen}
+        onClose={() => { setIconPickerOpen(false); setIconPickerDeviceId(null); }}
+        onSelect={(iconId) => {
+          if (iconPickerDeviceId) updateDevice(iconPickerDeviceId, { icon_id: iconId });
+        }}
+        currentIconId={iconPickerDeviceId ? devices.find(d => d.id === iconPickerDeviceId)?.icon_id : null}
+        deviceType={iconPickerDeviceId ? devices.find(d => d.id === iconPickerDeviceId)?.type : null}
+      />
 
       {/* Clear Canvas Confirmation */}
       <AlertDialog open={confirmClearCanvas} onOpenChange={setConfirmClearCanvas}>
