@@ -998,6 +998,7 @@ export default function LiveLabTopology() {
   // Background image management
   const bgImage = topologyData.background_image;
   const bgLocked = topologyData.bg_locked || false;
+  const bgScale = topologyData.bg_scale || 100;
   const isOwnerOrAdmin = currentUser?.role === "admin" || lab?.created_by_id === currentUser?.id;
   const canModifyBg = !bgLocked || isOwnerOrAdmin;
 
@@ -1044,6 +1045,18 @@ export default function LiveLabTopology() {
       queryClient.invalidateQueries(["livefire-lab", labId]);
     } catch (err) {
       setError("Failed to toggle background lock");
+    }
+  };
+
+  const handleBgScale = async (newScale) => {
+    const clamped = Math.max(20, Math.min(400, newScale));
+    try {
+      await base44.entities.LiveFireLab.update(labId, {
+        topology_data: { ...topologyData, bg_scale: clamped },
+      });
+      queryClient.invalidateQueries(["livefire-lab", labId]);
+    } catch (err) {
+      setError("Failed to resize background image");
     }
   };
 
@@ -1213,6 +1226,22 @@ export default function LiveLabTopology() {
               >
                 {ledMode ? <LayoutGrid className="h-4 w-4" /> : <Lightbulb className="h-4 w-4" />}
               </button>
+              {/* BG resize controls */}
+              <div className="flex items-center gap-1 bg-gray-800 rounded-lg border border-gray-700 px-2 py-1">
+                <button
+                  onClick={() => handleBgScale(bgScale - 10)}
+                  disabled={!canModifyBg}
+                  className="text-gray-400 hover:text-white text-xs px-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                  title={canModifyBg ? "Shrink background image" : "Background is locked"}
+                >−</button>
+                <span className="text-[10px] font-mono text-gray-400 w-10 text-center">{bgScale}%</span>
+                <button
+                  onClick={() => handleBgScale(bgScale + 10)}
+                  disabled={!canModifyBg}
+                  className="text-gray-400 hover:text-white text-xs px-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                  title={canModifyBg ? "Enlarge background image" : "Background is locked"}
+                >+</button>
+              </div>
               <button
                 onClick={handleToggleBgLock}
                 disabled={bgLocked && !isOwnerOrAdmin}
@@ -1287,8 +1316,11 @@ export default function LiveLabTopology() {
         {/* Background — uploaded image or EVE-NG graph paper grid (stays fixed, pointer-events-none so canvas panning works) */}
         {bgImage ? (
           <div
-            className="absolute inset-0 bg-cover bg-center pointer-events-none"
-            style={{ backgroundImage: `url(${bgImage})` }}
+            className="absolute inset-0 bg-no-repeat bg-center pointer-events-none"
+            style={{
+              backgroundImage: `url(${bgImage})`,
+              backgroundSize: `${bgScale}%`,
+            }}
           />
         ) : (
           <div
