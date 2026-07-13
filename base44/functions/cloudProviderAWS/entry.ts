@@ -922,6 +922,58 @@ Deno.serve(async (req) => {
         }
       }
 
+      case "describeImage": {
+        // Look up a specific AMI by ID — works regardless of owner or category
+        const { image_id } = params;
+        if (!image_id) return Response.json({ error: "image_id required" }, { status: 400 });
+
+        const xml = await ec2Call("DescribeImages", {
+          ImageId: [image_id],
+        }, region);
+
+        const imagesSetMatch = xml.match(/<imagesSet>([\s\S]*?)<\/imagesSet>/);
+        const imagesXml = imagesSetMatch?.[1] || "";
+        const imageBlocks = imagesXml.split(/<imageId>/);
+        const images = [];
+        for (let i = 1; i < imageBlocks.length; i++) {
+          const block = imageBlocks[i];
+          const idEnd = block.indexOf("</imageId>");
+          const imageId = idEnd >= 0 ? block.substring(0, idEnd).trim() : "";
+          const dateMatch = block.match(/<creationDate>([^<]+)<\/creationDate>/);
+          const descMatch = block.match(/<description>([^<]*)<\/description>/);
+          const nameMatch = block.match(/<name>([^<]*)<\/name>/);
+          const archMatch = block.match(/<architecture>([^<]+)<\/architecture>/);
+          const stateMatch = block.match(/<imageState>([^<]+)<\/imageState>/);
+          const ownerIdMatch = block.match(/<imageOwnerId>([^<]+)<\/imageOwnerId>/);
+          const isPublicMatch = block.match(/<isPublic>([^<]+)<\/isPublic>/);
+          const rootDeviceMatch = block.match(/<rootDeviceType>([^<]+)<\/rootDeviceType>/);
+          if (imageId) {
+            images.push({
+              imageId,
+              creationDate: dateMatch?.[1] || "",
+              description: descMatch?.[1] || nameMatch?.[1] || "",
+              name: nameMatch?.[1] || "",
+              architecture: archMatch?.[1] || "x86_64",
+              state: stateMatch?.[1] || "unknown",
+              ownerId: ownerIdMatch?.[1] || "",
+              isPublic: isPublicMatch?.[1] === "true",
+              rootDeviceType: rootDeviceMatch?.[1] || "ebs",
+            });
+          }
+        }
+
+        if (images.length === 0) {
+          return Response.json({
+            found: false,
+            imageId: image_id,
+            region,
+            message: `AMI ${image_id} not found in ${region}. It may be in a different region, deleted, or not shared with this account.`,
+          });
+        }
+
+        return Response.json({ found: true, region, images });
+      }
+
       case "listAMIs": {
         // Return AMIs organized by AWS-standard categories
         const categories = params.categories || [
@@ -1027,20 +1079,31 @@ Deno.serve(async (req) => {
                 Owner: [group.owner],
                 Filter: group.filter,
               }, region);
-              const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-              let match;
+              // Parse by splitting on <imageId> to avoid nested <item> elements
+              // (tagSet and blockDeviceMapping contain nested <item> blocks that
+              // break non-greedy regex matching, causing private AMIs to be skipped)
+              const imagesSetMatch = xml.match(/<imagesSet>([\s\S]*?)<\/imagesSet>/);
+              const imagesXml = imagesSetMatch?.[1] || "";
+              const imageBlocks = imagesXml.split(/<imageId>/);
               const images = [];
-              while ((match = itemRegex.exec(xml)) !== null) {
-                const block = match[1];
-                const idMatch = block.match(/<imageId>([^<]+)<\/imageId>/);
+              for (let i = 1; i < imageBlocks.length; i++) {
+                const block = imageBlocks[i];
+                const idEnd = block.indexOf("</imageId>");
+                const imageId = idEnd >= 0 ? block.substring(0, idEnd).trim() : "";
                 const dateMatch = block.match(/<creationDate>([^<]+)<\/creationDate>/);
                 const descMatch = block.match(/<description>([^<]*)<\/description>/);
+                const nameMatch = block.match(/<name>([^<]*)<\/name>/);
                 const archMatch = block.match(/<architecture>([^<]+)<\/architecture>/);
-                if (idMatch?.[1] && dateMatch?.[1]) {
-                  images.push({ imageId: idMatch[1], creationDate: dateMatch[1], description: descMatch?.[1] || "", architecture: archMatch?.[1] || "x86_64" });
+                if (imageId) {
+                  images.push({
+                    imageId,
+                    creationDate: dateMatch?.[1] || "",
+                    description: descMatch?.[1] || nameMatch?.[1] || "",
+                    architecture: archMatch?.[1] || "x86_64",
+                  });
                 }
               }
-              images.sort((a, b) => b.creationDate.localeCompare(a.creationDate));
+              images.sort((a, b) => (b.creationDate || "").localeCompare(a.creationDate || ""));
               if (images.length > 0) {
                 catGroups.push({
                   group: group.name,

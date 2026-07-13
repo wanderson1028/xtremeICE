@@ -172,13 +172,50 @@ export default function ImageCatalog({ isOpen, onClose, onSelect, cloudProvider 
     }));
   }, [dbImages]);
 
+  // AMI ID direct lookup — fires when search looks like an AMI ID
+  const amiIdMatch = search.trim().match(/^ami-[0-9a-f]{8,}$/i);
+  const { data: directAmi, isFetching: fetchingDirectAmi } = useQuery({
+    queryKey: ["describe-image", amiIdMatch?.[0], region],
+    queryFn: async () => {
+      const res = await base44.functions.invoke("cloudProviderAWS", {
+        action: "describeImage",
+        params: { image_id: amiIdMatch[0], region },
+      });
+      return res.data;
+    },
+    enabled: !!amiIdMatch,
+    staleTime: 60_000,
+  });
+
   // Collect all flat images for search filtering
   const allFlatImages = useMemo(() => {
     const flat = [];
     Object.values(categorizedImages).forEach(cat => flat.push(...cat.images));
     flat.push(...customImages);
+    // Add direct AMI ID lookup result
+    if (directAmi?.found && directAmi.images?.length > 0) {
+      directAmi.images.forEach(img => {
+        if (!flat.some(f => f.id === img.imageId)) {
+          const osFamily = detectOSFamily(img.imageId, img.description || "", img.name || "", "");
+          flat.push({
+            id: img.imageId,
+            name: img.name || img.imageId,
+            description: img.description || "",
+            groupName: "Direct Lookup",
+            osFamily,
+            architecture: img.architecture || "x86_64",
+            creationDate: img.creationDate,
+            source: "cloud",
+            sourceCategory: "AMI ID Lookup",
+            sourceLabel: img.name || "Shared/External AMI",
+            cloudProvider,
+            region,
+          });
+        }
+      });
+    }
     return flat;
-  }, [categorizedImages, customImages]);
+  }, [categorizedImages, customImages, directAmi]);
 
   // Filtered images
   const filteredImages = useMemo(() => {
@@ -187,6 +224,7 @@ export default function ImageCatalog({ isOpen, onClose, onSelect, cloudProvider 
     if (search) {
       const q = search.toLowerCase();
       merged = merged.filter(i =>
+        (i.id || "").toLowerCase().includes(q) ||
         (i.name || "").toLowerCase().includes(q) ||
         (i.description || "").toLowerCase().includes(q) ||
         (i.sourceLabel || "").toLowerCase().includes(q) ||
@@ -230,8 +268,9 @@ export default function ImageCatalog({ isOpen, onClose, onSelect, cloudProvider 
   if (!isOpen) return null;
 
   const isLoading = loadingDb || loadingCloud;
+  const isSearchingAmiId = fetchingDirectAmi;
 
-  const categoryOrder = ["Quick Start AMIs", "My AMIs", "AWS Marketplace AMIs", "Community AMIs", "Custom Images"];
+  const categoryOrder = ["AMI ID Lookup", "Quick Start AMIs", "My AMIs", "AWS Marketplace AMIs", "Community AMIs", "Custom Images"];
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
@@ -259,11 +298,14 @@ export default function ImageCatalog({ isOpen, onClose, onSelect, cloudProvider 
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500" />
             <Input
-              placeholder="Search by name, OS, or description..."
+              placeholder="Search by name, OS, or paste an AMI ID (ami-xxx)..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="pl-9 bg-gray-800/80 border-gray-700 text-white text-xs h-9 font-mono placeholder:text-gray-600"
             />
+            {isSearchingAmiId && (
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-cyan-400 animate-spin" />
+            )}
           </div>
           <div className="flex gap-1.5">
             <button onClick={() => setOsFilter("all")}
@@ -294,8 +336,17 @@ export default function ImageCatalog({ isOpen, onClose, onSelect, cloudProvider 
             ) : Object.keys(filteredByCategory).length === 0 ? (
               <div className="text-center py-20 px-4">
                 <Database className="h-10 w-10 text-gray-600 mx-auto mb-3" />
-                <p className="text-xs font-mono text-gray-500">No images found</p>
-                <p className="text-[10px] font-mono text-gray-600 mt-1">Try different filters or check your IAM permissions</p>
+                {amiIdMatch && directAmi && !directAmi.found ? (
+                  <>
+                    <p className="text-xs font-mono text-gray-500">AMI {amiIdMatch[0]} not found in {region}</p>
+                    <p className="text-[10px] font-mono text-gray-600 mt-1">It may be in a different region, deleted, or not shared with this AWS account.</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs font-mono text-gray-500">No images found</p>
+                    <p className="text-[10px] font-mono text-gray-600 mt-1">Try different filters or paste a specific AMI ID</p>
+                  </>
+                )}
               </div>
             ) : (
               <div className="p-2">
