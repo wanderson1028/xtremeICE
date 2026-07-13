@@ -70,6 +70,7 @@ function getOsBadge(osFamily) {
 }
 
 const CATEGORY_ICONS = {
+  "AMI ID Lookup": Search,
   "Quick Start AMIs": Zap,
   "My AMIs": User,
   "AWS Marketplace AMIs": ShoppingCart,
@@ -77,6 +78,7 @@ const CATEGORY_ICONS = {
 };
 
 const CATEGORY_COLORS = {
+  "AMI ID Lookup": "text-cyan-400",
   "Quick Start AMIs": "text-amber-400",
   "My AMIs": "text-blue-400",
   "AWS Marketplace AMIs": "text-purple-400",
@@ -89,7 +91,7 @@ export default function ImageCatalog({ isOpen, onClose, onSelect, cloudProvider 
   const [selectedPreview, setSelectedPreview] = useState(null);
   const [expandedCategories, setExpandedCategories] = useState({
     "Quick Start AMIs": true,
-    "My AMIs": false,
+    "My AMIs": true,
     "AWS Marketplace AMIs": false,
     "Community AMIs": false,
   });
@@ -132,6 +134,7 @@ export default function ImageCatalog({ isOpen, onClose, onSelect, cloudProvider 
           cats[catName].images.push({
             id: img.imageId,
             name: img.imageId,
+            amiName: img.name || "",
             description: img.description || group.description || group.name,
             groupName: group.name,
             osFamily,
@@ -397,10 +400,10 @@ export default function ImageCatalog({ isOpen, onClose, onSelect, cloudProvider 
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-1.5 mb-0.5">
-                                      <span className="text-xs font-bold text-white font-mono truncate">{img.sourceLabel || img.name}</span>
+                                      <span className="text-xs font-bold text-white font-mono truncate">{img.amiName || img.sourceLabel || img.name}</span>
                                       <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full border shrink-0 ${osInfo.color}`}>{osInfo.creds.label}</span>
                                     </div>
-                                    <p className="text-[10px] text-gray-400 font-mono truncate mb-1">{img.description}</p>
+                                    <p className="text-[10px] text-gray-400 font-mono truncate mb-1">{img.amiName ? img.id : img.description}</p>
                                     <div className="flex items-center gap-2 text-[9px] font-mono text-gray-500">
                                       <span className="flex items-center gap-1"><Monitor className="h-2.5 w-2.5" />{img.architecture}</span>
                                       <span className="flex items-center gap-1"><Terminal className="h-2.5 w-2.5" />{osInfo.creds.access.toUpperCase()}</span>
@@ -436,14 +439,20 @@ export default function ImageCatalog({ isOpen, onClose, onSelect, cloudProvider 
                       : <Cloud className="h-5 w-5 text-cyan-300" />}
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-white font-mono">{selectedPreview.sourceLabel || selectedPreview.name}</h3>
+                    <h3 className="text-base font-bold text-white font-mono">{selectedPreview.amiName || selectedPreview.sourceLabel || selectedPreview.name}</h3>
                     <p className="text-[10px] font-mono text-gray-500">{selectedPreview.sourceCategory}</p>
                   </div>
                 </div>
 
-                {/* Image ID */}
+                {/* AMI Name & ID */}
                 {selectedPreview.name?.startsWith("ami-") && (
                   <div className="bg-gray-800/40 rounded-lg p-2.5 border border-gray-700/50">
+                    {selectedPreview.amiName && (
+                      <div className="mb-2">
+                        <p className="text-[9px] font-mono text-gray-500 uppercase mb-1">AMI Name</p>
+                        <p className="text-[11px] font-mono text-white break-all">{selectedPreview.amiName}</p>
+                      </div>
+                    )}
                     <p className="text-[9px] font-mono text-gray-500 uppercase mb-1">AMI ID</p>
                     <code className="text-[11px] font-mono text-cyan-400 break-all">{selectedPreview.name}</code>
                   </div>

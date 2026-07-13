@@ -1099,17 +1099,27 @@ Deno.serve(async (req) => {
                     imageId,
                     creationDate: dateMatch?.[1] || "",
                     description: descMatch?.[1] || nameMatch?.[1] || "",
+                    name: nameMatch?.[1] || "",
                     architecture: archMatch?.[1] || "x86_64",
                   });
                 }
               }
               images.sort((a, b) => (b.creationDate || "").localeCompare(a.creationDate || ""));
               if (images.length > 0) {
+                // "My AMIs" (owner=self) returns user-created images — show all of them
+                // so users can find their own images. Other categories cap at 5.
+                const maxResults = group.owner === "self" ? 100 : 5;
                 catGroups.push({
                   group: group.name,
                   owner: group.owner,
                   description: group.description,
-                  images: images.slice(0, 5).map(i => ({ imageId: i.imageId, description: i.description, architecture: i.architecture, creationDate: i.creationDate })),
+                  images: images.slice(0, maxResults).map(i => ({
+                    imageId: i.imageId,
+                    description: i.description,
+                    name: i.name || "",
+                    architecture: i.architecture,
+                    creationDate: i.creationDate,
+                  })),
                 });
               }
             } catch (e) {
