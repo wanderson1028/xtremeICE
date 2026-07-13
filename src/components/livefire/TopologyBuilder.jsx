@@ -105,6 +105,7 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
   const [canvasTheme, setCanvasTheme] = useState("dark"); // "dark" | "light"
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
   const [iconPickerDeviceId, setIconPickerDeviceId] = useState(null);
+  const [bulkAddCount, setBulkAddCount] = useState(1);
   const canvasRef = useRef(null);
 
   const areas = topology?.areas || [];
@@ -226,27 +227,34 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
     queryFn: () => base44.entities.LiveFireImage.filter({ status: "available" }, "vendor", 100),
   });
 
-  const addDevice = (deviceType) => {
+  const addDevice = (deviceType, count = 1) => {
     const paletteItem = DEVICE_PALETTE.find(d => d.type === deviceType);
-    const newDevice = {
-      id: `dev_${Date.now()}`,
-      type: deviceType,
-      icon_id: deviceType, // default icon matches device type
-      name: `${paletteItem?.label || deviceType}_${devices.length + 1}`,
-      position_x: 200 + (devices.length % 4) * 160,
-      position_y: 130 + Math.floor(devices.length / 4) * 170,
-      connections: [],
-      cpu_cores: 2,
-      ram_mb: 4096,
-      storage_gb: 20,
-      status: "pending",
-      ami_image_id: null,
-      cost_per_hour: DEVICE_PRICING[deviceType] || 0.15,
-      subnet: "public",
-    };
-    onChange({ ...topology, devices: [...devices, newDevice] });
-    setSelectedDevice(newDevice.id);
-    setRightPanel("properties");
+    const baseCount = devices.length;
+    const newDevices = [];
+    for (let i = 0; i < count; i++) {
+      const idx = baseCount + i;
+      newDevices.push({
+        id: `dev_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 6)}`,
+        type: deviceType,
+        icon_id: deviceType,
+        name: `${paletteItem?.label || deviceType}_${idx + 1}`,
+        position_x: 200 + (idx % 4) * 160,
+        position_y: 130 + Math.floor(idx / 4) * 170,
+        connections: [],
+        cpu_cores: 2,
+        ram_mb: 4096,
+        storage_gb: 20,
+        status: "pending",
+        ami_image_id: null,
+        cost_per_hour: DEVICE_PRICING[deviceType] || 0.15,
+        subnet: "public",
+      });
+    }
+    onChange({ ...topology, devices: [...devices, ...newDevices] });
+    if (count === 1) {
+      setSelectedDevice(newDevices[0].id);
+      setRightPanel("properties");
+    }
   };
 
   const removeDevice = (deviceId) => {
@@ -400,7 +408,7 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
     if (!result.destination) return;
     const { source, destination } = result;
     if (source.droppableId === "palette" && destination.droppableId === "canvas") {
-      addDevice(result.draggableId.replace("palette-", ""));
+      addDevice(result.draggableId.replace("palette-", ""), bulkAddCount);
       return;
     }
     if (source.droppableId === "canvas" && destination.droppableId === "canvas") {
@@ -575,11 +583,25 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
           <Droppable droppableId="palette" isDropDisabled={true}>
             {(provided) => (
               <div ref={provided.innerRef} {...provided.droppableProps} className="flex-1 overflow-y-auto p-2 space-y-1">
+                <div className="flex items-center justify-between px-1 py-1.5 mb-1 rounded-lg bg-gray-800/40 border border-gray-700/40">
+                  <span className="text-[8px] font-mono text-gray-500 uppercase tracking-wider">Qty</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setBulkAddCount(c => Math.max(1, c - 1))}
+                      className="w-5 h-5 rounded bg-gray-700 border border-gray-600 text-gray-300 hover:text-white hover:bg-gray-600 flex items-center justify-center text-xs"
+                    >−</button>
+                    <span className="text-[11px] font-mono text-white w-5 text-center font-bold">{bulkAddCount}</span>
+                    <button
+                      onClick={() => setBulkAddCount(c => Math.min(20, c + 1))}
+                      className="w-5 h-5 rounded bg-gray-700 border border-gray-600 text-gray-300 hover:text-white hover:bg-gray-600 flex items-center justify-center text-xs"
+                    >+</button>
+                  </div>
+                </div>
                 {DEVICE_PALETTE.map((dev, idx) => (
-                 <Draggable key={dev.type} draggableId={`palette-${dev.type}`} index={idx}>
-                   {(provided, snapshot) => (
-                     <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}
-                       onClick={() => addDevice(dev.type)}
+                  <Draggable key={dev.type} draggableId={`palette-${dev.type}`} index={idx}>
+                    {(provided, snapshot) => (
+                      <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}
+                        onClick={() => addDevice(dev.type, bulkAddCount)}
                        className={`flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-grab active:cursor-grabbing ${
                          snapshot.isDragging ? "bg-red-900/40 border-red-500 shadow-lg" : "bg-gray-800/60 border-gray-700 hover:border-red-700/40 hover:bg-gray-800/80"
                        }`}>
