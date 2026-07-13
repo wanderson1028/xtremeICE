@@ -28,6 +28,8 @@ const OS_CREDENTIALS = {
   paloalto: { username: "admin", access: "ssh", port: 443, label: "PAN-OS" },
 };
 
+export const OS_CREDENTIALS_MAP = OS_CREDENTIALS;
+
 function detectOSFamily(imageId, description = "", name = "", groupName = "") {
   const combined = `${imageId} ${description} ${name} ${groupName}`.toLowerCase();
   if (combined.includes("windows") || combined.includes("win-") || combined.includes("win20")) return "windows";
