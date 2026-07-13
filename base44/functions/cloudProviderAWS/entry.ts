@@ -729,6 +729,103 @@ Deno.serve(async (req) => {
         });
       }
 
+      case "listVpcSubnets": {
+        // List all subnets in a specific VPC with full details
+        const { vpc_id } = params;
+        if (!vpc_id) return Response.json({ error: "vpc_id required" }, { status: 400 });
+
+        // Fetch VPC CIDR
+        let vpcCidr = "";
+        try {
+          const vpcXml = await ec2Call("DescribeVpcs", { VpcId: [vpc_id] }, region);
+          vpcCidr = vpcXml.match(/<cidrBlock>([^<]+)<\/cidrBlock>/)?.[1] || "";
+        } catch (e) { /* ignore */ }
+
+        // Fetch subnets for this VPC
+        const subnets = [];
+        try {
+          const subXml = await ec2Call("DescribeSubnets", { Filter: [{ Name: "vpc-id", Value: [vpc_id] }] }, region);
+          const itemRegex = /<item>\s*<subnetId>([^<]+)<\/subnetId>[\s\S]*?<state>([^<]+)<\/state>[\s\S]*?<vpcId>([^<]+)<\/vpcId>[\s\S]*?<cidrBlock>([^<]+)<\/cidrBlock>[\s\S]*?<availableIpAddressCount>(\d+)<\/availableIpAddressCount>[\s\S]*?<availabilityZone>([^<]+)<\/availabilityZone>[\s\S]*?<tagSet>([\s\S]*?)<\/tagSet>/g;
+          for (const m of subXml.matchAll(itemRegex)) {
+            // Check if subnet auto-assigns public IPs
+            let mapPublicIp = false;
+            try {
+              const attrXml = await ec2Call("DescribeSubnetAttribute", { SubnetId: m[1], Attribute: "mapPublicIpOnLaunch" }, region);
+              mapPublicIp = attrXml.includes("<value>true</value>");
+            } catch (e) { /* ignore */ }
+
+            subnets.push({
+              subnetId: m[1],
+              state: m[2],
+              vpcId: m[3],
+              cidrBlock: m[4],
+              availableIps: parseInt(m[5]),
+              availabilityZone: m[6],
+              name: extractTag(m[7], "Name") || m[1],
+              isPublic: mapPublicIp,
+            });
+          }
+        } catch (e) {
+          return Response.json({ error: "Failed to fetch subnets: " + e.message }, { status: 500 });
+        }
+
+        // Sort: public first, then by name
+        subnets.sort((a, b) => (b.isPublic - a.isPublic) || a.name.localeCompare(b.name));
+
+        return Response.json({ region, vpcId: vpc_id, vpcCidr, subnets, totalCount: subnets.length });
+      }
+
+      case "createSubnet": {
+        // Create a new subnet in an existing VPC
+        const { vpc_id, cidr, availability_zone, name, is_public = false } = params;
+        if (!vpc_id) return Response.json({ error: "vpc_id required" }, { status: 400 });
+        if (!cidr) return Response.json({ error: "cidr required" }, { status: 400 });
+
+        const subnetParams = { VpcId: vpc_id, CidrBlock: cidr };
+        if (availability_zone) subnetParams.AvailabilityZone = availability_zone;
+
+        // Add name tag if provided
+        if (name) {
+          subnetParams.TagSpecification = [{
+            ResourceType: "subnet",
+            Tag: [
+              { Key: "Name", Value: name },
+              { Key: "ManagedBy", Value: "XtremeICE-LiveFire" },
+            ],
+          }];
+        }
+
+        try {
+          const xml = await ec2Call("CreateSubnet", subnetParams, region);
+          const subnetId = xml.match(/<subnetId>([^<]+)<\/subnetId>/)?.[1] || "";
+          const az = xml.match(/<availabilityZone>([^<]+)<\/availabilityZone>/)?.[1] || availability_zone || "";
+
+          // Map public IP on launch if requested
+          if (is_public && subnetId) {
+            await ec2Call("ModifySubnetAttribute", { SubnetId: subnetId, MapPublicIpOnLaunch: { Value: "true" } }, region);
+          }
+
+          return Response.json({
+            success: true,
+            subnetId,
+            vpcId: vpc_id,
+            cidrBlock: cidr,
+            availabilityZone: az,
+            name: name || subnetId,
+            isPublic: is_public,
+          });
+        } catch (err) {
+          const awsMsg = err.message || String(err);
+          if (awsMsg.includes("InvalidSubnet.Range")) {
+            return Response.json({ error: `Subnet CIDR ${cidr} is not within the VPC range.` }, { status: 400 });
+          }
+          if (awsMsg.includes("InvalidSubnet.Conflict")) {
+            return Response.json({ error: `Subnet CIDR ${cidr} conflicts with an existing subnet in VPC ${vpc_id}.` }, { status: 400 });
+          }
+          return Response.json({ error: awsMsg }, { status: 500 });
+        }
+      }
+
       case "deleteVpc": {
         // Force-delete a VPC — cleans up dependent resources first
         const { vpc_id, force = false } = params;

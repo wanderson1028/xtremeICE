@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import DeviceIconRenderer, { getDeviceIcon, getIconOptions } from "@/components/livefire/DeviceIcons";
 import { EVE_NG_ICONS, EVE_NG_ICON_LIST } from "@/components/livefire/EveNgIcons";
 import ImageCatalog, { OS_CREDENTIALS_MAP } from "@/components/livefire/ImageCatalog";
+import AddDevicePanel from "@/components/livefire/AddDevicePanel";
 
 const TYPE_COLORS = {
   router: "border-amber-500 bg-amber-500/10", switch: "border-cyan-500 bg-cyan-500/10",
@@ -633,187 +634,6 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
   );
 }
 
-// ---- Add Device Panel ----
-function AddDevicePanel({ lab, onClose, onDeploy, deploying }) {
-  const [selected, setSelected] = useState(null);
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [showImageCatalog, setShowImageCatalog] = useState(false);
-  const [deviceName, setDeviceName] = useState("");
-  const [cpu, setCpu] = useState(2);
-  const [ram, setRam] = useState(4096);
-  const [storage, setStorage] = useState(20);
-  const [error, setError] = useState(null);
-
-  const handleTemplateSelect = (tpl) => {
-    setSelected(tpl);
-    setDeviceName(tpl.name);
-    setCpu(tpl.cpu);
-    setRam(tpl.ram);
-    setStorage(tpl.storage);
-    setError(null);
-  };
-
-  const handleImageSelect = (image) => {
-    setSelectedImage(image);
-    // Apply OS-derived access method and credentials
-    const osCreds = OS_CREDENTIALS_MAP[image.osFamily] || OS_CREDENTIALS_MAP.amazon_linux;
-    if (image.username) {
-      // Custom DB image — use its stored credentials
-      setSelected(prev => ({ ...prev, access: image.access || osCreds.access }));
-    } else {
-      setSelected(prev => ({ ...prev, access: osCreds.access }));
-    }
-    if (image.cpu) setCpu(image.cpu);
-    if (image.ram) setRam(image.ram);
-    if (image.storage) setStorage(image.storage);
-    setError(null);
-  };
-
-  const handleDeploy = () => {
-    if (!deviceName.trim()) { setError("Device name is required"); return; }
-    if (!selected) { setError("Select a device type"); return; }
-    const osCreds = selectedImage
-      ? OS_CREDENTIALS_MAP[selectedImage.osFamily] || OS_CREDENTIALS_MAP.amazon_linux
-      : null;
-    const deploySpec = {
-      name: deviceName.trim(),
-      type: selected.type,
-      cpu_cores: cpu,
-      ram_mb: ram,
-      storage_gb: storage,
-      access_method: selected.access,
-      position_x: 400,
-      position_y: 200,
-    };
-    if (selectedImage) {
-      deploySpec.ami_image_id = selectedImage.id;
-      deploySpec.default_username = selectedImage.username || osCreds?.username || "ec2-user";
-      deploySpec.access_method = selectedImage.access || selected.access || osCreds?.access || "ssh";
-      deploySpec.access_port = selectedImage.port || (deploySpec.access_method === "rdp" ? 3389 : 22);
-    }
-    onDeploy(deploySpec);
-  };
-
-  return (
-    <>
-      <div className="absolute right-4 top-4 w-80 bg-gray-900/95 border border-red-900/40 rounded-xl shadow-2xl z-30 overflow-hidden">
-        <div className="flex items-center justify-between p-3 border-b border-red-900/20 bg-gray-950">
-          <span className="text-sm font-bold text-white">Add Device</span>
-          <button onClick={onClose} className="text-gray-500 hover:text-white"><X className="h-4 w-4" /></button>
-        </div>
-        <div className="p-4 space-y-3 max-h-[500px] overflow-y-auto">
-          {/* Device type selection */}
-          <p className="text-[10px] font-mono text-gray-500 uppercase">Device Type</p>
-          <div className="grid grid-cols-2 gap-2">
-            {DEVICE_TEMPLATES.map(tpl => {
-              return (
-                <button
-                  key={tpl.type}
-                  onClick={() => handleTemplateSelect(tpl)}
-                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
-                    selected?.type === tpl.type
-                      ? "border-red-500/60 bg-red-950/30"
-                      : "border-gray-700 bg-gray-800/60 hover:border-gray-600"
-                  }`}
-                >
-                  <div className="w-7 h-7">
-                    <DeviceIconRenderer type={tpl.type} iconId={tpl.type} className="text-gray-300" />
-                  </div>
-                  <span className="text-[10px] font-mono text-gray-300">{tpl.name}</span>
-                  <span className="text-[8px] font-mono text-gray-600">{tpl.subtitle}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Config */}
-          {selected && (
-            <>
-              <div>
-                <label className="text-[9px] font-mono text-gray-500 uppercase block mb-1">Name</label>
-                <Input value={deviceName} onChange={e => setDeviceName(e.target.value)}
-                  className="bg-gray-800 border-gray-700 text-white text-xs h-8 font-mono" />
-              </div>
-
-              {/* AWS Image / AMI Selector */}
-              <div>
-                <label className="text-[9px] font-mono text-gray-500 uppercase block mb-1">AWS Image (AMI)</label>
-                {selectedImage ? (
-                  <div className="bg-cyan-950/30 border border-cyan-700/50 rounded-lg p-2.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-mono font-bold text-cyan-300 truncate">{selectedImage.sourceLabel || selectedImage.name}</p>
-                        {selectedImage.name?.startsWith("ami-") && (
-                          <code className="text-[9px] font-mono text-cyan-500 break-all">{selectedImage.name}</code>
-                        )}
-                        <p className="text-[9px] font-mono text-gray-400 mt-0.5">
-                          {selectedImage.osFamily ? (OS_CREDENTIALS_MAP[selectedImage.osFamily]?.label || selectedImage.osFamily) : ""}
-                          {selectedImage.username ? ` — ${selectedImage.username}` : ""}
-                        </p>
-                      </div>
-                      <button onClick={() => setShowImageCatalog(true)}
-                        className="text-[9px] font-mono text-cyan-400 hover:text-cyan-300 shrink-0 underline">
-                        Change
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button onClick={() => setShowImageCatalog(true)}
-                    className="w-full flex items-center justify-center gap-2 p-2.5 rounded-lg border border-cyan-700/40 bg-cyan-950/20 hover:bg-cyan-900/30 hover:border-cyan-600/50 transition-colors">
-                    <ImagePlus className="h-3.5 w-3.5 text-cyan-400" />
-                    <span className="text-[11px] font-mono text-cyan-300">Select AWS Image</span>
-                  </button>
-                )}
-                {!selectedImage && (
-                  <p className="text-[8px] font-mono text-gray-600 mt-1">If skipped, a default Amazon Linux AMI will be used.</p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="text-[9px] font-mono text-gray-500 uppercase block mb-1">vCPU</label>
-                  <Input type="number" min={1} max={64} value={cpu} onChange={e => setCpu(Number(e.target.value))}
-                    className="bg-gray-800 border-gray-700 text-white text-xs h-8 font-mono" />
-                </div>
-                <div>
-                  <label className="text-[9px] font-mono text-gray-500 uppercase block mb-1">RAM MB</label>
-                  <Input type="number" min={512} step={512} value={ram} onChange={e => setRam(Number(e.target.value))}
-                    className="bg-gray-800 border-gray-700 text-white text-xs h-8 font-mono" />
-                </div>
-                <div>
-                  <label className="text-[9px] font-mono text-gray-500 uppercase block mb-1">Storage GB</label>
-                  <Input type="number" min={8} value={storage} onChange={e => setStorage(Number(e.target.value))}
-                    className="bg-gray-800 border-gray-700 text-white text-xs h-8 font-mono" />
-                </div>
-              </div>
-            </>
-          )}
-
-          {error && <p className="text-[10px] text-red-400 font-mono">{error}</p>}
-
-          <Button onClick={handleDeploy} disabled={!selected || deploying}
-            size="sm" className="w-full bg-red-700 hover:bg-red-600 disabled:bg-gray-800 text-white">
-            {deploying ? (
-              <><RefreshCw className="h-3.5 w-3.5 animate-spin mr-1.5" /> Deploying...</>
-            ) : (
-              <><Zap className="h-3.5 w-3.5 mr-1.5" /> Deploy Device</>
-            )}
-          </Button>
-        </div>
-      </div>
-
-      <ImageCatalog
-        isOpen={showImageCatalog}
-        onClose={() => setShowImageCatalog(false)}
-        onSelect={handleImageSelect}
-        cloudProvider={lab?.cloud_provider || "aws"}
-        region={lab?.region || "us-east-1"}
-        selectedImageId={selectedImage?.id}
-      />
-    </>
-  );
-}
-
 // ---- Main Page ----
 export default function LiveLabTopology() {
   const [searchParams] = useSearchParams();
@@ -858,6 +678,14 @@ export default function LiveLabTopology() {
     queryFn: () => base44.entities.LiveFireDevice.filter({ lab_id: labId }, "-updated_date", 100),
     enabled: !!labId,
     refetchInterval: 15000,
+  });
+
+  // Fetch deployment info for VPC/subnet context
+  const { data: deployment } = useQuery({
+    queryKey: ["livefire-deployment", labId],
+    queryFn: () => base44.entities.LiveFireDeployment.filter({ lab_id: labId }).then(r => r[0]),
+    enabled: !!labId,
+    staleTime: 30_000,
   });
 
   const topologyData = lab?.topology_data || {};
@@ -997,7 +825,7 @@ export default function LiveLabTopology() {
       const dep = deployments[0];
       if (!dep?.subnet_ids?.length) throw new Error("No subnet found for this lab");
 
-      // Step 2: Deploy via cloud provider
+      // Step 2: Deploy via cloud provider — use user-selected subnet, fall back to deployment default
       const createParams = {
         lab_id: labId,
         device_name: deviceSpec.name,
@@ -1005,7 +833,7 @@ export default function LiveLabTopology() {
         cpu_cores: deviceSpec.cpu_cores,
         ram_mb: deviceSpec.ram_mb,
         storage_gb: deviceSpec.storage_gb,
-        subnet_id: dep.subnet_ids[0],
+        subnet_id: deviceSpec.subnet_id || dep.subnet_ids[0],
         security_group_ids: dep.security_group_ids || [],
         region: lab?.region || "us-east-1",
       };
@@ -1596,6 +1424,7 @@ export default function LiveLabTopology() {
           <div onClick={(e) => e.stopPropagation()}>
             <AddDevicePanel
               lab={lab}
+              deployment={deployment}
               onClose={() => setShowAddDevice(false)}
               onDeploy={handleDeployDevice}
               deploying={deployingDevice}
