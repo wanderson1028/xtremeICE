@@ -95,9 +95,11 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
   const [imageCatalogOpen, setImageCatalogOpen] = useState(false);
   const [catalogForDeviceId, setCatalogForDeviceId] = useState(null);
   const [manualImageId, setManualImageId] = useState("");
+  const [vpcMode, setVpcMode] = useState("new"); // "new" | "existing"
   const [existingVpcs, setExistingVpcs] = useState([]);
   const [selectedExistingVpc, setSelectedExistingVpc] = useState(null);
-  const [vpcSubnetOptions, setVpcSubnetOptions] = useState(null);
+  const [vpcSubnets, setVpcSubnets] = useState(null); // actual subnets from listVpcSubnets
+  const [vpcSubnetOptions, setVpcSubnetOptions] = useState(null); // CIDR suggestions from suggestSubnets
   const [loadingVpcs, setLoadingVpcs] = useState(false);
   const [loadingSubnets, setLoadingSubnets] = useState(false);
   const [canvasTheme, setCanvasTheme] = useState("dark"); // "dark" | "light"
@@ -171,7 +173,7 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
 
   const selectExistingVpc = async (vpcId) => {
     setSelectedExistingVpc(vpcId);
-    if (!vpcId) { setVpcSubnetOptions(null); return; }
+    if (!vpcId) { setVpcSubnetOptions(null); setVpcSubnets(null); return; }
 
     const vpc = existingVpcs.find(v => v.vpcId === vpcId);
     if (!vpc) return;
@@ -179,30 +181,35 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
     // Update VPC config with existing VPC's CIDR
     updateVpcConfig({ cidr: vpc.cidrBlock, existingVpcId: vpcId });
 
-    // Load subnet options
+    // Load actual subnets that exist in this VPC
     setLoadingSubnets(true);
     try {
       const res = await base44.functions.invoke("cloudProviderAWS", {
-        action: "suggestSubnets",
-        params: { vpc_id: vpcId, vpc_cidr: vpc.cidrBlock, region },
+        action: "listVpcSubnets",
+        params: { vpc_id: vpcId, region },
       });
-      setVpcSubnetOptions(res.data);
+      setVpcSubnets(res.data);
     } catch { /* ignore */ }
     setLoadingSubnets(false);
   };
 
   const applySubnetFromVpc = (subnetCidr) => {
-    if (!subnetCidr || vpcSubnetOptions?.subnets?.find(s => s.cidr === subnetCidr)?.isTaken) return;
+    if (!subnetCidr) return;
 
-    const zone = region + "a";
+    // Find the actual subnet details from listVpcSubnets response
+    const realSubnet = vpcSubnets?.subnets?.find(s => s.cidrBlock === subnetCidr);
     const existing = vpcConfig.subnets.find(s => s.cidr === subnetCidr);
     if (existing) {
       // Remove it (toggle)
       updateVpcConfig({ subnets: vpcConfig.subnets.filter(s => s.cidr !== subnetCidr) });
     } else {
-      // Add it
+      // Add it using the real subnet name and AZ from AWS
+      const name = realSubnet?.name && realSubnet.name !== realSubnet.subnetId
+        ? realSubnet.name
+        : `subnet-${subnetCidr.split("/")[0].split(".").slice(-2).join("-")}`;
+      const zone = realSubnet?.availabilityZone || (region + "a");
       updateVpcConfig({
-        subnets: [...vpcConfig.subnets, { name: `subnet-${subnetCidr.split("/")[0].split(".").slice(-2).join("-")}`, cidr: subnetCidr, zone }],
+        subnets: [...vpcConfig.subnets, { name, cidr: subnetCidr, zone, subnetId: realSubnet?.subnetId }],
       });
     }
   };
@@ -667,7 +674,7 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                 <span>{connectingFrom ? "Click target device" : selectedDevice ? "Click another device to connect, or use button below" : "Click a device to select it"}</span>
               </div>
             )}
-            <button onClick={() => setRightPanel(rightPanel === "network" ? null : "network")}
+            <button onClick={() => { setRightPanel(rightPanel === "network" ? null : "network"); if (rightPanel !== "network") fetchExistingVpcs(); }}
               className={`ml-auto text-[10px] font-mono px-2.5 py-1 rounded border transition-colors ${
                 rightPanel === "network" ? "bg-blue-900/30 border-blue-600/60 text-blue-400" : "bg-gray-800 border-gray-700 text-gray-500 hover:text-gray-300"
               }`}>
@@ -1175,18 +1182,18 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                     <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1.5">VPC Source</label>
                     <div className="grid grid-cols-2 gap-1.5">
                       <button
-                        onClick={() => { selectExistingVpc(null); setVpcSubnetOptions(null); }}
+                        onClick={() => { setVpcMode("new"); selectExistingVpc(null); setVpcSubnetOptions(null); setVpcSubnets(null); }}
                         className={`text-[9px] font-mono px-2.5 py-2 rounded-lg border transition-colors text-center ${
-                          !selectedExistingVpc
+                          vpcMode === "new"
                             ? "bg-cyan-900/30 border-cyan-600/60 text-cyan-300"
                             : "bg-gray-800/40 border-gray-700/40 text-gray-400 hover:text-cyan-400 hover:border-cyan-700/40"
                         }`}>
                         <Plus className="h-3 w-3 inline mr-1" />New VPC
                       </button>
                       <button
-                        onClick={() => { fetchExistingVpcs(); }}
+                        onClick={() => { setVpcMode("existing"); fetchExistingVpcs(); }}
                         className={`text-[9px] font-mono px-2.5 py-2 rounded-lg border transition-colors text-center ${
-                          selectedExistingVpc
+                          vpcMode === "existing"
                             ? "bg-cyan-900/30 border-cyan-600/60 text-cyan-300"
                             : "bg-gray-800/40 border-gray-700/40 text-gray-400 hover:text-cyan-400 hover:border-cyan-700/40"
                         }`}>
@@ -1196,77 +1203,103 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                   </div>
 
                   {/* Existing VPC Selector */}
-                  {selectedExistingVpc ? (
+                  {vpcMode === "existing" && (
                     <>
                       <div>
                         <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">Select VPC</label>
-                        <div className="flex gap-1.5">
+                        {loadingVpcs ? (
+                          <div className="flex items-center justify-center py-3 gap-2">
+                            <div className="w-4 h-4 border-2 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin" />
+                            <span className="text-[9px] font-mono text-gray-500">Loading VPCs...</span>
+                          </div>
+                        ) : (
                           <select
-                            value={selectedExistingVpc}
+                            value={selectedExistingVpc || ""}
                             onChange={(e) => selectExistingVpc(e.target.value || null)}
-                            className="flex-1 bg-gray-800 border border-gray-700 rounded-lg text-white text-[10px] font-mono px-2.5 py-2 outline-none focus:border-cyan-500/50"
+                            className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white text-[10px] font-mono px-2.5 py-2 outline-none focus:border-cyan-500/50"
                           >
-                            <option value="">— Choose —</option>
-                            {existingVpcs.filter(v => !v.isDefault).map(vpc => (
+                            <option value="">— Choose a VPC —</option>
+                            {existingVpcs.map(vpc => (
                               <option key={vpc.vpcId} value={vpc.vpcId}>
-                                {vpc.name || vpc.cidrBlock} ({vpc.cidrBlock}) {vpc.isOrphaned ? "[unused]" : `[${vpc.instanceCount} inst]`}
+                                {vpc.name !== vpc.vpcId ? `${vpc.name} — ` : ""}{vpc.vpcId} ({vpc.cidrBlock}) {vpc.isDefault ? "[default]" : vpc.isOrphaned ? "[unused]" : `[${vpc.instanceCount} inst]`}
                               </option>
                             ))}
                           </select>
-                        </div>
-                        {selectedExistingVpc && (
-                          <div className="mt-1.5 bg-cyan-950/20 border border-cyan-800/30 rounded-lg p-2">
-                            <p className="text-[9px] font-mono text-cyan-400 font-bold">{vpcConfig.cidr}</p>
-                            <p className="text-[8px] font-mono text-cyan-600">
-                              {existingVpcs.find(v => v.vpcId === selectedExistingVpc)?.instanceCount || 0} running instances
-                            </p>
-                          </div>
                         )}
+                        {selectedExistingVpc && (() => {
+                          const sel = existingVpcs.find(v => v.vpcId === selectedExistingVpc);
+                          if (!sel) return null;
+                          return (
+                            <div className="mt-1.5 bg-cyan-950/20 border border-cyan-800/30 rounded-lg p-2.5 space-y-1">
+                              <div className="flex items-center justify-between">
+                                <p className="text-[9px] font-mono text-cyan-400 font-bold">{sel.name !== sel.vpcId ? sel.name : "No Name Tag"}</p>
+                                {sel.isDefault && <span className="text-[7px] font-mono bg-cyan-900/40 text-cyan-300 px-1.5 py-0.5 rounded">DEFAULT</span>}
+                              </div>
+                              <p className="text-[8px] font-mono text-gray-500 break-all">ID: {sel.vpcId}</p>
+                              <p className="text-[8px] font-mono text-cyan-600">CIDR: {sel.cidrBlock}</p>
+                              <p className="text-[8px] font-mono text-cyan-600">{sel.instanceCount || 0} running instance{sel.instanceCount !== 1 ? "s" : ""}</p>
+                              {sel.linkedLab && <p className="text-[8px] font-mono text-green-400">Lab: {sel.linkedLab.name}</p>}
+                              {sel.subnets?.length > 0 && <p className="text-[8px] font-mono text-gray-500">{sel.subnets.length} subnet{sel.subnets.length !== 1 ? "s" : ""}</p>}
+                            </div>
+                          );
+                        })()}
                       </div>
 
-                      {/* Subnet Options from existing VPC */}
-                      {vpcSubnetOptions && (
+                      {/* Real subnets from the selected VPC */}
+                      {selectedExistingVpc && (
                         <div>
                           <div className="flex items-center justify-between mb-1.5">
                             <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider">
-                              Available Subnets
+                              Existing Subnets
                             </label>
                             <span className="text-[7px] font-mono text-gray-600">
-                              {vpcConfig.subnets.length} selected / {vpcSubnetOptions.availableCount} free
+                              {vpcSubnets?.subnets?.length || 0} total
                             </span>
                           </div>
                           {loadingSubnets ? (
-                            <div className="flex justify-center py-3">
+                            <div className="flex items-center justify-center py-3 gap-2">
                               <div className="w-4 h-4 border-2 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin" />
+                              <span className="text-[9px] font-mono text-gray-500">Loading subnets...</span>
                             </div>
-                          ) : (
-                            <div className="space-y-1 max-h-48 overflow-y-auto">
-                              {vpcSubnetOptions.subnets.filter(s => !s.isTaken).slice(0, 24).map(s => {
-                                const isSelected = vpcConfig.subnets.some(sub => sub.cidr === s.cidr);
-                                const devsOnSubnet = devices.filter(d => d.subnet === (vpcConfig.subnets.find(sub => sub.cidr === s.cidr)?.name || "")).length;
+                          ) : vpcSubnets?.subnets?.length > 0 ? (
+                            <div className="space-y-1 max-h-56 overflow-y-auto">
+                              {vpcSubnets.subnets.map(s => {
+                                const isSelected = vpcConfig.subnets.some(sub => sub.cidr === s.cidrBlock);
+                                const subnetName = vpcConfig.subnets.find(sub => sub.cidr === s.cidrBlock)?.name || s.name || s.subnetId;
+                                const devsOnSubnet = devices.filter(d => d.subnet === subnetName).length;
                                 return (
-                                  <button key={s.cidr}
-                                    onClick={() => applySubnetFromVpc(s.cidr)}
-                                    className={`w-full text-left text-[9px] font-mono px-2.5 py-2 rounded-lg border transition-colors flex items-center justify-between ${
+                                  <button key={s.subnetId}
+                                    onClick={() => applySubnetFromVpc(s.cidrBlock)}
+                                    className={`w-full text-left text-[9px] font-mono px-2.5 py-2 rounded-lg border transition-colors ${
                                       isSelected
                                         ? "bg-cyan-900/30 border-cyan-600/60 text-cyan-300"
                                         : "bg-gray-800/40 border-gray-700/40 text-gray-400 hover:text-cyan-400 hover:border-cyan-700/40"
                                     }`}>
-                                    <span className="truncate">{s.cidr}</span>
-                                    <span className="text-[8px] shrink-0 ml-2">
-                                      {isSelected && devsOnSubnet > 0
-                                        ? <span className="text-green-400">{devsOnSubnet} device{devsOnSubnet > 1 ? "s" : ""}</span>
-                                        : isSelected ? <Check className="h-3 w-3 text-cyan-400" /> : null}
-                                    </span>
+                                    <div className="flex items-center justify-between">
+                                      <span className="truncate font-bold">{s.name !== s.subnetId ? s.name : "No Name Tag"}</span>
+                                      {s.isPublic && <span className="text-[7px] text-green-400 bg-green-950/40 px-1 rounded shrink-0 ml-1">PUBLIC</span>}
+                                      {isSelected && <Check className="h-3 w-3 text-cyan-400 shrink-0 ml-1" />}
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-0.5 text-[8px] text-gray-500">
+                                      <span className="text-cyan-600">{s.cidrBlock}</span>
+                                      <span>{s.availabilityZone}</span>
+                                      <span>{s.availableIps} free</span>
+                                      {isSelected && devsOnSubnet > 0 && <span className="text-green-400">→ {devsOnSubnet} device{devsOnSubnet > 1 ? "s" : ""}</span>}
+                                    </div>
                                   </button>
                                 );
                               })}
                             </div>
+                          ) : (
+                            <p className="text-[8px] font-mono text-gray-600 italic">No subnets found in this VPC.</p>
                           )}
                         </div>
                       )}
                     </>
-                  ) : (
+                  )}
+
+                  {/* New VPC Configuration */}
+                  {vpcMode === "new" && (
                     <>
                       {/* New VPC CIDR */}
                       <div>
@@ -1296,7 +1329,7 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                       </div>
 
                       {/* Derived subnets preview */}
-                      {vpcConfig.cidr && !selectedExistingVpc && (() => {
+                      {vpcConfig.cidr && vpcMode === "new" && (() => {
                         const parts = vpcConfig.cidr.split("/")[0].split(".").map(Number);
                         const prefix = `${parts[0]}.${parts[1]}`;
                         const derivedSubnets = [
@@ -1335,11 +1368,11 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                           </div>
                         );
                       })()}
-                    </>
-                  )}
+                      </>
+                      )}
 
-                  {/* Internet Gateway (new VPC only) */}
-                  {!selectedExistingVpc && (
+                      {/* Internet Gateway (new VPC only) */}
+                      {vpcMode === "new" && (
                     <div>
                       <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">Internet Gateway</label>
                       <button onClick={() => updateVpcConfig({ enableInternetGateway: !vpcConfig.enableInternetGateway })}
@@ -1403,7 +1436,7 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                   )}
 
                   {/* Custom subnet management (new VPC only) */}
-                  {!selectedExistingVpc && (
+                  {vpcMode === "new" && (
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
                         <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider">Custom Subnets</label>
@@ -1432,7 +1465,7 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                   )}
 
                   {/* Security Groups (new VPC only) */}
-                  {!selectedExistingVpc && (
+                  {vpcMode === "new" && (
                     <div>
                       <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">Security Groups</label>
                       {vpcConfig.securityGroups.map((sg, sgIdx) => (
