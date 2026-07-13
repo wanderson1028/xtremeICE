@@ -302,7 +302,7 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
     try {
       await base44.functions.invoke("cloudOrchestrator", {
         action: "deleteDevice",
-        params: { lab_id: labId, device_id: deployed?.id },
+        params: { lab_id: labId, device_id: deployed?.id, device_name: device.name },
       });
       queryClient.invalidateQueries(["livefire-devices", labId]);
       queryClient.invalidateQueries(["livefire-lab", labId]);

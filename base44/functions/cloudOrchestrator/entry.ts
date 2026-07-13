@@ -785,18 +785,26 @@ Deno.serve(async (req) => {
 
       case "deleteDevice": {
         // Delete a single device: terminate EC2 instance (if deployed), remove DB record, remove from topology
-        const { lab_id, device_id } = params;
+        const { lab_id, device_id, device_name } = params;
         let lab = null;
         try {
           lab = await base44.asServiceRole.entities.LiveFireLab.filter({ id: lab_id }).then(r => r[0]);
         } catch { /* invalid id format */ }
         if (!lab) return Response.json({ error: "Lab not found" }, { status: 404 });
 
+        // Look up the deployed device record by ID, falling back to name match
         let device = null;
-        try {
-          device = await base44.asServiceRole.entities.LiveFireDevice.filter({ id: device_id, lab_id }).then(r => r[0]);
-        } catch { /* device may already be deleted */ }
-        if (!device) return Response.json({ error: "Device not found" }, { status: 404 });
+        if (device_id) {
+          try {
+            device = await base44.asServiceRole.entities.LiveFireDevice.filter({ id: device_id, lab_id }).then(r => r[0]);
+          } catch { /* device may already be deleted */ }
+        }
+        if (!device && device_name) {
+          try {
+            const allLabDevices = await base44.asServiceRole.entities.LiveFireDevice.filter({ lab_id });
+            device = allLabDevices.find(d => d.name?.toLowerCase() === device_name?.toLowerCase()) || null;
+          } catch { /* ignore lookup errors */ }
+        }
 
         const region = lab?.region || "us-east-1";
 
@@ -818,10 +826,11 @@ Deno.serve(async (req) => {
           await base44.asServiceRole.entities.LiveFireDevice.delete(device.id);
         }
 
-        // 3. Remove the device from topology_data.devices
+        // 3. Remove the device from topology_data.devices (by name, handles topology-only devices too)
         const topologyData = lab.topology_data || {};
+        const matchName = (device_name || device?.name || "").toLowerCase();
         const updatedDevices = (topologyData.devices || []).filter(d =>
-          d.name?.toLowerCase() !== device?.name?.toLowerCase()
+          d.name?.toLowerCase() !== matchName
         );
         await base44.asServiceRole.entities.LiveFireLab.update(lab_id, {
           topology_data: { ...topologyData, devices: updatedDevices },
@@ -834,11 +843,11 @@ Deno.serve(async (req) => {
           user_email: user.email,
           action: "device_removed",
           resource_type: "device",
-          resource_id: device_id,
-          details: { lab_id, device_name: device?.name, instance_id: device?.instance_id },
+          resource_id: device_id || device?.id || device_name,
+          details: { lab_id, device_name: device_name || device?.name, instance_id: device?.instance_id },
         });
 
-        return Response.json({ success: true, device_name: device?.name });
+        return Response.json({ success: true, device_name: device_name || device?.name });
       }
 
       case "refreshDeviceStatus": {
