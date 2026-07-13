@@ -151,7 +151,7 @@ function ConnectionLine({ conn, topologyDevices, deployedMap, isDark }) {
 }
 
 // ---- Device Detail Panel ----
-function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, queryClient, labId }) {
+function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, queryClient, labId, setError }) {
   const [connecting, setConnecting] = useState(false);
   const [passwordData, setPasswordData] = useState(null);
   const [loadingPassword, setLoadingPassword] = useState(false);
@@ -282,6 +282,34 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
       queryClient.invalidateQueries(["livefire-devices", labId]);
     } catch (err) {
       console.error("Start failed:", err);
+    } finally {
+      setDeviceAction(null);
+    }
+  };
+
+  const handleDeleteDevice = async () => {
+    if (!device?.name) return;
+    const confirmed = confirm(
+      `Delete "${device.name}"?\n\n` +
+      (deployed?.instance_id
+        ? `This will terminate the EC2 instance (${deployed.instance_id}) and remove the device from the topology. This cannot be undone.\n\n`
+        : `This will remove the device from the topology. This cannot be undone.\n\n`
+      ) + `After deletion, you can add a new "${device.name}" device.`
+    );
+    if (!confirmed) return;
+
+    setDeviceAction("deleting");
+    try {
+      await base44.functions.invoke("cloudOrchestrator", {
+        action: "deleteDevice",
+        params: { lab_id: labId, device_id: deployed?.id },
+      });
+      queryClient.invalidateQueries(["livefire-devices", labId]);
+      queryClient.invalidateQueries(["livefire-lab", labId]);
+      refetchDevices();
+      onClose();
+    } catch (err) {
+      setError(err?.response?.data?.error || err?.message || "Failed to delete device");
     } finally {
       setDeviceAction(null);
     }
@@ -452,6 +480,21 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
             </Button>
           </div>
         )}
+
+        {/* Delete Device */}
+        <Button
+          onClick={handleDeleteDevice}
+          disabled={deviceAction === "deleting"}
+          size="sm"
+          variant="outline"
+          className="w-full border-red-800/60 text-red-400 hover:bg-red-950/40 hover:text-red-300 text-xs"
+        >
+          {deviceAction === "deleting" ? (
+            <><RefreshCw className="h-3.5 w-3.5 animate-spin mr-1.5" /> Deleting...</>
+          ) : (
+            <><Trash2 className="h-3.5 w-3.5 mr-1.5" /> Delete Device</>
+          )}
+        </Button>
 
         {/* Connect */}
         <Button
@@ -1418,6 +1461,7 @@ export default function LiveLabTopology() {
               refetchDevices={refetchDevices}
               queryClient={queryClient}
               labId={labId}
+              setError={setError}
             />
           </div>
         )}

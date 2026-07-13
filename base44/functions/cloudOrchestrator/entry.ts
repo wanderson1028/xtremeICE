@@ -783,6 +783,64 @@ Deno.serve(async (req) => {
         }, { status: allFailed ? 500 : 200 });
       }
 
+      case "deleteDevice": {
+        // Delete a single device: terminate EC2 instance (if deployed), remove DB record, remove from topology
+        const { lab_id, device_id } = params;
+        let lab = null;
+        try {
+          lab = await base44.asServiceRole.entities.LiveFireLab.filter({ id: lab_id }).then(r => r[0]);
+        } catch { /* invalid id format */ }
+        if (!lab) return Response.json({ error: "Lab not found" }, { status: 404 });
+
+        let device = null;
+        try {
+          device = await base44.asServiceRole.entities.LiveFireDevice.filter({ id: device_id, lab_id }).then(r => r[0]);
+        } catch { /* device may already be deleted */ }
+        if (!device) return Response.json({ error: "Device not found" }, { status: 404 });
+
+        const region = lab?.region || "us-east-1";
+
+        // 1. Terminate the EC2 instance if it exists
+        if (device?.instance_id) {
+          try {
+            await base44.functions.invoke("cloudProviderAWS", {
+              action: "deleteVM",
+              params: { instance_id: device.instance_id, region },
+            });
+          } catch (e) {
+            console.log(`[deleteDevice] Instance termination failed for ${device.instance_id}: ${e.message}`);
+            // Continue anyway — the instance may already be gone; we still clean up the DB record
+          }
+        }
+
+        // 2. Delete the LiveFireDevice record
+        if (device?.id) {
+          await base44.asServiceRole.entities.LiveFireDevice.delete(device.id);
+        }
+
+        // 3. Remove the device from topology_data.devices
+        const topologyData = lab.topology_data || {};
+        const updatedDevices = (topologyData.devices || []).filter(d =>
+          d.name?.toLowerCase() !== device?.name?.toLowerCase()
+        );
+        await base44.asServiceRole.entities.LiveFireLab.update(lab_id, {
+          topology_data: { ...topologyData, devices: updatedDevices },
+          device_count: updatedDevices.length,
+        });
+
+        // 4. Audit log
+        await base44.asServiceRole.entities.LiveFireAuditLog.create({
+          user_id: user.id,
+          user_email: user.email,
+          action: "device_removed",
+          resource_type: "device",
+          resource_id: device_id,
+          details: { lab_id, device_name: device?.name, instance_id: device?.instance_id },
+        });
+
+        return Response.json({ success: true, device_name: device?.name });
+      }
+
       case "refreshDeviceStatus": {
         // Poll AWS for all device statuses and IPs for a running lab, then update DB records
         const { lab_id } = params;
