@@ -422,20 +422,29 @@ export default function LabCreationWizard() {
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-mono text-gray-400 block mb-1.5">Region</label>
-                  <select
-                    value={form.region}
-                    onChange={e => update("region", e.target.value)}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white text-sm px-3 py-2.5 h-10 max-w-xs"
-                  >
-                    <option value="us-east-1">us-east-1 (N. Virginia)</option>
-                    <option value="us-east-2">us-east-2 (Ohio)</option>
-                    <option value="us-west-1">us-west-1 (N. California)</option>
-                    <option value="us-west-2">us-west-2 (Oregon)</option>
-                    <option value="eu-west-1">eu-west-1 (Ireland)</option>
-                    <option value="eu-central-1">eu-central-1 (Frankfurt)</option>
-                    <option value="ap-southeast-1">ap-southeast-1 (Singapore)</option>
-                  </select>
+                  <label className="text-[11px] font-mono text-gray-400 block mb-1.5">
+                    Region {!isAdmin && <span className="text-gray-600 normal-case">(admin-configured)</span>}
+                  </label>
+                  {isAdmin ? (
+                    <select
+                      value={form.region}
+                      onChange={e => update("region", e.target.value)}
+                      className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white text-sm px-3 py-2.5 h-10 max-w-xs"
+                    >
+                      <option value="us-east-1">us-east-1 (N. Virginia)</option>
+                      <option value="us-east-2">us-east-2 (Ohio)</option>
+                      <option value="us-west-1">us-west-1 (N. California)</option>
+                      <option value="us-west-2">us-west-2 (Oregon)</option>
+                      <option value="eu-west-1">eu-west-1 (Ireland)</option>
+                      <option value="eu-central-1">eu-central-1 (Frankfurt)</option>
+                      <option value="ap-southeast-1">ap-southeast-1 (Singapore)</option>
+                    </select>
+                  ) : (
+                    <div className="flex items-center gap-2 px-3 py-2.5 h-10 max-w-xs bg-gray-800/50 border border-gray-700/50 rounded-lg text-sm font-mono text-gray-400">
+                      <Lock className="h-3.5 w-3.5 text-gray-600" />
+                      <span>{form.region || "us-east-1"}</span>
+                    </div>
+                  )}
                 </div>
 
                 {isAdmin && (
