@@ -295,6 +295,39 @@ Deno.serve(async (req) => {
             message: `Could not find a suitable Amazon Linux AMI in ${region}. Try a different region or provide an ami_image_id.`,
           }, { status: 400 });
         }
+
+        // Validate user-provided AMI exists in the deployment region.
+        // AMIs are region-scoped — an AMI found in us-west-2 cannot be used in us-east-1.
+        if (ami_image_id) {
+          try {
+            const checkXml = await ec2Call("DescribeImages", { ImageId: [ami_image_id] }, region);
+            const stateMatch = checkXml.match(/<imageState>([^<]+)<\/imageState>/);
+            if (stateMatch && stateMatch[1] !== "available") {
+              return Response.json({
+                error: "AMI_UNAVAILABLE",
+                message: `AMI ${ami_image_id} in ${region} is in state "${stateMatch[1]}" (not available). Choose a different AMI.`,
+              }, { status: 400 });
+            }
+          } catch (checkErr) {
+            // AMI not found in this region — search other regions to give a helpful error
+            const FALLBACK_REGIONS = ["us-east-1", "us-east-2", "us-west-1", "us-west-2", "eu-west-1", "eu-central-1", "ap-southeast-1", "ap-northeast-1"];
+            let foundInRegion = null;
+            for (const r of FALLBACK_REGIONS.filter(r => r !== region)) {
+              try {
+                await ec2Call("DescribeImages", { ImageId: [ami_image_id] }, r);
+                foundInRegion = r;
+                break;
+              } catch { /* not in this region either */ }
+            }
+            const hint = foundInRegion
+              ? ` However, AMI ${ami_image_id} was found in ${foundInRegion}. Either change the lab's region to ${foundInRegion} or select an AMI in ${region}.`
+              : ` AMI ${ami_image_id} was not found in any scanned region. It may be deleted or not shared with this account.`;
+            return Response.json({
+              error: "AMI_REGION_MISMATCH",
+              message: `AMI ${ami_image_id} does not exist in ${region} (the lab's deployment region).${hint}`,
+            }, { status: 400 });
+          }
+        }
         const instanceType = selectInstanceType(cpu_cores, ram_mb);
 
         const runParams = {

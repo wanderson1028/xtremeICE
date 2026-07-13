@@ -803,7 +803,8 @@ export default function LiveLabTopology() {
       });
       const data = res.data;
       if (data?.errors?.length) {
-        setError(`${data.deployed} deployed, ${data.errors.length} failed: ${data.errors.map(e => e.device).join(", ")}`);
+        const errorDetails = data.errors.map(e => `${e.device}: ${e.error}`).join("; ");
+        setError(`${data.deployed} deployed, ${data.errors.length} failed — ${errorDetails}`);
       }
       refetchDevices();
       queryClient.invalidateQueries(["livefire-lab", labId]);
