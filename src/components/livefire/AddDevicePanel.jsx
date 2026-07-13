@@ -34,6 +34,7 @@ export default function AddDevicePanel({ lab, deployment, onClose, onDeploy, dep
   const [cpu, setCpu] = useState(2);
   const [ram, setRam] = useState(4096);
   const [storage, setStorage] = useState(20);
+  const [manualAmiId, setManualAmiId] = useState("");
   const [error, setError] = useState(null);
 
   // Fetch subnets for this VPC
@@ -77,8 +78,32 @@ export default function AddDevicePanel({ lab, deployment, onClose, onDeploy, dep
     setError(null);
   };
 
+  const handleManualAmi = (value) => {
+    const trimmed = value.trim();
+    setManualAmiId(trimmed);
+    if (trimmed.startsWith("ami-") && trimmed.length >= 12) {
+      setSelectedImage({
+        id: trimmed,
+        name: trimmed,
+        sourceLabel: "Custom AMI (pasted)",
+        sourceCategory: "Manual",
+        osFamily: "amazon_linux",
+        username: null,
+        access: null,
+        cpu: null,
+        ram: null,
+        storage: null,
+        port: null,
+      });
+      setError(null);
+    } else if (trimmed === "") {
+      setSelectedImage(null);
+    }
+  };
+
   const handleImageSelect = (image) => {
     setSelectedImage(image);
+    setManualAmiId("");
     const osCreds = OS_CREDENTIALS_MAP[image.osFamily] || OS_CREDENTIALS_MAP.amazon_linux;
     if (image.username) {
       setSelected(prev => ({ ...prev, access: image.access || osCreds.access }));
@@ -403,6 +428,20 @@ export default function AddDevicePanel({ lab, deployment, onClose, onDeploy, dep
                 {!selectedImage && (
                   <p className="text-[8px] font-mono text-gray-600 mt-1">If skipped, a default Amazon Linux AMI will be used.</p>
                 )}
+                {/* Manual AMI paste field */}
+                <div className="mt-1.5">
+                  <label className="text-[9px] font-mono text-gray-500 uppercase block mb-1">Or paste AMI ID</label>
+                  <Input
+                    value={manualAmiId}
+                    onChange={e => handleManualAmi(e.target.value)}
+                    onPaste={e => e.stopPropagation()}
+                    placeholder="ami-0abcdef1234567890"
+                    className="bg-gray-800 border-gray-700 text-white text-xs h-8 font-mono"
+                  />
+                  {manualAmiId && !manualAmiId.startsWith("ami-") && (
+                    <p className="text-[8px] font-mono text-amber-400 mt-0.5">AMI ID should start with "ami-"</p>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-3 gap-2">
