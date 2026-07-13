@@ -1197,19 +1197,20 @@ export default function LiveLabTopology() {
           >
             {bgUploading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
           </button>
+          {/* LED mode toggle — always visible */}
+          <button
+            onClick={handleToggleLedMode}
+            className={`p-2 rounded-lg border transition-colors ${
+              ledMode
+                ? "bg-cyan-900/40 border-cyan-700/50 text-cyan-400"
+                : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white"
+            }`}
+            title={ledMode ? "Switch to full icons" : "Switch to compact status LEDs"}
+          >
+            {ledMode ? <LayoutGrid className="h-4 w-4" /> : <Lightbulb className="h-4 w-4" />}
+          </button>
           {bgImage && (
             <>
-              <button
-                onClick={handleToggleLedMode}
-                className={`p-2 rounded-lg border transition-colors ${
-                  ledMode
-                    ? "bg-cyan-900/40 border-cyan-700/50 text-cyan-400"
-                    : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white"
-                }`}
-                title={ledMode ? "Switch to full icons" : "Switch to compact status LEDs"}
-              >
-                {ledMode ? <LayoutGrid className="h-4 w-4" /> : <Lightbulb className="h-4 w-4" />}
-              </button>
               {/* BG resize controls */}
               <div className="flex items-center gap-1 bg-gray-800 rounded-lg border border-gray-700 px-2 py-1">
                 <button
