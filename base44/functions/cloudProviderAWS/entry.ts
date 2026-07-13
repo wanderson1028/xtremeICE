@@ -568,11 +568,11 @@ Deno.serve(async (req) => {
           Filter: [{ Name: "tag:ManagedBy", Value: ["XtremeICE"] }],
         }, region);
         const vpcs = [];
-        for (const m of xml.matchAll(/<item>\s*<vpcId>([^<]+)<\/vpcId>[\s\S]*?<cidrBlock>([^<]+)<\/cidrBlock>[\s\S]*?<state>([^<]+)<\/state>[\s\S]*?<tagSet>([\s\S]*?)<\/tagSet>/g)) {
+        for (const m of xml.matchAll(/<item>\s*<vpcId>([^<]+)<\/vpcId>[\s\S]*?<state>([^<]+)<\/state>[\s\S]*?<cidrBlock>([^<]+)<\/cidrBlock>[\s\S]*?<tagSet>([\s\S]*?)<\/tagSet>/g)) {
           vpcs.push({
             vpcId: m[1],
-            cidrBlock: m[2],
-            state: m[3],
+            state: m[2],
+            cidrBlock: m[3],
             name: extractTag(m[4], "Name") || m[1],
             labId: extractTag(m[4], "LabId") || null,
           });
@@ -586,12 +586,12 @@ Deno.serve(async (req) => {
 
         // Parse all VPCs
         const vpcs = [];
-        const vpcRegex = /<item>\s*<vpcId>([^<]+)<\/vpcId>[\s\S]*?<cidrBlock>([^<]+)<\/cidrBlock>[\s\S]*?<state>([^<]+)<\/state>[\s\S]*?<isDefault>([^<]+)<\/isDefault>[\s\S]*?<tagSet>([\s\S]*?)<\/tagSet>[\s\S]*?(?=<\/item>)/g;
+        const vpcRegex = /<item>\s*<vpcId>([^<]+)<\/vpcId>[\s\S]*?<state>([^<]+)<\/state>[\s\S]*?<cidrBlock>([^<]+)<\/cidrBlock>[\s\S]*?<isDefault>([^<]+)<\/isDefault>[\s\S]*?<tagSet>([\s\S]*?)<\/tagSet>[\s\S]*?(?=<\/item>)/g;
         for (const m of vpcXml.matchAll(vpcRegex)) {
           vpcs.push({
             vpcId: m[1],
-            cidrBlock: m[2],
-            state: m[3],
+            state: m[2],
+            cidrBlock: m[3],
             isDefault: m[4] === "true",
             name: extractTag(m[5], "Name") || m[1],
             labId: extractTag(m[5], "LabId") || null,
@@ -1269,12 +1269,12 @@ Deno.serve(async (req) => {
           try {
             const vpcXml = await ec2Call("DescribeVpcs", {}, r);
             const vpcs = [];
-            const vpcRegex = /<item>\s*<vpcId>([^<]+)<\/vpcId>[\s\S]*?<cidrBlock>([^<]+)<\/cidrBlock>[\s\S]*?<state>([^<]+)<\/state>[\s\S]*?<isDefault>([^<]+)<\/isDefault>[\s\S]*?<tagSet>([\s\S]*?)<\/tagSet>[\s\S]*?(?=<\/item>)/g;
+            const vpcRegex = /<item>\s*<vpcId>([^<]+)<\/vpcId>[\s\S]*?<state>([^<]+)<\/state>[\s\S]*?<cidrBlock>([^<]+)<\/cidrBlock>[\s\S]*?<isDefault>([^<]+)<\/isDefault>[\s\S]*?<tagSet>([\s\S]*?)<\/tagSet>[\s\S]*?(?=<\/item>)/g;
             for (const m of vpcXml.matchAll(vpcRegex)) {
               vpcs.push({
                 vpcId: m[1],
-                cidrBlock: m[2],
-                state: m[3],
+                state: m[2],
+                cidrBlock: m[3],
                 isDefault: m[4] === "true",
                 name: extractTag(m[5], "Name") || m[1],
                 labId: extractTag(m[5], "LabId") || null,
