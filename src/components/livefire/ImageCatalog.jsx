@@ -180,11 +180,15 @@ export default function ImageCatalog({ isOpen, onClose, onSelect, cloudProvider 
   const { data: directAmi, isFetching: fetchingDirectAmi } = useQuery({
     queryKey: ["describe-image", amiIdMatch?.[0], region],
     queryFn: async () => {
-      const res = await base44.functions.invoke("cloudProviderAWS", {
-        action: "describeImage",
-        params: { image_id: amiIdMatch[0], region },
-      });
-      return res.data;
+      try {
+        const res = await base44.functions.invoke("cloudProviderAWS", {
+          action: "describeImage",
+          params: { image_id: amiIdMatch[0], region },
+        });
+        return res.data;
+      } catch {
+        return { found: false, imageId: amiIdMatch[0], region };
+      }
     },
     enabled: !!amiIdMatch,
     staleTime: 60_000,

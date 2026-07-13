@@ -938,13 +938,39 @@ Deno.serve(async (req) => {
       }
 
       case "describeImage": {
-        // Look up a specific AMI by ID — works regardless of owner or category
+        // Look up a specific AMI by ID — works regardless of owner or category.
+        // AMIs are region-scoped: if not found in the requested region, search
+        // all common regions so users can find AMIs across their account.
         const { image_id } = params;
         if (!image_id) return Response.json({ error: "image_id required" }, { status: 400 });
 
-        const xml = await ec2Call("DescribeImages", {
-          ImageId: [image_id],
-        }, region);
+        const FALLBACK_REGIONS = [
+          "us-east-1", "us-east-2", "us-west-1", "us-west-2",
+          "eu-west-1", "eu-central-1", "ap-southeast-1", "ap-northeast-1",
+        ];
+        const regionsToTry = [region, ...FALLBACK_REGIONS.filter(r => r !== region)];
+        let xml = null;
+        let foundRegion = region;
+        let lastError = null;
+        for (const r of regionsToTry) {
+          try {
+            xml = await ec2Call("DescribeImages", { ImageId: [image_id] }, r);
+            foundRegion = r;
+            break;
+          } catch (e) {
+            lastError = e;
+            if (e.message.includes("InvalidAMIID.NotFound")) continue;
+            throw e;
+          }
+        }
+        if (!xml) {
+          return Response.json({
+            found: false,
+            imageId: image_id,
+            region,
+            message: `AMI ${image_id} not found in any scanned region. It may be deleted or not shared with this account.`,
+          });
+        }
 
         const imagesSetMatch = xml.match(/<imagesSet>([\s\S]*?)<\/imagesSet>/);
         const imagesXml = imagesSetMatch?.[1] || "";
@@ -981,12 +1007,12 @@ Deno.serve(async (req) => {
           return Response.json({
             found: false,
             imageId: image_id,
-            region,
-            message: `AMI ${image_id} not found in ${region}. It may be in a different region, deleted, or not shared with this account.`,
+            region: foundRegion,
+            message: `AMI ${image_id} not found. It may be deleted or not shared with this account.`,
           });
         }
 
-        return Response.json({ found: true, region, images });
+        return Response.json({ found: true, region: foundRegion, images });
       }
 
       case "listAMIs": {
