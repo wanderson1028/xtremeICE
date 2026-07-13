@@ -151,7 +151,7 @@ function ConnectionLine({ conn, topologyDevices, deployedMap, isDark }) {
 }
 
 // ---- Device Detail Panel ----
-function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, queryClient, labId, setError }) {
+function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, refetchLab, queryClient, labId, setError }) {
   const [connecting, setConnecting] = useState(false);
   const [passwordData, setPasswordData] = useState(null);
   const [loadingPassword, setLoadingPassword] = useState(false);
@@ -304,8 +304,7 @@ function DeviceDetailPanel({ device, deployed, onClose, lab, refetchDevices, que
         action: "deleteDevice",
         params: { lab_id: labId, device_id: deployed?.id, device_name: device.name },
       });
-      queryClient.invalidateQueries(["livefire-devices", labId]);
-      queryClient.invalidateQueries(["livefire-lab", labId]);
+      await refetchLab();
       refetchDevices();
       onClose();
     } catch (err) {
@@ -703,7 +702,7 @@ export default function LiveLabTopology() {
   const fileInputRef = useRef(null);
 
   // Fetch lab
-  const { data: lab, isLoading: labLoading } = useQuery({
+  const { data: lab, isLoading: labLoading, refetch: refetchLab } = useQuery({
     queryKey: ["livefire-lab", labId],
     queryFn: () => base44.entities.LiveFireLab.get(labId),
     enabled: !!labId,
@@ -1459,6 +1458,7 @@ export default function LiveLabTopology() {
               onClose={() => setSelectedDevice(null)}
               lab={lab}
               refetchDevices={refetchDevices}
+              refetchLab={refetchLab}
               queryClient={queryClient}
               labId={labId}
               setError={setError}
