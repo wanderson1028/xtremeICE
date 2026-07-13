@@ -6,7 +6,7 @@ import {
   Trash2, Plus, Maximize2, Minimize2, Eye, Copy, Layers, Network, Globe,
   DollarSign, X, Check, AlertTriangle, Settings, ShieldAlert,
   Link2, Database, Terminal, Key, MonitorPlay, RefreshCw, Zap, Wand2,
-  GitBranch, Lock, Server, Sun, Moon, Shapes, StickyNote, Circle
+  GitBranch, Lock, Server, Sun, Moon, Shapes, StickyNote, Circle, Tag
 } from "lucide-react";
 import DeviceIconRenderer, { getIconOptions, DEVICE_ICONS } from "@/components/livefire/DeviceIcons";
 import IconPickerModal from "@/components/livefire/IconPickerModal";
@@ -1301,6 +1301,20 @@ export default function TopologyBuilder({ topology, onChange, cloudProvider = "a
                   {/* New VPC Configuration */}
                   {vpcMode === "new" && (
                     <>
+                      {/* Resource Tag Name */}
+                      <div>
+                        <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1 flex items-center gap-1">
+                          <Tag className="h-2.5 w-2.5" /> Resource Tag Name
+                        </label>
+                        <input
+                          value={vpcConfig.resourceTagName || ""}
+                          onChange={(e) => updateVpcConfig({ resourceTagName: e.target.value })}
+                          placeholder="e.g. soc-training-lab-01"
+                          className="w-full bg-gray-800 border border-gray-700 rounded-lg text-white text-xs px-2.5 py-2 font-mono focus:border-cyan-500/50 outline-none placeholder:text-gray-600"
+                        />
+                        <p className="text-[7px] font-mono text-gray-600 mt-1">Applied as the "Name" tag on VPC, subnets, IGW, route table & security group for AWS admin discovery.</p>
+                      </div>
+
                       {/* New VPC CIDR */}
                       <div>
                         <label className="text-[8px] font-mono text-gray-500 uppercase tracking-wider block mb-1">CIDR Block</label>

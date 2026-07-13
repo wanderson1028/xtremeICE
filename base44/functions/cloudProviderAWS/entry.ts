@@ -342,17 +342,22 @@ Deno.serve(async (req) => {
       }
 
       case "createNetwork": {
-        const { lab_id, vpc_cidr = "10.0.0.0/16", subnet_configs = [] } = params;
+        const { lab_id, vpc_cidr = "10.0.0.0/16", subnet_configs = [], resource_tag_name = "" } = params;
+
+        // Use custom tag name if provided, otherwise fall back to lab-based default
+        const tagName = resource_tag_name || `livefire-${lab_id}`;
 
         // Step 1: Create VPC
         let xml = await ec2Call("CreateVpc", {
           CidrBlock: vpc_cidr,
-          TagSpecification: [{ ResourceType: "vpc", Tag: [{ Key: "Name", Value: `livefire-${lab_id}` }, { Key: "LabId", Value: lab_id || "" }, { Key: "ManagedBy", Value: "XtremeICE" }] }],
+          TagSpecification: [{ ResourceType: "vpc", Tag: [{ Key: "Name", Value: tagName }, { Key: "LabId", Value: lab_id || "" }, { Key: "ManagedBy", Value: "XtremeICE" }] }],
         }, region);
         const vpcId = xml.match(/<vpcId>([^<]+)<\/vpcId>/)?.[1] || "";
 
         // Step 2: Create Internet Gateway
-        xml = await ec2Call("CreateInternetGateway", {}, region);
+        xml = await ec2Call("CreateInternetGateway", {
+          TagSpecification: [{ ResourceType: "internet-gateway", Tag: [{ Key: "Name", Value: `${tagName}-igw` }, { Key: "ManagedBy", Value: "XtremeICE" }] }],
+        }, region);
         const igwId = xml.match(/<internetGatewayId>([^<]+)<\/internetGatewayId>/)?.[1] || "";
         await ec2Call("AttachInternetGateway", { InternetGatewayId: igwId, VpcId: vpcId }, region);
 
@@ -371,7 +376,9 @@ Deno.serve(async (req) => {
         const createdSubnets = [];
         for (const s of subs) {
           try {
-            xml = await ec2Call("CreateSubnet", { VpcId: vpcId, CidrBlock: s.cidr, AvailabilityZone: s.zone }, region);
+            xml = await ec2Call("CreateSubnet", { VpcId: vpcId, CidrBlock: s.cidr, AvailabilityZone: s.zone,
+              TagSpecification: [{ ResourceType: "subnet", Tag: [{ Key: "Name", Value: `${tagName}-${s.name}` }, { Key: "ManagedBy", Value: "XtremeICE" }] }],
+            }, region);
           } catch (err) {
             const awsMsg = err.message || String(err);
             // Improve AWS error messages for common subnet failures
@@ -391,7 +398,9 @@ Deno.serve(async (req) => {
         }
 
         // Step 4: Create Route Table + route to IGW
-        xml = await ec2Call("CreateRouteTable", { VpcId: vpcId }, region);
+        xml = await ec2Call("CreateRouteTable", { VpcId: vpcId,
+          TagSpecification: [{ ResourceType: "route-table", Tag: [{ Key: "Name", Value: `${tagName}-rt` }, { Key: "ManagedBy", Value: "XtremeICE" }] }],
+        }, region);
         const rtId = xml.match(/<routeTableId>([^<]+)<\/routeTableId>/)?.[1] || "";
         await ec2Call("CreateRoute", { RouteTableId: rtId, DestinationCidrBlock: "0.0.0.0/0", GatewayId: igwId }, region);
 
@@ -403,12 +412,18 @@ Deno.serve(async (req) => {
         }
 
         // Step 5: Create Security Group
+        const sgGroupName = resource_tag_name ? `${tagName}-sg` : `livefire-sg-${lab_id}-${Date.now()}`;
         xml = await ec2Call("CreateSecurityGroup", {
-          GroupName: `livefire-sg-${lab_id}-${Date.now()}`,
+          GroupName: sgGroupName,
           GroupDescription: `Live Fire lab ${lab_id}`,
           VpcId: vpcId,
         }, region);
         const sgId = xml.match(/<groupId>([^<]+)<\/groupId>/)?.[1] || "";
+
+        // Tag the security group with the resource tag name for AWS admin discoverability
+        if (resource_tag_name && sgId) {
+          await ec2Call("CreateTags", { Resources: [sgId], Tag: [{ Key: "Name", Value: `${tagName}-sg` }, { Key: "ManagedBy", Value: "XtremeICE" }] }, region).catch(() => {});
+        }
 
         await ec2Call("AuthorizeSecurityGroupIngress", {
           GroupId: sgId,

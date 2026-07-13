@@ -228,6 +228,7 @@ Deno.serve(async (req) => {
                 vpc_cidr: effectiveCidr,
                 subnet_configs: fixedSubnets,
                 region: deployRegion,
+                resource_tag_name: vpcConfig.resourceTagName || "",
               },
             });
             console.log("[deployLab] Step 2 OK");
