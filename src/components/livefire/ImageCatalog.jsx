@@ -187,10 +187,10 @@ export default function ImageCatalog({ isOpen, onClose, onSelect, cloudProvider 
     if (search) {
       const q = search.toLowerCase();
       merged = merged.filter(i =>
-        i.name.toLowerCase().includes(q) ||
-        i.description.toLowerCase().includes(q) ||
-        i.sourceLabel.toLowerCase().includes(q) ||
-        i.sourceCategory.toLowerCase().includes(q)
+        (i.name || "").toLowerCase().includes(q) ||
+        (i.description || "").toLowerCase().includes(q) ||
+        (i.sourceLabel || "").toLowerCase().includes(q) ||
+        (i.sourceCategory || "").toLowerCase().includes(q)
       );
     }
     return merged;
