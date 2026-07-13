@@ -120,8 +120,11 @@ export default function LabCreationWizard() {
 
   const update = (key, value) => setForm(f => ({ ...f, [key]: value }));
 
+  const [savedLabId, setSavedLabId] = useState(null);
+
   const saveMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (opts = {}) => {
+      const { goToTopology = false } = opts;
       const payload = {
         name: form.name,
         description: form.description,
@@ -139,21 +142,36 @@ export default function LabCreationWizard() {
         status: existingLab?.status || "draft",
         admin_approved_cost: !!form.admin_approved_cost,
       };
+      let result;
       if (existingLabId) {
-        return base44.entities.LiveFireLab.update(existingLabId, payload);
+        result = await base44.entities.LiveFireLab.update(existingLabId, payload);
+      } else {
+        result = await base44.entities.LiveFireLab.create(payload);
       }
-      return base44.entities.LiveFireLab.create(payload);
+      return { labId: result?.id || existingLabId, goToTopology };
     },
-    onSuccess: () => {
+    onSuccess: ({ labId, goToTopology }) => {
+      setSavedLabId(labId);
       queryClient.invalidateQueries(["my-livefire-labs"]);
       queryClient.invalidateQueries(["livefire-labs"]);
-      navigate("/my-labs");
+      queryClient.invalidateQueries(["livefire-lab-edit", labId]);
+      if (goToTopology) {
+        navigate(`/live-lab-topology?lab=${labId}`);
+      } else {
+        navigate("/my-labs");
+      }
     },
   });
 
   const canProceed = () => {
     if (step === 0) return form.name.trim().length > 0;
-    if (step === 1) return form.cloud_provider.length > 0;
+    if (step === 1) return form.cloud_provider.length > 0 && !!form.region;
+    if (step === 2) {
+      const vc = form.topology_data?.vpcConfig;
+      if (!vc?.cidr) return false;
+      if (vc.existingVpcId && (!vc.subnets || vc.subnets.length === 0)) return false;
+      return true;
+    }
     return true;
   };
 
@@ -542,6 +560,19 @@ export default function LabCreationWizard() {
               className="border-gray-700 text-gray-400 hover:text-white gap-2"
             >
               <Save className="h-4 w-4" /> Save Draft
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => saveMutation.mutate({ goToTopology: true })}
+              disabled={saveMutation.isLoading}
+              className="border-cyan-700/60 text-cyan-400 hover:text-cyan-300 hover:border-cyan-600 gap-2"
+            >
+              {saveMutation.isLoading ? (
+                <div className="w-4 h-4 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
+              ) : (
+                <Monitor className="h-4 w-4" />
+              )}
+              Save & Topology
             </Button>
             {step < STEPS.length - 1 ? (
               <Button
