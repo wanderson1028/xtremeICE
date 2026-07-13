@@ -734,11 +734,16 @@ Deno.serve(async (req) => {
         const { vpc_id } = params;
         if (!vpc_id) return Response.json({ error: "vpc_id required" }, { status: 400 });
 
-        // Fetch VPC CIDR
+        // Fetch VPC CIDR and Name tag
         let vpcCidr = "";
+        let vpcName = "";
+        let isDefaultVpc = false;
         try {
           const vpcXml = await ec2Call("DescribeVpcs", { VpcId: [vpc_id] }, region);
           vpcCidr = vpcXml.match(/<cidrBlock>([^<]+)<\/cidrBlock>/)?.[1] || "";
+          isDefaultVpc = vpcXml.includes("<isDefault>true</isDefault>");
+          const tagSetMatch = vpcXml.match(/<tagSet>([\s\S]*?)<\/tagSet>/);
+          if (tagSetMatch) vpcName = extractTag(tagSetMatch[1], "Name") || "";
         } catch (e) { /* ignore */ }
 
         // Fetch subnets for this VPC
@@ -772,7 +777,7 @@ Deno.serve(async (req) => {
         // Sort: public first, then by name
         subnets.sort((a, b) => (b.isPublic - a.isPublic) || a.name.localeCompare(b.name));
 
-        return Response.json({ region, vpcId: vpc_id, vpcCidr, subnets, totalCount: subnets.length });
+        return Response.json({ region, vpcId: vpc_id, vpcName, vpcCidr, isDefault: isDefaultVpc, subnets, totalCount: subnets.length });
       }
 
       case "createSubnet": {

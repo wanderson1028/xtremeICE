@@ -51,6 +51,8 @@ export default function AddDevicePanel({ lab, deployment, onClose, onDeploy, dep
   });
 
   const vpcCidr = vpcSubnetsData?.vpcCidr || deployment?.vpc_cidr || "";
+  const vpcName = vpcSubnetsData?.vpcName || "";
+  const isDefaultVpc = vpcSubnetsData?.isDefault || false;
   const subnets = vpcSubnetsData?.subnets || [];
 
   // Auto-select first subnet when data loads
@@ -178,11 +180,19 @@ export default function AddDevicePanel({ lab, deployment, onClose, onDeploy, dep
               <div className="flex items-center gap-2">
                 <Globe className="h-3.5 w-3.5 text-indigo-400" />
                 <span className="text-[10px] font-mono font-bold text-indigo-300 uppercase">VPC</span>
+                {isDefaultVpc && (
+                  <span className="text-[8px] font-mono text-amber-400 bg-amber-950/50 px-1.5 py-0.5 rounded">DEFAULT</span>
+                )}
               </div>
-              <div className="flex items-center justify-between">
-                <code className="text-[10px] font-mono text-indigo-200 break-all">{vpcId}</code>
+              {vpcName ? (
+                <p className="text-[11px] font-mono font-bold text-white truncate">{vpcName}</p>
+              ) : (
+                <p className="text-[10px] font-mono text-gray-500 italic">No Name tag</p>
+              )}
+              <div className="flex items-center justify-between gap-2">
+                <code className="text-[9px] font-mono text-indigo-300 break-all">{vpcId}</code>
                 {vpcCidr && (
-                  <span className="text-[10px] font-mono text-indigo-400 bg-indigo-950/50 px-2 py-0.5 rounded">{vpcCidr}</span>
+                  <span className="text-[10px] font-mono text-indigo-400 bg-indigo-950/50 px-2 py-0.5 rounded shrink-0">{vpcCidr}</span>
                 )}
               </div>
               <p className="text-[8px] font-mono text-gray-500">{region} • {subnets.length} subnet{subnets.length !== 1 ? "s" : ""}</p>
