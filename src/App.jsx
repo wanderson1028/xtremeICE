@@ -85,6 +85,7 @@ import CloudResources from './pages/CloudResources'
 import LFAdministration from './pages/LFAdministration'
 import LabCreationWizard from './pages/LabCreationWizard'
 import LiveLabTopology from './pages/LiveLabTopology'
+import About from './pages/About'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
@@ -226,6 +227,7 @@ const AuthenticatedApp = () => {
       <Route path="/lf-administration" element={<LayoutWrapper currentPageName="LFAdministration"><LFAdministration /></LayoutWrapper>} />
       <Route path="/lab-creation-wizard" element={<LayoutWrapper currentPageName="LabCreationWizard"><LabCreationWizard /></LayoutWrapper>} />
       <Route path="/live-lab-topology" element={<LayoutWrapper currentPageName="LiveLabTopology"><LiveLabTopology /></LayoutWrapper>} />
+      <Route path="/about" element={<LayoutWrapper currentPageName="About"><About /></LayoutWrapper>} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
