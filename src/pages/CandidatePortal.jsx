@@ -30,33 +30,24 @@ export default function CandidatePortal() {
     }
   }, [startTime, submitted]);
 
-  const { data: invitation, isLoading: invLoading } = useQuery({
-    queryKey: ["invitation-by-token", token],
+  const {
+    data: portalData,
+    isLoading: invLoading,
+    isError: portalLoadFailed,
+  } = useQuery({
+    queryKey: ["candidate-assessment-portal", token],
     queryFn: async () => {
       if (!token) return null;
-      const results = await base44.entities.CandidateInvitation.filter({ invite_token: token });
-      if (results.length === 0) return null;
-      const inv = results[0];
-      // Check if expired
-      if (inv.expires_at && new Date(inv.expires_at) < new Date()) {
-        return { ...inv, expired: true };
-      }
-      return inv;
+      const response = await base44.functions.invoke("getCandidateAssessment", { token });
+      return response?.data || null;
     },
     enabled: !!token,
+    retry: false,
   });
 
-  const { data: assessment } = useQuery({
-    queryKey: ["candidate-assessment", invitation?.assessment_id],
-    queryFn: () => base44.entities.Assessment.get(invitation.assessment_id),
-    enabled: !!invitation?.assessment_id,
-  });
-
-  const { data: tasks = [] } = useQuery({
-    queryKey: ["candidate-tasks", invitation?.assessment_id],
-    queryFn: () => base44.entities.AssessmentTask.filter({ assessment_id: invitation.assessment_id }),
-    enabled: !!invitation?.assessment_id,
-  });
+  const invitation = portalData?.invitation;
+  const assessment = portalData?.assessment;
+  const tasks = portalData?.tasks || [];
 
   const sortedTasks = [...tasks].sort((a, b) => a.order - b.order);
 
@@ -139,7 +130,7 @@ export default function CandidatePortal() {
     return <div className="min-h-screen bg-black flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-red-500" /></div>;
   }
 
-  if (!token || !invitation) {
+  if (!token || portalLoadFailed || !invitation) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center">
