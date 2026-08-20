@@ -50,21 +50,21 @@ export default function InviteCandidate() {
     try {
       const res = await base44.functions.invoke("sendCandidateInvite", {
         candidate_name: form.candidate_name,
-        candidate_email: form.candidate_email,
+        candidate_email: form.candidate_email.trim().toLowerCase(),
         assessment_id: assessmentId,
         position_title: assessment?.position_title || "Cybersecurity Position",
         company_name: assessment?.company_name || "",
         custom_subject: emailSubject,
         custom_body: emailBody,
+        app_url: window.location.origin,
       });
 
-      if (res?.data?.emailSent === false) {
+      if (res?.data?.emailSent !== true) {
         const reason = res?.data?.emailFailReason || "";
-        const isDomainIssue = reason.toLowerCase().includes("verify a domain");
         setError(
-          isDomainIssue
-            ? "Email not delivered — your sending domain isn't verified in Resend yet. Go to resend.com/domains to verify it. Meanwhile, share this direct link with the candidate: " + res?.data?.assessmentLink
-            : "The invitation was created, but the email could not be delivered (" + reason + "). Direct link: " + res?.data?.assessmentLink
+          "The invitation was created, but the email could not be delivered (" +
+          (reason || "the email service did not confirm delivery") +
+          "). Direct link: " + (res?.data?.assessmentLink || "unavailable")
         );
       } else {
         setSent(true);
