@@ -332,9 +332,17 @@ export default function CandidateAssessments() {
                           <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${st.dot}`} />
                           {st.label}
                         </span>
+                        {inv.email_delivery_status && (
+                          <p
+                            className={`text-[10px] mt-1 ${inv.email_delivery_status === "sent" ? "text-green-400" : inv.email_delivery_status === "failed" ? "text-red-400" : "text-yellow-400"}`}
+                            title={inv.email_delivery_error || ""}
+                          >
+                            Email {inv.email_delivery_status}
+                          </p>
+                        )}
                         {inv.sent_at && (
                           <p className="text-gray-200 text-[10px] mt-1">{new Date(inv.sent_at).toLocaleDateString()}</p>
-                        )}
+                        )
                       </div>
 
                       {/* Progress */}
@@ -490,6 +498,14 @@ export default function CandidateAssessments() {
                   </div>
                   <div className="flex items-center gap-3 shrink-0 ml-auto">
                     <span className={`text-xs font-semibold capitalize ${statusColor}`}>{inv.status}</span>
+                    {inv.email_delivery_status && (
+                      <span
+                        className={`text-xs font-semibold capitalize ${inv.email_delivery_status === "sent" ? "text-green-400" : inv.email_delivery_status === "failed" ? "text-red-400" : "text-yellow-400"}`}
+                        title={inv.email_delivery_error || ""}
+                      >
+                        Email {inv.email_delivery_status}
+                      </span>
+                    )}
                     <span className="text-gray-200 text-xs whitespace-nowrap">{inv.sent_at ? new Date(inv.sent_at).toLocaleDateString() : "—"}</span>
                     {inv.status === "completed" ? (
                       <Link to={`/scorecard?invitation_id=${inv.id}`} className="text-xs px-3 py-1.5 bg-green-900/30 border border-green-700/40 text-green-400 rounded-lg hover:bg-green-900/50 transition-colors whitespace-nowrap">
