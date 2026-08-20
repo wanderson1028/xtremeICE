@@ -121,6 +121,8 @@ export default function InteractiveVirtualLabs() {
   const visiblePSLabs      = applyFilters(isAdmin || !hasAssignments ? POWERSHELL_LABS : POWERSHELL_LABS.filter(l => assignedIds.has(l.id)));
   const visibleCourseLabs  = applyFilters(isAdmin || !hasAssignments ? LAB_COURSES  : LAB_COURSES.filter(l => assignedIds.has(l.id)));
   const visibleAwsLabs     = applyFilters(isAdmin || !hasAssignments ? AWS_CLOUD_LABS : AWS_CLOUD_LABS.filter(l => assignedIds.has(l.id)));
+  const clfLabs            = visibleAwsLabs.filter(l => l.tags?.includes("CLF-002"));
+  const aifLabs            = visibleAwsLabs.filter(l => l.tags?.includes("AIF-C01"));
 
   const LabCard = ({ lab, icon, accentColor = "red" }) => {
     const isCompleted = completedTitles.has(lab.title);
@@ -298,13 +300,39 @@ export default function InteractiveVirtualLabs() {
                 <div className="flex items-center gap-2 mb-4 pl-5">
                   <Cloud className="h-4 w-4 text-amber-400" />
                   <span className="text-sm font-medium text-amber-400">{t("activeLabs.cloudTrainingAws")}</span>
-                  <span className="text-xs text-gray-500">— AWS Cloud Practitioner (CLF-002)</span>
                 </div>
-                <div className="grid gap-5 sm:grid-cols-2">
-                  {visibleAwsLabs.map(lab => (
-                    <LabCard key={lab.id} lab={lab} icon={<Cloud className="h-5 w-5 text-amber-400" />} accentColor="amber" />
-                  ))}
-                </div>
+
+                {/* CLF-002 — AWS Cloud Practitioner */}
+                {clfLabs.length > 0 && (
+                  <div className="mb-6">
+                    <div className="flex items-center gap-2 mb-3 pl-8">
+                      <span className="h-1 w-1 rounded-full bg-amber-500" />
+                      <span className="text-xs font-mono text-amber-300 font-semibold">AWS Cloud Practitioner (CLF-002)</span>
+                      <span className="text-xs text-gray-500">({clfLabs.length})</span>
+                    </div>
+                    <div className="grid gap-5 sm:grid-cols-2">
+                      {clfLabs.map(lab => (
+                        <LabCard key={lab.id} lab={lab} icon={<Cloud className="h-5 w-5 text-amber-400" />} accentColor="amber" />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* AIF-C01 — AWS AI Practitioner */}
+                {aifLabs.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3 pl-8">
+                      <span className="h-1 w-1 rounded-full bg-cyan-400" />
+                      <span className="text-xs font-mono text-cyan-300 font-semibold">AWS AI Practitioner (AIF-C01)</span>
+                      <span className="text-xs text-gray-500">({aifLabs.length})</span>
+                    </div>
+                    <div className="grid gap-5 sm:grid-cols-2">
+                      {aifLabs.map(lab => (
+                        <LabCard key={lab.id} lab={lab} icon={<Cloud className="h-5 w-5 text-cyan-400" />} accentColor="amber" />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>
