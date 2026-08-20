@@ -27,6 +27,7 @@ import BottleneckAnalysis from "@/components/simulation/BottleneckAnalysis";
 import ConfigValidation from "@/components/simulation/ConfigValidation";
 import AIExploitSimulator from "@/components/simulation/AIExploitSimulator";
 import TrafficFlowPanel from "@/components/simulation/TrafficFlowPanel";
+import CyberInjectionCost from "@/components/simulation/CyberInjectionCost";
 import TrafficPatternBuilder from "@/components/diagram/TrafficPatternBuilder";
 
 function randomIp(base = "10") {
@@ -741,8 +742,14 @@ Return a flat object with field names matching the design schema directly.`,
                        eventLog={simEventLog}
                        onSessionEnd={(metricsData) => setMetricsHistory(prev => [...prev, { metrics: metricsData, timestamp: new Date().toISOString() }])}
                      />
-                   </div>
-                 </div>
+                     <CyberInjectionCost
+                       scenario={activeScenario}
+                       eventLog={simEventLog}
+                       nodes={diagramData?.nodes || []}
+                       design={design}
+                     />
+                     </div>
+                     </div>
                  <LatencyHopGraph
                    nodes={diagramData?.nodes || []}
                    links={diagramData?.links || []}
