@@ -22,6 +22,7 @@ import LabExports from './pages/LabExports'
 import NiceMapping from './pages/NiceMapping'
 import QuickBuild from './pages/QuickBuild'
 import NetworkLabDesigner from './pages/NetworkLabDesigner'
+import SmartDesign from './pages/SmartDesign'
 import InteractiveVirtualLabs from './pages/InteractiveVirtualLabs'
 import LabSocialEngineering from './pages/labs/LabSocialEngineering'
 import LabDigitalForensics from './pages/labs/LabDigitalForensics'
@@ -178,6 +179,7 @@ const AuthenticatedApp = () => {
       <Route path="/NiceMapping" element={<LayoutWrapper currentPageName="NiceMapping"><NiceMapping /></LayoutWrapper>} />
       <Route path="/QuickBuild" element={<LayoutWrapper currentPageName="QuickBuild"><QuickBuild /></LayoutWrapper>} />
       <Route path="/NetworkLabDesigner" element={<LayoutWrapper currentPageName="NetworkLabDesigner"><FeatureGate flagKey="network_design_wizard"><NetworkLabDesigner /></FeatureGate></LayoutWrapper>} />
+      <Route path="/SmartDesign" element={<LayoutWrapper currentPageName="SmartDesign"><SmartDesign /></LayoutWrapper>} />
       <Route path="/InteractiveVirtualLabs" element={<LayoutWrapper currentPageName="InteractiveVirtualLabs"><FeatureGate flagKey="lab_scenarios"><InteractiveVirtualLabs /></FeatureGate></LayoutWrapper>} />
       <Route path="/labs/social-engineering" element={<LayoutWrapper currentPageName="LabSocialEngineering"><LabSocialEngineering /></LayoutWrapper>} />
       <Route path="/labs/digital-forensics" element={<LayoutWrapper currentPageName="LabDigitalForensics"><LabDigitalForensics /></LayoutWrapper>} />

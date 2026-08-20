@@ -61,6 +61,10 @@ function DesignDropdown({ currentPageName, access }) {
             className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors">
             {t("nav.newDesign")}
           </Link>
+          <Link to={createPageUrl("SmartDesign")} onClick={() => setOpen(false)}
+            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors">
+            {t("nav.smartDesign")}
+          </Link>
           <Link to={createPageUrl("ReviewDesign")} onClick={() => setOpen(false)}
             className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors">
             {t("nav.reviewDesign")}
