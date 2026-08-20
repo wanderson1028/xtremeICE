@@ -33,6 +33,18 @@
       "type": "string",
       "format": "date-time"
     },
+    "email_delivery_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "sent",
+        "failed"
+      ],
+      "default": "pending"
+    },
+    "email_delivery_error": {
+      "type": "string"
+    },
     "accepted_at": {
       "type": "string",
       "format": "date-time"
