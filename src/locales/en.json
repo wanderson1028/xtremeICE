@@ -146,6 +146,8 @@
     "workroleCourses": "Workrole Courses",
     "cloudTraining": "Cloud Training",
     "cloudTrainingAws": "AWS",
+    "certificationCourses": "Certification Courses",
+    "comptiaSecPlus": "CompTIA Security+ (SY0-701)",
     "noLabs": "No virtual labs assigned. Contact your administrator.",
     "launchLab": "Launch Lab",
     "launchAgain": "Launch Again",
@@ -155,7 +157,8 @@
       "linux": "Linux PC & Server Labs",
       "powershell": "PowerShell & Windows Labs",
       "courses": "Workrole Courses",
-      "cloud": "Cloud Training"
+      "cloud": "Cloud Training",
+      "certification": "Certification Courses"
     }
   },
   "labRunner": {

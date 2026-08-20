@@ -330,5 +330,63 @@ export const AWS_CLOUD_LABS = [
   },
 ];
 
+export const COMPTIA_LABS = [
+  {
+    id: "secplus-domain1",
+    route: "/labs/secplus-domain1",
+    title: "Security+ D1: General Security Concepts",
+    description: "Master the CIA Triad, security control classifications, multi-factor authentication, symmetric vs. asymmetric cryptography, access control models, and non-repudiation — the foundational concepts of CompTIA Security+ (SY0-701) Domain 1.",
+    difficulty: "Beginner",
+    duration: 45,
+    category: "Certification Courses",
+    subCategory: "CompTIA Security+",
+    tags: ["CompTIA", "Security+", "SY0-701", "CIA Triad", "MFA", "Cryptography"],
+  },
+  {
+    id: "secplus-domain2",
+    route: "/labs/secplus-domain2",
+    title: "Security+ D2: Threats, Vulnerabilities & Mitigations",
+    description: "Profile threat actors, map attack surfaces, interpret vulnerability scans, identify attack vectors (phishing, watering hole, MITM, SQLi), apply mitigation techniques, and analyze the MITRE ATT&CK framework — CompTIA Security+ (SY0-701) Domain 2.",
+    difficulty: "Intermediate",
+    duration: 50,
+    category: "Certification Courses",
+    subCategory: "CompTIA Security+",
+    tags: ["CompTIA", "Security+", "SY0-701", "Threats", "Vulnerabilities", "MITRE ATT&CK"],
+  },
+  {
+    id: "secplus-domain3",
+    route: "/labs/secplus-domain3",
+    title: "Security+ D3: Security Architecture",
+    description: "Design DMZ architectures, compare secure vs. insecure protocols, inspect TLS certificates, evaluate cryptographic implementations, understand cloud shared responsibility, and apply resilience patterns — CompTIA Security+ (SY0-701) Domain 3.",
+    difficulty: "Intermediate",
+    duration: 55,
+    category: "Certification Courses",
+    subCategory: "CompTIA Security+",
+    tags: ["CompTIA", "Security+", "SY0-701", "Architecture", "PKI", "Resilience"],
+  },
+  {
+    id: "secplus-domain4",
+    route: "/labs/secplus-domain4",
+    title: "Security+ D4: Security Operations",
+    description: "Execute the NIST incident response lifecycle, configure log monitoring, build SIEM correlation rules, automate responses with SOAR, manage the IAM lifecycle, and conduct proactive threat hunting — CompTIA Security+ (SY0-701) Domain 4.",
+    difficulty: "Intermediate",
+    duration: 55,
+    category: "Certification Courses",
+    subCategory: "CompTIA Security+",
+    tags: ["CompTIA", "Security+", "SY0-701", "Incident Response", "SIEM", "Threat Hunting"],
+  },
+  {
+    id: "secplus-domain5",
+    route: "/labs/secplus-domain5",
+    title: "Security+ D5: Security Program Management & Oversight",
+    description: "Establish governance and policy, conduct risk assessments, map compliance frameworks (HIPAA, PCI-DSS, GDPR), implement security awareness training, manage third-party risk, and apply the NIST Risk Management Framework — CompTIA Security+ (SY0-701) Domain 5.",
+    difficulty: "Intermediate",
+    duration: 55,
+    category: "Certification Courses",
+    subCategory: "CompTIA Security+",
+    tags: ["CompTIA", "Security+", "SY0-701", "Governance", "Risk", "Compliance", "GRC"],
+  },
+];
+
 export { LINUX_LABS } from "./linuxLabData";
 export { POWERSHELL_LABS } from "./powershellLabData";

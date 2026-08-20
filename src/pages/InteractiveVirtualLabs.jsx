@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Clock, ChevronRight, Tag, Terminal, CheckCircle2, Search, X, ChevronDown, BookOpen, Filter, Cloud } from "lucide-react";
-import { VIRTUAL_LABS, LINUX_LABS, POWERSHELL_LABS, LAB_COURSES, AWS_CLOUD_LABS } from "@/lib/labCatalog";
+import { Clock, ChevronRight, Tag, Terminal, CheckCircle2, Search, X, ChevronDown, BookOpen, Filter, Cloud, Award } from "lucide-react";
+import { VIRTUAL_LABS, LINUX_LABS, POWERSHELL_LABS, LAB_COURSES, AWS_CLOUD_LABS, COMPTIA_LABS } from "@/lib/labCatalog";
 import { useTranslation } from "react-i18next";
 
 function CategoryDropdown({ categories, onSelect }) {
@@ -64,6 +64,7 @@ export default function InteractiveVirtualLabs() {
     powershell: useRef(null),
     courses: useRef(null),
     cloud: useRef(null),
+    cert: useRef(null),
   };
 
   const CATEGORIES = [
@@ -72,11 +73,12 @@ export default function InteractiveVirtualLabs() {
     { key: "powershell", label: t("activeLabs.categories.powershell"), color: "text-blue-400" },
     { key: "courses",    label: t("activeLabs.categories.courses"),    color: "text-purple-400" },
     { key: "cloud",      label: t("activeLabs.categories.cloud"),      color: "text-amber-400" },
+    { key: "cert",       label: t("activeLabs.categories.certification"), color: "text-emerald-400" },
   ];
 
   const handleCategorySelect = (key) => {
     // Collapse all others, expand the chosen one
-    setCollapsed({ network: true, linux: true, powershell: true, courses: true, cloud: true, [key]: false });
+    setCollapsed({ network: true, linux: true, powershell: true, courses: true, cloud: true, cert: true, [key]: false });
     // Scroll to section after state update
     setTimeout(() => {
       sectionRefs[key]?.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -123,6 +125,8 @@ export default function InteractiveVirtualLabs() {
   const visibleAwsLabs     = applyFilters(isAdmin || !hasAssignments ? AWS_CLOUD_LABS : AWS_CLOUD_LABS.filter(l => assignedIds.has(l.id)));
   const clfLabs            = visibleAwsLabs.filter(l => l.tags?.includes("CLF-002"));
   const aifLabs            = visibleAwsLabs.filter(l => l.tags?.includes("AIF-C01"));
+  const visibleCompTIALabs = applyFilters(isAdmin || !hasAssignments ? COMPTIA_LABS : COMPTIA_LABS.filter(l => assignedIds.has(l.id)));
+  const secPlusLabs        = visibleCompTIALabs.filter(l => l.subCategory === "CompTIA Security+");
 
   const LabCard = ({ lab, icon, accentColor = "red" }) => {
     const isCompleted = completedTitles.has(lab.title);
@@ -338,7 +342,44 @@ export default function InteractiveVirtualLabs() {
           </div>
         )}
 
-        {visibleNetworkLabs.length === 0 && visibleLinuxLabs.length === 0 && visiblePSLabs.length === 0 && visibleCourseLabs.length === 0 && visibleAwsLabs.length === 0 && (
+        {/* Certification Courses */}
+        {visibleCompTIALabs.length > 0 && (
+          <div className="mb-10" ref={sectionRefs.cert}>
+            <button onClick={() => setCollapsed(c => ({ ...c, cert: !c.cert }))} className="w-full flex items-center gap-2 mb-2 group">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+              <h2 className="text-lg font-semibold text-white">{t("activeLabs.certificationCourses")}</h2>
+              <span className="text-xs text-gray-500 ml-1">({visibleCompTIALabs.length})</span>
+              <ChevronDown className={`h-4 w-4 text-gray-400 ml-auto transition-transform ${collapsed.cert ? "-rotate-90" : ""}`} />
+            </button>
+            {!collapsed.cert && (
+              <>
+                {/* CompTIA sub-header */}
+                <div className="flex items-center gap-2 mb-4 pl-5">
+                  <Award className="h-4 w-4 text-emerald-400" />
+                  <span className="text-sm font-medium text-emerald-400">{t("activeLabs.comptiaSecPlus")}</span>
+                </div>
+
+                {/* CompTIA Security+ (SY0-701) — 5 domains */}
+                {secPlusLabs.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3 pl-8">
+                      <span className="h-1 w-1 rounded-full bg-emerald-500" />
+                      <span className="text-xs font-mono text-emerald-300 font-semibold">CompTIA Security+ (SY0-701)</span>
+                      <span className="text-xs text-gray-500">({secPlusLabs.length})</span>
+                    </div>
+                    <div className="grid gap-5 sm:grid-cols-2">
+                      {secPlusLabs.map(lab => (
+                        <LabCard key={lab.id} lab={lab} icon={<Award className="h-5 w-5 text-emerald-400" />} accentColor="amber" />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {visibleNetworkLabs.length === 0 && visibleLinuxLabs.length === 0 && visiblePSLabs.length === 0 && visibleCourseLabs.length === 0 && visibleAwsLabs.length === 0 && visibleCompTIALabs.length === 0 && (
           <div className="text-center py-16 text-gray-500">
             {t("activeLabs.noLabs")}
           </div>
