@@ -46,6 +46,11 @@ import LabAwsCloudConcepts from './pages/labs/aws/LabAwsCloudConcepts'
 import LabAwsSecurityCompliance from './pages/labs/aws/LabAwsSecurityCompliance'
 import LabAwsCloudServices from './pages/labs/aws/LabAwsCloudServices'
 import LabAwsBillingPricing from './pages/labs/aws/LabAwsBillingPricing'
+import LabAifAiMlFundamentals from './pages/labs/aws/LabAifAiMlFundamentals'
+import LabAifGenAiFundamentals from './pages/labs/aws/LabAifGenAiFundamentals'
+import LabAifFoundationModels from './pages/labs/aws/LabAifFoundationModels'
+import LabAifResponsibleAi from './pages/labs/aws/LabAifResponsibleAi'
+import LabAifSecurityGovernance from './pages/labs/aws/LabAifSecurityGovernance'
 import CandidateAssessments from './pages/CandidateAssessments'
 import CreateAssessment from './pages/CreateAssessment'
 import AssessmentDetail from './pages/AssessmentDetail'
@@ -192,6 +197,11 @@ const AuthenticatedApp = () => {
       <Route path="/labs/aws-security-compliance" element={<LayoutWrapper currentPageName="LabAwsSecurityCompliance"><LabAwsSecurityCompliance /></LayoutWrapper>} />
       <Route path="/labs/aws-cloud-services" element={<LayoutWrapper currentPageName="LabAwsCloudServices"><LabAwsCloudServices /></LayoutWrapper>} />
       <Route path="/labs/aws-billing-pricing" element={<LayoutWrapper currentPageName="LabAwsBillingPricing"><LabAwsBillingPricing /></LayoutWrapper>} />
+      <Route path="/labs/aif-ai-ml-fundamentals" element={<LayoutWrapper currentPageName="LabAifAiMlFundamentals"><LabAifAiMlFundamentals /></LayoutWrapper>} />
+      <Route path="/labs/aif-gen-ai-fundamentals" element={<LayoutWrapper currentPageName="LabAifGenAiFundamentals"><LabAifGenAiFundamentals /></LayoutWrapper>} />
+      <Route path="/labs/aif-foundation-models" element={<LayoutWrapper currentPageName="LabAifFoundationModels"><LabAifFoundationModels /></LayoutWrapper>} />
+      <Route path="/labs/aif-responsible-ai" element={<LayoutWrapper currentPageName="LabAifResponsibleAi"><LabAifResponsibleAi /></LayoutWrapper>} />
+      <Route path="/labs/aif-security-governance" element={<LayoutWrapper currentPageName="LabAifSecurityGovernance"><LabAifSecurityGovernance /></LayoutWrapper>} />
       <Route path="/CandidateAssessments" element={<LayoutWrapper currentPageName="CandidateAssessments"><FeatureGate flagKey="soc_assessments"><CandidateAssessments /></FeatureGate></LayoutWrapper>} />
       <Route path="/create-assessment" element={<LayoutWrapper currentPageName="CreateAssessment"><CreateAssessment /></LayoutWrapper>} />
       <Route path="/assessment-detail" element={<LayoutWrapper currentPageName="AssessmentDetail"><AssessmentDetail /></LayoutWrapper>} />
