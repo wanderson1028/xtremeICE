@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
         assessmentLink,
         emailSent: false,
         emailFailReason,
-      }, { status: 502 });
+      });
     }
   } catch (error) {
     console.error('sendCandidateInvite failed:', error);
