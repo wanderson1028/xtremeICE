@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, ChevronRight, Terminal, Lightbulb, CheckCircle2, BookOpen, ArrowRight, Trophy, RotateCcw, Copy, Check, XCircle, AlertTriangle } from "lucide-react";
+import { ArrowLeft, ChevronRight, Terminal, Lightbulb, CheckCircle2, BookOpen, ArrowRight, Trophy, RotateCcw, Copy, Check, XCircle, AlertTriangle, Eye } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useTranslation } from "react-i18next";
 import LabIntro from "./LabIntro";
@@ -465,6 +465,17 @@ export default function LabRunner({ labTitle, chapterNum, difficulty, tags = [],
               </div>
             </div>
           </div>
+
+          {/* Concept Visual (optional per-step diagram) */}
+          {step.visual && (
+            <div className="bg-gray-900 border border-amber-800/40 rounded-xl shrink-0 overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-800 bg-black/30">
+                <Eye className="h-3.5 w-3.5 text-amber-400" />
+                <span className="text-[10px] font-mono text-amber-400 uppercase tracking-wider font-bold">Concept Visual</span>
+              </div>
+              <div className="p-4">{step.visual}</div>
+            </div>
+          )}
 
           {/* Security Insight for this step */}
           <LabSecurityInsight insight={step.securityInsight} />

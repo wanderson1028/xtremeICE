@@ -1,5 +1,8 @@
 import React from "react";
 import LabRunner from "@/components/labs/LabRunner";
+import AzResilienceDiagram from "@/components/labs/aws/AzResilienceDiagram";
+import WellArchitectedPillars from "@/components/labs/aws/WellArchitectedPillars";
+import ServiceModelBar from "@/components/labs/aws/ServiceModelBar";
 
 const steps = [
   {
@@ -37,6 +40,7 @@ const steps = [
     stepLabel: "Describe Availability Zones in a Region",
     explanation: "Each Region contains multiple Availability Zones (AZs) — fully isolated partitions of infrastructure with independent power, cooling, and networking. Query the AZs in us-east-1.",
     whyItMatters: "Distributing workloads across multiple AZs is the core pattern for high availability. If one AZ fails, others remain operational. Understanding AZ isolation is critical to designing resilient cloud architectures.",
+    visual: <AzResilienceDiagram />,
     command: "aws ec2 describe-availability-zones --region us-east-1 --query 'AvailabilityZones[].{Zone:ZoneName,State:State}' --output table",
     prompt: "awsadmin@cli:~$",
     output: [
@@ -67,6 +71,7 @@ const steps = [
     stepLabel: "Review the Well-Architected Pillars",
     explanation: "The AWS Well-Architected Framework defines six pillars that guide cloud architecture decisions. Review them with the AWS CLI tool.",
     whyItMatters: "The Well-Architected Framework is AWS's blueprint for building secure, reliable, efficient, and cost-effective workloads. Every architectural decision should map to one or more pillars — it is the conceptual backbone of the CLF-002 Cloud Concepts domain.",
+    visual: <WellArchitectedPillars />,
     command: "aws wellarchitected list-pillars --output table",
     prompt: "awsadmin@cli:~$",
     output: [
@@ -97,6 +102,7 @@ const steps = [
     stepLabel: "Identify cloud service models",
     explanation: "Cloud computing offers three primary service models: IaaS, PaaS, and SaaS. Each shifts the responsibility boundary between provider and customer. Review the models.",
     whyItMatters: "Knowing where responsibility divides is essential for both cost planning and security. The Shared Responsibility Model differs by service model — in IaaS you patch the OS; in SaaS the provider does. CLF-002 tests this distinction heavily.",
+    visual: <ServiceModelBar />,
     command: "aws cloud describe-service-models --output table",
     prompt: "awsadmin@cli:~$",
     output: [
