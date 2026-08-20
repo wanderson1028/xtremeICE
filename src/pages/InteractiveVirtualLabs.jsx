@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Clock, ChevronRight, Tag, Terminal, CheckCircle2, Search, X, ChevronDown, BookOpen, Filter } from "lucide-react";
-import { VIRTUAL_LABS, LINUX_LABS, POWERSHELL_LABS, LAB_COURSES } from "@/lib/labCatalog";
+import { Clock, ChevronRight, Tag, Terminal, CheckCircle2, Search, X, ChevronDown, BookOpen, Filter, Cloud } from "lucide-react";
+import { VIRTUAL_LABS, LINUX_LABS, POWERSHELL_LABS, LAB_COURSES, AWS_CLOUD_LABS } from "@/lib/labCatalog";
 import { useTranslation } from "react-i18next";
 
 function CategoryDropdown({ categories, onSelect }) {
@@ -63,6 +63,7 @@ export default function InteractiveVirtualLabs() {
     linux: useRef(null),
     powershell: useRef(null),
     courses: useRef(null),
+    cloud: useRef(null),
   };
 
   const CATEGORIES = [
@@ -70,11 +71,12 @@ export default function InteractiveVirtualLabs() {
     { key: "linux",      label: t("activeLabs.categories.linux"),      color: "text-green-400" },
     { key: "powershell", label: t("activeLabs.categories.powershell"), color: "text-blue-400" },
     { key: "courses",    label: t("activeLabs.categories.courses"),    color: "text-purple-400" },
+    { key: "cloud",      label: t("activeLabs.categories.cloud"),      color: "text-amber-400" },
   ];
 
   const handleCategorySelect = (key) => {
     // Collapse all others, expand the chosen one
-    setCollapsed({ network: true, linux: true, powershell: true, courses: true, [key]: false });
+    setCollapsed({ network: true, linux: true, powershell: true, courses: true, cloud: true, [key]: false });
     // Scroll to section after state update
     setTimeout(() => {
       sectionRefs[key]?.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -118,13 +120,14 @@ export default function InteractiveVirtualLabs() {
   const visibleLinuxLabs   = applyFilters(isAdmin || !hasAssignments ? LINUX_LABS   : LINUX_LABS.filter(l => assignedIds.has(l.id)));
   const visiblePSLabs      = applyFilters(isAdmin || !hasAssignments ? POWERSHELL_LABS : POWERSHELL_LABS.filter(l => assignedIds.has(l.id)));
   const visibleCourseLabs  = applyFilters(isAdmin || !hasAssignments ? LAB_COURSES  : LAB_COURSES.filter(l => assignedIds.has(l.id)));
+  const visibleAwsLabs     = applyFilters(isAdmin || !hasAssignments ? AWS_CLOUD_LABS : AWS_CLOUD_LABS.filter(l => assignedIds.has(l.id)));
 
   const LabCard = ({ lab, icon, accentColor = "red" }) => {
     const isCompleted = completedTitles.has(lab.title);
-    const hoverBorder = isCompleted ? "hover:border-green-500" : accentColor === "purple" ? "hover:border-purple-600" : "hover:border-red-600";
-    const iconBg = isCompleted ? "bg-green-900/30 border-green-700/40" : accentColor === "purple" ? "bg-purple-900/30 border-purple-700/40" : "bg-red-900/30 border-red-700/40";
-    const textHover = isCompleted ? "group-hover:text-green-400" : accentColor === "purple" ? "group-hover:text-purple-400" : "group-hover:text-red-400";
-    const actionColor = isCompleted ? "text-green-400" : accentColor === "purple" ? "text-purple-400" : "text-red-400";
+    const hoverBorder = isCompleted ? "hover:border-green-500" : accentColor === "purple" ? "hover:border-purple-600" : accentColor === "amber" ? "hover:border-amber-600" : "hover:border-red-600";
+    const iconBg = isCompleted ? "bg-green-900/30 border-green-700/40" : accentColor === "purple" ? "bg-purple-900/30 border-purple-700/40" : accentColor === "amber" ? "bg-amber-900/30 border-amber-700/40" : "bg-red-900/30 border-red-700/40";
+    const textHover = isCompleted ? "group-hover:text-green-400" : accentColor === "purple" ? "group-hover:text-purple-400" : accentColor === "amber" ? "group-hover:text-amber-400" : "group-hover:text-red-400";
+    const actionColor = isCompleted ? "text-green-400" : accentColor === "purple" ? "text-purple-400" : accentColor === "amber" ? "text-amber-400" : "text-red-400";
     return (
       <button
         onClick={() => navigate(lab.route)}
@@ -280,7 +283,34 @@ export default function InteractiveVirtualLabs() {
           </div>
         )}
 
-        {visibleNetworkLabs.length === 0 && visibleLinuxLabs.length === 0 && visiblePSLabs.length === 0 && visibleCourseLabs.length === 0 && (
+        {/* Cloud Training (AWS) */}
+        {visibleAwsLabs.length > 0 && (
+          <div className="mb-10" ref={sectionRefs.cloud}>
+            <button onClick={() => setCollapsed(c => ({ ...c, cloud: !c.cloud }))} className="w-full flex items-center gap-2 mb-2 group">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+              <h2 className="text-lg font-semibold text-white">{t("activeLabs.cloudTraining")}</h2>
+              <span className="text-xs text-gray-500 ml-1">({visibleAwsLabs.length})</span>
+              <ChevronDown className={`h-4 w-4 text-gray-400 ml-auto transition-transform ${collapsed.cloud ? "-rotate-90" : ""}`} />
+            </button>
+            {!collapsed.cloud && (
+              <>
+                {/* AWS sub-header (two-level: future Azure/GCP siblings go here) */}
+                <div className="flex items-center gap-2 mb-4 pl-5">
+                  <Cloud className="h-4 w-4 text-amber-400" />
+                  <span className="text-sm font-medium text-amber-400">{t("activeLabs.cloudTrainingAws")}</span>
+                  <span className="text-xs text-gray-500">— AWS Cloud Practitioner (CLF-002)</span>
+                </div>
+                <div className="grid gap-5 sm:grid-cols-2">
+                  {visibleAwsLabs.map(lab => (
+                    <LabCard key={lab.id} lab={lab} icon={<Cloud className="h-5 w-5 text-amber-400" />} accentColor="amber" />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {visibleNetworkLabs.length === 0 && visibleLinuxLabs.length === 0 && visiblePSLabs.length === 0 && visibleCourseLabs.length === 0 && visibleAwsLabs.length === 0 && (
           <div className="text-center py-16 text-gray-500">
             {t("activeLabs.noLabs")}
           </div>

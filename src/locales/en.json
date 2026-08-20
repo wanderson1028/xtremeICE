@@ -144,6 +144,8 @@
     "linuxLabs": "Linux PC & Server Labs",
     "psLabs": "PowerShell & Windows Labs",
     "workroleCourses": "Workrole Courses",
+    "cloudTraining": "Cloud Training",
+    "cloudTrainingAws": "AWS",
     "noLabs": "No virtual labs assigned. Contact your administrator.",
     "launchLab": "Launch Lab",
     "launchAgain": "Launch Again",
@@ -152,7 +154,8 @@
       "network": "Network Simulations",
       "linux": "Linux PC & Server Labs",
       "powershell": "PowerShell & Windows Labs",
-      "courses": "Workrole Courses"
+      "courses": "Workrole Courses",
+      "cloud": "Cloud Training"
     }
   },
   "labRunner": {

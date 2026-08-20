@@ -42,6 +42,10 @@ import LabWirelessExploitation from './pages/labs/LabWirelessExploitation'
 import LabLogCorrelation from './pages/labs/LabLogCorrelation'
 import LabBGP from './pages/labs/LabBGP'
 import LabZeroTrust from './pages/labs/LabZeroTrust'
+import LabAwsCloudConcepts from './pages/labs/aws/LabAwsCloudConcepts'
+import LabAwsSecurityCompliance from './pages/labs/aws/LabAwsSecurityCompliance'
+import LabAwsCloudServices from './pages/labs/aws/LabAwsCloudServices'
+import LabAwsBillingPricing from './pages/labs/aws/LabAwsBillingPricing'
 import CandidateAssessments from './pages/CandidateAssessments'
 import CreateAssessment from './pages/CreateAssessment'
 import AssessmentDetail from './pages/AssessmentDetail'
@@ -184,6 +188,10 @@ const AuthenticatedApp = () => {
       <Route path="/labs/log-correlation" element={<LayoutWrapper currentPageName="LabLogCorrelation"><LabLogCorrelation /></LayoutWrapper>} />
       <Route path="/labs/bgp" element={<LayoutWrapper currentPageName="LabBGP"><LabBGP /></LayoutWrapper>} />
       <Route path="/labs/zero-trust" element={<LayoutWrapper currentPageName="LabZeroTrust"><LabZeroTrust /></LayoutWrapper>} />
+      <Route path="/labs/aws-cloud-concepts" element={<LayoutWrapper currentPageName="LabAwsCloudConcepts"><LabAwsCloudConcepts /></LayoutWrapper>} />
+      <Route path="/labs/aws-security-compliance" element={<LayoutWrapper currentPageName="LabAwsSecurityCompliance"><LabAwsSecurityCompliance /></LayoutWrapper>} />
+      <Route path="/labs/aws-cloud-services" element={<LayoutWrapper currentPageName="LabAwsCloudServices"><LabAwsCloudServices /></LayoutWrapper>} />
+      <Route path="/labs/aws-billing-pricing" element={<LayoutWrapper currentPageName="LabAwsBillingPricing"><LabAwsBillingPricing /></LayoutWrapper>} />
       <Route path="/CandidateAssessments" element={<LayoutWrapper currentPageName="CandidateAssessments"><FeatureGate flagKey="soc_assessments"><CandidateAssessments /></FeatureGate></LayoutWrapper>} />
       <Route path="/create-assessment" element={<LayoutWrapper currentPageName="CreateAssessment"><CreateAssessment /></LayoutWrapper>} />
       <Route path="/assessment-detail" element={<LayoutWrapper currentPageName="AssessmentDetail"><AssessmentDetail /></LayoutWrapper>} />

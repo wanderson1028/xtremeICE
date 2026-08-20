@@ -228,5 +228,52 @@ export const VIRTUAL_LABS = [
   },
 ];
 
+export const AWS_CLOUD_LABS = [
+  {
+    id: "aws-cloud-concepts",
+    route: "/labs/aws-cloud-concepts",
+    title: "AWS Cloud Concepts",
+    description: "Explore AWS global infrastructure (Regions, AZs, edge locations), the Well-Architected Framework pillars, and cloud service and deployment models using the AWS CLI.",
+    difficulty: "Beginner",
+    duration: 40,
+    category: "Cloud Training",
+    subCategory: "AWS",
+    tags: ["AWS", "CLF-002", "Regions", "Well-Architected", "IaaS/PaaS/SaaS"],
+  },
+  {
+    id: "aws-security-compliance",
+    route: "/labs/aws-security-compliance",
+    title: "AWS Security & Compliance",
+    description: "Master the AWS Shared Responsibility Model, IAM users and policies, root account MFA, CloudTrail auditing, and compliance programs (HIPAA, PCI-DSS, SOC) using the AWS CLI.",
+    difficulty: "Beginner",
+    duration: 50,
+    category: "Cloud Training",
+    subCategory: "AWS",
+    tags: ["AWS", "CLF-002", "IAM", "CloudTrail", "Shared Responsibility", "Compliance"],
+  },
+  {
+    id: "aws-cloud-services",
+    route: "/labs/aws-cloud-services",
+    title: "AWS Cloud Technology & Services",
+    description: "Inspect EC2 instance types, S3 storage classes, VPC subnets, RDS managed databases, Lambda serverless functions, and map services to AWS global infrastructure.",
+    difficulty: "Intermediate",
+    duration: 55,
+    category: "Cloud Training",
+    subCategory: "AWS",
+    tags: ["AWS", "CLF-002", "EC2", "S3", "VPC", "RDS", "Lambda"],
+  },
+  {
+    id: "aws-billing-pricing",
+    route: "/labs/aws-billing-pricing",
+    title: "AWS Billing, Pricing & Support",
+    description: "Compare EC2 pricing models, monitor Free Tier usage, create budget alerts, analyze spend with Cost Explorer, and review AWS Support plans using the AWS CLI.",
+    difficulty: "Intermediate",
+    duration: 50,
+    category: "Cloud Training",
+    subCategory: "AWS",
+    tags: ["AWS", "CLF-002", "Pricing", "Budgets", "Cost Explorer", "Support Plans"],
+  },
+];
+
 export { LINUX_LABS } from "./linuxLabData";
 export { POWERSHELL_LABS } from "./powershellLabData";
