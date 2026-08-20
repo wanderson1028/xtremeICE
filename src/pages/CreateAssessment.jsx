@@ -120,14 +120,21 @@ export default function CreateAssessment() {
     if (!createdAssessmentId) return;
     setSaving(true);
     try {
-      await base44.functions.invoke("sendCandidateInvite", {
+      const res = await base44.functions.invoke("sendCandidateInvite", {
         assessment_id: createdAssessmentId,
         candidate_name: form.candidate_name,
-        candidate_email: form.candidate_email,
+        candidate_email: form.candidate_email.trim().toLowerCase(),
         assessment_date: `${form.assessment_date} ${form.assessment_time}`,
         position_title: form.position_title,
         company_name: form.company_name,
+        app_url: window.location.origin,
       });
+      if (res?.data?.emailSent !== true) {
+        const reason = res?.data?.emailFailReason || "The email service did not confirm delivery.";
+        const directLink = res?.data?.assessmentLink ? ` Direct link: ${res.data.assessmentLink}` : "";
+        setError(`The invitation was created, but the email was not sent: ${reason}.${directLink}`);
+        return;
+      }
       navigate("/CandidateAssessments");
     } catch (e) {
       setError(e.message || "Failed to send invitation.");
