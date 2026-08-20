@@ -342,7 +342,7 @@ export default function CandidateAssessments() {
                         )}
                         {inv.sent_at && (
                           <p className="text-gray-200 text-[10px] mt-1">{new Date(inv.sent_at).toLocaleDateString()}</p>
-                        )
+                        )}
                       </div>
 
                       {/* Progress */}
