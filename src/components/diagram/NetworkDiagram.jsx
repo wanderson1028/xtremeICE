@@ -1091,12 +1091,16 @@ const NetworkDiagram = forwardRef(function NetworkDiagram(
       // Ctrl/Cmd + scroll = zoom centered on cursor
       const delta = e.deltaY > 0 ? 0.85 : 1.18;
       const { x, y } = getCanvasPos(e);
+      const canvas = canvasRef.current;
+      const rect = canvas.getBoundingClientRect();
+      const canvasCx = rect.width / 2;
+      const canvasCy = rect.height / 2;
       setZoomLevel(prev => {
         const newZoom = Math.max(0.3, Math.min(5, prev * delta));
         const zoomRatio = newZoom / prev;
         setPanOffset(pan => ({
-          x: x - zoomRatio * (x - pan.x),
-          y: y - zoomRatio * (y - pan.y),
+          x: (x - canvasCx) * (1 - zoomRatio) + pan.x * zoomRatio,
+          y: (y - canvasCy) * (1 - zoomRatio) + pan.y * zoomRatio,
         }));
         return newZoom;
       });
@@ -1140,8 +1144,24 @@ const NetworkDiagram = forwardRef(function NetworkDiagram(
     redraw();
   };
 
-  const handleZoomIn = () => setZoomLevel(prev => Math.min(3, prev * 1.2));
-  const handleZoomOut = () => setZoomLevel(prev => Math.max(0.3, prev * 0.8));
+  const zoomTowardCenter = (delta) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    // Visible center of the canvas (accounts for scroll on tall canvas)
+    const visibleTop = Math.max(0, -rect.top);
+    const visibleBottom = Math.min(rect.height, window.innerHeight - rect.top);
+    const visCy = (visibleTop + visibleBottom) / 2;
+    const canvasCy = rect.height / 2;
+    const prev = zoomRef.current;
+    const newZoom = Math.max(0.3, Math.min(3, prev * delta));
+    setZoomLevel(newZoom);
+    // The diagram center always maps to (canvasCx + pan.x, canvasCy + pan.y) regardless of zoom.
+    // Re-center the diagram at the visible center so it stays in viewport on zoom.
+    setPanOffset({ x: 0, y: visCy - canvasCy });
+  };
+  const handleZoomIn = () => zoomTowardCenter(1.2);
+  const handleZoomOut = () => zoomTowardCenter(0.8);
   const handleFitToScreen = () => {
     setZoomLevel(1);
     setPanOffset({ x: 0, y: 0 });

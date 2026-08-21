@@ -141,8 +141,8 @@ function buildDiagram(design) {
   // Calculate site spacing — give each site generous horizontal room
   const hasWap = design.wireless_enabled;
   const devicesPerSite = userDevPerSite + (hasWap ? 1 : 0) + (hasOTDevices ? 2 : 0);
-  const deviceSlotWidth = 100;
-  const siteMinWidth = Math.max(280, devicesPerSite * deviceSlotWidth + 100);
+  const deviceSlotWidth = 140;
+  const siteMinWidth = Math.max(340, devicesPerSite * deviceSlotWidth + 100);
   const siteSpacing = siteMinWidth + 80;
   const totalSitesWidth = siteSpacing * siteCount;
   const startX = cx - (totalSitesWidth - siteSpacing) / 2;
@@ -195,21 +195,27 @@ function buildDiagram(design) {
       if (userDevPerSite > 2) allDevices.push({ kind: "ot", idx: 1, label: "SCADA" });
     }
 
-    const totalDevW = allDevices.length * deviceSlotWidth;
+    // Arrange devices in a grid (max 4 per row) to prevent horizontal crowding
+    const DEVS_PER_ROW = 4;
+    const ROW_SPACING = 130;
+    const totalDevW = Math.min(allDevices.length, DEVS_PER_ROW) * deviceSlotWidth;
     const devStartX = sx - totalDevW / 2 + deviceSlotWidth / 2;
 
     allDevices.forEach((dev, di) => {
-      const devX = devStartX + di * deviceSlotWidth;
+      const col = di % DEVS_PER_ROW;
+      const row = Math.floor(di / DEVS_PER_ROW);
+      const devX = devStartX + col * deviceSlotWidth;
+      const devY = LAYER_Y.userDevices + row * ROW_SPACING;
       if (dev.kind === "wap") {
-        const wapId = addNode("wireless", "WAP", devX, LAYER_Y.userDevices, "user");
+        const wapId = addNode("wireless", "WAP", devX, devY, "user");
         links.push({ from: siteSwitchId, to: wapId });
       } else if (dev.kind === "ot") {
-        const otId = addNode("ot", dev.label, devX, LAYER_Y.userDevices, "user");
+        const otId = addNode("ot", dev.label, devX, devY, "user");
         links.push({ from: siteSwitchId, to: otId });
       } else {
         const udType = dev.kind;
         const udLabel = udType === "phone" ? `Phone-${dev.idx + 1}` : getWorkstationLabel(dev.idx);
-        const udId = addNode(udType, udLabel, devX, LAYER_Y.userDevices, "user");
+        const udId = addNode(udType, udLabel, devX, devY, "user");
         links.push({ from: siteSwitchId, to: udId });
       }
     });
