@@ -642,9 +642,9 @@ Return a flat object with field names matching the design schema directly.`,
                       setTooltip(null);
                     }
                   }}
-                  onNodeHover={(node) => {
+                  onNodeHover={(node, e) => {
                     if (simulationMode) { setTooltip(null); return; }
-                    setTooltip(node ? { node } : null);
+                    setTooltip(node ? { node, x: e.clientX, y: e.clientY } : null);
                   }}
                   simulationMode={simulationMode}
                   simulationTrafficPattern={activeTrafficPattern}
@@ -668,7 +668,7 @@ Return a flat object with field names matching the design schema directly.`,
               {/* Hover tooltip (non-simulation) */}
               {viewMode === "detailed" && !simulationMode && tooltip && (
                 <div
-                  className="absolute z-50 bg-background border border-border rounded-lg px-3 py-2 text-xs shadow-xl pointer-events-none"
+                  className="fixed z-50 bg-background border border-border rounded-lg px-3 py-2 text-xs shadow-xl pointer-events-none"
                   style={{ left: tooltip.x + 12, top: tooltip.y - 10 }}
                 >
                   <p className="font-semibold text-foreground">{tooltip.node.label.replace(/\n/g, " ")}</p>
