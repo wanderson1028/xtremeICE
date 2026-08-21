@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowLeft, FileCode, RefreshCw, Loader2, Send, Zap, ZapOff, LayoutGrid, Network, Globe, Lock, Download, Type, CheckSquare, Save } from "lucide-react";
+import { ArrowLeft, FileCode, RefreshCw, Loader2, Send, Zap, ZapOff, LayoutGrid, Network, Globe, Lock, Download, Type, CheckSquare, Save, PanelRightClose, PanelRightOpen } from "lucide-react";
 import SubmitDesignDialog from "@/components/diagram/SubmitDesignDialog";
 
 import NetworkDiagram from "@/components/diagram/NetworkDiagram";
@@ -254,6 +254,7 @@ export default function DiagramPreview() {
   const [showSubmit, setShowSubmit] = useState(false);
   const [showRegenConfirm, setShowRegenConfirm] = useState(false);
   const [trafficPatterns, setTrafficPatterns] = useState([]);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const diagramRef = useRef(null);
   const isEmbedded = new URLSearchParams(window.location.search).get("embedded") === "true" || localStorage.getItem("lti_embedded") === "true";
 
@@ -530,8 +531,8 @@ Return a flat object with field names matching the design schema directly.`,
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-          <div className="xl:col-span-3 space-y-3">
+        <div className={`grid grid-cols-1 gap-6 ${sidebarCollapsed ? "xl:grid-cols-1" : "xl:grid-cols-5"}`}>
+          <div className={sidebarCollapsed ? "xl:col-span-1 space-y-3" : "xl:col-span-3 space-y-3"}>
             <div className="flex items-center justify-between flex-wrap gap-2">
               {/* View mode toggle */}
               <div className="flex items-center gap-1 bg-secondary rounded-lg p-1 border border-border">
@@ -610,6 +611,14 @@ Return a flat object with field names matching the design schema directly.`,
                     <button onClick={() => diagramRef.current?.exportSVG()} className="px-3 py-2 text-xs text-foreground hover:bg-secondary text-left rounded-b-lg">SVG</button>
                   </div>
                 </div>
+                <button
+                  onClick={() => setSidebarCollapsed(v => !v)}
+                  title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-secondary text-muted-foreground hover:text-foreground text-xs font-medium transition-all"
+                >
+                  {sidebarCollapsed ? <PanelRightOpen className="h-3.5 w-3.5" /> : <PanelRightClose className="h-3.5 w-3.5" />}
+                  {sidebarCollapsed ? "Show Panel" : "Hide Panel"}
+                </button>
               </div>
             </div>
             <div className="relative">
@@ -723,10 +732,10 @@ Return a flat object with field names matching the design schema directly.`,
             )}
           </div>
 
-          <div className="xl:col-span-2 space-y-4">
+          <div className={`${sidebarCollapsed ? "hidden" : "xl:col-span-2"} space-y-4`}>
             {simulationMode && (
                <>
-                 {/* Top: control + narrative side by side */}
+                  {/* Top: control + narrative side by side */}
                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2 gap-4">
                    <SimulationControlPanel
                      nodes={diagramData?.nodes || []}
