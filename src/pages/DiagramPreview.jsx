@@ -728,25 +728,23 @@ Return a flat object with field names matching the design schema directly.`,
               />
             )}
 
-            {/* Traffic Flow + AI Exploit — below topology in simulation mode */}
-            {simulationMode && (
-              <div className="space-y-4 mt-2">
-                <TrafficFlowPanel
-                  nodes={diagramData?.nodes || []}
-                  links={diagramData?.links || []}
-                  design={design}
-                  running={simRunning}
-                />
-                <AIExploitSimulator design={design} nodes={diagramData?.nodes || []} />
-              </div>
-            )}
           </div>
 
           <div className={`${sidebarCollapsed ? "hidden" : "xl:col-span-2"} space-y-6 xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto pb-4`}>
             {simulationMode && (
                <>
-                  {/* Top: control + narrative side by side */}
-                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2 gap-4">
+                  {/* Traffic Flow + AI Exploit — moved here from below canvas to prevent page height change */}
+                  <div className="space-y-4">
+                    <TrafficFlowPanel
+                      nodes={diagramData?.nodes || []}
+                      links={diagramData?.links || []}
+                      design={design}
+                      running={simRunning}
+                    />
+                    <AIExploitSimulator design={design} nodes={diagramData?.nodes || []} />
+                  </div>
+                   {/* Top: control + narrative side by side */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2 gap-4">
                    <SimulationControlPanel
                      nodes={diagramData?.nodes || []}
                      onRunScenario={handleRunScenario}
