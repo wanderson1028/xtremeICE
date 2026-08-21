@@ -39,17 +39,17 @@ function buildDiagram(design) {
   const links = [];
   let nodeId = 0;
 
-  // Layer Y positions — compact hierarchy
+  // Layer Y positions — generous spacing to prevent overlap
   const LAYER_Y = {
     internet: 60,
-    firewall: 165,
-    coreRouter: 280,
-    coreSwitches: 400,
-    datacenter: 520,
-    servers: 640,
-    siteRouters: 770,
-    siteSwitches: 900,
-    userDevices: 1050
+    firewall: 190,
+    coreRouter: 330,
+    coreSwitches: 480,
+    datacenter: 630,
+    servers: 800,
+    siteRouters: 980,
+    siteSwitches: 1150,
+    userDevices: 1340
   };
 
   const addNode = (type, label, x, y, layer = "default") => {
@@ -95,7 +95,7 @@ function buildDiagram(design) {
   if (hasDMZ) layer4Items.push({ type: "dmz", label: "DMZ Switch" });
   if (hasFarm) layer4Items.push({ type: "server", label: "Server SW" });
 
-  const layer4Spacing = 300;
+  const layer4Spacing = 380;
   const layer4TotalWidth = (layer4Items.length - 1) * layer4Spacing;
   const layer4StartX = cx - layer4TotalWidth / 2;
 
@@ -119,9 +119,9 @@ function buildDiagram(design) {
   if (hasFarm && farmSwId) {
     const numSrv = Math.min(design.num_servers || 2, 5);
     const farmCenterX = hasDMZ ? layer4StartX + layer4Spacing : cx / 2;
-    const farmSpan = (numSrv - 1) * 120;
+    const farmSpan = (numSrv - 1) * 160;
     for (let s = 0; s < numSrv; s++) {
-      const sx = farmCenterX - farmSpan / 2 + s * 120;
+      const sx = farmCenterX - farmSpan / 2 + s * 160;
       const srvId = addNode("server", `Srv-${s + 1}`, sx, LAYER_Y.servers, "datacenter");
       links.push({ from: farmSwId, to: srvId });
     }
@@ -141,9 +141,9 @@ function buildDiagram(design) {
   // Calculate site spacing — give each site generous horizontal room
   const hasWap = design.wireless_enabled;
   const devicesPerSite = userDevPerSite + (hasWap ? 1 : 0) + (hasOTDevices ? 2 : 0);
-  const deviceSlotWidth = 140;
-  const siteMinWidth = Math.max(340, devicesPerSite * deviceSlotWidth + 100);
-  const siteSpacing = siteMinWidth + 80;
+  const deviceSlotWidth = 160;
+  const siteMinWidth = Math.max(420, devicesPerSite * deviceSlotWidth + 140);
+  const siteSpacing = siteMinWidth + 120;
   const totalSitesWidth = siteSpacing * siteCount;
   const startX = cx - (totalSitesWidth - siteSpacing) / 2;
 
@@ -197,7 +197,7 @@ function buildDiagram(design) {
 
     // Arrange devices in a grid (max 4 per row) to prevent horizontal crowding
     const DEVS_PER_ROW = 4;
-    const ROW_SPACING = 130;
+    const ROW_SPACING = 170;
     const totalDevW = Math.min(allDevices.length, DEVS_PER_ROW) * deviceSlotWidth;
     const devStartX = sx - totalDevW / 2 + deviceSlotWidth / 2;
 
@@ -614,9 +614,9 @@ Return a flat object with field names matching the design schema directly.`,
                 <button
                   onClick={() => setSidebarCollapsed(v => !v)}
                   title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-secondary text-muted-foreground hover:text-foreground text-xs font-medium transition-all"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 border-primary/50 bg-primary/10 text-primary hover:bg-primary/20 text-xs font-bold transition-all"
                 >
-                  {sidebarCollapsed ? <PanelRightOpen className="h-3.5 w-3.5" /> : <PanelRightClose className="h-3.5 w-3.5" />}
+                  {sidebarCollapsed ? <PanelRightOpen className="h-4 w-4" /> : <PanelRightClose className="h-4 w-4" />}
                   {sidebarCollapsed ? "Show Panel" : "Hide Panel"}
                 </button>
               </div>
@@ -732,7 +732,7 @@ Return a flat object with field names matching the design schema directly.`,
             )}
           </div>
 
-          <div className={`${sidebarCollapsed ? "hidden" : "xl:col-span-2"} space-y-4`}>
+          <div className={`${sidebarCollapsed ? "hidden" : "xl:col-span-2"} space-y-6`}>
             {simulationMode && (
                <>
                   {/* Top: control + narrative side by side */}
