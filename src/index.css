@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  overflow-y: scroll;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -78,6 +82,10 @@
 
 
 @layer base {
+  html {
+    overflow-y: scroll;
+  }
+
   * {
     @apply border-border outline-ring/50;
   }

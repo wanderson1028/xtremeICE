@@ -236,6 +236,16 @@ export default function DiagramPreview() {
   const [selectedNode, setSelectedNode] = useState(null);
   const [tooltip, setTooltip] = useState(null); // { node, x, y }
   const [simulationMode, setSimulationMode] = useState(false);
+
+  // Force scrollbar to always be present so canvas width never changes
+  // when simulation panels add/remove page height (prevents diagram shift)
+  useEffect(() => {
+    const html = document.documentElement;
+    const prev = html.style.overflowY;
+    html.style.overflowY = "scroll";
+    return () => { html.style.overflowY = prev; };
+  }, []);
+
   const [simEvents, setSimEvents] = useState([]); // [{ id, node }]
   const [viewMode, setViewMode] = useState("detailed"); // "detailed" | "topology"
   const [simRunning, setSimRunning] = useState(false);
