@@ -531,7 +531,7 @@ Return a flat object with field names matching the design schema directly.`,
           </div>
         </div>
 
-        <div className={`grid grid-cols-1 gap-6 ${sidebarCollapsed ? "xl:grid-cols-1" : "xl:grid-cols-5"}`}>
+        <div className={`grid grid-cols-1 gap-6 items-start ${sidebarCollapsed ? "xl:grid-cols-1" : "xl:grid-cols-5"}`}>
           <div className={sidebarCollapsed ? "xl:col-span-1 space-y-3" : "xl:col-span-3 space-y-3"}>
             <div className="flex items-center justify-between flex-wrap gap-2">
               {/* View mode toggle */}
