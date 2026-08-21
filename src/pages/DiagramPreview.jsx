@@ -732,7 +732,7 @@ Return a flat object with field names matching the design schema directly.`,
             )}
           </div>
 
-          <div className={`${sidebarCollapsed ? "hidden" : "xl:col-span-2"} space-y-6`}>
+          <div className={`${sidebarCollapsed ? "hidden" : "xl:col-span-2"} space-y-6 xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto pb-4`}>
             {simulationMode && (
                <>
                   {/* Top: control + narrative side by side */}
