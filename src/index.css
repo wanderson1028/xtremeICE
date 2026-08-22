@@ -81,6 +81,56 @@ html {
 
 
 
+@layer components {
+  /* 3D depth for cards — layered ambient + directional shadows */
+  .card-3d {
+    box-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.12),
+      0 4px 12px -2px rgba(0, 0, 0, 0.1),
+      0 10px 24px -4px rgba(0, 0, 0, 0.08);
+  }
+  .card-3d-hover {
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .card-3d-hover:hover {
+    transform: translateY(-3px);
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.15),
+      0 8px 20px -2px rgba(0, 0, 0, 0.15),
+      0 20px 40px -4px rgba(0, 0, 0, 0.12);
+  }
+
+  /* 3D icon container — inset top highlight + drop shadow for pop */
+  .icon-3d {
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.25),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+  }
+
+  /* 3D button — physical depth with bottom edge, press on active */
+  .btn-3d {
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.2),
+      0 2px 4px rgba(0, 0, 0, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .btn-3d:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.25),
+      0 4px 8px rgba(0, 0, 0, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+  .btn-3d:active {
+    transform: translateY(0);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+}
+
 @layer base {
   html {
     overflow-y: scroll;

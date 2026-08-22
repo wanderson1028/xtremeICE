@@ -27,8 +27,8 @@ export default function Home() {
           transition={{ duration: 0.5 }}
           className="text-center"
         >
-          <div className="inline-flex items-center justify-center h-16 w-16 rounded-xl bg-red-900/20 border border-red-700/30 shadow-lg shadow-red-900/10 mx-auto mb-6">
-            <Network className="h-8 w-8 text-red-400" />
+          <div className="inline-flex items-center justify-center h-16 w-16 rounded-xl bg-gradient-to-b from-red-900/30 to-red-950/40 border border-red-700/30 icon-3d mx-auto mb-6">
+            <Network className="h-8 w-8 text-red-400 drop-shadow-[0_2px_4px_rgba(239,68,68,0.4)]" />
           </div>
 
           <h1 className="text-4xl sm:text-5xl font-bold text-white tracking-tight">
@@ -61,10 +61,10 @@ export default function Home() {
               return (
                 <div
                   key={i}
-                  className="flex items-start gap-3 p-4 rounded-xl bg-black/40 border border-red-900/20 backdrop-blur-sm text-left hover:border-red-800/40 transition-all duration-200"
+                  className="flex items-start gap-3 p-4 rounded-xl bg-gradient-to-b from-black/50 to-black/30 border border-red-900/20 backdrop-blur-sm text-left hover:border-red-700/50 card-3d card-3d-hover"
                 >
-                  <div className={`h-8 w-8 rounded-lg ${f.bg} flex items-center justify-center shrink-0 mt-0.5`}>
-                    <Icon className={`h-4 w-4 ${f.color}`} strokeWidth={1.5} />
+                  <div className={`h-9 w-9 rounded-lg ${f.bg} flex items-center justify-center shrink-0 mt-0.5 icon-3d`}>
+                    <Icon className={`h-4 w-4 ${f.color} drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]`} strokeWidth={1.5} />
                   </div>
                   <div className="min-w-0">
                     <span className="text-sm font-semibold text-white block">{t(f.title)}</span>
@@ -84,7 +84,7 @@ export default function Home() {
           <div className="flex flex-col items-center gap-3">
             <Button
               size="lg"
-              className="gap-2 bg-red-600 hover:bg-red-500 text-white font-medium text-sm px-10 py-6 rounded-xl shadow-lg shadow-red-900/30 transition-all duration-200 hover:shadow-red-800/40 hover:-translate-y-0.5"
+              className="gap-2 bg-gradient-to-b from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-medium text-sm px-10 py-6 rounded-xl btn-3d shadow-red-900/40"
               onClick={() => navigate("/EnvironmentHub")}
             >
               {t("home.enter")}
