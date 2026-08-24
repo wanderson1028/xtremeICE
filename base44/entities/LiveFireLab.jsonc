@@ -160,7 +160,18 @@
     "cloud_provider"
   ],
   "rls": {
-    "create": true,
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
     "read": {
       "$or": [
         {
@@ -173,9 +184,7 @@
           "data.visibility": "organization"
         },
         {
-          "data.shared_with": {
-            "$contains": "{{user.email}}"
-          }
+          "data.shared_with": "{{user.email}}"
         },
         {
           "user_condition": {

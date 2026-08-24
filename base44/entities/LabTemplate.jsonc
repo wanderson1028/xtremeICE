@@ -172,13 +172,6 @@
           "user_condition": {
             "role": "admin"
           }
-        },
-        {
-          "user_condition": {
-            "id": {
-              "$exists": true
-            }
-          }
         }
       ]
     },
