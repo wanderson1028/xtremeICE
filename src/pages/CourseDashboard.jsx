@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -200,6 +200,10 @@ export default function CourseDashboard() {
     enabled: !!id,
   });
 
+  useEffect(() => {
+    if (!id) navigate("/Labs");
+  }, [id, navigate]);
+
   const totalPoints = tasks.reduce((sum, t) => sum + (t.points || 0), 0);
   const earnedPoints = tasks
     .filter((t) => completedTaskIds.has(t.id))
@@ -246,6 +250,14 @@ export default function CourseDashboard() {
   ];
 
   if (loadingScenario || loadingTasks) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!id) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
