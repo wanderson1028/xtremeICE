@@ -8,16 +8,16 @@ const steps = [
   {
     stepLabel: "List ML problem types",
     explanation: "Machine learning problems fall into three main categories: supervised (labeled data), unsupervised (unlabeled, find patterns), and reinforcement (learn by reward). Query the ML problem taxonomy.",
-    whyItMatters: "Choosing the right problem type determines the algorithm, data format, and evaluation metric. AIF-C01 tests whether you can classify a business problem (spam detection, customer segmentation, game-playing AI) into the correct ML category.",
+    whyItMatters: "Choosing the right problem type determines the algorithm, data format, and evaluation metric. AIF-C01 tests whether you can classify a business problem (spam detection, customer segmentation, game-playing ML) into the correct ML category.",
     command: "aws sagemaker list-problem-types --output table",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "-------------------------------------------------------",
       "|   Problem Type   |  Data Type   |  Example Use Case  |",
       "+------------------+-------------+---------------------+",
       "|  Supervised      |  Labeled    |  Spam detection     |",
       "|  Unsupervised    |  Unlabeled  |  Customer clustering|",
-      "|  Reinforcement   |  Reward     |  Game-playing AI    |",
+      "|  Reinforcement   |  Reward     |  Game-playing ML    |",
       "+------------------+-------------+---------------------+",
     ],
     question: {
@@ -38,7 +38,7 @@ const steps = [
     whyItMatters: "AIF-C01 frames ML as a lifecycle, not a one-time build. Understanding each stage — and that monitoring triggers retraining when data drifts — is a core exam concept. Production ML fails more often from pipeline gaps than from algorithm choice.",
     visual: <MlPipelineDiagram />,
     command: "aws sagemaker describe-ml-pipeline --output table",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "---------------------------------------------",
       "|        Stage        |     Purpose          |",
@@ -68,7 +68,7 @@ const steps = [
     whyItMatters: "Overfitting is one of the most tested ML concepts in AIF-C01. A model that performs well on training data but poorly on validation data has overfit. The visual cue — training loss keeps dropping while validation loss rises — is the single most recognizable diagnostic in ML.",
     visual: <LossCurveChart />,
     command: "aws sagemaker describe-training-job --job-name demo-xgboost --query 'TrainingLossCurve' --output table",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "---------------------------------------------",
       "| Epoch | Train Loss | Validation Loss      |",
@@ -97,7 +97,7 @@ const steps = [
     whyItMatters: "AIF-C01 tests precision vs. recall tradeoffs constantly. A spam filter that flags a legitimate email (false positive) annoys users; one that misses spam (false negative) lets threats through. The confusion matrix is how you quantify that tradeoff and choose the right threshold.",
     visual: <ConfusionMatrix />,
     command: "aws sagemaker describe-model-quality --model-name spam-classifier --query 'ConfusionMatrix' --output table",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "-------------------------------",
       "|              | Predicted     |",
@@ -126,7 +126,7 @@ const steps = [
     explanation: "Different ML tasks use different metrics: RMSE/MAE for regression, F1/AUC-ROC for classification, and silhouette score for clustering. Review the metric taxonomy.",
     whyItMatters: "AIF-C01 expects you to match the metric to the task. Using accuracy on an imbalanced dataset (e.g., 99% negative) is a classic trap — a model that always predicts 'negative' is 99% accurate but useless. F1 and AUC-ROC handle imbalance correctly.",
     command: "aws sagemaker list-evaluation-metrics --output table",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "--------------------------------------------------",
       "|  Task Type     |  Metric       |  Measures      |",
@@ -151,9 +151,9 @@ const steps = [
   {
     stepLabel: "Identify ML use cases on AWS",
     explanation: "Amazon SageMaker is AWS's flagship ML service, covering the full pipeline from labeling to deployment. Review key SageMaker capabilities and common ML use cases.",
-    whyItMatters: "AIF-C01 maps business problems to AWS services. Knowing that SageMaker handles custom ML (training your own models) while Bedrock handles generative AI (using foundation models) is the core service-selection distinction tested on the exam.",
+    whyItMatters: "AIF-C01 maps business problems to AWS services. Knowing that SageMaker handles custom ML (training your own models) while Bedrock handles generative ML (using foundation models) is the core service-selection distinction tested on the exam.",
     command: "aws sagemaker list-applications --output table",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "------------------------------------------------",
       "|  SageMaker Feature  |  Pipeline Stage          |",
@@ -166,7 +166,7 @@ const steps = [
       "+---------------------+--------------------------+",
     ],
     question: {
-      text: "A company wants to train a custom model on its own proprietary customer data for churn prediction. Which AWS service should they use, and why not a generative AI service?",
+      text: "A company wants to train a custom model on its own proprietary customer data for churn prediction. Which AWS service should they use, and why not a generative ML service?",
       options: [
         "Amazon Bedrock — it trains custom models on proprietary data",
         "Amazon SageMaker — it supports full custom ML training on your own data; Bedrock uses pre-trained foundation models for generative tasks, not custom predictive models",
@@ -174,14 +174,14 @@ const steps = [
         "Amazon Rekognition — churn prediction is an image classification task",
       ],
       correctIndex: 1,
-      explanation: "Amazon SageMaker is the right choice for training custom predictive models (like churn prediction) on your own data — it gives you control over the algorithm, training, and deployment. Amazon Bedrock is for generative AI using pre-trained foundation models (Claude, Titan, etc.) — you don't train models from scratch with Bedrock, you customize them. Churn prediction is a structured-data classification task, not a generative task, so SageMaker fits.",
+      explanation: "Amazon SageMaker is the right choice for training custom predictive models (like churn prediction) on your own data — it gives you control over the algorithm, training, and deployment. Amazon Bedrock is for generative ML using pre-trained foundation models (Claude, Titan, etc.) — you don't train models from scratch with Bedrock, you customize them. Churn prediction is a structured-data classification task, not a generative task, so SageMaker fits.",
     },
   },
 ];
 
 const intro = {
-  overview: "This lab covers AIF-C01 Domain 1: the fundamentals of artificial intelligence and machine learning. You'll explore ML problem types, the ML pipeline lifecycle, training vs. validation loss and overfitting, confusion matrices and evaluation metrics, and AWS SageMaker use cases — all through the AWS CLI.",
-  niceCategory: "Fundamentals of AI and ML",
+  overview: "This lab covers AIF-C01 Domain 1: the fundamentals of machine learning. You'll explore ML problem types, the ML pipeline lifecycle, training vs. validation loss and overfitting, confusion matrices and evaluation metrics, and AWS SageMaker use cases — all through the AWS CLI.",
+  niceCategory: "Fundamentals of ML",
   objectives: [
     "Classify ML problems as supervised, unsupervised, or reinforcement learning",
     "Describe the stages of the ML pipeline lifecycle",
@@ -196,10 +196,10 @@ const intro = {
     "Can diagnose overfitting from loss curves and apply early stopping",
     "Able to read a confusion matrix and choose precision vs. recall for a use case",
     "Know why accuracy fails on imbalanced datasets and which metrics to use instead",
-    "Can distinguish SageMaker (custom ML) from Bedrock (generative AI)",
+    "Can distinguish SageMaker (custom ML) from Bedrock (generative ML)",
   ],
   prerequisites: [
-    "Basic understanding of what AI and machine learning are (no prior experience required)",
+    "Basic understanding of what machine learning is (no prior experience required)",
     "Familiarity with a command-line interface is helpful but not required",
   ],
   tools: [
@@ -209,14 +209,14 @@ const intro = {
   ],
 };
 
-export default function LabAifAiMlFundamentals() {
+export default function LabAifMlFundamentals() {
   return (
     <LabRunner
-      labTitle="AI & ML Fundamentals"
+      labTitle="ML Fundamentals"
       chapterNum="1"
       difficulty="Beginner"
       tags={["AWS", "AIF-C01", "ML", "Pipeline", "Overfitting", "Metrics"]}
-      terminalLabel="AWS CLI — AI Practitioner Environment"
+      terminalLabel="AWS CLI — ML Practitioner Environment"
       duration={45}
       intro={intro}
       steps={steps}

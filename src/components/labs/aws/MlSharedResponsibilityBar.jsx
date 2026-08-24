@@ -1,7 +1,7 @@
 import React from "react";
 
-// AI shared-responsibility model: what AWS manages vs. what the customer manages,
-// with the AI-specific layer (prompts, training data, model outputs).
+// ML shared-responsibility model: what AWS manages vs. what the customer manages,
+// with the ML-specific layer (prompts, training data, model outputs).
 const LAYERS = [
   { name: "Foundation infrastructure", example: "Hardware, network, virtualization", provider: true },
   { name: "Foundation models (base)", example: "Bedrock base models, Titan, Claude", provider: true },
@@ -11,7 +11,7 @@ const LAYERS = [
   { name: "Governance & compliance", example: "Model cards, audit logs, usage policies", customer: true },
 ];
 
-export default function AiSharedResponsibilityBar() {
+export default function MlSharedResponsibilityBar() {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-4 text-[10px] font-mono">

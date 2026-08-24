@@ -1,6 +1,6 @@
 import React from "react";
 
-// The dimensions of responsible AI, as a color-coded pillar set —
+// The dimensions of responsible ML, as a color-coded pillar set —
 // analogous to the AWS Well-Architected pillars.
 const PILLARS = [
   { name: "Fairness", focus: "Equitable", color: "from-blue-600 to-blue-400", accent: "text-blue-300" },
@@ -11,7 +11,7 @@ const PILLARS = [
   { name: "Governance", focus: "Accountable", color: "from-green-600 to-green-400", accent: "text-green-300" },
 ];
 
-export default function ResponsibleAiPillars() {
+export default function ResponsibleMlPillars() {
   return (
     <div>
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
@@ -25,7 +25,7 @@ export default function ResponsibleAiPillars() {
           </div>
         ))}
       </div>
-      <p className="text-[10px] font-mono text-gray-500 mt-3 text-center">Six dimensions of responsible AI — AWS guides builders to evaluate every AI system against all six</p>
+      <p className="text-[10px] font-mono text-gray-500 mt-3 text-center">Six dimensions of responsible ML — AWS guides builders to evaluate every ML system against all six</p>
     </div>
   );
 }

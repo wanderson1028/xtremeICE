@@ -1,15 +1,15 @@
 import React from "react";
 import LabRunner from "@/components/labs/LabRunner";
-import AiSharedResponsibilityBar from "@/components/labs/aws/AiSharedResponsibilityBar";
+import MlSharedResponsibilityBar from "@/components/labs/aws/MlSharedResponsibilityBar";
 
 const steps = [
   {
-    stepLabel: "Review the AI shared responsibility model",
-    explanation: "Just as AWS has a shared responsibility model for cloud security, AI extends it: AWS secures the foundation models and infrastructure, while you are responsible for your prompts, training data, model outputs, and governance.",
+    stepLabel: "Review the ML shared responsibility model",
+    explanation: "Just as AWS has a shared responsibility model for cloud security, ML extends it: AWS secures the foundation models and infrastructure, while you are responsible for your prompts, training data, model outputs, and governance.",
     whyItMatters: "AIF-C01 Domain 5 starts here. The exam tests whether you know that putting customer data into prompts, fine-tuning on proprietary data, and governing model outputs are all customer responsibilities — AWS does not secure what you send to or get from a model. Confusing this boundary is a common security failure.",
-    visual: <AiSharedResponsibilityBar />,
+    visual: <MlSharedResponsibilityBar />,
     command: "aws bedrock describe-shared-responsibility --output table",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "---------------------------------------------------------",
       "|  Layer                    |  Responsible Party         |",
@@ -26,12 +26,12 @@ const steps = [
       text: "A company fine-tunes a Bedrock model on proprietary customer data and deploys it. Who is responsible for securing the fine-tuned weights and the customer data in prompts?",
       options: [
         "AWS — it secures all models and data on Bedrock",
-        "The customer — fine-tuned weights, prompts, and user data are customer responsibilities under the AI shared responsibility model; AWS only secures the base model and infrastructure",
+        "The customer — fine-tuned weights, prompts, and user data are customer responsibilities under the ML shared responsibility model; AWS only secures the base model and infrastructure",
         "Shared equally — both parties are jointly liable",
         "The model provider (e.g., Anthropic) — it owns the model",
       ],
       correctIndex: 1,
-      explanation: "Under the AI shared responsibility model, the customer is responsible for fine-tuned weights, prompts, application logic, and user data — everything above the base foundation model. AWS secures the infrastructure and the base model, but once you fine-tune or send data to the model, securing that data and those weights is your job. This is why encryption, IAM, and data governance on your prompts and outputs are critical. Confusing this boundary (assuming AWS secures your prompts) is a common AIF-C01-tested failure.",
+      explanation: "Under the ML shared responsibility model, the customer is responsible for fine-tuned weights, prompts, application logic, and user data — everything above the base foundation model. AWS secures the infrastructure and the base model, but once you fine-tune or send data to the model, securing that data and those weights is your job. This is why encryption, IAM, and data governance on your prompts and outputs are critical. Confusing this boundary (assuming AWS secures your prompts) is a common AIF-C01-tested failure.",
     },
   },
   {
@@ -39,7 +39,7 @@ const steps = [
     explanation: "Training and fine-tuning data must be secured and governed. AWS services like Macie (PII discovery), Glue (data catalog), and KMS (encryption) help protect training datasets. Review the data security toolkit.",
     whyItMatters: "AIF-C01 tests data security for AI. Training data often contains PII or sensitive information; if leaked through a model, it violates privacy regulations. Macie discovers PII in S3 buckets before they're used for training. KMS encrypts data at rest. Knowing these services maps to the privacy & security dimension of responsible AI.",
     command: "aws macie2 describe-classification-jobs --output table && aws kms list-keys --query 'Keys[].KeyId' --output table",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "Macie Classification Jobs:",
       "  Job: training-data-scan | Status: COMPLETE",
@@ -47,7 +47,7 @@ const steps = [
       "    - 8 SSN, 4 credit_card, 2 email",
       "",
       "KMS Keys:",
-      "  Key: alias/ai-training-data (ENABLED)",
+      "  Key: alias/ml-training-data (ENABLED)",
       "  Key: alias/bedrock-inference (ENABLED)",
     ],
     question: {
@@ -65,9 +65,9 @@ const steps = [
   {
     stepLabel: "Protect model endpoints",
     explanation: "Model endpoints (SageMaker endpoints, Bedrock inference) must be protected with IAM (least-privilege access), encryption in transit (TLS), and network controls (VPC endpoints, security groups). Review endpoint security controls.",
-    whyItMatters: "AIF-C01 tests AI endpoint security. A publicly exposed model endpoint can be abused for data exfiltration (prompt injection to extract training data), cost attacks (unbounded inference), or unauthorized use. IAM, VPC endpoints, and encryption are the same AWS security primitives applied to AI — the exam expects you to know they extend to model endpoints.",
+    whyItMatters: "AIF-C01 tests ML endpoint security. A publicly exposed model endpoint can be abused for data exfiltration (prompt injection to extract training data), cost attacks (unbounded inference), or unauthorized use. IAM, VPC endpoints, and encryption are the same AWS security primitives applied to ML — the exam expects you to know they extend to model endpoints.",
     command: "aws sagemaker describe-endpoint --endpoint-name chatbot-endpoint --query 'EndpointConfig' --output table",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "Endpoint: chatbot-endpoint",
       "  IAM Role: arn:aws:iam::123:role/sagemaker-inference (least-privilege)",
@@ -85,15 +85,15 @@ const steps = [
         "Risk: none — Bedrock endpoints are secure by default and need no configuration",
       ],
       correctIndex: 1,
-      explanation: "A public, unrestricted model endpoint risks unauthorized access, prompt injection (extracting training data or bypassing safety), data exfiltration, and unbounded cost from abuse. The first two controls: IAM least-privilege (only authorized services/users can invoke) and a private VPC subnet (no public internet exposure). Encryption (TLS/KMS) and auto-scaling are also important but access control and network isolation are the foundational first steps. AI endpoints use the same AWS security primitives as any workload — AIF-C01 tests this.",
+      explanation: "A public, unrestricted model endpoint risks unauthorized access, prompt injection (extracting training data or bypassing safety), data exfiltration, and unbounded cost from abuse. The first two controls: IAM least-privilege (only authorized services/users can invoke) and a private VPC subnet (no public internet exposure). Encryption (TLS/KMS) and auto-scaling are also important but access control and network isolation are the foundational first steps. ML endpoints use the same AWS security primitives as any workload — AIF-C01 tests this.",
     },
   },
   {
-    stepLabel: "Audit AI usage with CloudTrail",
+    stepLabel: "Audit ML usage with CloudTrail",
     explanation: "AWS CloudTrail logs every API call, including Bedrock and SageMaker invocations. Audit logs let you trace who called which model, when, and with what input — essential for compliance, incident response, and governance.",
-    whyItMatters: "AIF-C01 tests AI auditing. If a model produces harmful output or a data breach occurs, CloudTrail logs are how you reconstruct what happened — who invoked the model, what prompt was sent, and when. Without audit logs, you cannot investigate incidents or prove compliance to regulators. Logging is a governance requirement.",
+    whyItMatters: "AIF-C01 tests ML auditing. If a model produces harmful output or a data breach occurs, CloudTrail logs are how you reconstruct what happened — who invoked the model, what prompt was sent, and when. Without audit logs, you cannot investigate incidents or prove compliance to regulators. Logging is a governance requirement.",
     command: "aws cloudtrail lookup-events --lookup-attributes AttributeKey=EventSource,AttributeValue=bedrock.amazonaws.com --max-results 10 --output table",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "-----------------------------------------------------------",
       "|  Time              |  User      |  Event                 |",
@@ -113,15 +113,15 @@ const steps = [
         "Amazon GuardDuty — it detects threats but does not log individual prompts",
       ],
       correctIndex: 1,
-      explanation: "AWS CloudTrail logs Bedrock API calls, including InvokeModel events, with the caller identity, timestamp, and (with data event logging enabled) invocation details. This audit trail is how you trace which user/prompt triggered an incident. CloudWatch monitors metrics, not audit trails. Config tracks resource configuration, not API invocations. GuardDuty detects threats but doesn't log individual prompts. Enabling CloudTrail on AI services is a governance requirement tested in AIF-C01 Domain 5.",
+      explanation: "AWS CloudTrail logs Bedrock API calls, including InvokeModel events, with the caller identity, timestamp, and (with data event logging enabled) invocation details. This audit trail is how you trace which user/prompt triggered an incident. CloudWatch monitors metrics, not audit trails. Config tracks resource configuration, not API invocations. GuardDuty detects threats but doesn't log individual prompts. Enabling CloudTrail on ML services is a governance requirement tested in AIF-C01 Domain 5.",
     },
   },
   {
     stepLabel: "Govern models with model cards and registries",
     explanation: "Model governance requires documenting models (Model Cards), versioning them (Model Registry), and controlling which models are approved for production. Review the governance toolkit.",
-    whyItMatters: "AIF-C01 tests AI governance. Model Cards document intended use, risks, and limitations (transparency). Model Registry versions models and controls promotion (accountability). Without governance, teams deploy untracked models with no accountability — a compliance and safety failure. Governance is the dimension that ties the others together.",
+    whyItMatters: "AIF-C01 tests ML governance. Model Cards document intended use, risks, and limitations (transparency). Model Registry versions models and controls promotion (accountability). Without governance, teams deploy untracked models with no accountability — a compliance and safety failure. Governance is the dimension that ties the others together.",
     command: "aws sagemaker describe-model-card --model-name credit-model-v2 --output table",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "Model Card: credit-model-v2",
       "  Version: 2.1.0 (approved)",
@@ -144,11 +144,11 @@ const steps = [
     },
   },
   {
-    stepLabel: "Apply compliance frameworks to AI",
-    explanation: "AI solutions must comply with existing frameworks (HIPAA for healthcare, GDPR for EU data, SOC 2 for service orgs) plus emerging AI-specific regulations. Review how AWS helps map AI workloads to compliance programs.",
-    whyItMatters: "AIF-C01 tests whether you know that AI workloads inherit the compliance requirements of the data they process — a healthcare AI must be HIPAA-compliant, an AI processing EU data must be GDPR-compliant. AWS provides compliance-ready services (HIPAA-eligible Bedrock/SageMaker) and Artifact (compliance reports). Compliance is the governance dimension in practice.",
+    stepLabel: "Apply compliance frameworks to ML",
+    explanation: "ML solutions must comply with existing frameworks (HIPAA for healthcare, GDPR for EU data, SOC 2 for service orgs) plus emerging ML-specific regulations. Review how AWS helps map ML workloads to compliance programs.",
+    whyItMatters: "AIF-C01 tests whether you know that ML workloads inherit the compliance requirements of the data they process — a healthcare ML must be HIPAA-compliant, an ML processing EU data must be GDPR-compliant. AWS provides compliance-ready services (HIPAA-eligible Bedrock/SageMaker) and Artifact (compliance reports). Compliance is the governance dimension in practice.",
     command: "aws artifact list-reports --output table && aws bedrock describe-compliance-programs --output table",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "AWS Artifact Reports:",
       "  - HIPAA (Health Insurance Portability and Accountability Act)",
@@ -167,7 +167,7 @@ const steps = [
         "No verification needed — Bedrock is secure by default for any data",
         "They must verify Bedrock is HIPAA-eligible and configure it under a Business Associate Agreement (BAA); HIPAA governs the processing of Protected Health Information (PHI)",
         "They must verify Bedrock is PCI-DSS compliant because healthcare involves payments",
-        "GDPR applies because all AI processing falls under EU law",
+        "GDPR applies because all ML processing falls under EU law",
       ],
       correctIndex: 1,
       explanation: "Processing PHI requires HIPAA compliance: the hospital must verify Bedrock is HIPAA-eligible (it is) and operate under a Business Associate Agreement (BAA) with AWS. HIPAA governs Protected Health Information. PCI-DSS is for cardholder data, not healthcare. GDPR applies to EU personal data, not all AI. 'Secure by default' doesn't satisfy HIPAA — you need the BAA and HIPAA-eligible service configuration. Mapping the compliance framework to the data type is a core AIF-C01 Domain 5 skill.",
@@ -176,26 +176,26 @@ const steps = [
 ];
 
 const intro = {
-  overview: "This lab covers AIF-C01 Domain 5: security, compliance, and governance for AI solutions. You'll explore the AI shared responsibility model, securing training data with Macie and KMS, protecting model endpoints with IAM and VPC controls, auditing AI usage with CloudTrail, governing models with Model Cards and Registries, and applying compliance frameworks (HIPAA, GDPR, SOC 2) to AI workloads — all through the AWS CLI.",
-  niceCategory: "Security, Compliance, and Governance for AI Solutions",
+  overview: "This lab covers AIF-C01 Domain 5: security, compliance, and governance for ML solutions. You'll explore the ML shared responsibility model, securing training data with Macie and KMS, protecting model endpoints with IAM and VPC controls, auditing ML usage with CloudTrail, governing models with Model Cards and Registries, and applying compliance frameworks (HIPAA, GDPR, SOC 2) to ML workloads — all through the AWS CLI.",
+  niceCategory: "Security, Compliance, and Governance for ML Solutions",
   objectives: [
-    "Explain the AI shared responsibility model and what the customer vs. AWS secures",
+    "Explain the ML shared responsibility model and what the customer vs. AWS secures",
     "Secure training data using Amazon Macie (PII discovery) and KMS (encryption)",
     "Protect model endpoints with IAM least-privilege, VPC isolation, and encryption",
-    "Audit AI usage with CloudTrail to support incident response and compliance",
+    "Audit ML usage with CloudTrail to support incident response and compliance",
     "Govern models with SageMaker Model Cards and Model Registry",
-    "Map AI workloads to compliance frameworks (HIPAA, GDPR, SOC 2)",
+    "Map ML workloads to compliance frameworks (HIPAA, GDPR, SOC 2)",
   ],
   outcomes: [
-    "Able to identify customer vs. AWS responsibilities in an AI workload",
+    "Able to identify customer vs. AWS responsibilities in an ML workload",
     "Know how to discover and redact PII before fine-tuning",
     "Can secure a model endpoint against unauthorized access and abuse",
-    "Understand how CloudTrail enables AI audit and incident investigation",
+    "Understand how CloudTrail enables ML audit and incident investigation",
     "Able to produce governance evidence (Model Cards, approval records)",
-    "Can determine which compliance framework applies to an AI workload",
+    "Can determine which compliance framework applies to an ML workload",
   ],
   prerequisites: [
-    "Completion of the Guidelines for Responsible AI lab (Domain 4) is recommended",
+    "Completion of the Guidelines for Responsible ML lab (Domain 4) is recommended",
     "Basic familiarity with AWS security (IAM, KMS, VPC) is helpful",
   ],
   tools: [
@@ -209,11 +209,11 @@ const intro = {
 export default function LabAifSecurityGovernance() {
   return (
     <LabRunner
-      labTitle="Security, Compliance & Governance for AI"
+      labTitle="Security, Compliance & Governance for ML"
       chapterNum="5"
       difficulty="Intermediate"
       tags={["AWS", "AIF-C01", "Security", "Compliance", "Governance", "CloudTrail"]}
-      terminalLabel="AWS CLI — AI Practitioner Environment"
+      terminalLabel="AWS CLI — ML Practitioner Environment"
       duration={55}
       intro={intro}
       steps={steps}

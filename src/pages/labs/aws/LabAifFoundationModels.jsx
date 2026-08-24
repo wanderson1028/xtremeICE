@@ -9,7 +9,7 @@ const steps = [
     explanation: "Foundation models are large pre-trained models that can be adapted to many tasks. Amazon Bedrock offers models from multiple providers. Review the available model families and their characteristics.",
     whyItMatters: "AIF-C01 Domain 3 tests model selection — choosing the right model for a task based on modality (text, image, embedding), size, cost, and latency. Knowing the Bedrock model catalog is the starting point for any foundation model application.",
     command: "aws bedrock list-foundation-models --query 'modelSummaries[].{Id:modelId,Provider:providerName,Modalities:inputModalities}' --output table",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "-----------------------------------------------------",
       "|  Model ID                    |  Provider  |  Type  |",
@@ -39,7 +39,7 @@ const steps = [
     whyItMatters: "RAG is the most important application pattern in AIF-C01 Domain 3. It solves the two biggest problems with foundation models: stale knowledge (the model was trained on old data) and hallucination (the model invents facts). RAG grounds answers in retrieved evidence, making them current and citeable.",
     visual: <RagArchitectureDiagram />,
     command: "aws bedrock describe-knowledge-base --knowledge-base-id my-kb --query 'retrievalConfig' --output table",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "Knowledge Base: my-kb",
       "  Vector Store: amazon-opensearch-serverless",
@@ -67,7 +67,7 @@ const steps = [
     whyItMatters: "AIF-C01 tests inference parameter tuning. Temperature 0 is for factual/reproducible tasks (Q&A, code); higher temperature is for creative tasks (brainstorming, marketing copy). Choosing the wrong setting causes either boring repetitive output or hallucinated randomness — a common real-world failure.",
     visual: <TemperatureEffect />,
     command: "aws bedrock invoke-model --model-id amazon.titan-text-premier --body '{\"textGenerationConfig\":{\"temperature\":0.7,\"topP\":0.9}}' --query 'output.text' --output text",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "Inference Parameters:",
       "  temperature: 0.7  (balanced)",
@@ -96,7 +96,7 @@ const steps = [
     explanation: "Advanced prompt techniques improve output quality: few-shot (provide examples), chain-of-thought (ask the model to reason step-by-step), and role-based (assign a persona). Review when to use each.",
     whyItMatters: "AIF-C01 tests prompt design as a primary lever for model performance. Chain-of-thought is especially tested — it dramatically improves performance on multi-step reasoning by asking the model to show its work, reducing errors on arithmetic and logic.",
     command: "aws bedrock describe-prompt-techniques --output table",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "--------------------------------------------------------",
       "|  Technique        |  When to Use         |  Benefit   |",
@@ -124,7 +124,7 @@ const steps = [
     explanation: "Foundation model outputs are evaluated with task-specific metrics: ROUGE (summarization overlap), BLEU (translation n-gram match), BERTScore (semantic similarity), and human evaluation. Review the metric landscape.",
     whyItMatters: "AIF-C01 tests whether you can match the evaluation metric to the generative task. Summarization uses ROUGE; translation uses BLEU; semantic similarity uses BERTScore. There is no single 'accuracy' for generative output — evaluation is task-specific and often includes human review.",
     command: "aws bedrock describe-evaluation-metrics --output table",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "--------------------------------------------------------",
       "|  Task            |  Metric      |  Measures           |",
@@ -152,7 +152,7 @@ const steps = [
     explanation: "Model selection balances modality (text/image/embedding), size (cost vs. quality), latency, and context window. Review a decision framework for matching use cases to models.",
     whyItMatters: "AIF-C01 Domain 3 culminates in model selection. The exam gives a business scenario and asks which model/service fits. Key tradeoffs: larger models = better quality but higher cost/latency; embedding models for search; image models for generation; smaller models for real-time/edge.",
     command: "aws bedrock describe-model-selection --output table",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "---------------------------------------------------------",
       "|  Use Case          |  Recommended Model Type           |",
@@ -165,7 +165,7 @@ const steps = [
       "+--------------------+-----------------------------------+",
     ],
     question: {
-      text: "A startup needs a generative AI model for a real-time customer chatbot with strict latency requirements (< 1 second response). Which model characteristic should they prioritize?",
+      text: "A startup needs a generative ML model for a real-time customer chatbot with strict latency requirements (< 1 second response). Which model characteristic should they prioritize?",
       options: [
         "The largest available model — bigger is always better for chat",
         "A smaller, faster model (e.g., Claude Haiku or Llama 3 8B) — lower latency meets the real-time requirement while still handling chat adequately",
@@ -198,7 +198,7 @@ const intro = {
     "Can balance model size, cost, and latency in model selection",
   ],
   prerequisites: [
-    "Completion of the Generative AI Fundamentals lab (Domain 2) is recommended",
+    "Completion of the Generative ML Fundamentals lab (Domain 2) is recommended",
     "Basic familiarity with Amazon Bedrock is helpful but not required",
   ],
   tools: [
@@ -215,7 +215,7 @@ export default function LabAifFoundationModels() {
       chapterNum="3"
       difficulty="Intermediate"
       tags={["AWS", "AIF-C01", "Foundation Models", "RAG", "Prompt Engineering", "Bedrock"]}
-      terminalLabel="AWS CLI — AI Practitioner Environment"
+      terminalLabel="AWS CLI — ML Practitioner Environment"
       duration={50}
       intro={intro}
       steps={steps}

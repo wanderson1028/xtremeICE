@@ -5,38 +5,38 @@ import EmbeddingSpaceScatter from "@/components/labs/aws/EmbeddingSpaceScatter";
 
 const steps = [
   {
-    stepLabel: "Describe generative AI vs. traditional ML",
-    explanation: "Traditional ML learns patterns from labeled data to make predictions. Generative AI learns the distribution of data to create new content — text, images, audio. Review the distinction.",
+    stepLabel: "Describe generative ML vs. traditional ML",
+    explanation: "Traditional ML learns patterns from labeled data to make predictions. Generative ML learns the distribution of data to create new content — text, images, audio. Review the distinction.",
     whyItMatters: "AIF-C01 Domain 2 hinges on this distinction. A classifier predicts a label ('spam' or 'not spam'); a generative model produces novel output ('write a summary of this email'). Understanding which paradigm a task needs is foundational.",
     command: "aws bedrock describe-genai-paradigm --output table",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "------------------------------------------------------",
       "|  Paradigm       |  Goal              |  Example      |",
       "+-----------------+--------------------+---------------+",
       "|  Traditional ML |  Predict a label   |  Spam detect  |",
-      "|  Generative AI  |  Create new content|  Write summary|",
+      "|  Generative ML  |  Create new content|  Write summary|",
       "+-----------------+--------------------+---------------+",
     ],
     question: {
-      text: "A marketing team needs to auto-generate product descriptions from bullet points. Is this traditional ML or generative AI, and why?",
+      text: "A marketing team needs to auto-generate product descriptions from bullet points. Is this traditional ML or generative ML, and why?",
       options: [
         "Traditional ML — it classifies bullet points into categories",
-        "Generative AI — it creates new natural-language text that did not exist before, which is a generation task not a prediction task",
-        "Both equally — traditional ML writes the first draft and generative AI edits it",
+        "Generative ML — it creates new natural-language text that did not exist before, which is a generation task not a prediction task",
+        "Both equally — traditional ML writes the first draft and generative ML edits it",
         "Neither — product descriptions must be written by humans",
       ],
       correctIndex: 1,
-      explanation: "Generating new product descriptions from bullet points is a generative AI task — the model produces novel natural-language text that didn't exist before. Traditional ML predicts labels or numbers (classification/regression); it doesn't create new content. This predict-vs-create distinction is the core of AIF-C01 Domain 2.",
+      explanation: "Generating new product descriptions from bullet points is a generative ML task — the model produces novel natural-language text that didn't exist before. Traditional ML predicts labels or numbers (classification/regression); it doesn't create new content. This predict-vs-create distinction is the core of AIF-C01 Domain 2.",
     },
   },
   {
     stepLabel: "Review transformer architecture",
-    explanation: "Transformers are the neural network architecture behind modern generative AI. They use self-attention to let every token weigh the importance of every other token, enabling long-range context understanding.",
-    whyItMatters: "AIF-C01 doesn't require deep math, but it does test whether you know that transformers use self-attention, that they process tokens in parallel (not sequentially like RNNs), and that they underpin models like Claude, Titan, and GPT. This is the architectural foundation of generative AI.",
+    explanation: "Transformers are the neural network architecture behind modern generative ML. They use self-attention to let every token weigh the importance of every other token, enabling long-range context understanding.",
+    whyItMatters: "AIF-C01 doesn't require deep math, but it does test whether you know that transformers use self-attention, that they process tokens in parallel (not sequentially like RNNs), and that they underpin models like Claude, Titan, and GPT. This is the architectural foundation of generative ML.",
     visual: <TransformerBlockDiagram />,
     command: "aws bedrock describe-model-architecture --model-id anthropic.claude --output table",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "-------------------------------------------",
       "|  Component              |  Function      |",
@@ -66,7 +66,7 @@ const steps = [
     whyItMatters: "Embeddings are the bridge between language and math. AIF-C01 tests whether you understand that embeddings let you compute 'how similar' two texts are by measuring vector distance — which is how retrieval-augmented generation (RAG) finds relevant documents. This concept underpins Domain 3 as well.",
     visual: <EmbeddingSpaceScatter />,
     command: "aws bedrock invoke-model --model-id amazon.titan-embed-text --body '{\"inputText\":\"dog cat horse car truck\"}' --query 'embedding.dimensions' --output text",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "Titan Embedding Text v2 — 1536 dimensions",
       "",
@@ -96,7 +96,7 @@ const steps = [
     explanation: "Three ways to adapt a foundation model: pre-training (train from scratch on massive data), fine-tuning (adapt a pre-trained model to a specific task), and RAG (retrieve relevant context at inference time without changing the model).",
     whyItMatters: "AIF-C01 tests when to use each. Pre-training is expensive and rare (only big labs do it). Fine-tuning changes model weights for a specific task/style. RAG grounds the model in your data without retraining — cheaper, current, and citeable. Choosing between them is a core exam decision.",
     command: "aws bedrock list-adaptation-methods --output table",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "--------------------------------------------------------",
       "|  Method      |  Changes Weights? |  Use Case         |",
@@ -119,11 +119,11 @@ const steps = [
     },
   },
   {
-    stepLabel: "List AWS generative AI services",
-    explanation: "Amazon Bedrock is AWS's managed generative AI service, offering foundation models from multiple providers (Anthropic, Meta, Amazon, etc.) plus knowledge bases (RAG), guardrails, and agents. Review the Bedrock service family.",
+    stepLabel: "List AWS generative ML services",
+    explanation: "Amazon Bedrock is AWS's managed generative ML service, offering foundation models from multiple providers (Anthropic, Meta, Amazon, etc.) plus knowledge bases (RAG), guardrails, and agents. Review the Bedrock service family.",
     whyItMatters: "AIF-C01 maps use cases to Bedrock features. Knowing that Bedrock provides models, Knowledge Bases (managed RAG), Guardrails (safety filters), and Agents (multi-step tool use) is the core service-knowledge tested in Domain 2 and Domain 3.",
     command: "aws bedrock list-foundation-models --output table",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "-----------------------------------------------------",
       "|  Model ID                    |  Provider  |  Type  |",
@@ -136,7 +136,7 @@ const steps = [
       "+------------------------------+-----------+--------+",
     ],
     question: {
-      text: "A developer needs to add a knowledge base (RAG), safety guardrails, and multi-step tool use to a generative AI application. Which AWS service provides all three as managed features?",
+      text: "A developer needs to add a knowledge base (RAG), safety guardrails, and multi-step tool use to a generative ML application. Which AWS service provides all three as managed features?",
       options: [
         "Amazon SageMaker — it is the full ML platform",
         "Amazon Bedrock — it offers Knowledge Bases (RAG), Guardrails (safety), and Agents (tool use) as managed features",
@@ -144,7 +144,7 @@ const steps = [
         "Amazon Lex — it builds conversational chatbots with RAG built in",
       ],
       correctIndex: 1,
-      explanation: "Amazon Bedrock provides Knowledge Bases (managed RAG with vector storage), Guardrails (content filters, PII redaction, topic denial), and Agents (multi-step tool orchestration) as managed features on top of foundation models. SageMaker is for custom ML training, not managed generative AI features. Comprehend is for NLP analysis (entity recognition, sentiment), not generation. Lex builds conversational bots but doesn't provide the full Bedrock feature set.",
+      explanation: "Amazon Bedrock provides Knowledge Bases (managed RAG with vector storage), Guardrails (content filters, PII redaction, topic denial), and Agents (multi-step tool orchestration) as managed features on top of foundation models. SageMaker is for custom ML training, not managed generative ML features. Comprehend is for NLP analysis (entity recognition, sentiment), not generation. Lex builds conversational bots but doesn't provide the full Bedrock feature set.",
     },
   },
   {
@@ -152,7 +152,7 @@ const steps = [
     explanation: "Prompt engineering is the practice of crafting inputs to guide a model's output. Key techniques include being specific, providing examples (few-shot), specifying format, and setting the role/persona. Review the core patterns.",
     whyItMatters: "AIF-C01 treats prompt engineering as a first-class skill. The exam tests whether you know that clear, specific, well-structured prompts with examples produce better output than vague ones — and that prompt design is the cheapest way to improve model performance before resorting to fine-tuning.",
     command: "aws bedrock describe-prompt-patterns --output table",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "--------------------------------------------------",
       "|  Pattern       |  Technique      |  Effect       |",
@@ -178,10 +178,10 @@ const steps = [
 ];
 
 const intro = {
-  overview: "This lab covers AIF-C01 Domain 2: the fundamentals of generative AI. You'll explore the distinction between generative and traditional ML, transformer architecture and self-attention, embedding space and semantic similarity, model adaptation methods (pre-training, fine-tuning, RAG), Amazon Bedrock services, and prompt engineering patterns — all through the AWS CLI.",
-  niceCategory: "Fundamentals of Generative AI",
+  overview: "This lab covers AIF-C01 Domain 2: the fundamentals of generative ML. You'll explore the distinction between generative and traditional ML, transformer architecture and self-attention, embedding space and semantic similarity, model adaptation methods (pre-training, fine-tuning, RAG), Amazon Bedrock services, and prompt engineering patterns — all through the AWS CLI.",
+  niceCategory: "Fundamentals of Generative ML",
   objectives: [
-    "Distinguish generative AI from traditional ML by goal and output",
+    "Distinguish generative ML from traditional ML by goal and output",
     "Describe the transformer architecture and the role of self-attention",
     "Explain embeddings and how vector distance represents semantic similarity",
     "Compare pre-training, fine-tuning, and RAG as model adaptation methods",
@@ -197,24 +197,24 @@ const intro = {
     "Can apply few-shot and role-based prompting to improve output consistency",
   ],
   prerequisites: [
-    "Completion of the AI & ML Fundamentals lab (Domain 1) is recommended",
+    "Completion of the ML Fundamentals lab (Domain 1) is recommended",
     "Basic understanding of neural networks is helpful but not required",
   ],
   tools: [
     "AWS CLI — command-line interface for AWS service management",
-    "Amazon Bedrock — managed generative AI service",
+    "Amazon Bedrock — managed generative ML service",
     "Transformer concepts — self-attention, embeddings, prompt engineering",
   ],
 };
 
-export default function LabAifGenAiFundamentals() {
+export default function LabAifGenMlFundamentals() {
   return (
     <LabRunner
-      labTitle="Generative AI Fundamentals"
+      labTitle="Generative ML Fundamentals"
       chapterNum="2"
       difficulty="Beginner"
-      tags={["AWS", "AIF-C01", "Generative AI", "Transformers", "Embeddings", "Bedrock"]}
-      terminalLabel="AWS CLI — AI Practitioner Environment"
+      tags={["AWS", "AIF-C01", "Generative ML", "Transformers", "Embeddings", "Bedrock"]}
+      terminalLabel="AWS CLI — ML Practitioner Environment"
       duration={45}
       intro={intro}
       steps={steps}

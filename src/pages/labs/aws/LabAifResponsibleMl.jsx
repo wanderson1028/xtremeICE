@@ -1,15 +1,15 @@
 import React from "react";
 import LabRunner from "@/components/labs/LabRunner";
-import ResponsibleAiPillars from "@/components/labs/aws/ResponsibleAiPillars";
+import ResponsibleMlPillars from "@/components/labs/aws/ResponsibleMlPillars";
 
 const steps = [
   {
-    stepLabel: "Review responsible AI dimensions",
-    explanation: "Responsible AI spans six dimensions: fairness, explainability, transparency, privacy & security, safety, and governance. AWS guides builders to evaluate every AI system against all six.",
-    whyItMatters: "AIF-C01 Domain 4 is entirely about responsible AI. The exam tests whether you can identify which dimension a concern maps to — e.g., bias detection is fairness; model cards are transparency; human review is governance. Knowing the six dimensions is the framework for the whole domain.",
-    visual: <ResponsibleAiPillars />,
-    command: "aws bedrock describe-responsible-ai-dimensions --output table",
-    prompt: "aiadmin@cli:~$",
+    stepLabel: "Review responsible ML dimensions",
+    explanation: "Responsible ML spans six dimensions: fairness, explainability, transparency, privacy & security, safety, and governance. AWS guides builders to evaluate every ML system against all six.",
+    whyItMatters: "AIF-C01 Domain 4 is entirely about responsible ML. The exam tests whether you can identify which dimension a concern maps to — e.g., bias detection is fairness; model cards are transparency; human review is governance. Knowing the six dimensions is the framework for the whole domain.",
+    visual: <ResponsibleMlPillars />,
+    command: "aws bedrock describe-responsible-ml-dimensions --output table",
+    prompt: "mladmin@cli:~$",
     output: [
       "------------------------------------------------------",
       "|  Dimension          |  Focus                        |",
@@ -23,15 +23,15 @@ const steps = [
       "+---------------------+-------------------------------+",
     ],
     question: {
-      text: "A hiring-screening model systematically downgrades resumes from certain universities. Which responsible AI dimension does this violate, and what is the primary concern?",
+      text: "A hiring-screening model systematically downgrades resumes from certain universities. Which responsible ML dimension does this violate, and what is the primary concern?",
       options: [
         "Safety — the model might harm candidates' careers",
         "Fairness — the model produces inequitable outcomes across groups, indicating bias in training data or features",
         "Explainability — the model should explain why it downgraded the resumes",
-        "Transparency — the company should disclose that it uses AI screening",
+        "Transparency — the company should disclose that it uses ML screening",
       ],
       correctIndex: 1,
-      explanation: "Systematic downgrading based on university affiliation is a fairness violation — the model produces inequitable outcomes across demographic groups, indicating bias. While explainability (why was a resume downgraded) and transparency (disclosing AI use) are related concerns, the primary issue is biased, inequitable outcomes, which is the fairness dimension. Safety is about physical or significant harm, not hiring bias specifically. Fairness is the core dimension tested here.",
+      explanation: "Systematic downgrading based on university affiliation is a fairness violation — the model produces inequitable outcomes across demographic groups, indicating bias. While explainability (why was a resume downgraded) and transparency (disclosing ML use) are related concerns, the primary issue is biased, inequitable outcomes, which is the fairness dimension. Safety is about physical or significant harm, not hiring bias specifically. Fairness is the core dimension tested here.",
     },
   },
   {
@@ -39,7 +39,7 @@ const steps = [
     explanation: "Bias detection measures whether a model performs differently across demographic groups. Key metrics include demographic parity (equal selection rates) and disparate impact (ratio of selection rates between groups). Review the bias detection toolkit.",
     whyItMatters: "AIF-C01 tests bias metrics. A model with 90% accuracy overall might have 95% accuracy for one group and 70% for another — the aggregate hides the gap. Disparate impact (a legal standard) flags a model if the selection rate for a protected group is less than 80% of the majority group's rate (the 'four-fifths rule').",
     command: "aws sagemaker describe-model-bias --model-name hiring-model --query 'biasMetrics' --output table",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "----------------------------------------------",
       "|  Group    |  Selection Rate |  Accuracy    |",
@@ -65,9 +65,9 @@ const steps = [
   {
     stepLabel: "Explain model predictions",
     explanation: "Explainability techniques reveal why a model made a prediction. SHAP (SHapley Additive exPlanations) attributes a prediction to input features, showing which factors drove the outcome. Review explainability tools.",
-    whyItMatters: "AIF-C01 tests explainability as a responsible-AI requirement, especially for regulated domains (credit, healthcare, criminal justice). A model that denies a loan must be able to explain why — 'income too low' or 'high debt-to-income ratio' — not just return a denial. Black-box models without explainability can violate regulations like GDPR's 'right to explanation.'",
+    whyItMatters: "AIF-C01 tests explainability as a responsible-ML requirement, especially for regulated domains (credit, healthcare, criminal justice). A model that denies a loan must be able to explain why — 'income too low' or 'high debt-to-income ratio' — not just return a denial. Black-box models without explainability can violate regulations like GDPR's 'right to explanation.'",
     command: "aws sagemaker describe-model-explainability --model-name credit-model --query 'shapValues' --output table",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "-------------------------------------------",
       "|  Feature            |  SHAP Value        |",
@@ -80,7 +80,7 @@ const steps = [
       "|  Decision: DENIED (debt_to_income dominates)",
     ],
     question: {
-      text: "A credit-scoring model denies a loan but cannot explain why. Under regulations like GDPR, what right does the applicant have, and which responsible AI dimension applies?",
+      text: "A credit-scoring model denies a loan but cannot explain why. Under regulations like GDPR, what right does the applicant have, and which responsible ML dimension applies?",
       options: [
         "The applicant has no right to an explanation — models are proprietary",
         "The applicant has a 'right to explanation' — GDPR requires meaningful information about the logic of automated decisions; this is the explainability dimension",
@@ -88,7 +88,7 @@ const steps = [
         "Explainability is optional and only applies to healthcare models",
       ],
       correctIndex: 1,
-      explanation: "GDPR (Article 22) grants a right to meaningful information about the logic of automated decisions with legal/significant effects — including credit denials. The applicant is entitled to an explanation of why the model denied the loan. This is the explainability dimension of responsible AI. SHAP and similar techniques make this possible by attributing decisions to features ('denied due to high debt-to-income ratio'). Black-box models that can't explain are non-compliant in regulated domains. Explainability is a heavily tested AIF-C01 concept.",
+      explanation: "GDPR (Article 22) grants a right to meaningful information about the logic of automated decisions with legal/significant effects — including credit denials. The applicant is entitled to an explanation of why the model denied the loan. This is the explainability dimension of responsible ML. SHAP and similar techniques make this possible by attributing decisions to features ('denied due to high debt-to-income ratio'). Black-box models that can't explain are non-compliant in regulated domains. Explainability is a heavily tested AIF-C01 concept.",
     },
   },
   {
@@ -96,7 +96,7 @@ const steps = [
     explanation: "Human-in-the-loop (HITL) adds human review for high-stakes or low-confidence model decisions. Review when human oversight is required vs. when full automation is acceptable.",
     whyItMatters: "AIF-C01 tests when HITL is appropriate: high-stakes decisions (medical, legal, credit), low-confidence predictions (model uncertainty), and edge cases. Full automation is acceptable for low-risk, high-volume tasks (content recommendations). The governance dimension requires knowing where to place the human checkpoint.",
     command: "aws bedrock describe-human-review-config --output table",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "-------------------------------------------------------",
       "|  Decision Type    |  Confidence  |  Human Review?     |",
@@ -120,11 +120,11 @@ const steps = [
     },
   },
   {
-    stepLabel: "Review AWS responsible AI practices",
-    explanation: "AWS provides services and guidelines for responsible AI: SageMaker Clarify (bias detection), SageMaker Model Cards (documentation/transparency), Bedrock Guardrails (safety filters), and the AWS Responsible AI guidance. Review the toolkit.",
-    whyItMatters: "AIF-C01 maps responsible-AI concerns to specific AWS services. Knowing that Clarify = bias, Model Cards = transparency, Guardrails = safety, and that AWS has a published responsible AI policy is the service-level knowledge tested in Domain 4.",
-    command: "aws bedrock describe-responsible-ai-tools --output table",
-    prompt: "aiadmin@cli:~$",
+    stepLabel: "Review AWS responsible ML practices",
+    explanation: "AWS provides services and guidelines for responsible ML: SageMaker Clarify (bias detection), SageMaker Model Cards (documentation/transparency), Bedrock Guardrails (safety filters), and the AWS Responsible ML guidance. Review the toolkit.",
+    whyItMatters: "AIF-C01 maps responsible-ML concerns to specific AWS services. Knowing that Clarify = bias, Model Cards = transparency, Guardrails = safety, and that AWS has a published responsible ML policy is the service-level knowledge tested in Domain 4.",
+    command: "aws bedrock describe-responsible-ml-tools --output table",
+    prompt: "mladmin@cli:~$",
     output: [
       "---------------------------------------------------------",
       "|  Service                  |  Dimension Addressed       |",
@@ -144,15 +144,15 @@ const steps = [
         "SageMaker Model Monitor — it detects data drift in production",
       ],
       correctIndex: 1,
-      explanation: "SageMaker Model Cards are designed for transparency: they document a model's intended use, training data, evaluation results, and known limitations in a standardized, shareable format. This supports the transparency and governance dimensions of responsible AI. Clarify is for bias detection (fairness), Guardrails for content safety, Model Monitor for production drift. Matching the service to the responsible-AI dimension is a core AIF-C01 skill.",
+      explanation: "SageMaker Model Cards are designed for transparency: they document a model's intended use, training data, evaluation results, and known limitations in a standardized, shareable format. This supports the transparency and governance dimensions of responsible ML. Clarify is for bias detection (fairness), Guardrails for content safety, Model Monitor for production drift. Matching the service to the responsible-ML dimension is a core AIF-C01 skill.",
     },
   },
   {
     stepLabel: "Assess environmental impact",
-    explanation: "Training large models consumes significant energy and produces carbon emissions. Responsible AI includes considering environmental sustainability — choosing right-sized models, efficient training, and cloud regions with renewable energy.",
-    whyItMatters: "AIF-C01 includes environmental impact as a responsible-AI consideration. The exam tests whether you know that smaller models, efficient training, and choosing regions with green energy reduce the carbon footprint of AI — and that sustainability is a legitimate factor in model selection, not just cost and performance.",
+    explanation: "Training large models consumes significant energy and produces carbon emissions. Responsible ML includes considering environmental sustainability — choosing right-sized models, efficient training, and cloud regions with renewable energy.",
+    whyItMatters: "AIF-C01 includes environmental impact as a responsible-ML consideration. The exam tests whether you know that smaller models, efficient training, and choosing regions with green energy reduce the carbon footprint of ML — and that sustainability is a legitimate factor in model selection, not just cost and performance.",
     command: "aws bedrock describe-sustainability-metrics --output table",
-    prompt: "aiadmin@cli:~$",
+    prompt: "mladmin@cli:~$",
     output: [
       "-------------------------------------------------------",
       "|  Factor              |  Impact on Carbon Footprint   |",
@@ -164,7 +164,7 @@ const steps = [
       "+----------------------+-------------------------------+",
     ],
     question: {
-      text: "A company is choosing between a 70B-parameter model and a 8B-parameter model for a task where both meet the quality bar. From a responsible-AI sustainability perspective, which should they choose and why?",
+      text: "A company is choosing between a 70B-parameter model and a 8B-parameter model for a task where both meet the quality bar. From a responsible-ML sustainability perspective, which should they choose and why?",
       options: [
         "The 70B model — larger models are always more efficient because they need fewer training epochs",
         "The 8B model — it meets the quality bar while consuming significantly less energy for both training and inference, reducing the carbon footprint",
@@ -172,28 +172,28 @@ const steps = [
         "The 70B model — it will generate revenue that offsets its energy use",
       ],
       correctIndex: 1,
-      explanation: "If both models meet the quality bar, the 8B model is the responsible choice: it consumes far less energy for both training and inference, reducing carbon emissions and cost. Responsible AI includes sustainability — choosing the smallest model that meets the need is a best practice. The 70B model's extra capacity is wasted if the task doesn't require it. Model size directly affects energy consumption (larger = more compute per token). Sustainability is a tested AIF-C01 responsible-AI factor, alongside fairness, safety, and governance.",
+      explanation: "If both models meet the quality bar, the 8B model is the responsible choice: it consumes far less energy for both training and inference, reducing carbon emissions and cost. Responsible ML includes sustainability — choosing the smallest model that meets the need is a best practice. The 70B model's extra capacity is wasted if the task doesn't require it. Model size directly affects energy consumption (larger = more compute per token). Sustainability is a tested AIF-C01 responsible-ML factor, alongside fairness, safety, and governance.",
     },
   },
 ];
 
 const intro = {
-  overview: "This lab covers AIF-C01 Domain 4: guidelines for responsible AI. You'll explore the six dimensions of responsible AI (fairness, explainability, transparency, privacy & security, safety, governance), bias detection and the disparate impact rule, model explainability with SHAP, human-in-the-loop review, AWS responsible AI services (Clarify, Model Cards, Guardrails), and environmental sustainability — all through the AWS CLI.",
-  niceCategory: "Guidelines for Responsible AI",
+  overview: "This lab covers AIF-C01 Domain 4: guidelines for responsible ML. You'll explore the six dimensions of responsible ML (fairness, explainability, transparency, privacy & security, safety, governance), bias detection and the disparate impact rule, model explainability with SHAP, human-in-the-loop review, AWS responsible ML services (Clarify, Model Cards, Guardrails), and environmental sustainability — all through the AWS CLI.",
+  niceCategory: "Guidelines for Responsible ML",
   objectives: [
-    "Identify the six dimensions of responsible AI and map concerns to them",
+    "Identify the six dimensions of responsible ML and map concerns to them",
     "Detect bias using demographic parity and the disparate impact four-fifths rule",
     "Explain model predictions using SHAP values and the right to explanation",
     "Determine when human-in-the-loop review is required vs. full automation",
-    "Map AWS services (Clarify, Model Cards, Guardrails) to responsible AI dimensions",
+    "Map AWS services (Clarify, Model Cards, Guardrails) to responsible ML dimensions",
     "Assess environmental sustainability as a factor in model selection",
   ],
   outcomes: [
-    "Able to classify a responsible-AI concern into the correct dimension",
+    "Able to classify a responsible-ML concern into the correct dimension",
     "Can compute disparate impact and identify bias violations",
     "Understand why explainability is required in regulated domains",
     "Able to decide where to place human review checkpoints",
-    "Know which AWS service addresses each responsible-AI dimension",
+    "Know which AWS service addresses each responsible-ML dimension",
     "Can factor sustainability into model selection decisions",
   ],
   prerequisites: [
@@ -208,14 +208,14 @@ const intro = {
   ],
 };
 
-export default function LabAifResponsibleAi() {
+export default function LabAifResponsibleMl() {
   return (
     <LabRunner
-      labTitle="Guidelines for Responsible AI"
+      labTitle="Guidelines for Responsible ML"
       chapterNum="4"
       difficulty="Intermediate"
-      tags={["AWS", "AIF-C01", "Responsible AI", "Bias", "Explainability", "Governance"]}
-      terminalLabel="AWS CLI — AI Practitioner Environment"
+      tags={["AWS", "AIF-C01", "Responsible ML", "Bias", "Explainability", "Governance"]}
+      terminalLabel="AWS CLI — ML Practitioner Environment"
       duration={50}
       intro={intro}
       steps={steps}
