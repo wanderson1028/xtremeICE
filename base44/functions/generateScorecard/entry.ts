@@ -66,12 +66,12 @@ Generate a professional candidate scorecard and evaluation. Return JSON:
   "weaknesses": ["weakness1", "weakness2"],
   "missed_steps": ["missed step 1", "missed step 2"],
   "follow_up_questions": ["interview question 1", "question 2", "question 3", "question 4", "question 5"],
-  "ai_summary": "3-4 sentence professional evaluation summary of the candidate's performance",
+  "smart_summary": "3-4 sentence professional evaluation summary of the candidate's performance",
   "hiring_recommendation": "strong_hire|hire|borderline|no_hire",
   "recommendation_rationale": "2-3 sentences explaining the hiring recommendation"
 }`;
 
-    const aiResult = await base44.integrations.Core.InvokeLLM({
+    const smartResult = await base44.integrations.Core.InvokeLLM({
       prompt,
       model: 'claude_sonnet_4_6',
       response_json_schema: {
@@ -82,7 +82,7 @@ Generate a professional candidate scorecard and evaluation. Return JSON:
           weaknesses: { type: 'array', items: { type: 'string' } },
           missed_steps: { type: 'array', items: { type: 'string' } },
           follow_up_questions: { type: 'array', items: { type: 'string' } },
-          ai_summary: { type: 'string' },
+          smart_summary: { type: 'string' },
           hiring_recommendation: { type: 'string' },
           recommendation_rationale: { type: 'string' }
         }
@@ -96,14 +96,14 @@ Generate a professional candidate scorecard and evaluation. Return JSON:
       candidate_name: session.candidate_name,
       overall_score: overallScore,
       passed: overallScore >= (assessment.pass_threshold || 70),
-      hiring_recommendation: aiResult.hiring_recommendation || 'borderline',
-      category_scores: aiResult.category_scores || {},
+      hiring_recommendation: smartResult.hiring_recommendation || 'borderline',
+      category_scores: smartResult.category_scores || {},
       task_results: taskResults,
-      strengths: aiResult.strengths || [],
-      weaknesses: aiResult.weaknesses || [],
-      missed_steps: aiResult.missed_steps || [],
-      follow_up_questions: aiResult.follow_up_questions || [],
-      ai_summary: aiResult.ai_summary || '',
+      strengths: smartResult.strengths || [],
+      weaknesses: smartResult.weaknesses || [],
+      missed_steps: smartResult.missed_steps || [],
+      follow_up_questions: smartResult.follow_up_questions || [],
+      smart_summary: smartResult.smart_summary || '',
       generated_at: new Date().toISOString()
     });
 

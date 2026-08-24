@@ -109,7 +109,7 @@ const PHASES = [
     hint: "Open the **Report** tab to create a comprehensive incident report. Document IOCs, timeline, affected assets, and lessons learned.",
     tab: "report",
     tabLabel: "Open Report",
-    requirement: "Generate the AI incident report",
+    requirement: "Generate the incident report",
     check: ({ reportGenerated }) => reportGenerated,
   },
 ];

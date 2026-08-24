@@ -92,7 +92,7 @@ export default function UserGuide() {
             "On the right side of the Diagram Preview, find 'Request Changes' section",
             "Describe your desired change in natural language",
             "Example: 'Add a second firewall for redundancy' or 'Change routing to BGP'",
-            "Click 'Apply Changes' and wait for the AI to update your design",
+            "Click 'Apply Changes' and wait for the system to update your design",
             "The diagram will automatically regenerate with your changes",
             "Review the change history to track all modifications"
           ]
@@ -113,7 +113,7 @@ export default function UserGuide() {
       title: "Generating Configurations & Scripts",
       content: [
         {
-          heading: "Device Configurations (Non-AI)",
+          heading: "Device Configurations (Standard)",
           steps: [
             "Click 'Generate Xtreme I.C.E. Script' from the Diagram Preview",
             "Select 'Device Configs' platform",
@@ -327,7 +327,7 @@ export default function UserGuide() {
           steps: [
             "Start with a basic design, then use 'Request Changes' to iterate quickly",
             "Use Diagram Preview's detailed view for editing, Topology view for planning",
-            "Generate non-AI configs for quick baseline, then refine with Intelligent configs",
+            "Generate standard configs for quick baseline, then refine with Intelligent configs",
             "Run multiple scenarios to test your design's resilience",
             "Always validate your design before deployment",
             "Export diagrams at each major milestone for documentation"

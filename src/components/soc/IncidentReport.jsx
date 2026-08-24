@@ -139,7 +139,7 @@ Make it detailed, professional, and realistic. Use proper incident response term
           className="w-full flex items-center justify-center gap-2 py-3 bg-primary/20 hover:bg-primary/30 border border-primary/30 text-primary rounded-xl font-medium transition-all disabled:opacity-50"
         >
           {loading ? (
-            <><Loader2 className="h-4 w-4 animate-spin" /> Generating AI Incident Report...</>
+            <><Loader2 className="h-4 w-4 animate-spin" /> Generating Incident Report...</>
           ) : (
             <><FileText className="h-4 w-4" /> Generate Final Incident Report</>
           )}
@@ -159,7 +159,7 @@ Make it detailed, professional, and realistic. Use proper incident response term
           <div className="px-4 py-2.5 border-b border-border/20 flex items-center gap-2">
             <FileText className="h-4 w-4 text-primary" />
             <span className="text-xs font-semibold">Incident Report</span>
-            <span className="ml-auto text-[10px] text-muted-foreground">AI Generated</span>
+            <span className="ml-auto text-[10px] text-muted-foreground">Auto-Generated</span>
           </div>
           <div className="p-6 prose prose-sm prose-invert max-w-none">
             <ReactMarkdown

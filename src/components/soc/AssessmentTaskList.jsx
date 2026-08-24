@@ -135,7 +135,7 @@ export default function AssessmentTaskList({ actionsLog, tabsVisited, score, rep
       {!allDone && (
         <div className="mx-3 mb-3 flex items-start gap-2 text-[10px] text-muted-foreground bg-secondary/20 rounded-lg p-2.5">
           <AlertCircle className="h-3 w-3 shrink-0 mt-0.5 text-orange-400" />
-          <span>{isAssessment ? "Hints available but cost 25% of each task's points." : "Complete tasks independently. The AI assistant provides limited hints in assessment mode."}</span>
+          <span>{isAssessment ? "Hints available but cost 25% of each task's points." : "Complete tasks independently. The assistant provides limited hints in assessment mode."}</span>
         </div>
       )}
     </div>

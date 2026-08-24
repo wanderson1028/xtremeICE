@@ -89,7 +89,7 @@ Return a JSON object with these fields:
             </div>
             <h1 className="text-2xl font-bold text-white">Quick Build</h1>
           </div>
-          <p className="text-gray-400 text-sm">Describe the lab you want — AI will generate a complete template in seconds.</p>
+          <p className="text-gray-400 text-sm">Describe the lab you want — the system will generate a complete template in seconds.</p>
         </div>
 
         {/* Prompt */}

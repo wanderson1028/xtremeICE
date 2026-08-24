@@ -37,7 +37,7 @@ const steps = [
   {
     stepLabel: "Secure training data",
     explanation: "Training and fine-tuning data must be secured and governed. AWS services like Macie (PII discovery), Glue (data catalog), and KMS (encryption) help protect training datasets. Review the data security toolkit.",
-    whyItMatters: "AIF-C01 tests data security for AI. Training data often contains PII or sensitive information; if leaked through a model, it violates privacy regulations. Macie discovers PII in S3 buckets before they're used for training. KMS encrypts data at rest. Knowing these services maps to the privacy & security dimension of responsible AI.",
+    whyItMatters: "AIF-C01 tests data security for ML. Training data often contains PII or sensitive information; if leaked through a model, it violates privacy regulations. Macie discovers PII in S3 buckets before they're used for training. KMS encrypts data at rest. Knowing these services maps to the privacy & security dimension of responsible ML.",
     command: "aws macie2 describe-classification-jobs --output table && aws kms list-keys --query 'Keys[].KeyId' --output table",
     prompt: "mladmin@cli:~$",
     output: [
@@ -170,7 +170,7 @@ const steps = [
         "GDPR applies because all ML processing falls under EU law",
       ],
       correctIndex: 1,
-      explanation: "Processing PHI requires HIPAA compliance: the hospital must verify Bedrock is HIPAA-eligible (it is) and operate under a Business Associate Agreement (BAA) with AWS. HIPAA governs Protected Health Information. PCI-DSS is for cardholder data, not healthcare. GDPR applies to EU personal data, not all AI. 'Secure by default' doesn't satisfy HIPAA — you need the BAA and HIPAA-eligible service configuration. Mapping the compliance framework to the data type is a core AIF-C01 Domain 5 skill.",
+      explanation: "Processing PHI requires HIPAA compliance: the hospital must verify Bedrock is HIPAA-eligible (it is) and operate under a Business Associate Agreement (BAA) with AWS. HIPAA governs Protected Health Information. PCI-DSS is for cardholder data, not healthcare. GDPR applies to EU personal data, not all ML. 'Secure by default' doesn't satisfy HIPAA — you need the BAA and HIPAA-eligible service configuration. Mapping the compliance framework to the data type is a core AIF-C01 Domain 5 skill.",
     },
   },
 ];

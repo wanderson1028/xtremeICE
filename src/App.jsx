@@ -47,10 +47,10 @@ import LabAwsCloudConcepts from './pages/labs/aws/LabAwsCloudConcepts'
 import LabAwsSecurityCompliance from './pages/labs/aws/LabAwsSecurityCompliance'
 import LabAwsCloudServices from './pages/labs/aws/LabAwsCloudServices'
 import LabAwsBillingPricing from './pages/labs/aws/LabAwsBillingPricing'
-import LabAifAiMlFundamentals from './pages/labs/aws/LabAifAiMlFundamentals'
-import LabAifGenAiFundamentals from './pages/labs/aws/LabAifGenAiFundamentals'
+import LabAifMlFundamentals from './pages/labs/aws/LabAifMlFundamentals'
+import LabAifGenMlFundamentals from './pages/labs/aws/LabAifGenMlFundamentals'
 import LabAifFoundationModels from './pages/labs/aws/LabAifFoundationModels'
-import LabAifResponsibleAi from './pages/labs/aws/LabAifResponsibleAi'
+import LabAifResponsibleMl from './pages/labs/aws/LabAifResponsibleMl'
 import LabAifSecurityGovernance from './pages/labs/aws/LabAifSecurityGovernance'
 import LabSecPlusDomain1 from './pages/labs/comptia/LabSecPlusDomain1'
 import LabSecPlusDomain2 from './pages/labs/comptia/LabSecPlusDomain2'
@@ -204,10 +204,10 @@ const AuthenticatedApp = () => {
       <Route path="/labs/aws-security-compliance" element={<LayoutWrapper currentPageName="LabAwsSecurityCompliance"><LabAwsSecurityCompliance /></LayoutWrapper>} />
       <Route path="/labs/aws-cloud-services" element={<LayoutWrapper currentPageName="LabAwsCloudServices"><LabAwsCloudServices /></LayoutWrapper>} />
       <Route path="/labs/aws-billing-pricing" element={<LayoutWrapper currentPageName="LabAwsBillingPricing"><LabAwsBillingPricing /></LayoutWrapper>} />
-      <Route path="/labs/aif-ai-ml-fundamentals" element={<LayoutWrapper currentPageName="LabAifAiMlFundamentals"><LabAifAiMlFundamentals /></LayoutWrapper>} />
-      <Route path="/labs/aif-gen-ai-fundamentals" element={<LayoutWrapper currentPageName="LabAifGenAiFundamentals"><LabAifGenAiFundamentals /></LayoutWrapper>} />
+      <Route path="/labs/aif-ml-fundamentals" element={<LayoutWrapper currentPageName="LabAifMlFundamentals"><LabAifMlFundamentals /></LayoutWrapper>} />
+      <Route path="/labs/aif-gen-ml-fundamentals" element={<LayoutWrapper currentPageName="LabAifGenMlFundamentals"><LabAifGenMlFundamentals /></LayoutWrapper>} />
       <Route path="/labs/aif-foundation-models" element={<LayoutWrapper currentPageName="LabAifFoundationModels"><LabAifFoundationModels /></LayoutWrapper>} />
-      <Route path="/labs/aif-responsible-ai" element={<LayoutWrapper currentPageName="LabAifResponsibleAi"><LabAifResponsibleAi /></LayoutWrapper>} />
+      <Route path="/labs/aif-responsible-ml" element={<LayoutWrapper currentPageName="LabAifResponsibleMl"><LabAifResponsibleMl /></LayoutWrapper>} />
       <Route path="/labs/aif-security-governance" element={<LayoutWrapper currentPageName="LabAifSecurityGovernance"><LabAifSecurityGovernance /></LayoutWrapper>} />
       <Route path="/labs/secplus-domain1" element={<LayoutWrapper currentPageName="LabSecPlusDomain1"><LabSecPlusDomain1 /></LayoutWrapper>} />
       <Route path="/labs/secplus-domain2" element={<LayoutWrapper currentPageName="LabSecPlusDomain2"><LabSecPlusDomain2 /></LayoutWrapper>} />

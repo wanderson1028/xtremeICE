@@ -3,13 +3,13 @@ import { Send, Bot, User, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import ReactMarkdown from "react-markdown";
 
-export default function SOCAnalystAI({ scenario, alerts, logs, actionsLog, mode }) {
+export default function SOCAnalystAssistant({ scenario, alerts, logs, actionsLog, mode }) {
   const [messages, setMessages] = useState([
     {
       role: "assistant",
       content: mode === "assessment"
         ? `**Assessment Mode Active** 📋\n\nI'm monitoring your investigation. I won't give you the answers — that's your job.\n\nComplete the tasks in the checklist. Ask me specific questions if you're truly stuck, but expect Socratic guidance, not direct answers.\n\n**Scenario:** ${scenario?.name || "Unknown"}`
-        : `**Incoming — SOC Analyst AI** 🛡️\n\nThe alert just came in. I've been briefed on the scenario. Let's work this together.\n\n**Scenario:** ${scenario?.name || "Unknown"}\n\n**My recommendation:** Start by opening the **SIEM** tab — review the logs, identify the source and timeline of the attack. Then we'll move to EDR to scope the damage.\n\nAsk me anything as you go — MITRE mappings, next steps, IOC analysis, ticket drafts. I'm your partner on this one.`
+        : `**Incoming — SOC Analyst Assistant** 🛡️\n\nThe alert just came in. I've been briefed on the scenario. Let's work this together.\n\n**Scenario:** ${scenario?.name || "Unknown"}\n\n**My recommendation:** Start by opening the **SIEM** tab — review the logs, identify the source and timeline of the attack. Then we'll move to EDR to scope the damage.\n\nAsk me anything as you go — MITRE mappings, next steps, IOC analysis, ticket drafts. I'm your partner on this one.`
     }
   ]);
   const [input, setInput] = useState("");
@@ -26,7 +26,7 @@ export default function SOCAnalystAI({ scenario, alerts, logs, actionsLog, mode 
     const logCount = logs.length;
     const isAssessment = mode === "assessment";
 
-    return `You are a Tier 1/2 SOC Analyst AI assistant embedded in a cybersecurity training simulation platform.
+    return `You are a Tier 1/2 SOC Analyst Assistant embedded in a cybersecurity training simulation platform.
 
 CURRENT SCENARIO: ${scenario?.name || "Unknown"}
 SCENARIO DESCRIPTION: ${scenario?.description || ""}
@@ -70,13 +70,13 @@ ${conversationHistory}
 
 User: ${userMsg}
 
-Respond as the SOC Analyst AI. Be helpful, precise, and appropriately directive based on the mode.`;
+Respond as the SOC Analyst Assistant. Be helpful, precise, and appropriately directive based on the mode.`;
 
     try {
       const response = await base44.integrations.Core.InvokeLLM({ prompt: fullPrompt });
       setMessages(prev => [...prev, { role: "assistant", content: typeof response === "string" ? response : response?.text || "I could not generate a response." }]);
     } catch (e) {
-      setMessages(prev => [...prev, { role: "assistant", content: "⚠️ AI connection error. Please try again." }]);
+      setMessages(prev => [...prev, { role: "assistant", content: "⚠️ Connection error. Please try again." }]);
     } finally {
       setLoading(false);
     }
@@ -96,7 +96,7 @@ Respond as the SOC Analyst AI. Be helpful, precise, and appropriately directive 
       {/* Mode badge */}
       <div className={`flex items-center gap-2 px-4 py-2 border-b border-border/20 ${mode === "assessment" ? "bg-orange-500/5" : "bg-primary/5"}`}>
         <Bot className={`h-4 w-4 ${mode === "assessment" ? "text-orange-400" : "text-primary"}`} />
-        <span className="text-xs font-semibold">SOC Analyst AI</span>
+        <span className="text-xs font-semibold">SOC Analyst Assistant</span>
         <span className={`ml-auto text-[10px] font-mono px-2 py-0.5 rounded border ${mode === "assessment" ? "text-orange-400 border-orange-500/30 bg-orange-500/10" : "text-primary border-primary/30 bg-primary/10"}`}>
           {mode === "assessment" ? "Assessment Mode" : "Training Mode"}
         </span>

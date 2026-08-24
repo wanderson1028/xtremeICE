@@ -155,7 +155,7 @@ export default function StepTeamDirections({ data, onChange }) {
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-bold text-foreground mb-1">Team Directions</h2>
-        <p className="text-sm text-muted-foreground">Review and edit AI-generated directions. Use "AI Generate" per-team or edit manually. Markdown is supported.</p>
+        <p className="text-sm text-muted-foreground">Review and edit auto-generated directions. Use "Auto-Generate" per-team or edit manually. Markdown is supported.</p>
       </div>
 
       {/* Rules of Engagement */}

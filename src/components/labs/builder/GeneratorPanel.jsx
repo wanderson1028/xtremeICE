@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Zap, RefreshCw, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 
-export default function AIGeneratorPanel({ updateForm }) {
+export default function GeneratorPanel({ updateForm }) {
   const [prompt, setPrompt] = useState("");
   const [generating, setGenerating] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -106,8 +106,8 @@ Return a JSON object with these fields:
             <Sparkles className="h-4 w-4 text-red-400" />
           </div>
           <div className="text-left">
-            <h3 className="text-sm font-semibold text-white">AI Lab Generator</h3>
-            <p className="text-xs text-gray-500">Describe your lab goals — AI populates all fields</p>
+            <h3 className="text-sm font-semibold text-white">Lab Generator</h3>
+            <p className="text-xs text-gray-500">Describe your lab goals — auto-populates all fields</p>
           </div>
         </div>
         {expanded
@@ -132,7 +132,7 @@ Return a JSON object with these fields:
             {generating ? (
               <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Generating...</>
             ) : (
-              <><Zap className="h-4 w-4 mr-2" /> Populate All Fields with AI</>
+              <><Zap className="h-4 w-4 mr-2" /> Populate All Fields</>
             )}
           </Button>
           <p className="text-xs text-gray-600 text-center">

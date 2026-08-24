@@ -32,15 +32,15 @@
     "feature_cyber_range": "Cyberzakres Czerwoni vs. Niebiescy",
     "feature_cyber_range_desc": "zdarzenia mapowane na MITRE ATT&CK z modelowaniem wpływu finansowego",
     "feature_soc_training": "Ćwiczenia Reagowania SOC",
-    "feature_soc_training_desc": "triażowanie alertów SIEM, badanie EDR i generowanie raportów incydentów przez AI",
+    "feature_soc_training_desc": "triażowanie alertów SIEM, badanie EDR i generowanie raportów incydentów automatycznie",
     "feature_soc_assessments": "Oceny SOC",
     "feature_soc_assessments_desc": "benchmarking analityków ze śledzeniem zadań i penalizacjami za podpowiedzi",
     "feature_labs": "Scenariusze Laboratoryjne",
     "feature_labs_desc": "laboratoria zgodne z ramą NICE z rozgałęzionymi zadaniami i śledzeniem postępów",
     "feature_course_lab_builder": "Kreator Kursów Laboratoryjnych",
-    "feature_course_lab_builder_desc": "Twórz i zarządzaj kursami laboratoryjnymi zgodnymi z NICE z pomocą AI",
+    "feature_course_lab_builder_desc": "Twórz i zarządzaj kursami laboratoryjnymi zgodnymi z NICE z pomocą asystenta",
     "feature_candidate_assessments": "Oceny Kandydatów",
-    "feature_candidate_assessments_desc": "Generuj praktyczne oceny techniczne dla rekrutacji, zapraszaj kandydatów e-mailem i otrzymuj raporty oceny punktowane przez AI z rekomendacjami zatrudnienia.",
+    "feature_candidate_assessments_desc": "Generuj praktyczne oceny techniczne dla rekrutacji, zapraszaj kandydatów e-mailem i otrzymuj raporty oceny punktowane automatycznie z rekomendacjami zatrudnienia.",
     "platformFeatures": "Funkcje Platformy",
     "getStarted": "Rozpocznij",
     "enter": "Wejdź do Środowiska",
@@ -75,7 +75,7 @@
       "lab_scenarios_name": "Scenariusze Laboratoryjne",
       "lab_scenarios_desc": "Kierowane, praktyczne laboratoria cyberbezpieczeństwa zgodne z ramą NICE. Każdy scenariusz ma rozgałęzione ścieżki zadań.",
       "course_lab_builder_name": "Kreator Kursów Laboratoryjnych",
-      "course_lab_builder_desc": "Twórz i publikuj pełne kursy szkoleniowe dla cyberzakresu z pomocą AI."
+      "course_lab_builder_desc": "Twórz i publikuj pełne kursy szkoleniowe dla cyberzakresu z pomocą asystenta."
     }
   },
   "dashboard": {
@@ -121,7 +121,7 @@
     "cyberRange": "Cyberzakres",
     "cyberRangeDesc": "Przeprowadzaj ćwiczenia na żywo Czerwoni vs. Niebiescy mapowane na MITRE ATT&CK.",
     "courseLabBuilder": "Kreator Kursów",
-    "courseLabBuilderDesc": "Buduj kursy laboratoryjne zgodne z ramą NICE z pomocą AI."
+    "courseLabBuilderDesc": "Buduj kursy laboratoryjne zgodne z ramą NICE z pomocą asystenta."
   },
   "leaderboard": {
     "title": "Tabela Wyników",
@@ -283,18 +283,18 @@
   },
   "scenarioSetup": {
     "title": "Zdefiniuj Swój Scenariusz",
-    "subtitle": "Napisz własny opis scenariusza lub wybierz gotowy preset wygenerowany przez AI.",
+    "subtitle": "Napisz własny opis scenariusza lub wybierz gotowy preset wygenerowany automatycznie.",
     "eventTitle": "Tytuł Wydarzenia",
     "eventTitlePlaceholder": "np. Operacja Zaciemnienie — Ćwiczenie Naruszenia Korporacyjnego",
     "scenarioPrompt": "Prompt / Opis Scenariusza",
     "scenarioPromptPlaceholder": "Opisz szczegółowo scenariusz cybernetyczny. Jaki jest cel atakującego? Co muszą chronić obrońcy?",
-    "aiPresets": "Presety Generowane przez AI",
+    "smartPresets": "Presety Automatyczne",
     "difficulty": "Poziom trudności",
     "duration": "Czas trwania (min)",
     "redTeamSize": "Rozmiar Czerwonego Zespołu",
     "blueTeamSize": "Rozmiar Niebieskiego Zespołu",
     "generating": "Generowanie Pełnego Scenariusza…",
-    "generate": "Generuj Pełne Wydarzenie z AI"
+    "generate": "Generuj Pełne Wydarzenie "
   },
   "common": {
     "back": "Wstecz",

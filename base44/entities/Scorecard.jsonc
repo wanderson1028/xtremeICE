@@ -68,7 +68,7 @@
     "evaluator_notes": {
       "type": "string"
     },
-    "ai_summary": {
+    "smart_summary": {
       "type": "string"
     },
     "generated_at": {

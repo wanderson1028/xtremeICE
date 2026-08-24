@@ -322,12 +322,12 @@ export default function InteractiveVirtualLabs() {
                   </div>
                 )}
 
-                {/* AIF-C01 — AWS AI Practitioner */}
+                {/* AIF-C01 — AWS ML Practitioner */}
                 {aifLabs.length > 0 && (
                   <div>
                     <div className="flex items-center gap-2 mb-3 pl-8">
                       <span className="h-1 w-1 rounded-full bg-cyan-400" />
-                      <span className="text-xs font-mono text-cyan-300 font-semibold">AWS AI Practitioner (AIF-C01)</span>
+                      <span className="text-xs font-mono text-cyan-300 font-semibold">AWS ML Practitioner (AIF-C01)</span>
                       <span className="text-xs text-gray-500">({aifLabs.length})</span>
                     </div>
                     <div className="grid gap-5 sm:grid-cols-2">

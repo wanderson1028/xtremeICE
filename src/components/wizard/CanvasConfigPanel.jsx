@@ -46,15 +46,15 @@ const inp = "w-full bg-secondary border border-border rounded px-2 py-1.5 text-x
 const DHCP_CAPABLE = ["router", "switch", "server", "firewall"];
 
 export default function CanvasConfigPanel({ nodes, globalConfig, onGlobalChange, selectedNode, onNodeConfigChange, onCollapse }) {
-  const [aiPrompt, setAiPrompt] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiResult, setAiResult] = useState(null);
+  const [smartPrompt, setSmartPrompt] = useState("");
+  const [smartLoading, setSmartLoading] = useState(false);
+  const [smartResult, setSmartResult] = useState(null);
 
-  const handleAiGenerate = async () => {
+  const handleSmartGenerate = async () => {
     if (!selectedNode) return;
-    const prompt = aiPrompt.trim() || `Generate configuration for a ${selectedNode.vendor || selectedNode.label} (${selectedNode.type}) in a ${globalConfig.routing_protocol || "OSPF"} network using ${globalConfig.lan_scheme || "192.168.1.0/24"} LAN scheme.`;
-    setAiLoading(true);
-    setAiResult(null);
+    const prompt = smartPrompt.trim() || `Generate configuration for a ${selectedNode.vendor || selectedNode.label} (${selectedNode.type}) in a ${globalConfig.routing_protocol || "OSPF"} network using ${globalConfig.lan_scheme || "192.168.1.0/24"} LAN scheme.`;
+    setSmartLoading(true);
+    setSmartResult(null);
     try {
       const result = await base44.integrations.Core.InvokeLLM({
         prompt: `You are a network engineer. Generate a concise Cisco IOS (or vendor-appropriate) configuration snippet for this device:
@@ -68,12 +68,12 @@ User request: ${prompt}
 
 Return: hostname config snippet + interface config + relevant protocol config. Be concise, CLI-ready.`,
       });
-      setAiResult(typeof result === "string" ? result : JSON.stringify(result));
+      setSmartResult(typeof result === "string" ? result : JSON.stringify(result));
       toast.success("Config generated!");
     } catch {
-      toast.error("AI generation failed.");
+      toast.error("Generation failed.");
     }
-    setAiLoading(false);
+    setSmartLoading(false);
   };
 
   const suggestions = selectedNode ? (DEVICE_SUGGESTIONS[selectedNode.type] || []) : [];
@@ -200,30 +200,30 @@ Return: hostname config snippet + interface config + relevant protocol config. B
               </Field>
             </Section>
 
-            <Section title="AI Config Generator">
+            <Section title="Smart Config Generator">
               <p className="text-[10px] text-muted-foreground mb-1">Quick suggestions for {selectedNode.type}:</p>
               <div className="space-y-1 mb-2">
                 {suggestions.slice(0, 4).map(s => (
-                  <button key={s} onClick={() => setAiPrompt(s)}
-                    className={`w-full text-left text-[10px] px-2 py-1.5 rounded border transition-all ${aiPrompt === s ? "bg-primary/10 border-primary/40 text-primary" : "bg-secondary border-border text-muted-foreground hover:text-foreground hover:border-primary/30"}`}>
+                  <button key={s} onClick={() => setSmartPrompt(s)}
+                    className={`w-full text-left text-[10px] px-2 py-1.5 rounded border transition-all ${smartPrompt === s ? "bg-primary/10 border-primary/40 text-primary" : "bg-secondary border-border text-muted-foreground hover:text-foreground hover:border-primary/30"}`}>
                     {s}
                   </button>
                 ))}
               </div>
               <textarea
-                value={aiPrompt}
-                onChange={e => setAiPrompt(e.target.value)}
+                value={smartPrompt}
+                onChange={e => setSmartPrompt(e.target.value)}
                 rows={2}
                 placeholder="Describe what to configure…"
                 className={inp + " resize-none"}
               />
-              <Button size="sm" onClick={handleAiGenerate} disabled={aiLoading} className="w-full gap-1.5 mt-1 text-xs bg-primary text-primary-foreground hover:bg-primary/90">
-                {aiLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                {aiLoading ? "Generating…" : "Generate Config"}
+              <Button size="sm" onClick={handleSmartGenerate} disabled={smartLoading} className="w-full gap-1.5 mt-1 text-xs bg-primary text-primary-foreground hover:bg-primary/90">
+                {smartLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                {smartLoading ? "Generating…" : "Generate Config"}
               </Button>
-              {aiResult && (
+              {smartResult && (
                 <pre className="mt-2 bg-[#0a0e1a] text-green-400 font-mono text-[10px] rounded-lg p-2 overflow-x-auto whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed">
-                  {aiResult}
+                  {smartResult}
                 </pre>
               )}
             </Section>

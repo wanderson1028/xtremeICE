@@ -13,7 +13,7 @@ import SIEMViewer from "@/components/soc/SIEMViewer";
 import EDRModule from "@/components/soc/EDRModule";
 import RMMModule from "@/components/soc/RMMModule";
 import RemediationPanel from "@/components/soc/RemediationPanel";
-import SOCAnalystAI from "@/components/soc/SOCAnalystAI";
+import SOCAnalystAssistant from "@/components/soc/SOCAnalystAssistant";
 import IncidentReport from "@/components/soc/IncidentReport";
 import ScenarioBriefing from "@/components/soc/ScenarioBriefing";
 import TrainingNarrative from "@/components/soc/TrainingNarrative";
@@ -185,7 +185,7 @@ export default function SOCTraining() {
             <div className="p-2.5 bg-green-500/20 rounded-xl"><BookOpen className="h-6 w-6 text-green-400" /></div>
             <div>
               <h1 className="text-2xl font-bold text-white">SOC Response Drills</h1>
-              <p className="text-sm text-gray-400">Beginner-level incident response scenarios with full AI guidance</p>
+              <p className="text-sm text-gray-400">Beginner-level incident response scenarios with full guided assistance</p>
             </div>
           </div>
 
@@ -266,7 +266,7 @@ export default function SOCTraining() {
             <span className="text-white">{selectedNetwork?.name}</span>
           </div>
           <h2 className="text-xl font-bold text-white mb-1">Choose a Beginner Scenario</h2>
-          <p className="text-sm text-gray-400 mb-6">Each scenario includes AI-guided step-by-step coaching and narrative walkthroughs.</p>
+          <p className="text-sm text-gray-400 mb-6">Each scenario includes Guided step-by-step coaching and narrative walkthroughs.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {BEGINNER_SCENARIOS.map(scenario => (
               <ScenarioCard key={scenario.id} scenario={scenario} onLaunch={(s) => { setSelectedScenario(s); setPhase("briefing"); }} />
@@ -352,7 +352,7 @@ export default function SOCTraining() {
             <TrainingNarrative scenario={selectedScenario} actionsLog={actionsLog} alerts={alerts} reportGenerated={reportGenerated} activeTab={activeTab} onNavigate={handleTabChange} tabsVisited={tabsVisited} />
           </div>
           <div className="flex-1 overflow-hidden flex flex-col">
-            <SOCAnalystAI scenario={selectedScenario} alerts={alerts} logs={logs} actionsLog={actionsLog} mode="training" />
+            <SOCAnalystAssistant scenario={selectedScenario} alerts={alerts} logs={logs} actionsLog={actionsLog} mode="training" />
           </div>
         </div>
       </div>

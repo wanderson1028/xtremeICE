@@ -207,7 +207,7 @@ export default function ScenarioCatalogPDF({ events }) {
       }),
     ]);
 
-    // Enrich each scenario: LLM expanded overview + learning objectives + AI image
+    // Enrich each scenario: LLM expanded overview + learning objectives + generated image
     // Process in batches of 4 to avoid rate limits
     const allScenarios = DIFFICULTY_ORDER.flatMap(d => grouped[d] || []);
     const enriched = {};
@@ -537,7 +537,7 @@ export default function ScenarioCatalogPDF({ events }) {
 
         let y = 64 + (titleLines.length - 1) * 20;
 
-        // ── AI Scenario Graphic ───────────────────────────────────────────────
+        // ── Scenario Graphic ───────────────────────────────────────────────
         if (scenarioImg) {
           try {
             const imgH = 110;

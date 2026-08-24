@@ -74,9 +74,9 @@ export default function ScorecardView() {
             </div>
           </div>
 
-          {scorecard.ai_summary && (
+          {scorecard.smart_summary && (
             <div className="mt-5 p-4 bg-black/30 rounded-xl border border-gray-700/50">
-              <p className="text-gray-300 text-sm leading-relaxed">{scorecard.ai_summary}</p>
+              <p className="text-gray-300 text-sm leading-relaxed">{scorecard.smart_summary}</p>
             </div>
           )}
         </div>

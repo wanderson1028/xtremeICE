@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 
-const AI_PRESETS = [
+const SMART_PRESETS = [
   { id: "apt_intrusion", label: "APT Intrusion Campaign", description: "Your organization's threat intelligence feed just flagged a known nation-state actor targeting your industry. You have reason to believe a spear-phishing email landed in an executive's inbox three days ago — and no one noticed. The clock is ticking." },
   { id: "ransomware", label: "Ransomware Outbreak", description: "It's 3:12 AM and your on-call engineer is getting flooded with alerts. Workstations across the finance floor are going dark. A ransom note has appeared on the shared drive. Your company's data is being encrypted — right now." },
   { id: "web_app_attack", label: "Web Application Attack", description: "Your customer-facing web portal is under attack. An adversary has discovered a SQL injection vulnerability and is escalating privileges on your DMZ web server. Customer PII may already be at risk." },
@@ -240,13 +240,13 @@ For the simulated network topology: recommend the BEST Cyber Range network desig
         />
       </div>
 
-      {/* AI Presets */}
+      {/* Smart Presets */}
       <div>
         <p className="text-xs font-semibold text-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-          <Sparkles className="h-3.5 w-3.5 text-primary" /> {t("scenarioSetup.aiPresets")}
+          <Sparkles className="h-3.5 w-3.5 text-primary" /> {t("scenarioSetup.smartPresets")}
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {AI_PRESETS.map(p => (
+          {SMART_PRESETS.map(p => (
             <button
               key={p.id}
               onClick={() => {

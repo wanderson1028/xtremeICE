@@ -198,7 +198,7 @@ export default function CandidateAssessments() {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-gray-100 tracking-tight">Candidate Assessments</h1>
-            <p className="text-gray-400 text-sm mt-0.5">AI-powered hands-on technical evaluation platform</p>
+            <p className="text-gray-400 text-sm mt-0.5">Smart hands-on technical evaluation platform</p>
           </div>
           <Link
             to="/create-assessment"
@@ -426,7 +426,7 @@ export default function CandidateAssessments() {
                   <div className="flex items-center gap-3 mb-1 flex-wrap">
                     <h3 className="text-gray-200 font-normal truncate">{a.position_title}</h3>
                     <AssessmentStatusPill assessment={a} invitations={invitations} />
-                    {a.generated && <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-900/30 border border-purple-700/40 text-purple-400">AI Generated</span>}
+                    {a.generated && <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-900/30 border border-purple-700/40 text-purple-400">Auto-Generated</span>}
                     {aInvites.length > 0 && (
                       <div className="flex items-center gap-1.5 flex-wrap">
                         {aInvites.map(inv => (

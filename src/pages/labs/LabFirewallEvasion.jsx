@@ -183,7 +183,7 @@ const steps = [
       options: [
         "Behavioral detection requires no rules and automatically blocks all suspicious traffic",
         "Signature-based detection fails against new or modified attack tools that change their byte patterns; behavioral detection catches anomalies based on statistical properties (frequency, volume, length, entropy) that remain consistent regardless of which specific tool generated the traffic",
-        "Behavioral detection uses AI and is always more accurate than human-written signatures",
+        "Behavioral detection uses behavioral analysis and is always more accurate than human-written signatures",
         "Signature detection requires an active internet connection to download rule updates",
       ],
       correctIndex: 1,

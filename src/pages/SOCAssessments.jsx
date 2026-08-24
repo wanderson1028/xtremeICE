@@ -13,7 +13,7 @@ import SIEMViewer from "@/components/soc/SIEMViewer";
 import EDRModule from "@/components/soc/EDRModule";
 import RMMModule from "@/components/soc/RMMModule";
 import RemediationPanel from "@/components/soc/RemediationPanel";
-import SOCAnalystAI from "@/components/soc/SOCAnalystAI";
+import SOCAnalystAssistant from "@/components/soc/SOCAnalystAssistant";
 import IncidentReport from "@/components/soc/IncidentReport";
 import ScenarioBriefing from "@/components/soc/ScenarioBriefing";
 import TrainingNarrative from "@/components/soc/TrainingNarrative";
@@ -72,7 +72,7 @@ function ModePicker({ onSelect }) {
         className="p-6 bg-primary/10 border border-primary/30 rounded-2xl hover:bg-primary/20 transition-all text-left group">
         <div className="text-2xl mb-2">🎓</div>
         <div className="font-semibold">Training Mode</div>
-        <div className="text-sm text-muted-foreground mt-1">AI analyst guides you step by step. Hints available. Learn while doing.</div>
+        <div className="text-sm text-muted-foreground mt-1">The analyst assistant guides you step by step. Hints available. Learn while doing.</div>
       </button>
       <button onClick={() => onSelect("assessment")}
         className="p-6 bg-orange-500/10 border border-orange-500/30 rounded-2xl hover:bg-orange-500/20 transition-all text-left group">
@@ -450,7 +450,7 @@ export default function SOCAssessments() {
                 <TrainingNarrative scenario={selectedScenario} actionsLog={actionsLog} alerts={alerts} reportGenerated={reportGenerated} activeTab={activeTab} onNavigate={handleTabChange} tabsVisited={tabsVisited} />
               </div>
               <div className="flex-1 overflow-hidden flex flex-col">
-                <SOCAnalystAI scenario={selectedScenario} alerts={alerts} logs={logs} actionsLog={actionsLog} mode={mode} />
+                <SOCAnalystAssistant scenario={selectedScenario} alerts={alerts} logs={logs} actionsLog={actionsLog} mode={mode} />
               </div>
             </div>
           ) : (
@@ -459,7 +459,7 @@ export default function SOCAssessments() {
                 <AssessmentTaskList actionsLog={actionsLog} tabsVisited={tabsVisited} score={score} reportGenerated={reportGenerated} mode={mode} onHintUsed={handleHintUsed} />
               </div>
               <div className="flex-1 overflow-hidden flex flex-col">
-                <SOCAnalystAI scenario={selectedScenario} alerts={alerts} logs={logs} actionsLog={actionsLog} mode={mode} />
+                <SOCAnalystAssistant scenario={selectedScenario} alerts={alerts} logs={logs} actionsLog={actionsLog} mode={mode} />
               </div>
             </div>
           )}

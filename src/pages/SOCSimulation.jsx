@@ -13,7 +13,7 @@ import SIEMViewer from "@/components/soc/SIEMViewer";
 import EDRModule from "@/components/soc/EDRModule";
 import RMMModule from "@/components/soc/RMMModule";
 import RemediationPanel from "@/components/soc/RemediationPanel";
-import SOCAnalystAI from "@/components/soc/SOCAnalystAI";
+import SOCAnalystAssistant from "@/components/soc/SOCAnalystAssistant";
 import IncidentReport from "@/components/soc/IncidentReport";
 import ScenarioBriefing from "@/components/soc/ScenarioBriefing";
 import TrainingNarrative from "@/components/soc/TrainingNarrative";
@@ -76,7 +76,7 @@ function ModePicker({ onSelect }) {
       >
         <div className="text-2xl mb-2">🎓</div>
         <div className="font-semibold">Training Mode</div>
-        <div className="text-sm text-muted-foreground mt-1">AI analyst guides you step by step. Hints available. Learn while doing.</div>
+        <div className="text-sm text-muted-foreground mt-1">The analyst assistant guides you step by step. Hints available. Learn while doing.</div>
       </button>
       <button
         onClick={() => onSelect("assessment")}
@@ -514,7 +514,7 @@ export default function SOCSimulation() {
         </div>
       )}
 
-      {/* Content + AI Sidebar */}
+      {/* Content + Assistant Sidebar */}
       <div className="flex-1 flex overflow-hidden">
         {/* Main content */}
         <div className="flex-1 overflow-hidden">
@@ -598,9 +598,9 @@ export default function SOCSimulation() {
                   tabsVisited={tabsVisited}
                 />
               </div>
-              {/* AI Analyst bottom half */}
+              {/* Analyst Assistant bottom half */}
               <div className="flex-1 overflow-hidden flex flex-col">
-                <SOCAnalystAI
+                <SOCAnalystAssistant
                   scenario={selectedScenario}
                   alerts={alerts}
                   logs={logs}
@@ -622,9 +622,9 @@ export default function SOCSimulation() {
                     onHintUsed={handleHintUsed}
                   />
               </div>
-              {/* AI Analyst (limited guidance) bottom */}
+              {/* Analyst Assistant (limited guidance) bottom */}
               <div className="flex-1 overflow-hidden flex flex-col">
-                <SOCAnalystAI
+                <SOCAnalystAssistant
                   scenario={selectedScenario}
                   alerts={alerts}
                   logs={logs}

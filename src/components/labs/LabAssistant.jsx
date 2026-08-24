@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Bot, Send, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
-export default function LabAIBot({ labTitle, currentStepLabel }) {
+export default function LabAssistant({ labTitle, currentStepLabel }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
     { role: "assistant", text: "Hi! Ask me to explain any term, command, or concept from this lab." }
@@ -51,7 +51,7 @@ Answer the following question clearly and concisely in 2-4 sentences, focused on
           <div className="h-5 w-5 rounded-full bg-red-900/60 border border-red-600/50 flex items-center justify-center">
             <Bot className="h-3 w-3 text-red-400" />
           </div>
-          <span className="text-[11px] font-mono text-gray-300 font-semibold">AI Assistant</span>
+          <span className="text-[11px] font-mono text-gray-300 font-semibold">Virtual Assistant</span>
         </div>
         {open ? <ChevronDown className="h-3 w-3 text-gray-500" /> : <ChevronUp className="h-3 w-3 text-gray-500" />}
       </button>

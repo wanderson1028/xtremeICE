@@ -25,7 +25,7 @@ import MetricsComparison from "@/components/simulation/MetricsComparison";
 import LatencyHopGraph from "@/components/diagram/LatencyHopGraph";
 import BottleneckAnalysis from "@/components/simulation/BottleneckAnalysis";
 import ConfigValidation from "@/components/simulation/ConfigValidation";
-import AIExploitSimulator from "@/components/simulation/AIExploitSimulator";
+import ExploitSimulator from "@/components/simulation/ExploitSimulator";
 import TrafficFlowPanel from "@/components/simulation/TrafficFlowPanel";
 import CyberInjectionCost from "@/components/simulation/CyberInjectionCost";
 import TrafficPatternBuilder from "@/components/diagram/TrafficPatternBuilder";
@@ -733,7 +733,7 @@ Return a flat object with field names matching the design schema directly.`,
           <div className={`${sidebarCollapsed ? "hidden" : "xl:col-span-2"} space-y-6 xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto pb-4`}>
             {simulationMode && (
                <>
-                  {/* Traffic Flow + AI Exploit — moved here from below canvas to prevent page height change */}
+                  {/* Traffic Flow + Exploit — moved here from below canvas to prevent page height change */}
                   <div className="space-y-4">
                     <TrafficFlowPanel
                       nodes={diagramData?.nodes || []}
@@ -741,7 +741,7 @@ Return a flat object with field names matching the design schema directly.`,
                       design={design}
                       running={simRunning}
                     />
-                    <AIExploitSimulator design={design} nodes={diagramData?.nodes || []} />
+                    <ExploitSimulator design={design} nodes={diagramData?.nodes || []} />
                   </div>
                    {/* Top: control + narrative side by side */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2 gap-4">

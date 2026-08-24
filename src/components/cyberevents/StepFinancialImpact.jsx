@@ -108,7 +108,7 @@ Also provide overall scenario-level estimates.`,
     setGenerating(false);
   };
 
-  // Calculate total exposure from scenario-level fields if not set by AI
+  // Calculate total exposure from scenario-level fields if not auto-estimated
   const totalExposure = impact.scenario_total_exposure
     ? parseFloat(impact.scenario_total_exposure)
     : (parseFloat(impact.scenario_recovery_cost || 0) + parseFloat(impact.scenario_regulatory_fine || 0));
@@ -126,7 +126,7 @@ Also provide overall scenario-level estimates.`,
       <div className="flex items-center justify-between bg-primary/5 border border-primary/20 rounded-xl px-5 py-4">
         <div>
           <p className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" /> AI-Powered Estimation
+            <Sparkles className="h-4 w-4 text-primary" /> Smart Estimation
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">Generate industry-benchmark estimates based on your scenario and objectives</p>
         </div>
@@ -170,7 +170,7 @@ Also provide overall scenario-level estimates.`,
 
         {impact.scenario_notes && (
           <div className="bg-secondary rounded-lg px-4 py-3">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 font-semibold">AI Rationale</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 font-semibold">Estimation Rationale</p>
             <p className="text-xs text-foreground leading-relaxed">{impact.scenario_notes}</p>
           </div>
         )}

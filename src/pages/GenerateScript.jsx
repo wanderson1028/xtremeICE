@@ -15,7 +15,7 @@ const PLATFORMS = [
   { id: "cisco_ios", label: "Cisco IOS", ext: "txt", description: "IOS device configuration scripts" },
   { id: "juniper_junos", label: "Juniper JunOS", ext: "conf", description: "JunOS device configuration scripts" },
   { id: "device_configs", label: "Device Configs", ext: "cfg", description: "Full per-device CLI configs (no LLM)" },
-  { id: "ai_device_configs", label: "Intelligent Config", ext: "cfg", description: "Intelligent-generated per-device configs (best practices)", ai: true },
+  { id: "smart_device_configs", label: "Intelligent Config", ext: "cfg", description: "Intelligent-generated per-device configs (best practices)", smart: true },
 ];
 
 function buildPrompt(platform, design) {
@@ -397,7 +397,7 @@ export default function GenerateScript() {
   const selectedPlatform = PLATFORMS.find(p => p.id === platform);
 
   const handleGenerate = async () => {
-    if (platform === "ai_device_configs") {
+    if (platform === "smart_device_configs") {
       // Build diagram / allocate IPs
       let diagramData = null;
       if (design?.diagram_data) {
@@ -430,7 +430,7 @@ export default function GenerateScript() {
       setCancelGeneration(false);
       setGenerationProgress({ current: 0, total: devices.length });
 
-      // Generate AI config per device sequentially
+      // Generate smart config per device sequentially
       const results = [...seedConfigs];
       for (let i = 0; i < devices.length; i++) {
         if (cancelGeneration) {
@@ -596,7 +596,7 @@ export default function GenerateScript() {
         </div>
 
         {/* Intelligent Device Configs - Initial State */}
-          {platform === "ai_device_configs" && deviceConfigs.length === 0 && !generating && (
+          {platform === "smart_device_configs" && deviceConfigs.length === 0 && !generating && (
             <div className="bg-card border border-border rounded-2xl p-12 text-center">
               <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6 border border-primary/20">
                 <Sparkles className="h-8 w-8 text-primary" />
@@ -612,7 +612,7 @@ export default function GenerateScript() {
           )}
 
         {/* Intelligent Generation Progress */}
-        {platform === "ai_device_configs" && generating && generationProgress.total > 0 && (
+        {platform === "smart_device_configs" && generating && generationProgress.total > 0 && (
           <div className="bg-card border border-border rounded-2xl p-8">
             <div className="flex items-center gap-4 mb-6">
               <Loader2 className="h-5 w-5 animate-spin text-primary" />
@@ -643,7 +643,7 @@ export default function GenerateScript() {
           </div>
         )}
 
-        {(platform === "ai_device_configs" || platform === "device_configs") && deviceConfigs.length > 0 && (
+        {(platform === "smart_device_configs" || platform === "device_configs") && deviceConfigs.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
@@ -659,7 +659,7 @@ export default function GenerateScript() {
                   <Download className="h-3 w-3" /> Download All
                 </Button>
                 <Button variant="outline" size="sm" onClick={handleGenerate} disabled={generating} className="gap-1.5 text-xs">
-                  {platform === "ai_device_configs" ? <Sparkles className="h-3 w-3" /> : <Terminal className="h-3 w-3" />} Regenerate
+                  {platform === "smart_device_configs" ? <Sparkles className="h-3 w-3" /> : <Terminal className="h-3 w-3" />} Regenerate
                 </Button>
               </div>
             </div>
@@ -679,7 +679,7 @@ export default function GenerateScript() {
                        {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                        <span className="text-sm font-medium text-foreground">{device.label}</span>
                        <Badge className={`text-xs ${vendorColor}`}>{vendorLabel}</Badge>
-                       {platform === "ai_device_configs" && (
+                       {platform === "smart_device_configs" && (
                          <Badge className="text-xs bg-purple-600 text-white">Intelligent</Badge>
                        )}
                        {isGeneratingThis && <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />}
@@ -733,7 +733,7 @@ export default function GenerateScript() {
             </div>
             <h2 className="text-xl font-semibold text-foreground mb-2">Per-Device Configurations</h2>
             <p className="text-muted-foreground max-w-md mx-auto mb-8">
-              Instantly generate full CLI configs for every device in your design — no AI needed. Vendor auto-detected from your selections.
+              Instantly generate full CLI configs for every device in your design — no assistant needed. Vendor auto-detected from your selections.
             </p>
             <Button onClick={handleGenerate} size="lg" className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
               <Terminal className="h-5 w-5" /> Generate Device Configs
@@ -741,7 +741,7 @@ export default function GenerateScript() {
           </div>
         )}
 
-        {platform !== "device_configs" && platform !== "ai_device_configs" && !script && !generating && (
+        {platform !== "device_configs" && platform !== "smart_device_configs" && !script && !generating && (
           <div className="bg-card border border-border rounded-2xl p-12 text-center">
             <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6 border border-primary/20">
               <FileCode className="h-8 w-8 text-primary" />
@@ -759,7 +759,7 @@ export default function GenerateScript() {
           </div>
         )}
 
-        {generating && platform !== "ai_device_configs" && (
+        {generating && platform !== "smart_device_configs" && (
           <div className="bg-card border border-border rounded-2xl p-12 text-center">
             <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
             <h2 className="text-lg font-semibold text-foreground">Generating {selectedPlatform?.label} Script…</h2>

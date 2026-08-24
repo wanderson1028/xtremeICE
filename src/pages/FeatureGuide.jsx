@@ -56,7 +56,7 @@ export default function FeatureGuide() {
     {
       icon: Zap,
       title: "Intelligent Config Generation",
-      description: "AI-powered configuration generation that creates detailed, best-practice CLIs tailored to each device's role, connections, and network context.",
+      description: "Smart configuration generation that creates detailed, best-practice CLIs tailored to each device's role, connections, and network context.",
       highlights: ["Role-aware configs", "BGP/OSPF/EIGRP routing", "IPSec VPN setup", "Zone-based firewalls", "VLAN SVIs", "QoS policies"]
     },
     {

@@ -56,7 +56,7 @@ export const TASK_DEFINITIONS = [
   {
     id: "task_report",
     label: "Generate Incident Report",
-    description: "Create and generate a full AI incident report documenting findings, timeline, and IOCs",
+    description: "Create and generate a full incident report documenting findings, timeline, and IOCs",
     points: 15,
     phase: "report",
     check: ({ reportGenerated }) => !!reportGenerated,

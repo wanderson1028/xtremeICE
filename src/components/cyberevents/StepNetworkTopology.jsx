@@ -10,7 +10,7 @@ import InteractiveTopology from "@/components/review/InteractiveTopology";
 export default function StepNetworkTopology({ data, onChange, savedEventId }) {
   const navigate = useNavigate();
   const [analyzing, setAnalyzing] = useState(false);
-  const [aiTopology, setAiTopology] = useState(data._recommended_network || null);
+  const [smartTopology, setSmartTopology] = useState(data._recommended_network || null);
 
   const { data: allDesigns = [] } = useQuery({
     queryKey: ["designs-for-topology"],
@@ -23,10 +23,10 @@ export default function StepNetworkTopology({ data, onChange, savedEventId }) {
     enabled: !!data.network_design_id,
   });
 
-  // Sync aiTopology if document scan provides a recommended network
+  // Sync smartTopology if document scan provides a recommended network
   useEffect(() => {
-    if (data._recommended_network && !aiTopology) {
-      setAiTopology(data._recommended_network);
+    if (data._recommended_network && !smartTopology) {
+      setSmartTopology(data._recommended_network);
     }
   }, [data._recommended_network]);
 
@@ -90,7 +90,7 @@ Return specific, deployment-ready topology parameters.`,
         }
       });
 
-      setAiTopology(result);
+      setSmartTopology(result);
       onChange({ topology_summary: result.topology_summary });
       toast.success("Topology analyzed from team directions!");
     } catch (e) {
@@ -100,7 +100,7 @@ Return specific, deployment-ready topology parameters.`,
   };
 
   const handleCreateDesign = () => {
-    const topology = aiTopology || data._recommended_network || {};
+    const topology = smartTopology || data._recommended_network || {};
     const prefill = {
       name: `${data.title || "Cyber Exercise"} — Network`,
       company_name: "Cyber Exercise Environment",
@@ -226,9 +226,9 @@ Return specific, deployment-ready topology parameters.`,
         </select>
       </div>
 
-      {/* Option 2: AI Analysis from team directions */}
+      {/* Option 2: Smart Analysis from team directions */}
       <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 space-y-4">
-        <p className="text-sm font-semibold text-foreground">2. AI-Guided Network Design</p>
+        <p className="text-sm font-semibold text-foreground">2. Guided Network Design</p>
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
@@ -244,35 +244,35 @@ Return specific, deployment-ready topology parameters.`,
         {!data.red_team_directions && !data.blue_team_directions && (
           <div className="flex items-center gap-2 text-xs text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2">
             <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-            Complete Team Directions (Step 3) first for the best AI topology recommendation.
+            Complete Team Directions (Step 3) first for the best smart topology recommendation.
           </div>
         )}
 
-        {/* AI result chips */}
-        {aiTopology && (
+        {/* Smart result chips */}
+        {smartTopology && (
           <div className="space-y-3">
             <div className="flex flex-wrap gap-2">
               {[
-                { label: "Type", value: aiTopology.topology_type },
-                { label: "Routing", value: aiTopology.routing_protocol },
-                { label: "WAN", value: aiTopology.wan_technology },
-                { label: "Sites", value: aiTopology.num_sites },
-                { label: "VLANs/site", value: aiTopology.num_vlans_per_site },
-                aiTopology.firewall_enabled && { label: "Firewall", value: aiTopology.firewall_vendor || "Yes" },
-                aiTopology.dmz_required && { label: "DMZ", value: "Yes" },
-                aiTopology.server_farm && { label: "Server Farm", value: `${aiTopology.num_servers} servers` },
-                aiTopology.load_balancer && { label: "Load Balancer", value: "Yes" },
-                aiTopology.redundancy_enabled && { label: "Redundancy", value: "Yes" },
+                { label: "Type", value: smartTopology.topology_type },
+                { label: "Routing", value: smartTopology.routing_protocol },
+                { label: "WAN", value: smartTopology.wan_technology },
+                { label: "Sites", value: smartTopology.num_sites },
+                { label: "VLANs/site", value: smartTopology.num_vlans_per_site },
+                smartTopology.firewall_enabled && { label: "Firewall", value: smartTopology.firewall_vendor || "Yes" },
+                smartTopology.dmz_required && { label: "DMZ", value: "Yes" },
+                smartTopology.server_farm && { label: "Server Farm", value: `${smartTopology.num_servers} servers` },
+                smartTopology.load_balancer && { label: "Load Balancer", value: "Yes" },
+                smartTopology.redundancy_enabled && { label: "Redundancy", value: "Yes" },
               ].filter(Boolean).map(item => (
                 <span key={item.label} className="text-[10px] px-2 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary font-medium">
                   {item.label}: {item.value}
                 </span>
               ))}
             </div>
-            {aiTopology.design_rationale && (
+            {smartTopology.design_rationale && (
               <div className="bg-card border border-border rounded-lg px-4 py-3">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-1">Design Rationale</p>
-                <p className="text-xs text-foreground leading-relaxed">{aiTopology.design_rationale}</p>
+                <p className="text-xs text-foreground leading-relaxed">{smartTopology.design_rationale}</p>
               </div>
             )}
           </div>
@@ -295,15 +295,15 @@ Return specific, deployment-ready topology parameters.`,
         <div className="bg-card border border-border rounded-xl p-5 space-y-3">
           <p className="text-sm font-semibold text-foreground">3. Create New Network Design</p>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Launch the Network Wizard to design a topology. If you ran AI analysis above, the wizard will be pre-filled with recommendations based on your team directions.
+            Launch the Network Wizard to design a topology. If you ran smart analysis above, the wizard will be pre-filled with recommendations based on your team directions.
           </p>
           <div className="flex items-center gap-3 flex-wrap">
             <Button onClick={handleCreateDesign} className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
               <Plus className="h-4 w-4" /> Create Network Design
               <ExternalLink className="h-3.5 w-3.5 opacity-60" />
             </Button>
-            {!aiTopology && (
-              <span className="text-xs text-muted-foreground">Run AI Analysis first for best results</span>
+            {!smartTopology && (
+              <span className="text-xs text-muted-foreground">Run Smart Analysis first for best results</span>
             )}
           </div>
         </div>

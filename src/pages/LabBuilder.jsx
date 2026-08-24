@@ -11,7 +11,7 @@ import Step2Environment from "@/components/labs/builder/Step2Environment";
 import LabContentEditor from "@/components/labs/builder/LabContentEditor";
 import Step5NiceMapping from "@/components/labs/builder/Step5NiceMapping";
 import StepExportConfig from "@/components/labs/builder/StepExportConfig";
-import AIGeneratorPanel from "@/components/labs/builder/AIGeneratorPanel";
+import GeneratorPanel from "@/components/labs/builder/GeneratorPanel";
 import SectionCard from "@/components/labs/builder/SectionCard";
 import BuilderSidebar from "@/components/labs/builder/BuilderSidebar";
 
@@ -112,7 +112,7 @@ export default function LabBuilder() {
 
           {/* Main Canvas */}
           <div className="space-y-4 min-w-0">
-            <AIGeneratorPanel updateForm={updateForm} />
+            <GeneratorPanel updateForm={updateForm} />
 
             <SectionCard
               id="basics"

@@ -2,7 +2,7 @@ import React from "react";
 import { ArrowRight } from "lucide-react";
 
 // Simplified transformer block diagram: input → embedding + positional encoding
-// → self-attention → feed-forward → output. The core of generative AI models.
+// → self-attention → feed-forward → output. The core of generative ML models.
 export default function TransformerBlockDiagram() {
   const blocks = [
     { label: "Tokenized Input", sub: "text → tokens", color: "bg-blue-950/50 border-blue-700/50 text-blue-300" },

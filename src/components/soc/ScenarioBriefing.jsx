@@ -173,8 +173,8 @@ export default function ScenarioBriefing({ scenario, mode, onConfirm, onBack }) 
               </div>
               <div className="text-[11px] text-muted-foreground mt-0.5">
                 {mode === "assessment"
-                  ? "You'll be given a task checklist. Work independently — the AI provides minimal guidance. You'll be scored on your actions and decisions."
-                  : "A Story Guide will walk you through each phase. The AI Analyst is ready to help with hints, MITRE mapping, and step-by-step guidance."
+                  ? "You'll be given a task checklist. Work independently — the system provides minimal guidance. You'll be scored on your actions and decisions."
+                  : "A Story Guide will walk you through each phase. The Analyst is ready to help with hints, MITRE mapping, and step-by-step guidance."
                 }
               </div>
             </div>

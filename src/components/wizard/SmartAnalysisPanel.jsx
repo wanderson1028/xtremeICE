@@ -100,7 +100,7 @@ Generate ONLY CLI commands, no explanations. Include device hostnames as comment
         setImplResults(prev => ({ ...prev, [suggestion.id]: typeof cfg === "string" ? cfg : JSON.stringify(cfg) }));
         toast.success("Configuration generated!");
       } else {
-        // topology impl — ask AI for nodes/links to add
+        // topology impl — ask for nodes/links to add
         const topo = await base44.integrations.Core.InvokeLLM({
           prompt: `To implement this network topology suggestion, what devices and links should be added?
 
@@ -157,7 +157,7 @@ Return a list of device types to add (use only: router, switch, firewall, server
             </div>
             <div>
               <p className="text-sm font-bold text-foreground">Smart Analysis</p>
-              <p className="text-[10px] text-muted-foreground">AI-powered design recommendations</p>
+              <p className="text-[10px] text-muted-foreground">Smart design recommendations</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
@@ -174,7 +174,7 @@ Return a list of device types to add (use only: router, switch, firewall, server
               </div>
               <p className="text-sm font-semibold text-foreground mb-1">Analyze Your Design</p>
               <p className="text-xs text-muted-foreground max-w-[260px] mx-auto mb-6">
-                Get AI-powered recommendations for security hardening, high availability, access control, and performance based on your current topology.
+                Get Smart recommendations for security hardening, high availability, access control, and performance based on your current topology.
               </p>
               <Button onClick={analyze} className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
                 <Sparkles className="h-4 w-4" /> Run Smart Analysis

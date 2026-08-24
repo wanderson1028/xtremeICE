@@ -4,7 +4,7 @@ import { ArrowLeft, ChevronRight, Terminal, Lightbulb, CheckCircle2, BookOpen, A
 import { base44 } from "@/api/base44Client";
 import { useTranslation } from "react-i18next";
 import LabIntro from "./LabIntro";
-import LabAIBot from "./LabAIBot";
+import LabAssistant from "./LabAssistant";
 import LabSecurityInsight from "./LabSecurityInsight";
 import LabNotepad from "./LabNotepad";
 
@@ -387,7 +387,7 @@ export default function LabRunner({ labTitle, chapterNum, difficulty, tags = [],
 
       {/* Body */}
       <div className="flex-1 flex min-h-0">
-        {/* Left sidebar: Steps + AI Bot */}
+        {/* Left sidebar: Steps + Assistant */}
         <div className="w-56 shrink-0 border-r border-gray-800 bg-black/30 flex flex-col overflow-hidden">
           {/* Steps list */}
           <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-1">
@@ -413,8 +413,8 @@ export default function LabRunner({ labTitle, chapterNum, difficulty, tags = [],
             })}
           </div>
 
-          {/* AI Bot pinned to bottom of sidebar */}
-          <LabAIBot labTitle={labTitle} currentStepLabel={step?.stepLabel} />
+          {/* Assistant pinned to bottom of sidebar */}
+          <LabAssistant labTitle={labTitle} currentStepLabel={step?.stepLabel} />
         </div>
 
         {/* Main area */}
