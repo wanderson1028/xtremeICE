@@ -260,10 +260,9 @@ function selectInstanceType(cpu, ram) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    // Try to get user — when called from another backend function via functions.invoke(),
-    // auth context may not always forward. This is non-fatal; the orchestrator already validates.
-    let user = null;
-    try { user = await base44.auth.me(); } catch { /* no direct user context */ }
+    // Authentication is mandatory — no AWS operation may proceed without a verified caller.
+    const user = await base44.auth.me();
+    if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
     const { action, params = {} } = body;

@@ -26,6 +26,21 @@ const PROVIDER_REGISTRY = {
   gcp: "cloudProviderGCP",
 };
 
+// Verify the caller owns the lab, is an admin, or is in the lab's shared_with list.
+// Returns { lab, authorized, notFound }.
+async function authorizeLab(base44, lab_id, user) {
+  const labs = await base44.asServiceRole.entities.LiveFireLab.filter({ id: lab_id });
+  if (!labs.length) return { lab: null, authorized: false, notFound: true };
+  const lab = labs[0];
+  const isOwner = lab.created_by_id === user.id;
+  const isAdmin = user.role === "admin";
+  const isShared = Array.isArray(lab.shared_with) && lab.shared_with.includes(user.email);
+  if (!isOwner && !isAdmin && !isShared) {
+    return { lab, authorized: false, notFound: false };
+  }
+  return { lab, authorized: true, notFound: false };
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -52,10 +67,10 @@ Deno.serve(async (req) => {
         // Deploy entire lab topology
         const { lab_id, topology_data } = params;
 
-        // Fetch lab details
-        const labs = await base44.asServiceRole.entities.LiveFireLab.filter({ id: lab_id });
-        if (!labs.length) return Response.json({ error: "Lab not found" }, { status: 404 });
-        const lab = labs[0];
+        // Fetch lab details and verify ownership
+        const { lab, authorized, notFound } = await authorizeLab(base44, lab_id, user);
+        if (notFound) return Response.json({ error: "Lab not found" }, { status: 404 });
+        if (!authorized) return Response.json({ error: "Forbidden" }, { status: 403 });
 
         // Update lab status
         await base44.asServiceRole.entities.LiveFireLab.update(lab_id, { status: "deploying" });
@@ -99,8 +114,9 @@ Deno.serve(async (req) => {
         const deployRegion = lab.region || "us-east-1";
 
         // Check if user chose an existing VPC to reuse
-        const existingVpcId = vpcConfig.existingVpcId;
+        let existingVpcId = vpcConfig.existingVpcId;
         let networkData = null;
+        let effectiveCidr = vpcConfig.cidr || "10.1.0.0/16";
 
         if (existingVpcId) {
           // Reuse existing VPC — look up its subnets from AWS
@@ -169,7 +185,6 @@ Deno.serve(async (req) => {
           }
         }
 
-        let effectiveCidr = vpcConfig.cidr || "10.1.0.0/16";
         if (!networkData) {
           const deployCidr = effectiveCidr;
 
@@ -420,8 +435,9 @@ Deno.serve(async (req) => {
 
       case "terminateLab": {
         const { lab_id } = params;
-        const labs = await base44.asServiceRole.entities.LiveFireLab.filter({ id: lab_id });
-        if (!labs.length) return Response.json({ error: "Lab not found" }, { status: 404 });
+        const { lab, authorized, notFound } = await authorizeLab(base44, lab_id, user);
+        if (notFound) return Response.json({ error: "Lab not found" }, { status: 404 });
+        if (!authorized) return Response.json({ error: "Forbidden" }, { status: 403 });
 
         // Get all devices
         const devices = await base44.asServiceRole.entities.LiveFireDevice.filter({ lab_id });
@@ -431,7 +447,7 @@ Deno.serve(async (req) => {
           try {
             await base44.functions.invoke("cloudProviderAWS", {
               action: "deleteVM",
-              params: { instance_id: device.instance_id, region: labs[0].region },
+              params: { instance_id: device.instance_id, region: lab.region },
             });
             await base44.asServiceRole.entities.LiveFireDevice.update(device.id, { status: "terminated" });
           } catch (e) {
@@ -446,7 +462,7 @@ Deno.serve(async (req) => {
             try {
               await base44.functions.invoke("cloudProviderAWS", {
                 action: "deleteNetwork",
-                params: { vpc_id: dep.vpc_id, region: labs[0].region },
+                params: { vpc_id: dep.vpc_id, region: lab.region },
               });
             } catch (e) {
               console.error(`Failed to delete VPC ${dep.vpc_id}:`, e);
@@ -456,14 +472,14 @@ Deno.serve(async (req) => {
         }
 
         // Delete SSH key pair from AWS
-        if (labs[0].ssh_key_name) {
+        if (lab.ssh_key_name) {
           try {
             await base44.functions.invoke("cloudProviderAWS", {
               action: "deleteKeyPair",
-              params: { key_name: labs[0].ssh_key_name, region: labs[0].region },
+              params: { key_name: lab.ssh_key_name, region: lab.region },
             });
           } catch (e) {
-            console.error(`Failed to delete key pair ${labs[0].ssh_key_name}:`, e);
+            console.error(`Failed to delete key pair ${lab.ssh_key_name}:`, e);
           }
         }
 
@@ -483,8 +499,10 @@ Deno.serve(async (req) => {
 
       case "getLabStatus": {
         const { lab_id } = params;
-        const [lab, devices, deployment] = await Promise.all([
-          base44.asServiceRole.entities.LiveFireLab.filter({ id: lab_id }).then(r => r[0]),
+        const { lab, authorized, notFound } = await authorizeLab(base44, lab_id, user);
+        if (notFound) return Response.json({ error: "Lab not found" }, { status: 404 });
+        if (!authorized) return Response.json({ error: "Forbidden" }, { status: 403 });
+        const [devices, deployment] = await Promise.all([
           base44.asServiceRole.entities.LiveFireDevice.filter({ lab_id }),
           base44.asServiceRole.entities.LiveFireDeployment.filter({ lab_id }).then(r => r[0]),
         ]);
@@ -510,8 +528,9 @@ Deno.serve(async (req) => {
 
       case "createSnapshot": {
         const { lab_id, name, description } = params;
-        const lab = await base44.asServiceRole.entities.LiveFireLab.filter({ id: lab_id }).then(r => r[0]);
-        if (!lab) return Response.json({ error: "Lab not found" }, { status: 404 });
+        const { lab, authorized, notFound } = await authorizeLab(base44, lab_id, user);
+        if (notFound) return Response.json({ error: "Lab not found" }, { status: 404 });
+        if (!authorized) return Response.json({ error: "Forbidden" }, { status: 403 });
 
         const devices = await base44.asServiceRole.entities.LiveFireDevice.filter({ lab_id });
 
@@ -544,6 +563,9 @@ Deno.serve(async (req) => {
 
       case "restoreSnapshot": {
         const { snapshot_id, lab_id } = params;
+        const { lab, authorized, notFound } = await authorizeLab(base44, lab_id, user);
+        if (notFound) return Response.json({ error: "Lab not found" }, { status: 404 });
+        if (!authorized) return Response.json({ error: "Forbidden" }, { status: 403 });
         const snapshots = await base44.asServiceRole.entities.LiveFireSnapshot.filter({ id: snapshot_id });
         if (!snapshots.length) return Response.json({ error: "Snapshot not found" }, { status: 404 });
         const snap = snapshots[0];
@@ -582,10 +604,12 @@ Deno.serve(async (req) => {
 
       case "stopDevice": {
         const { lab_id, device_id } = params;
+        const { lab, authorized, notFound } = await authorizeLab(base44, lab_id, user);
+        if (notFound) return Response.json({ error: "Lab not found" }, { status: 404 });
+        if (!authorized) return Response.json({ error: "Forbidden" }, { status: 403 });
         const device = await base44.asServiceRole.entities.LiveFireDevice.filter({ id: device_id, lab_id }).then(r => r[0]);
         if (!device?.instance_id) return Response.json({ error: "Device not found or not deployed" }, { status: 404 });
 
-        const lab = await base44.asServiceRole.entities.LiveFireLab.filter({ id: lab_id }).then(r => r[0]);
         const result = await base44.functions.invoke("cloudProviderAWS", {
           action: "stopVM",
           params: { instance_id: device.instance_id, region: lab?.region || "us-east-1" },
@@ -597,10 +621,12 @@ Deno.serve(async (req) => {
 
       case "startDevice": {
         const { lab_id, device_id } = params;
+        const { lab, authorized, notFound } = await authorizeLab(base44, lab_id, user);
+        if (notFound) return Response.json({ error: "Lab not found" }, { status: 404 });
+        if (!authorized) return Response.json({ error: "Forbidden" }, { status: 403 });
         const device = await base44.asServiceRole.entities.LiveFireDevice.filter({ id: device_id, lab_id }).then(r => r[0]);
         if (!device?.instance_id) return Response.json({ error: "Device not found or not deployed" }, { status: 404 });
 
-        const lab = await base44.asServiceRole.entities.LiveFireLab.filter({ id: lab_id }).then(r => r[0]);
         const result = await base44.functions.invoke("cloudProviderAWS", {
           action: "startVM",
           params: { instance_id: device.instance_id, region: lab?.region || "us-east-1" },
@@ -612,8 +638,10 @@ Deno.serve(async (req) => {
 
       case "stopAllDevices": {
         const { lab_id } = params;
+        const { lab, authorized, notFound } = await authorizeLab(base44, lab_id, user);
+        if (notFound) return Response.json({ error: "Lab not found" }, { status: 404 });
+        if (!authorized) return Response.json({ error: "Forbidden" }, { status: 403 });
         const devices = await base44.asServiceRole.entities.LiveFireDevice.filter({ lab_id });
-        const lab = await base44.asServiceRole.entities.LiveFireLab.filter({ id: lab_id }).then(r => r[0]);
         const region = lab?.region || "us-east-1";
         const results = [];
 
@@ -635,8 +663,10 @@ Deno.serve(async (req) => {
 
       case "startAllDevices": {
         const { lab_id } = params;
+        const { lab, authorized, notFound } = await authorizeLab(base44, lab_id, user);
+        if (notFound) return Response.json({ error: "Lab not found" }, { status: 404 });
+        if (!authorized) return Response.json({ error: "Forbidden" }, { status: 403 });
         const devices = await base44.asServiceRole.entities.LiveFireDevice.filter({ lab_id });
-        const lab = await base44.asServiceRole.entities.LiveFireLab.filter({ id: lab_id }).then(r => r[0]);
         const region = lab?.region || "us-east-1";
         const results = [];
 
@@ -660,8 +690,9 @@ Deno.serve(async (req) => {
         // Deploy all un-deployed topology devices at once — the topology devices are in topology_data.devices,
         // this action deploys any that don't have a matching LiveFireDevice record yet
         const { lab_id } = params;
-        const lab = await base44.asServiceRole.entities.LiveFireLab.filter({ id: lab_id }).then(r => r[0]);
-        if (!lab) return Response.json({ error: "Lab not found" }, { status: 404 });
+        const { lab, authorized, notFound } = await authorizeLab(base44, lab_id, user);
+        if (notFound) return Response.json({ error: "Lab not found" }, { status: 404 });
+        if (!authorized) return Response.json({ error: "Forbidden" }, { status: 403 });
 
         const topologyData = lab.topology_data || {};
         const topologyDevices = topologyData.devices || [];
@@ -786,11 +817,9 @@ Deno.serve(async (req) => {
       case "deleteDevice": {
         // Delete a single device: terminate EC2 instance (if deployed), remove DB record, remove from topology
         const { lab_id, device_id, device_name } = params;
-        let lab = null;
-        try {
-          lab = await base44.asServiceRole.entities.LiveFireLab.filter({ id: lab_id }).then(r => r[0]);
-        } catch { /* invalid id format */ }
-        if (!lab) return Response.json({ error: "Lab not found" }, { status: 404 });
+        const { lab, authorized, notFound } = await authorizeLab(base44, lab_id, user);
+        if (notFound) return Response.json({ error: "Lab not found" }, { status: 404 });
+        if (!authorized) return Response.json({ error: "Forbidden" }, { status: 403 });
 
         // Look up the deployed device record by ID, falling back to name match
         let device = null;
@@ -853,8 +882,10 @@ Deno.serve(async (req) => {
       case "refreshDeviceStatus": {
         // Poll AWS for all device statuses and IPs for a running lab, then update DB records
         const { lab_id } = params;
+        const { lab, authorized, notFound } = await authorizeLab(base44, lab_id, user);
+        if (notFound) return Response.json({ error: "Lab not found" }, { status: 404 });
+        if (!authorized) return Response.json({ error: "Forbidden" }, { status: 403 });
         const devices = await base44.asServiceRole.entities.LiveFireDevice.filter({ lab_id });
-        const lab = await base44.asServiceRole.entities.LiveFireLab.filter({ id: lab_id }).then(r => r[0]);
         const region = lab?.region || "us-east-1";
         const updates = [];
 

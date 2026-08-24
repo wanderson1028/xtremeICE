@@ -17,17 +17,16 @@ Deno.serve(async (req) => {
     const candidate_name = String(payload.candidate_name || '').trim();
     const candidate_email = String(payload.candidate_email || '').trim().toLowerCase();
     const assessment_id = String(payload.assessment_id || '').trim();
-    const position_title = String(payload.position_title || 'Cybersecurity Position').trim();
-    const company_name = String(payload.company_name || '').trim();
-    const custom_subject = String(payload.custom_subject || '').trim();
-    const custom_body = String(payload.custom_body || '').trim();
 
     if (!candidate_name || !assessment_id || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidate_email)) {
       return Response.json({ error: 'A valid candidate name, email, and assessment are required.' }, { status: 400 });
     }
 
     // Confirm the caller can read this assessment before issuing an invitation.
-    await base44.entities.Assessment.get(assessment_id);
+    const assessment = await base44.entities.Assessment.get(assessment_id);
+    // Use the assessment's own fields (not caller-provided) to prevent brand spoofing.
+    const position_title = String(assessment.position_title || 'Cybersecurity Position').trim();
+    const company_name = String(assessment.company_name || '').trim();
 
     const tokenBuffer = crypto.getRandomValues(new Uint8Array(32));
     const invite_token = Array.from(tokenBuffer).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -57,10 +56,8 @@ Deno.serve(async (req) => {
     });
 
     const assessmentLink = `${appOrigin}/candidate-assessment?token=${invite_token}`;
-    const emailSubject = custom_subject || `Skills Assessment Invitation — ${position_title}${company_name ? ` at ${company_name}` : ''}`;
-    const bodyText = custom_body
-      ? escapeHtml(custom_body).replaceAll('\n', '<br/>')
-      : `Hello <strong style="color: #fff;">${escapeHtml(candidate_name)}</strong>,<br/><br/>You have been invited to complete a hands-on cybersecurity skills assessment for the <strong style="color: #ef4444;">${escapeHtml(position_title)}</strong> position${company_name ? ` at <strong style="color: #ef4444;">${escapeHtml(company_name)}</strong>` : ''}.`;
+    const emailSubject = `Skills Assessment Invitation — ${position_title}${company_name ? ` at ${company_name}` : ''}`;
+    const bodyText = `Hello <strong style="color: #fff;">${escapeHtml(candidate_name)}</strong>,<br/><br/>You have been invited to complete a hands-on cybersecurity skills assessment for the <strong style="color: #ef4444;">${escapeHtml(position_title)}</strong> position${company_name ? ` at <strong style="color: #ef4444;">${escapeHtml(company_name)}</strong>` : ''}.`;
 
     const emailBody = `<!DOCTYPE html>
 <html>
