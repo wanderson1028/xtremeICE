@@ -169,7 +169,7 @@ Respond as the SOC Analyst Assistant. Be helpful, precise, and appropriately dir
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendMessage()}
-          placeholder="Ask the SOC analyst assistant..."
+          placeholder="Ask the SOC analyst AI..."
           className="flex-1 bg-secondary border border-border/40 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-primary/40 transition-colors"
         />
         <button
