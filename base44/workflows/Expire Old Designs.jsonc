@@ -1,0 +1,44 @@
+{
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "0 3 * * *",
+      "one_time_date": null,
+      "timezone": "America/New_York",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "expire_old_designs",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "expire_designs": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "expireOldDesigns"
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Delete designs older than 7 days",
+            "description": "Removes expired user network designs"
+          }
+        }
+      }
+    ]
+  },
+  "description": "Deletes NetworkDesign records older than 7 days, every night at 3am.",
+  "name": "Expire Old Designs"
+}
