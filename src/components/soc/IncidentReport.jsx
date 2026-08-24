@@ -66,15 +66,84 @@ Generate a professional incident report with these sections:
 Make it detailed, professional, and realistic. Use proper incident response terminology.`;
 
     try {
-      const result = await base44.integrations.Core.InvokeLLM({ prompt, model: "claude_sonnet_4_6" });
-      setReport(typeof result === "string" ? result : result?.text || "Failed to generate report.");
+      const result = await base44.integrations.Core.InvokeLLM({ prompt });
+      setReport(typeof result === "string" ? result : result?.text || buildFallbackReport());
       setGenerated(true);
       onReportGenerated?.();
     } catch (e) {
-      setReport("⚠️ Failed to generate report. Please try again.");
+      setReport(buildFallbackReport());
+      setGenerated(true);
+      onReportGenerated?.();
     } finally {
       setLoading(false);
     }
+  };
+
+  const buildFallbackReport = () => {
+    const closedAlerts = alerts.filter(a => a.status === "closed");
+    const openAlerts = alerts.filter(a => a.status === "open");
+    const affectedEndpoints = endpoints.filter(e => e.status !== "healthy").map(e => e.name);
+    const criticalLogs = logs.filter(l => l.severity === "Critical");
+    const iocs = [];
+    logs.filter(l => l.severity === "Critical").forEach(l => {
+      if (l.detail.includes("185.220.101.45")) iocs.push("IP: 185.220.101.45 (C2)");
+      if (l.detail.includes("evil-phish.com")) iocs.push("Domain: evil-phish.com");
+      if (l.detail.includes("198.51.100.55")) iocs.push("IP: 198.51.100.55 (Attacker)");
+      if (l.detail.includes(".locked")) iocs.push("Ransomware extension: .locked");
+      if (l.detail.includes("backdoor_svc")) iocs.push("Backdoor account: backdoor_svc");
+    });
+    const iocsSet = [...new Set(iocs)];
+
+    return `# Incident Report — ${scenario?.name || "Unknown"}
+
+## 1. Executive Summary
+An incident was detected and responded to during a SOC training drill. The analyst achieved a score of **${score}/100** over **${elapsedMinutes} minutes**. ${openAlerts.length === 0 ? "All alerts were successfully triaged and closed." : `${openAlerts.length} alert(s) remain open and require further attention.`}
+
+## 2. Incident Timeline
+${logs.slice(0, 10).map(l => `- **${new Date(l.timestamp).toLocaleTimeString()}** — ${l.source}: ${l.event}`).join("\n")}
+
+## 3. Affected Assets
+${affectedEndpoints.length > 0 ? affectedEndpoints.map(a => `- ${a}`).join("\n") : "None identified by analyst"}
+
+## 4. Indicators of Compromise
+${iocsSet.length > 0 ? iocsSet.map(i => `- ${i}`).join("\n") : "None documented"}
+
+## 5. Root Cause Analysis
+Based on the scenario **${scenario?.name}**, the root cause was related to: ${(scenario?.mitre || []).join(", ")}.
+
+## 6. Actions Taken
+${actionsLog.length > 0 ? actionsLog.map(a => `- **${a.label}**${a.target ? " → " + a.target : ""} at ${a.time}`).join("\n") : "No actions recorded"}
+
+## 7. Evidence Collected
+- ${logs.length} SIEM log events reviewed
+- ${alerts.length} security alerts generated
+- ${criticalLogs.length} critical severity events identified
+
+## 8. Chain of Custody
+All evidence was collected and preserved during the live training simulation session.
+
+## 9. Business Impact
+The impact was contained within the training environment. ${closedAlerts.length} of ${alerts.length} alerts were closed.
+
+## 10. Containment & Remediation Status
+${openAlerts.length === 0 ? "**Fully Contained** — All alerts closed, threat remediated." : `**Partially Contained** — ${openAlerts.length} alert(s) still open.`}
+
+## 11. Lessons Learned
+- Review alert triage prioritization
+- Ensure timely containment of affected endpoints
+- Document IOCs for future threat intelligence
+
+## 12. Preventive Recommendations
+- Implement additional monitoring rules for similar attack patterns
+- Conduct regular patch management
+- Enhance endpoint detection capabilities
+- Review and update firewall rules
+
+## 13. MITRE ATT&CK Mapping
+${(scenario?.mitre || []).map(t => `- ${t}`).join("\n")}
+
+---
+*Report generated from SOC Training Drill — ${new Date().toLocaleString()}*`;
   };
 
   const downloadReport = () => {

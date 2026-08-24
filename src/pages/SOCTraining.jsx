@@ -13,7 +13,6 @@ import SIEMViewer from "@/components/soc/SIEMViewer";
 import EDRModule from "@/components/soc/EDRModule";
 import RMMModule from "@/components/soc/RMMModule";
 import RemediationPanel from "@/components/soc/RemediationPanel";
-import SOCAnalystAssistant from "@/components/soc/SOCAnalystAssistant";
 import IncidentReport from "@/components/soc/IncidentReport";
 import ScenarioBriefing from "@/components/soc/ScenarioBriefing";
 import TrainingNarrative from "@/components/soc/TrainingNarrative";
@@ -348,12 +347,7 @@ export default function SOCTraining() {
         </div>
         <div className="w-px shrink-0 bg-gradient-to-b from-transparent via-primary/40 to-transparent" />
         <div className="w-80 shrink-0 flex flex-col overflow-hidden">
-          <div className="h-1/2 border-b border-border/30 overflow-hidden flex flex-col">
-            <TrainingNarrative scenario={selectedScenario} actionsLog={actionsLog} alerts={alerts} reportGenerated={reportGenerated} activeTab={activeTab} onNavigate={handleTabChange} tabsVisited={tabsVisited} />
-          </div>
-          <div className="flex-1 overflow-hidden flex flex-col">
-            <SOCAnalystAssistant scenario={selectedScenario} alerts={alerts} logs={logs} actionsLog={actionsLog} mode="training" />
-          </div>
+          <TrainingNarrative scenario={selectedScenario} actionsLog={actionsLog} alerts={alerts} reportGenerated={reportGenerated} activeTab={activeTab} onNavigate={handleTabChange} tabsVisited={tabsVisited} />
         </div>
       </div>
     </div>

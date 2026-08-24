@@ -87,7 +87,11 @@ export default function SIEMViewer({ logs }) {
           </thead>
           <tbody>
             {filtered.map((log, i) => (
-              <tr key={log.id} className={`border-b border-border/10 hover:bg-secondary/20 transition-colors ${i % 2 === 0 ? "" : "bg-white/[0.01]"}`}>
+              <tr
+                key={log.id}
+                onClick={() => setExpandedRow(expandedRow === log.id ? null : log.id)}
+                className={`border-b border-border/10 hover:bg-secondary/30 transition-colors cursor-pointer ${i % 2 === 0 ? "" : "bg-white/[0.01]"}`}
+              >
                 <td className="px-4 py-2 text-muted-foreground text-[10px] whitespace-nowrap">
                   {new Date(log.timestamp).toLocaleTimeString()}
                 </td>
@@ -98,10 +102,7 @@ export default function SIEMViewer({ logs }) {
                   <span className={`text-[10px] ${typeColor[log.type] || "text-foreground"}`}>{log.type}</span>
                 </td>
                 <td className="px-2 py-2 text-[10px] text-foreground/70 truncate max-w-[120px]">{log.source}</td>
-                <td
-                  className="px-2 py-2 text-[10px] text-foreground/80 max-w-0 cursor-pointer"
-                  onClick={() => setExpandedRow(expandedRow === log.id ? null : log.id)}
-                >
+                <td className="px-2 py-2 text-[10px] text-foreground/80">
                   {expandedRow === log.id ? (
                     <div className="whitespace-normal break-words leading-relaxed">{log.message}</div>
                   ) : (
