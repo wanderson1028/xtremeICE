@@ -8,6 +8,7 @@ import { getScenarioPlaybook } from "./scenarioPlaybooks";
 export function buildChallenge(actionId, endpoints, alerts, scenario, seed) {
   const compromisedEndpoints = endpoints.filter((e) => e.status !== "healthy").map((e) => e.name);
   const playbook = getScenarioPlaybook(scenario?.id);
+  const severityLabels = { P1: "Declare major incident and page IR immediately", P2: "Urgent incident response with same-shift escalation", P3: "Investigate and remediate through the standard queue", P4: "Document and monitor as a low-impact event" };
   const allEndpointNames = endpoints.map((e) => e.name);
 
   // ─── Derive IOCs from the seed (single source of truth) ───────────────────
@@ -204,12 +205,11 @@ export function buildChallenge(actionId, endpoints, alerts, scenario, seed) {
       type: "single_select",
       title: "Select the Correct Escalation Path",
       description: "Choose the appropriate escalation procedure based on the severity of this incident.",
-      options: [
-        { id: "e1", label: "P1 — Declare Major Incident, page on-call IR team immediately", correct: true },
-        { id: "e2", label: "P3 — Log ticket, assign to next-day queue", correct: false },
-        { id: "e3", label: "P2 — Email the security team and wait", correct: false },
-        { id: "e4", label: "Close alert — False positive, no action needed", correct: false },
-      ],
+      options: ["P1", "P2", "P3", "P4"].map(level => ({
+        id: level.toLowerCase(),
+        label: `${level} — ${severityLabels[level]}`,
+        correct: level === playbook.severity,
+      })),
       explanation: `${scenario?.name || "This incident"} is classified ${playbook.severity} based on its confirmed scope, affected assets, and business impact. The analyst must classify the actual incident rather than defaulting every alert to P1.`,
     },
     notify_customer: {
