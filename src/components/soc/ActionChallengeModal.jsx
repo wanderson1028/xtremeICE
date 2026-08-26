@@ -5,14 +5,14 @@ import { getScenarioPlaybook } from "./scenarioPlaybooks";
 // Challenge definitions per action ID
 // All correct answers are derived from the run-seed so they always match the
 // evidence the analyst sees in SIEM, EDR, alerts, and endpoints.
-export function buildChallenge(actionId, endpoints, alerts, scenario, seed) {
+export function buildChallenge(actionId, endpoints, alerts, scenario, seed, logs = []) {
   const compromisedEndpoints = endpoints.filter((e) => e.status !== "healthy").map((e) => e.name);
   const playbook = getScenarioPlaybook(scenario?.id);
   const severityLabels = { P1: "Declare major incident and page IR immediately", P2: "Urgent incident response with same-shift escalation", P3: "Investigate and remediate through the standard queue", P4: "Document and monitor as a low-impact event" };
   const allEndpointNames = endpoints.map((e) => e.name);
 
   // ─── Derive IOCs from the seed (single source of truth) ───────────────────
-  const attackerIP = seed?.attackerIP || null;
+  const attackerIP = seed?.attackerIP || deriveAttackerIPFromLogs(logs, endpoints);
   const compromisedUser = seed?.compromisedUser || null;
   const maliciousFile = seed?.maliciousFile || null;
   const seedProcesses = seed?.maliciousProcesses || [];
@@ -80,9 +80,12 @@ export function buildChallenge(actionId, endpoints, alerts, scenario, seed) {
       title: "Enter the Attacker IP to Block",
       description: "Type the exact attacker IP address identified in the SIEM logs. An incorrect IP will block legitimate traffic.",
       placeholder: "e.g. 0.0.0.0",
-      correctAnswer: attackerIP || "10.0.1.50",
+      correctAnswer: attackerIP || "",
+      inputKind: "ip",
       hint: "Check the SIEM for repeated failed auth, C2 traffic, or scan sources — the IP appears in the logs.",
-      explanation: `The correct attacker IP is ${attackerIP || "10.0.1.50"}. This IP appears repeatedly in the SIEM logs as the source of failed auth attempts, successful logins, or C2 outbound traffic. Blocking the wrong IP wastes time and may block legitimate users while leaving the attacker's real IP active.`,
+      explanation: attackerIP
+        ? `The correct attacker IP is ${attackerIP}. This IOC is shown in the SIEM evidence for the current run.`
+        : "This scenario does not contain a verified attacker IP. Use the scenario-specific containment action instead of guessing an address.",
     },
     disable_user: {
       type: "text_input",
@@ -259,14 +262,17 @@ export default function ActionChallengeModal({ action, challenge, onConfirm, onC
   };
 
   const evaluate = () => {
-    const { type, options, correctAnswer, minCorrect = 1, caseSensitive = true, explanation } = challenge;
+    const { type, options, correctAnswer, minCorrect = 1, caseSensitive = true, explanation, inputKind } = challenge;
 
     let correct = false;
     let feedback = "";
 
     if (type === "text_input") {
-      const answer = caseSensitive ? textInput.trim() : textInput.trim().toUpperCase();
-      const expected = caseSensitive ? correctAnswer : correctAnswer.toUpperCase();
+      const normalizeIp = value => value.trim().replace(/^\[|\]$/g, "").replace(/\/32$/, "").replace(/:(\d+)$/, "");
+      const rawAnswer = inputKind === "ip" ? normalizeIp(textInput) : textInput.trim();
+      const rawExpected = inputKind === "ip" ? normalizeIp(correctAnswer || "") : (correctAnswer || "");
+      const answer = caseSensitive ? rawAnswer : rawAnswer.toUpperCase();
+      const expected = caseSensitive ? rawExpected : rawExpected.toUpperCase();
       correct = answer === expected;
       feedback = correct
         ? `Correct! "${correctAnswer}" confirmed.`
