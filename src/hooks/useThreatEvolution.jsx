@@ -211,6 +211,18 @@ export function useThreatEvolution(scenario, simData, seed, attemptMode = "ungui
     }]);
   }, [status, scenario, seed]);
 
+  // End an attempt early. This is a terminal, non-success outcome used by the
+  // Complete Scenario button after the analyst confirms they are giving up.
+  const completeScenario = useCallback(() => {
+    setStatus(prev => ["active", "contained"].includes(prev) ? "surrendered" : prev);
+    setEventFeed(prev => [...prev, {
+      id: `evt-surrender-${Date.now()}`,
+      time: new Date().toLocaleTimeString(),
+      message: "Analyst ended the scenario early. Partial performance will be scored.",
+      type: "penalty",
+    }]);
+  }, []);
+
   // Mark as complete when report is generated after containment
   const markComplete = useCallback(() => {
     setStatus(prev => prev === "contained" ? "complete" : prev);
@@ -235,10 +247,13 @@ export function useThreatEvolution(scenario, simData, seed, attemptMode = "ungui
     attemptMode,
     status,
     processAction,
+    completeScenario,
     markComplete,
     addTimePenalty,
     containmentThreshold: scenario ? getProgressionConfig(scenario.id, seed).containmentThreshold : 15,
-    failureMessage: scenario ? getProgressionConfig(scenario.id, seed).failureMessage : "",
+    failureMessage: status === "surrendered"
+      ? "Scenario ended early by the analyst. The score reflects only the response work completed before giving up."
+      : scenario ? getProgressionConfig(scenario.id, seed).failureMessage : "",
     successMessage: scenario ? getProgressionConfig(scenario.id, seed).successMessage : "",
   };
 }
