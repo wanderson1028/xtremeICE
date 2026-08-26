@@ -19,6 +19,7 @@ import ScenarioBriefing from "@/components/soc/ScenarioBriefing";
 import TrainingNarrative from "@/components/soc/TrainingNarrative";
 import AssessmentTaskList from "@/components/soc/AssessmentTaskList";
 import AssessmentSummary from "@/components/soc/AssessmentSummary";
+import CompleteScenarioDialog from "@/components/soc/CompleteScenarioDialog";
 import { calculateSurrenderScore } from "@/components/soc/drillReview";
 
 const difficultyColor = {
@@ -113,6 +114,7 @@ export default function SOCSimulation() {
   const [elapsedMinutes, setElapsedMinutes] = useState(0);
   const [tabsVisited, setTabsVisited] = useState(new Set(["dashboard"]));
   const [reportGenerated, setReportGenerated] = useState(false);
+  const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const startTimeRef = useRef(null);
   const timerRef = useRef(null);
   const sessionSavedRef = useRef(false);
@@ -225,8 +227,9 @@ export default function SOCSimulation() {
   const handleEDRAction = (action) => handleAction(action);
   const handleRMMAction = (action) => handleAction(action);
 
-  const handleCompleteScenario = async () => {
-    if (!window.confirm("Complete this scenario now? This means you are giving up. Your work so far will be scored and submitted to your stats and dashboard.")) return;
+  const handleCompleteScenario = () => setShowCompleteDialog(true);
+
+  const confirmCompleteScenario = async () => {
     clearInterval(timerRef.current);
     const finalScore = calculateSurrenderScore(selectedScenario, actionsLog, alerts, endpoints);
     setScore(finalScore);
@@ -689,6 +692,14 @@ export default function SOCSimulation() {
           )}
         </div>
       </div>
+
+      <CompleteScenarioDialog
+        open={showCompleteDialog}
+        onOpenChange={setShowCompleteDialog}
+        onConfirm={confirmCompleteScenario}
+        actionsCompleted={actionsLog.filter(a => !a.isPenalty).length}
+        score={score}
+      />
     </div>
   );
 }
