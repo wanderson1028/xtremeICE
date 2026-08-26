@@ -20,6 +20,7 @@ import EDRModule from "@/components/soc/EDRModule";
 import RMMModule from "@/components/soc/RMMModule";
 import RemediationPanel from "@/components/soc/RemediationPanel";
 import IncidentReport from "@/components/soc/IncidentReport";
+import DrillReview from "@/components/soc/DrillReview";
 import ScenarioBriefing from "@/components/soc/ScenarioBriefing";
 import TrainingNarrative from "@/components/soc/TrainingNarrative";
 import GeneratingIndicator from "@/components/soc/GeneratingIndicator";
@@ -564,39 +565,21 @@ export default function RealAttackDrills() {
         </div>
       </div>
 
-      {/* Win/Lose Overlay */}
+      {/* Post-Incident Review */}
       <AnimatePresence>
         {(evolution.status === "failed" || evolution.status === "complete") && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-card border border-border/50 rounded-2xl p-8 max-w-md w-full text-center shadow-2xl">
-              {evolution.status === "complete" ? (
-                <>
-                  <div className="h-16 w-16 rounded-full bg-green-500/20 border-2 border-green-500/40 flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle className="h-8 w-8 text-green-400" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-green-400 mb-2">Incident Contained!</h2>
-                  <p className="text-sm text-muted-foreground mb-4">{evolution.successMessage}</p>
-                  <div className="grid grid-cols-3 gap-3 mb-6">
-                    <div className="bg-secondary/30 rounded-lg p-3"><div className="text-2xl font-bold text-primary">{score}</div><div className="text-[10px] text-muted-foreground">Score</div></div>
-                    <div className="bg-secondary/30 rounded-lg p-3"><div className="text-2xl font-bold text-primary">{evolution.elapsedMinutes}m</div><div className="text-[10px] text-muted-foreground">Time</div></div>
-                    <div className="bg-secondary/30 rounded-lg p-3"><div className="text-2xl font-bold text-primary">{actionsLog.filter(a => !a.isPenalty).length}</div><div className="text-[10px] text-muted-foreground">Actions</div></div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="h-16 w-16 rounded-full bg-red-500/20 border-2 border-red-500/40 flex items-center justify-center mx-auto mb-4">
-                    <AlertTriangle className="h-8 w-8 text-red-400" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-red-400 mb-2">Attack Succeeded</h2>
-                  <p className="text-sm text-muted-foreground mb-4">{evolution.failureMessage}</p>
-                  <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 mb-6 text-left">
-                    <div className="text-xs text-red-300/80">Threat level reached 100% before containment. Try acting faster — prioritize isolation and IP blocking to slow the attack progression.</div>
-                  </div>
-                </>
-              )}
-              <button onClick={exitSimulation} className="px-6 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:bg-primary/90 transition-all">Back to Attack Catalog</button>
-            </motion.div>
-          </motion.div>
+          <DrillReview
+            scenario={selectedScenario}
+            actionsLog={actionsLog}
+            alerts={evolution.liveAlerts}
+            endpoints={evolution.liveEndpoints}
+            score={score}
+            elapsedMinutes={evolution.elapsedMinutes}
+            status={evolution.status}
+            successMessage={evolution.successMessage}
+            failureMessage={evolution.failureMessage}
+            onExit={exitSimulation}
+          />
         )}
       </AnimatePresence>
     </div>
