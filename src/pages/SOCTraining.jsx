@@ -18,6 +18,7 @@ import RMMModule from "@/components/soc/RMMModule";
 import RemediationPanel from "@/components/soc/RemediationPanel";
 import IncidentReport from "@/components/soc/IncidentReport";
 import DrillReview from "@/components/soc/DrillReview";
+import CompleteScenarioDialog from "@/components/soc/CompleteScenarioDialog";
 import ScenarioBriefing from "@/components/soc/ScenarioBriefing";
 import TrainingNarrative from "@/components/soc/TrainingNarrative";
 import { getScenarioPlaybook, getRequiredActionIds } from "@/components/soc/scenarioPlaybooks";
@@ -78,6 +79,7 @@ export default function SOCTraining() {
   const [runSeed, setRunSeed] = useState(null);
   const [sessionStartedAt, setSessionStartedAt] = useState(null);
   const [attemptMode, setAttemptMode] = useState("unguided");
+  const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const sessionSavedRef = useRef(false);
 
   const evolution = useThreatEvolution(selectedScenario, simData, runSeed, attemptMode);
@@ -200,8 +202,9 @@ export default function SOCTraining() {
     setScore(prev => Math.min(prev + scenarioScore, 100));
   };
 
-  const handleCompleteScenario = () => {
-    if (!window.confirm("Complete this scenario now? This means you are giving up. Your work so far will be scored and submitted to your stats and dashboard.")) return;
+  const handleCompleteScenario = () => setShowCompleteDialog(true);
+
+  const confirmCompleteScenario = () => {
     const finalScore = calculateSurrenderScore(selectedScenario, actionsLog, evolution.liveAlerts, evolution.liveEndpoints);
     setScore(finalScore);
     evolution.completeScenario();
@@ -421,6 +424,14 @@ export default function SOCTraining() {
           <TrainingNarrative guided={attemptMode === "guided"} scenario={selectedScenario} actionsLog={actionsLog} alerts={evolution.liveAlerts} reportGenerated={reportGenerated} activeTab={activeTab} onNavigate={handleTabChange} tabsVisited={tabsVisited} threatLevel={evolution.threatLevel} eventFeed={evolution.eventFeed} status={evolution.status} seed={runSeed} onHintUsed={evolution.addTimePenalty} />
         </div>
       </div>
+
+      <CompleteScenarioDialog
+        open={showCompleteDialog}
+        onOpenChange={setShowCompleteDialog}
+        onConfirm={confirmCompleteScenario}
+        actionsCompleted={actionsLog.filter(a => !a.isPenalty).length}
+        score={score}
+      />
 
       {/* Post-Incident Review */}
       <AnimatePresence>
