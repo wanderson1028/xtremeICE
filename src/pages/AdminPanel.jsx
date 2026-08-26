@@ -8,9 +8,10 @@ import UserManager from "@/components/admin/UserManager";
 import ServiceManager from "@/components/admin/ServiceManager";
 import UserStats from "@/components/admin/UserStats";
 import { Button } from "@/components/ui/button";
-import { Plus, Building2, Users, ShieldCheck, Crown, KeyRound, Flag, Database } from "lucide-react";
+import { Plus, Building2, Users, ShieldCheck, Crown, KeyRound, Flag, Database, FlaskConical } from "lucide-react";
 import FeatureFlagManager from "@/components/admin/FeatureFlagManager";
 import NiceDatasetManager from "@/components/admin/NiceDatasetManager";
+import DemoDataManager from "@/components/admin/DemoDataManager";
 
 export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState("users");
@@ -142,6 +143,12 @@ export default function AdminPanel() {
                 NICE Dataset
               </TabsTrigger>
             )}
+            {isPlatformAdmin && (
+              <TabsTrigger value="demo-data" className="gap-2 data-[state=active]:bg-white data-[state=active]:text-gray-900 text-gray-600">
+                <FlaskConical className="h-4 w-4" />
+                Demo Data
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="users" className="mt-4 space-y-6">
@@ -173,6 +180,12 @@ export default function AdminPanel() {
               <div className="rounded-xl border border-gray-800 bg-gray-950 p-6 shadow-sm">
                 <NiceDatasetManager />
               </div>
+            </TabsContent>
+          )}
+
+          {isPlatformAdmin && (
+            <TabsContent value="demo-data" className="mt-4">
+              <DemoDataManager />
             </TabsContent>
           )}
 
