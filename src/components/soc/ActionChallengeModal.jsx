@@ -1,11 +1,13 @@
 import React, { useState } from "react";
 import { X, CheckCircle, AlertTriangle, ChevronRight } from "lucide-react";
+import { getScenarioPlaybook } from "./scenarioPlaybooks";
 
 // Challenge definitions per action ID
 // All correct answers are derived from the run-seed so they always match the
 // evidence the analyst sees in SIEM, EDR, alerts, and endpoints.
 export function buildChallenge(actionId, endpoints, alerts, scenario, seed) {
   const compromisedEndpoints = endpoints.filter((e) => e.status !== "healthy").map((e) => e.name);
+  const playbook = getScenarioPlaybook(scenario?.id);
   const allEndpointNames = endpoints.map((e) => e.name);
 
   // ─── Derive IOCs from the seed (single source of truth) ───────────────────
@@ -208,7 +210,7 @@ export function buildChallenge(actionId, endpoints, alerts, scenario, seed) {
         { id: "e3", label: "P2 — Email the security team and wait", correct: false },
         { id: "e4", label: "Close alert — False positive, no action needed", correct: false },
       ],
-      explanation: "Active compromise with confirmed lateral movement, credential abuse, and data exfiltration indicators is a P1 Major Incident — it requires immediate IR team activation, not a next-day queue. P3 is for low-impact events. Emailing and waiting (P2) loses critical response time. Closing as a false positive when there is confirmed malicious activity is a serious analyst failure.",
+      explanation: `${scenario?.name || "This incident"} is classified ${playbook.severity} based on its confirmed scope, affected assets, and business impact. The analyst must classify the actual incident rather than defaulting every alert to P1.`,
     },
     notify_customer: {
       type: "multi_select",
@@ -229,8 +231,8 @@ export function buildChallenge(actionId, endpoints, alerts, scenario, seed) {
       title: "Classify the Incident Severity",
       description: "Enter the correct ITSM severity level for this incident (P1, P2, P3, or P4). Misclassification delays response.",
       placeholder: "e.g. P1",
-      correctAnswer: "P1",
-      hint: "Active ransomware, active exfiltration, or domain compromise = P1.",
+      correctAnswer: playbook.severity,
+      hint: `Use the scenario scope and business impact. This drill is classified ${playbook.severity}.`,
       caseSensitive: false,
     },
   };
