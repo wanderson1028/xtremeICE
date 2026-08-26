@@ -76,9 +76,10 @@ export default function SOCTraining() {
   const [reportGenerated, setReportGenerated] = useState(false);
   const [runSeed, setRunSeed] = useState(null);
   const [sessionStartedAt, setSessionStartedAt] = useState(null);
+  const [attemptMode, setAttemptMode] = useState("unguided");
   const sessionSavedRef = useRef(false);
 
-  const evolution = useThreatEvolution(selectedScenario, simData, runSeed);
+  const evolution = useThreatEvolution(selectedScenario, simData, runSeed, attemptMode);
   const queryClient = useQueryClient();
 
   const { data: currentUser } = useQuery({
@@ -114,13 +115,13 @@ export default function SOCTraining() {
       actions_taken: actionsLog,
       alerts_triaged: triagedAlerts,
       score: score,
-      score_breakdown: { finalThreatLevel: evolution.threatLevel, elapsedMinutes: evolution.elapsedMinutes, outcome: evolution.status },
+      score_breakdown: { finalThreatLevel: evolution.threatLevel, elapsedMinutes: evolution.elapsedMinutes, outcome: evolution.status, attemptMode, timeLimitMinutes: evolution.timeLimitMinutes },
       affected_assets: compromisedAssets,
       iocs: runSeed?.iocs || [],
     }).then(() => {
       queryClient.invalidateQueries({ queryKey: ["my-soc-sessions"] });
     }).catch(() => {});
-  }, [evolution.status, selectedScenario, currentUser, selectedNetwork, sessionStartedAt, actionsLog, score, evolution.liveEndpoints, evolution.liveAlerts, evolution.threatLevel, evolution.elapsedMinutes, runSeed, queryClient]);
+  }, [evolution.status, selectedScenario, currentUser, selectedNetwork, sessionStartedAt, actionsLog, score, evolution.liveEndpoints, evolution.liveAlerts, evolution.threatLevel, evolution.elapsedMinutes, evolution.timeLimitMinutes, attemptMode, runSeed, queryClient]);
 
   const { data: labAssignments = [] } = useQuery({
     queryKey: ["lab-assignments-user", currentUser?.email, "soc_training"],
@@ -208,6 +209,7 @@ export default function SOCTraining() {
     setActionsLog([]);
     setScore(0);
     setSessionStartedAt(null);
+    setAttemptMode("unguided");
     sessionSavedRef.current = false;
   };
 
@@ -301,10 +303,10 @@ export default function SOCTraining() {
             <span className="text-white">{selectedNetwork?.name}</span>
           </div>
           <h2 className="text-xl font-bold text-white mb-1">Choose a Beginner Scenario</h2>
-          <p className="text-sm text-gray-400 mb-6">Each scenario includes Guided step-by-step coaching and narrative walkthroughs.</p>
+          <p className="text-sm text-gray-400 mb-6">Choose a drill, then select a Guided or Unguided attempt.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {BEGINNER_SCENARIOS.map(scenario => (
-              <ScenarioCard key={scenario.id} scenario={scenario} onLaunch={(s) => { setSelectedScenario(s); setPhase("briefing"); }} />
+              <ScenarioCard key={scenario.id} scenario={scenario} onLaunch={(s) => { setSelectedScenario(s); setAttemptMode("unguided"); setPhase("briefing"); }} />
             ))}
           </div>
         </div>
@@ -318,6 +320,9 @@ export default function SOCTraining() {
       <ScenarioBriefing
         scenario={selectedScenario}
         mode="training"
+        attemptMode={attemptMode}
+        onAttemptModeChange={setAttemptMode}
+        guidedTimeLimit={Math.max(5, Math.ceil((selectedScenario?.duration_min || 15) * 0.65))}
         onConfirm={() => launchScenario(selectedScenario)}
         onBack={() => setPhase("select_scenario")}
       />
@@ -338,7 +343,7 @@ export default function SOCTraining() {
           <Shield className="h-5 w-5 text-green-400" />
           <span className="font-semibold text-sm hidden sm:inline">{selectedScenario?.name}</span>
           <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border text-green-400 border-green-500/30">Beginner</span>
-          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border text-primary border-primary/30 hidden sm:inline">🎓 Training</span>
+          <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border hidden sm:inline ${attemptMode === "guided" ? "text-cyan-400 border-cyan-500/30" : "text-primary border-primary/30"}`}>{attemptMode === "guided" ? "🧭 Guided" : "🎯 Unguided"}</span>
         </div>
 
         {/* Threat Level Indicator */}
@@ -368,7 +373,7 @@ export default function SOCTraining() {
         <div className="flex items-center gap-3 shrink-0">
           <div className="flex items-center gap-1.5 text-xs font-mono">
             <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-muted-foreground">{evolution.elapsedMinutes}m</span>
+            <span className={evolution.timeLimitMinutes && evolution.elapsedMinutes >= evolution.timeLimitMinutes - 2 ? "text-red-400" : "text-muted-foreground"}>{evolution.elapsedMinutes}m{evolution.timeLimitMinutes ? ` / ${evolution.timeLimitMinutes}m` : ""}</span>
           </div>
           <div className="flex items-center gap-1.5 text-xs font-mono">
             {openAlerts > 0 ? <AlertTriangle className="h-3.5 w-3.5 text-red-400" /> : <CheckCircle className="h-3.5 w-3.5 text-green-400" />}
@@ -398,7 +403,7 @@ export default function SOCTraining() {
         </div>
         <div className="w-px shrink-0 bg-gradient-to-b from-transparent via-primary/40 to-transparent" />
         <div className="w-80 shrink-0 flex flex-col overflow-hidden">
-          <TrainingNarrative scenario={selectedScenario} actionsLog={actionsLog} alerts={evolution.liveAlerts} reportGenerated={reportGenerated} activeTab={activeTab} onNavigate={handleTabChange} tabsVisited={tabsVisited} threatLevel={evolution.threatLevel} eventFeed={evolution.eventFeed} status={evolution.status} seed={runSeed} onHintUsed={evolution.addTimePenalty} />
+          <TrainingNarrative guided={attemptMode === "guided"} scenario={selectedScenario} actionsLog={actionsLog} alerts={evolution.liveAlerts} reportGenerated={reportGenerated} activeTab={activeTab} onNavigate={handleTabChange} tabsVisited={tabsVisited} threatLevel={evolution.threatLevel} eventFeed={evolution.eventFeed} status={evolution.status} seed={runSeed} onHintUsed={evolution.addTimePenalty} />
         </div>
       </div>
 
