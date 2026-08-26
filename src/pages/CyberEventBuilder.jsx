@@ -468,30 +468,30 @@ IMPORTANT: Write the 'description' field as an immersive operational scenario br
               <Swords className="h-5 w-5 text-red-400" />
             </div>
             <div className="flex-1">
-              <h2 className="text-lg font-semibold text-foreground mb-2">What is a Red vs Blue Exercise?</h2>
-              <p className="text-sm text-muted-foreground leading-relaxed mb-3">
-                A Red vs Blue (adversarial) cyber range exercise simulates realistic attacks and defenses. The <span className="text-red-400 font-medium">Red Team</span> acts as attackers executing MITRE ATT&CK techniques, while the <span className="text-blue-400 font-medium">Blue Team</span> detects and responds using defensive security practices. A <span className="font-medium text-muted-foreground">White Team</span> manages the exercise, injects events, and scores performance.
+              <h2 className="text-lg font-semibold text-white mb-2">What is a Red vs Blue Exercise?</h2>
+              <p className="text-sm text-white/90 leading-relaxed mb-3">
+                A Red vs Blue (adversarial) cyber range exercise simulates realistic attacks and defenses. The <span className="text-red-400 font-medium">Red Team</span> acts as attackers executing MITRE ATT&CK techniques, while the <span className="text-blue-400 font-medium">Blue Team</span> detects and responds using defensive security practices. A <span className="font-medium text-white">White Team</span> manages the exercise, injects events, and scores performance.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="flex gap-3">
                   <div className="text-lg">🎯</div>
                   <div>
-                    <p className="font-medium text-sm text-foreground">Hands-On Learning</p>
-                    <p className="text-xs text-muted-foreground">Develop real attack and defense skills in a safe environment.</p>
+                    <p className="font-medium text-sm text-white">Hands-On Learning</p>
+                    <p className="text-xs text-white/80">Develop real attack and defense skills in a safe environment.</p>
                   </div>
                 </div>
                 <div className="flex gap-3">
                   <div className="text-lg">🔴🔵</div>
                   <div>
-                    <p className="font-medium text-sm text-foreground">Team Competition</p>
-                    <p className="text-xs text-muted-foreground">Red attacks, Blue defends—measure success with scoring.</p>
+                    <p className="font-medium text-sm text-white">Team Competition</p>
+                    <p className="text-xs text-white/80">Red attacks, Blue defends—measure success with scoring.</p>
                   </div>
                 </div>
                 <div className="flex gap-3">
                   <div className="text-lg">🛠️</div>
                   <div>
-                    <p className="font-medium text-sm text-foreground">Customizable Scenarios</p>
-                    <p className="text-xs text-muted-foreground">Design network topologies, objectives, and rules for any organization.</p>
+                    <p className="font-medium text-sm text-white">Customizable Scenarios</p>
+                    <p className="text-xs text-white/80">Design network topologies, objectives, and rules for any organization.</p>
                   </div>
                 </div>
               </div>
