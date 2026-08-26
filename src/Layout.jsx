@@ -190,7 +190,7 @@ function TrainingDropdown({ currentPageName, access }) {
 
   if (!access.hasTraining) return null;
 
-  const showSocSub = access.hasSocTraining || access.hasSocAssessments;
+  const showSocSub = access.hasSocTraining;
 
   return (
     <div className="relative" ref={ref}>
@@ -241,12 +241,7 @@ function TrainingDropdown({ currentPageName, access }) {
                       {t("nav.socTraining")}
                     </Link>
                   )}
-                  {access.hasSocAssessments && (
-                    <Link to="/soc-assessments" onClick={() => setOpen(false)}
-                      className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
-                      {t("nav.socAssessments")}
-                    </Link>
-                  )}
+
                 </>
               )}
             </>
