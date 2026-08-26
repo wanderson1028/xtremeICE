@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { getScenarioPlaybook, actionRuleComplete } from "./scenarioPlaybooks";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronRight, BookOpen, AlertTriangle, Shield, CheckCircle, FileText, Radio, Activity, TrendingUp, TrendingDown, Zap, Lightbulb } from "lucide-react";
 
@@ -59,7 +60,7 @@ const getDetectSteps = (scenarioId, seed) => {
   ];
 };
 
-const PHASES = [
+const BASE_PHASES = [
   {
     id: "detect",
     icon: Radio,
@@ -127,6 +128,19 @@ const PHASES = [
 export default function TrainingNarrative({ scenario, actionsLog, alerts, reportGenerated, activeTab, onNavigate, onPhaseChange, tabsVisited, threatLevel = 30, eventFeed = [], status = "active", seed, onHintUsed }) {
   const [currentPhase, setCurrentPhase] = useState(0);
   const [expandedPhase, setExpandedPhase] = useState(0);
+  const playbook = useMemo(() => getScenarioPlaybook(scenario?.id), [scenario?.id]);
+  const PHASES = useMemo(() => BASE_PHASES.map(basePhase => {
+    const ruleKey = basePhase.id === "report" ? "document" : basePhase.id;
+    const rule = playbook.phases[ruleKey];
+    const required = [...(rule?.all || []), ...(rule?.any || [])].map(id => id.replaceAll("_", " "));
+    const requirement = rule?.tabs ? `Review ${rule.tabs.join(" and ").toUpperCase()}` : rule?.report ? `Document: ${playbook.reportFocus.join("; ")}` : `${rule?.all ? "Complete all" : "Complete one"}: ${required.join(", ")}`;
+    return {
+      ...basePhase,
+      goal: playbook.objectives[Math.min(BASE_PHASES.indexOf(basePhase), playbook.objectives.length - 1)] || basePhase.goal,
+      requirement,
+      check: (ctx) => actionRuleComplete(rule, ctx.actionIds, ctx),
+    };
+  }), [playbook]);
   const [revealedHints, setRevealedHints] = useState(new Set());
 
   const HINT_PENALTY_SECONDS = 30;
@@ -173,7 +187,7 @@ export default function TrainingNarrative({ scenario, actionsLog, alerts, report
       setExpandedPhase(newPhase);
       onPhaseChange?.(PHASES[newPhase]?.id);
     }
-  }, [actionsLog, alerts, reportGenerated, tabsVisited]);
+  }, [actionsLog, alerts, reportGenerated, tabsVisited, PHASES]);
 
   const phase = PHASES[expandedPhase];
 
