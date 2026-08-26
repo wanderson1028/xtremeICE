@@ -749,7 +749,11 @@ Return a flat object with field names matching the design schema directly.`,
                       design={design}
                       running={simRunning}
                     />
-                    <ExploitSimulator design={design} nodes={diagramData?.nodes || []} />
+                    <ExploitSimulator
+                      design={design}
+                      nodes={diagramData?.nodes || []}
+                      onInjectExploit={handleRunScenario}
+                    />
                   </div>
                    {/* Top: control + narrative side by side */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2 gap-4">
