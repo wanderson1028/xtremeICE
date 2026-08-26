@@ -15,6 +15,7 @@ import DeviceIconRenderer, { getDeviceIcon, getIconOptions } from "@/components/
 import { EVE_NG_ICONS, EVE_NG_ICON_LIST } from "@/components/livefire/EveNgIcons";
 import ImageCatalog, { OS_CREDENTIALS_MAP } from "@/components/livefire/ImageCatalog";
 import AddDevicePanel from "@/components/livefire/AddDevicePanel";
+import ExerciseBriefingPanel from "@/components/livefire/ExerciseBriefingPanel";
 
 const TYPE_COLORS = {
   router: "border-amber-500 bg-amber-500/10", switch: "border-cyan-500 bg-cyan-500/10",
@@ -1327,6 +1328,12 @@ export default function LiveLabTopology() {
           <span>VPC: <span className="text-gray-300">{lab.vpc_id}</span></span>
           <span>CIDR: <span className="text-gray-300">{topologyData?.vpcConfig?.cidr || "—"}</span></span>
           <span>Subnets: <span className="text-gray-300">{(topologyData?.vpcConfig?.subnets || []).map(s => s.cidr).join(", ") || "—"}</span></span>
+        </div>
+      )}
+
+      {lab.exercise_config && (
+        <div className="px-4 py-2 bg-gray-950/90 border-b border-red-900/20 shrink-0">
+          <ExerciseBriefingPanel config={lab.exercise_config} compact />
         </div>
       )}
 
