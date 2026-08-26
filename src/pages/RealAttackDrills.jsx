@@ -46,6 +46,7 @@ const SEVERITY_STYLES = {
 const SOURCE_STYLES = {
   "CISA-KEV": { label: "CISA KEV", color: "text-red-400", bg: "bg-red-500/10" },
   "NVD-CVE": { label: "NVD CVE", color: "text-blue-400", bg: "bg-blue-500/10" },
+  "GHSA": { label: "GitHub Advisory", color: "text-purple-400", bg: "bg-purple-500/10" },
 };
 
 function AttackCard({ item, onSelect }) {
@@ -334,7 +335,7 @@ export default function RealAttackDrills() {
             <div className="p-2.5 bg-cyan-500/20 rounded-xl"><Globe className="h-6 w-6 text-cyan-400" /></div>
             <div>
               <h1 className="text-2xl font-bold text-white">Real Attack Drills</h1>
-              <p className="text-sm text-gray-400">Practice incident response against real vulnerabilities from CISA KEV and NVD CVE feeds</p>
+              <p className="text-sm text-gray-400">Practice incident response against real vulnerabilities from CISA KEV, NVD CVE, and GitHub Security Advisories — enriched with EPSS exploit-likelihood scores</p>
             </div>
           </div>
 
@@ -370,7 +371,7 @@ export default function RealAttackDrills() {
                     </button>
                   ))}
                   <div className="h-4 w-px bg-white/10 mx-1" />
-                  {["all", "CISA-KEV", "NVD-CVE"].map(s => (
+                  {["all", "CISA-KEV", "NVD-CVE", "GHSA"].map(s => (
                     <button key={s} onClick={() => setSourceFilter(s)}
                       className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${sourceFilter === s ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40" : "bg-white/5 text-gray-400 border border-white/10 hover:text-white"}`}>
                       {s === "all" ? "All Sources" : SOURCE_STYLES[s]?.label || s}

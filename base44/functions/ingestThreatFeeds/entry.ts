@@ -1,13 +1,18 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 
-// Fetches CISA KEV and NVD CVE feeds, normalizes both into ThreatFeedItem
-// records, and upserts (dedupes by source + external_id). Admin-only.
-// Limits to recent entries to stay within function timeout.
+// Fetches CISA KEV, NVD CVE, and GitHub Security Advisories (GHSA) feeds,
+// enriches NVD records with EPSS exploit-likelihood scores from FIRST.org,
+// normalizes all into ThreatFeedItem records, and upserts (dedupes by
+// source + external_id). Admin-only. Limits to recent entries to stay
+// within function timeout.
 
 const CISA_KEV_URL = 'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json';
 const NVD_CVE_URL = 'https://services.nvd.nist.gov/rest/json/cves/2.0';
+const GHSA_URL = 'https://api.github.com/advisories?type=reviewed&per_page=';
+const EPSS_URL = 'https://api.first.org/data/v1/epss';
 const MAX_CISA = 100;
 const MAX_NVD = 50;
+const MAX_GHSA = 50;
 
 function severityLabel(score) {
   if (score == null) return 'medium';
@@ -19,7 +24,6 @@ function severityLabel(score) {
 
 function normalizeCisaKev(data) {
   const vulns = data?.vulnerabilities || [];
-  // Sort by dateAdded descending, take most recent
   const sorted = [...vulns].sort((a, b) => (b.dateAdded || '').localeCompare(a.dateAdded || ''));
   const recent = sorted.slice(0, MAX_CISA);
   const now = new Date().toISOString();
@@ -102,6 +106,77 @@ async function fetchNvdRecent() {
   return items;
 }
 
+// Fetch EPSS scores for a list of CVE IDs and return a map cve -> { epss, percentile }
+async function fetchEpssScores(cveIds) {
+  const map = new Map();
+  const unique = Array.from(new Set(cveIds.filter(Boolean)));
+  if (unique.length === 0) return map;
+  try {
+    const url = `${EPSS_URL}?cve=${encodeURIComponent(unique.join(','))}`;
+    const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!resp.ok) return map;
+    const data = await resp.json();
+    const entries = data?.data || [];
+    for (const entry of entries) {
+      if (entry?.cve) {
+        map.set(entry.cve, {
+          epss: entry.epss != null ? Number(entry.epss) : null,
+          percentile: entry.percentile != null ? Number(entry.percentile) : null,
+        });
+      }
+    }
+  } catch (e) {
+    // EPSS is best-effort enrichment — skip on error
+  }
+  return map;
+}
+
+async function fetchGhsa() {
+  const url = `${GHSA_URL}${MAX_GHSA}`;
+  const resp = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json', 'User-Agent': 'Xtreme-ICE-Threat-Feed-Ingestion' } });
+  if (!resp.ok) throw new Error(`GHSA API returned ${resp.status}`);
+  const data = await resp.json();
+  const nowIso = new Date().toISOString();
+  const items = [];
+  for (const adv of data || []) {
+    const ghsaId = adv.ghsa_id;
+    if (!ghsaId) continue;
+    const cveId = adv.cve_id || null;
+    let cvssScore = null;
+    if (adv.cvss?.score != null) {
+      cvssScore = Number(adv.cvss.score);
+    } else if (typeof adv.severity === 'string') {
+      const sevMap = { critical: 9.5, high: 7.5, medium: 5, low: 2.5 };
+      cvssScore = sevMap[adv.severity.toLowerCase()] || null;
+    }
+    const products = [];
+    for (const a of adv.affected || []) {
+      const pkg = a?.package;
+      if (pkg?.name) products.push(`${pkg.ecosystem || ''}/${pkg.name}`.replace(/^\//, ''));
+    }
+    items.push({
+      source: 'GHSA',
+      external_id: ghsaId,
+      cve_id: cveId,
+      title: adv.summary?.slice(0, 120) || cveId || ghsaId,
+      description: adv.summary || 'No description available',
+      severity: cvssScore,
+      severity_label: severityLabel(cvssScore ?? 7),
+      affected_products: [...new Set(products)].slice(0, 10),
+      mitre_techniques: [],
+      published_date: adv.published_at || null,
+      ingested_at: nowIso,
+      raw: {
+        ghsaId,
+        severity: adv.severity || null,
+        url: adv.html_url || null,
+        references: (adv.references || []).slice(0, 3).map(r => r.url || r),
+      },
+    });
+  }
+  return items;
+}
+
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
@@ -109,9 +184,8 @@ export default async function(req) {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     if (user.role !== 'admin') return Response.json({ error: 'Forbidden — admin only' }, { status: 403 });
 
-    const results = { cisa: 0, nvd: 0, created: 0, updated: 0, errors: [] };
+    const results = { cisa: 0, nvd: 0, ghsa: 0, epss_enriched: 0, created: 0, updated: 0, errors: [] };
 
-    // Fetch all existing records once and build a dedup map
     const existing = await base44.asServiceRole.entities.ThreatFeedItem.list('-ingested_at', 500);
     const existingMap = new Map();
     for (const e of existing) {
@@ -121,6 +195,16 @@ export default async function(req) {
     const toCreate = [];
     const toUpdate = [];
 
+    const upsert = (item) => {
+      const key = `${item.source}|${item.external_id}`;
+      if (existingMap.has(key)) {
+        toUpdate.push({ id: existingMap.get(key), ...item });
+      } else {
+        toCreate.push(item);
+        existingMap.set(key, 'pending');
+      }
+    };
+
     // Fetch CISA KEV
     try {
       const resp = await fetch(CISA_KEV_URL, { headers: { 'Accept': 'application/json' } });
@@ -128,34 +212,37 @@ export default async function(req) {
       const data = await resp.json();
       const cisaItems = normalizeCisaKev(data);
       results.cisa = cisaItems.length;
-      for (const item of cisaItems) {
-        const key = `${item.source}|${item.external_id}`;
-        if (existingMap.has(key)) {
-          toUpdate.push({ id: existingMap.get(key), ...item });
-        } else {
-          toCreate.push(item);
-          existingMap.set(key, 'pending');
-        }
-      }
+      cisaItems.forEach(upsert);
     } catch (e) {
       results.errors.push(`CISA fetch: ${e.message}`);
     }
 
-    // Fetch NVD CVE (recent, high severity)
+    // Fetch NVD CVE (recent, high severity) + EPSS enrichment
     try {
       const nvdItems = await fetchNvdRecent();
-      results.nvd = nvdItems.length;
+      const cveIds = nvdItems.map(i => i.cve_id).filter(Boolean);
+      const epssMap = await fetchEpssScores(cveIds);
       for (const item of nvdItems) {
-        const key = `${item.source}|${item.external_id}`;
-        if (existingMap.has(key)) {
-          toUpdate.push({ id: existingMap.get(key), ...item });
-        } else {
-          toCreate.push(item);
-          existingMap.set(key, 'pending');
+        const e = epssMap.get(item.cve_id);
+        if (e) {
+          item.epss_score = e.epss;
+          item.epss_percentile = e.percentile;
+          results.epss_enriched++;
         }
       }
+      results.nvd = nvdItems.length;
+      nvdItems.forEach(upsert);
     } catch (e) {
       results.errors.push(`NVD fetch: ${e.message}`);
+    }
+
+    // Fetch GitHub Security Advisories
+    try {
+      const ghsaItems = await fetchGhsa();
+      results.ghsa = ghsaItems.length;
+      ghsaItems.forEach(upsert);
+    } catch (e) {
+      results.errors.push(`GHSA fetch: ${e.message}`);
     }
 
     // Bulk create new records (up to 500 per call)

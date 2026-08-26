@@ -6,13 +6,14 @@
       "type": "string",
       "enum": [
         "CISA-KEV",
-        "NVD-CVE"
+        "NVD-CVE",
+        "GHSA"
       ],
       "description": "Feed source"
     },
     "external_id": {
       "type": "string",
-      "description": "Unique ID from the source feed (CVE ID or KEV catalog ID)"
+      "description": "Unique ID from the source feed (CVE ID, KEV catalog ID, or GHSA ID)"
     },
     "cve_id": {
       "type": "string",
@@ -39,6 +40,14 @@
         "critical"
       ],
       "description": "Severity bucket derived from CVSS"
+    },
+    "epss_score": {
+      "type": "number",
+      "description": "EPSS exploit-likelihood score (0-1) from FIRST.org; higher = more likely to be exploited"
+    },
+    "epss_percentile": {
+      "type": "number",
+      "description": "EPSS percentile (0-1) \u2014 rank relative to all scored CVEs"
     },
     "affected_products": {
       "type": "array",
