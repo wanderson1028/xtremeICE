@@ -2,11 +2,13 @@ import React, { useState } from "react";
 import { FileText, Download, Loader2, CheckCircle } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import ReactMarkdown from "react-markdown";
+import { getScenarioPlaybook } from "./scenarioPlaybooks";
 
 export default function IncidentReport({ scenario, alerts, logs, actionsLog, endpoints, score, elapsedMinutes, onReportGenerated }) {
   const [report, setReport] = useState("");
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
+  const playbook = getScenarioPlaybook(scenario?.id);
 
   const generateReport = async () => {
     setLoading(true);
@@ -30,6 +32,9 @@ INCIDENT DETAILS:
 - MITRE Tactics: ${(scenario?.mitre || []).join(", ")}
 - Duration: ${elapsedMinutes} minutes
 - Analyst Score: ${score}/100
+- Required Severity: ${playbook.severity}
+- Scenario Response Objectives: ${playbook.objectives.join("; ")}
+- Scenario-Specific Report Focus: ${playbook.reportFocus.join("; ")}
 
 ALERT STATUS:
 - Total Alerts: ${alerts.length}
@@ -62,6 +67,7 @@ Generate a professional incident report with these sections:
 11. Lessons Learned
 12. Preventive Recommendations
 13. MITRE ATT&CK Mapping
+14. Scenario-Specific Findings — explicitly address every required report-focus item listed above
 
 Make it detailed, professional, and realistic. Use proper incident response terminology.`;
 
@@ -141,6 +147,10 @@ ${openAlerts.length === 0 ? "**Fully Contained** — All alerts closed, threat r
 
 ## 13. MITRE ATT&CK Mapping
 ${(scenario?.mitre || []).map(t => `- ${t}`).join("\n")}
+
+## 14. Scenario-Specific Findings
+**Required severity:** ${playbook.severity}
+${playbook.reportFocus.map(item => `- ${item}`).join("\n")}
 
 ---
 *Report generated from SOC Training Drill — ${new Date().toLocaleString()}*`;
