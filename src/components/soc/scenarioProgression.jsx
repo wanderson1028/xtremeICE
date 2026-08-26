@@ -3,6 +3,7 @@
 // compromise spreads to new endpoints, and the threat level rises until contained.
 
 import { getDynamicEscalation, getDynamicCompromised } from "./dynamicRegistry";
+import { getScenarioPlaybook } from "./scenarioPlaybooks";
 
 export const COMPROMISED_MAP = {
   phishing_compromise: ["win-ws-01", "win-srv-01"],
@@ -658,6 +659,7 @@ const ACTION_CONSEQUENCES = {
 };
 
 export function getProgressionConfig(scenarioId, seed) {
+  const playbook = getScenarioPlaybook(scenarioId);
   const dynEscalation = getDynamicEscalation(scenarioId);
   const baseEvents = dynEscalation || ESCALATION_EVENTS[scenarioId] || generateGenericEscalation(scenarioId);
   const branch = seed?.escalationBranch ?? 0;
@@ -672,8 +674,8 @@ export function getProgressionConfig(scenarioId, seed) {
     escalationEvents,
     actionConsequences: ACTION_CONSEQUENCES,
     containmentThreshold: seed?.threat?.containment ?? 15,
-    failureMessage: "The attack has succeeded — critical systems have been compromised. Review your response timeline and try again.",
-    successMessage: "Incident successfully contained! Generate your report to complete the drill.",
+    failureMessage: playbook.failureMessage,
+    successMessage: playbook.successMessage,
   };
 }
 
