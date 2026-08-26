@@ -41,9 +41,8 @@ const ACTION_OUTCOMES = {
 };
 
 const PENALTY = -5;
-const categories = ["Containment", "Response", "Evidence", "Remediation", "Communication", "Documentation"];
 
-export default function RemediationPanel({ endpoints, alerts, actionsLog, onAction, score, scenario }) {
+export default function RemediationPanel({ endpoints, alerts, actionsLog, onAction, score, scenario, seed }) {
   const [activeChallenge, setActiveChallenge] = useState(null); // { action, challenge }
   const [noteText, setNoteText] = useState("");
   const [notes, setNotes] = useState([]);
@@ -53,9 +52,24 @@ export default function RemediationPanel({ endpoints, alerts, actionsLog, onActi
 
   const takenActionIds = new Set(actionsLog.map(a => a.id?.replace("rmm_", "").replace("edr_", "")));
 
+  // Randomize category order per run using the seed — so the button layout
+  // isn't identical every time, while keeping categories logically grouped.
+  const categoryOrder = React.useMemo(() => {
+    const base = ["Containment", "Response", "Evidence", "Remediation", "Communication", "Documentation"];
+    if (!seed) return base;
+    // Shuffle categories deterministically from the seed's runId
+    const seedNum = seed.runId ? seed.runId.split("").reduce((a, c) => a + c.charCodeAt(0), 0) : 0;
+    const shuffled = [...base];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = (seedNum + i * 7) % (i + 1);
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }, [seed]);
+
   const openChallenge = (action) => {
     if (takenActionIds.has(action.id)) return;
-    const challenge = buildChallenge(action.id, endpoints, alerts, scenario);
+    const challenge = buildChallenge(action.id, endpoints, alerts, scenario, seed);
     if (!challenge) {
       // No challenge defined — apply directly (fallback)
       applyAction(action, true);
@@ -155,7 +169,7 @@ export default function RemediationPanel({ endpoints, alerts, actionsLog, onActi
       </div>
 
       {/* Action groups */}
-      {categories.map(cat => {
+      {categoryOrder.map(cat => {
         const catActions = REMEDIATION_ACTIONS.filter(a => a.category === cat);
         return (
           <div key={cat} className={`border border-border/30 rounded-xl overflow-hidden ${categoryBg[cat]}`}>

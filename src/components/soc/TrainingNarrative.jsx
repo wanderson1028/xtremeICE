@@ -38,14 +38,24 @@ const DETECT_GUIDANCE = {
   },
 };
 
-const getDetectSteps = (scenarioId) => {
-  const guidance = DETECT_GUIDANCE[scenarioId] || {
+const getDetectSteps = (scenarioId, seed) => {
+  const raw = DETECT_GUIDANCE[scenarioId] || {
     dashboard: "Check the open alert count, severity levels, and source IPs in the Active Alerts panel. Note any CRITICAL or HIGH severity alerts and identify the affected hosts.",
     siem: "Scan the log stream for suspicious patterns — failed logins, unusual processes, or unexpected outbound connections. Filter by High/Critical severity to focus on the most important events.",
   };
+  // Apply seed IOC substitutions so guidance matches the randomized evidence
+  const subs = seed?.substitutions || {};
+  const applySubs = (text) => {
+    if (!text || typeof text !== "string") return text;
+    let result = text;
+    for (const [from, to] of Object.entries(subs)) {
+      result = result.split(from).join(String(to));
+    }
+    return result;
+  };
   return [
-    { tab: "dashboard", label: "View Dashboard", instruction: guidance.dashboard },
-    { tab: "siem", label: "View SIEM Logs", instruction: guidance.siem },
+    { tab: "dashboard", label: "View Dashboard", instruction: applySubs(raw.dashboard) },
+    { tab: "siem", label: "View SIEM Logs", instruction: applySubs(raw.siem) },
   ];
 };
 
@@ -114,12 +124,13 @@ const PHASES = [
   },
 ];
 
-export default function TrainingNarrative({ scenario, actionsLog, alerts, reportGenerated, activeTab, onNavigate, onPhaseChange, tabsVisited, threatLevel = 30, eventFeed = [], status = "active" }) {
+export default function TrainingNarrative({ scenario, actionsLog, alerts, reportGenerated, activeTab, onNavigate, onPhaseChange, tabsVisited, threatLevel = 30, eventFeed = [], status = "active", seed }) {
   const [currentPhase, setCurrentPhase] = useState(0);
   const [expandedPhase, setExpandedPhase] = useState(0);
 
-  // Build scenario-specific detect steps once
-  const detectSteps = getDetectSteps(scenario?.id);
+  // Build scenario-specific detect steps, applying seed IOC substitutions
+  // so guidance references the same randomized IOCs shown in the evidence
+  const detectSteps = getDetectSteps(scenario?.id, seed);
 
   // Adaptive guidance based on threat level and status
   const adaptiveGuidance = (() => {

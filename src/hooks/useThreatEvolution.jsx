@@ -5,7 +5,7 @@ import { generateAlerts, generateLogs, generateEDRDetections, ENDPOINTS } from "
 // Dynamic threat evolution engine for SOC training.
 // Makes scenarios adaptive: attacks progress in real-time, actions have
 // real consequences on the simulation state, and each scenario escalates uniquely.
-export function useThreatEvolution(scenario, simData) {
+export function useThreatEvolution(scenario, simData, seed) {
   const [threatLevel, setThreatLevel] = useState(30);
   const [liveAlerts, setLiveAlerts] = useState([]);
   const [liveLogs, setLiveLogs] = useState([]);
@@ -22,7 +22,7 @@ export function useThreatEvolution(scenario, simData) {
   // Reset simulation when new scenario data is provided
   useEffect(() => {
     if (!simData || !scenario) return;
-    const config = getProgressionConfig(scenario.id);
+    const config = getProgressionConfig(scenario.id, seed);
     setThreatLevel(config.initialThreat);
     prevThreatRef.current = config.initialThreat;
     setLiveAlerts(simData.alerts);
@@ -34,7 +34,7 @@ export function useThreatEvolution(scenario, simData) {
     setInjectedEvents(new Set());
     setStatus("active");
     setThreatTrend("stable");
-  }, [simData, scenario?.id]);
+  }, [simData, scenario?.id, seed]);
 
   // Tick timer — runs every second while active
   useEffect(() => {
@@ -48,7 +48,7 @@ export function useThreatEvolution(scenario, simData) {
   // Threat level rises over time — every 10 seconds
   useEffect(() => {
     if (status !== "active" || !scenario) return;
-    const config = getProgressionConfig(scenario.id);
+    const config = getProgressionConfig(scenario.id, seed);
     const interval = setInterval(() => {
       setThreatLevel(prev => {
         const next = Math.min(prev + config.threatRatePerMin / 6, 100);
@@ -73,7 +73,7 @@ export function useThreatEvolution(scenario, simData) {
   // Inject escalation events at time thresholds
   useEffect(() => {
     if (status !== "active" || !scenario) return;
-    const config = getProgressionConfig(scenario.id);
+    const config = getProgressionConfig(scenario.id, seed);
     const elapsedMin = elapsedSeconds / 60;
 
     config.escalationEvents.forEach((evt, idx) => {
@@ -126,7 +126,7 @@ export function useThreatEvolution(scenario, simData) {
   const processAction = useCallback((action) => {
     if (status !== "active" || !scenario) return;
 
-    const config = getProgressionConfig(scenario.id);
+    const config = getProgressionConfig(scenario.id, seed);
     const isPenalty = action.isPenalty;
     const actionId = action.id?.replace("rmm_", "").replace("edr_", "");
     const consequence = config.actionConsequences[actionId];
@@ -183,7 +183,7 @@ export function useThreatEvolution(scenario, simData) {
       message: consequence.message,
       type: "action",
     }]);
-  }, [status, scenario]);
+  }, [status, scenario, seed]);
 
   // Mark as complete when report is generated after containment
   const markComplete = useCallback(() => {
@@ -203,8 +203,8 @@ export function useThreatEvolution(scenario, simData) {
     status,
     processAction,
     markComplete,
-    containmentThreshold: scenario ? getProgressionConfig(scenario.id).containmentThreshold : 15,
-    failureMessage: scenario ? getProgressionConfig(scenario.id).failureMessage : "",
-    successMessage: scenario ? getProgressionConfig(scenario.id).successMessage : "",
+    containmentThreshold: scenario ? getProgressionConfig(scenario.id, seed).containmentThreshold : 15,
+    failureMessage: scenario ? getProgressionConfig(scenario.id, seed).failureMessage : "",
+    successMessage: scenario ? getProgressionConfig(scenario.id, seed).successMessage : "",
   };
 }

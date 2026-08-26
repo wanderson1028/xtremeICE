@@ -655,15 +655,93 @@ const ACTION_CONSEQUENCES = {
   },
 };
 
-export function getProgressionConfig(scenarioId) {
-  const escalation = ESCALATION_EVENTS[scenarioId] || generateGenericEscalation(scenarioId);
+export function getProgressionConfig(scenarioId, seed) {
+  const baseEvents = ESCALATION_EVENTS[scenarioId] || generateGenericEscalation(scenarioId);
+  const branch = seed?.escalationBranch ?? 0;
+
+  // Generate branch variations: different timing, different threat increases,
+  // and optionally shuffled event order so no two runs escalate identically.
+  const escalationEvents = applyBranch(baseEvents, branch, seed);
+
   return {
-    initialThreat: 30,
-    threatRatePerMin: 5,
-    escalationEvents: escalation,
+    initialThreat: seed?.threat?.initial ?? 30,
+    threatRatePerMin: seed?.threat?.rate ?? 5,
+    escalationEvents,
     actionConsequences: ACTION_CONSEQUENCES,
-    containmentThreshold: 15,
+    containmentThreshold: seed?.threat?.containment ?? 15,
     failureMessage: "The attack has succeeded — critical systems have been compromised. Review your response timeline and try again.",
     successMessage: "Incident successfully contained! Generate your report to complete the drill.",
   };
+}
+
+// Apply a branch variation to escalation events: vary timing and threat increases
+// so the same scenario escalates differently on each run.
+function applyBranch(events, branch, seed) {
+  if (!events || events.length === 0) return events;
+
+  // Branch 0: original timing (but with slight jitter)
+  // Branch 1: events fire earlier and hit harder
+  // Branch 2: events fire later but spread to different endpoints
+  const subs = seed?.substitutions || {};
+
+  return events.map((evt, idx) => {
+    let atMinute = evt.atMinute;
+    let threatIncrease = evt.threatIncrease || 8;
+    let spreadTo = evt.spreadTo;
+
+    if (branch === 1) {
+      // Aggressive branch: events fire 20-40s earlier, threat +2
+      atMinute = Math.max(0.5, evt.atMinute - 0.3 - Math.random() * 0.2);
+      threatIncrease = (evt.threatIncrease || 8) + 2;
+    } else if (branch === 2) {
+      // Slow burn branch: events fire later, but spread wider
+      atMinute = evt.atMinute + 0.4 + Math.random() * 0.3;
+      // Widen spread to include an additional endpoint
+      if (spreadTo && spreadTo.length > 0) {
+        const extraEndpoints = ["win-ws-02", "linux-srv-01", "dc-01"];
+        const extra = extraEndpoints.filter(e => !spreadTo.includes(e));
+        if (extra.length > 0) {
+          spreadTo = [...spreadTo, extra[Math.floor(Math.random() * extra.length)]];
+        }
+      }
+    } else {
+      // Branch 0: slight jitter on timing
+      atMinute = evt.atMinute + (Math.random() - 0.5) * 0.3;
+    }
+
+    // Apply IOC substitutions to alert/log text
+    const alert = evt.alert ? {
+      ...evt.alert,
+      title: applySubs(evt.alert.title, subs),
+      src: applySubs(evt.alert.src, subs),
+      rule: applySubs(evt.alert.rule, subs),
+    } : undefined;
+
+    const log = evt.log ? {
+      ...evt.log,
+      src: applySubs(evt.log.src, subs),
+      msg: applySubs(evt.log.msg, subs),
+    } : undefined;
+
+    const message = applySubs(evt.message, subs);
+
+    return {
+      ...evt,
+      atMinute: Math.round(atMinute * 10) / 10,
+      threatIncrease,
+      spreadTo,
+      alert,
+      log,
+      message,
+    };
+  });
+}
+
+function applySubs(text, subs) {
+  if (!text || typeof text !== "string") return text;
+  let result = text;
+  for (const [from, to] of Object.entries(subs)) {
+    result = result.split(from).join(String(to));
+  }
+  return result;
 }

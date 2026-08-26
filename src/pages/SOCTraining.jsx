@@ -9,6 +9,7 @@ import {
 
 import { SCENARIOS, ENDPOINTS, generateLogs, generateAlerts, generateEDRDetections } from "@/components/soc/socData";
 import { COMPROMISED_MAP } from "@/components/soc/scenarioProgression";
+import { generateRunSeed } from "@/components/soc/runSeed";
 import { useThreatEvolution } from "@/hooks/useThreatEvolution";
 import SOCDashboard from "@/components/soc/SOCDashboard";
 import SIEMViewer from "@/components/soc/SIEMViewer";
@@ -71,8 +72,9 @@ export default function SOCTraining() {
   const [score, setScore] = useState(0);
   const [tabsVisited, setTabsVisited] = useState(new Set(["dashboard"]));
   const [reportGenerated, setReportGenerated] = useState(false);
+  const [runSeed, setRunSeed] = useState(null);
 
-  const evolution = useThreatEvolution(selectedScenario, simData);
+  const evolution = useThreatEvolution(selectedScenario, simData, runSeed);
 
   const { data: currentUser } = useQuery({
     queryKey: ["me"],
@@ -104,16 +106,21 @@ export default function SOCTraining() {
   });
 
   const launchScenario = (scenario) => {
-    const scenarioAlerts = generateAlerts(scenario.id);
-    const scenarioLogs = generateLogs(scenario.id);
-    const scenarioEDR = generateEDRDetections(scenario.id);
+    // Generate a randomized run-seed — single source of truth for all evidence
+    const seed = generateRunSeed(scenario.id);
+    const scenarioAlerts = generateAlerts(scenario.id, seed);
+    const scenarioLogs = generateLogs(scenario.id, seed);
+    const scenarioEDR = generateEDRDetections(scenario.id, seed);
     const compromised = new Set(COMPROMISED_MAP[scenario.id] || []);
+    // Ensure patient-zero from the seed is compromised
+    if (seed.patientZero) compromised.add(seed.patientZero);
     const updatedEps = [...ENDPOINTS].map(ep => ({ ...ep, status: compromised.has(ep.id) ? "compromised" : "healthy" }));
     setSimData({ alerts: scenarioAlerts, logs: scenarioLogs, endpoints: updatedEps, edr: scenarioEDR });
     setActionsLog([]);
     setScore(0);
     setTabsVisited(new Set(["dashboard"]));
     setReportGenerated(false);
+    setRunSeed(seed);
     setActiveTab("dashboard");
     setSelectedScenario(scenario);
     setPhase("active");
@@ -327,14 +334,14 @@ export default function SOCTraining() {
               {activeTab === "siem" && <SIEMViewer logs={evolution.liveLogs} />}
               {activeTab === "edr" && <EDRModule detections={evolution.liveEDR} endpoints={evolution.liveEndpoints} onAction={handleAction} />}
               {activeTab === "rmm" && <RMMModule endpoints={evolution.liveEndpoints} onAction={handleAction} />}
-              {activeTab === "remediation" && <RemediationPanel endpoints={evolution.liveEndpoints} alerts={evolution.liveAlerts} actionsLog={actionsLog} onAction={handleAction} score={score} scenario={selectedScenario} />}
+              {activeTab === "remediation" && <RemediationPanel endpoints={evolution.liveEndpoints} alerts={evolution.liveAlerts} actionsLog={actionsLog} onAction={handleAction} score={score} scenario={selectedScenario} seed={runSeed} />}
               {activeTab === "report" && <IncidentReport scenario={selectedScenario} alerts={evolution.liveAlerts} logs={evolution.liveLogs} actionsLog={actionsLog} endpoints={evolution.liveEndpoints} score={score} elapsedMinutes={evolution.elapsedMinutes} onReportGenerated={() => { setReportGenerated(true); evolution.markComplete(); }} />}
             </motion.div>
           </AnimatePresence>
         </div>
         <div className="w-px shrink-0 bg-gradient-to-b from-transparent via-primary/40 to-transparent" />
         <div className="w-80 shrink-0 flex flex-col overflow-hidden">
-          <TrainingNarrative scenario={selectedScenario} actionsLog={actionsLog} alerts={evolution.liveAlerts} reportGenerated={reportGenerated} activeTab={activeTab} onNavigate={handleTabChange} tabsVisited={tabsVisited} threatLevel={evolution.threatLevel} eventFeed={evolution.eventFeed} status={evolution.status} />
+          <TrainingNarrative scenario={selectedScenario} actionsLog={actionsLog} alerts={evolution.liveAlerts} reportGenerated={reportGenerated} activeTab={activeTab} onNavigate={handleTabChange} tabsVisited={tabsVisited} threatLevel={evolution.threatLevel} eventFeed={evolution.eventFeed} status={evolution.status} seed={runSeed} />
         </div>
       </div>
 
