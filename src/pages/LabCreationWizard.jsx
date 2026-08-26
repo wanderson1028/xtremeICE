@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import TopologyBuilder from "@/components/livefire/TopologyBuilder";
+import ExerciseBriefingPanel from "@/components/livefire/ExerciseBriefingPanel";
 
 const STEPS = ["Lab Info", "Cloud Provider", "Topology", "Review"];
 
@@ -203,6 +204,12 @@ export default function LabCreationWizard() {
             </Badge>
           )}
         </div>
+
+        {existingLab?.exercise_config && (
+          <div className="mb-6">
+            <ExerciseBriefingPanel config={existingLab.exercise_config} />
+          </div>
+        )}
 
         {/* Step Indicator */}
         <div className="flex items-center gap-2 mb-8">
