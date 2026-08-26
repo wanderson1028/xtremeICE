@@ -190,6 +190,11 @@ export function useThreatEvolution(scenario, simData, seed) {
     setStatus(prev => prev === "contained" ? "complete" : prev);
   }, []);
 
+  // Add a time penalty (e.g., when a hint is revealed)
+  const addTimePenalty = useCallback((seconds) => {
+    setElapsedSeconds(prev => prev + seconds);
+  }, []);
+
   return {
     threatLevel: Math.round(threatLevel),
     threatTrend,
@@ -203,6 +208,7 @@ export function useThreatEvolution(scenario, simData, seed) {
     status,
     processAction,
     markComplete,
+    addTimePenalty,
     containmentThreshold: scenario ? getProgressionConfig(scenario.id, seed).containmentThreshold : 15,
     failureMessage: scenario ? getProgressionConfig(scenario.id, seed).failureMessage : "",
     successMessage: scenario ? getProgressionConfig(scenario.id, seed).successMessage : "",

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronRight, BookOpen, AlertTriangle, Shield, CheckCircle, FileText, Radio, Activity, TrendingUp, TrendingDown, Zap } from "lucide-react";
+import { ChevronRight, BookOpen, AlertTriangle, Shield, CheckCircle, FileText, Radio, Activity, TrendingUp, TrendingDown, Zap, Lightbulb } from "lucide-react";
 
 // Per-scenario detect guidance: what to look for on each tab
 const DETECT_GUIDANCE = {
@@ -124,9 +124,19 @@ const PHASES = [
   },
 ];
 
-export default function TrainingNarrative({ scenario, actionsLog, alerts, reportGenerated, activeTab, onNavigate, onPhaseChange, tabsVisited, threatLevel = 30, eventFeed = [], status = "active", seed }) {
+export default function TrainingNarrative({ scenario, actionsLog, alerts, reportGenerated, activeTab, onNavigate, onPhaseChange, tabsVisited, threatLevel = 30, eventFeed = [], status = "active", seed, onHintUsed }) {
   const [currentPhase, setCurrentPhase] = useState(0);
   const [expandedPhase, setExpandedPhase] = useState(0);
+  const [revealedHints, setRevealedHints] = useState(new Set());
+
+  const HINT_PENALTY_SECONDS = 30;
+  const revealHint = (phaseId) => {
+    setRevealedHints(prev => {
+      if (prev.has(phaseId)) return prev;
+      onHintUsed?.(HINT_PENALTY_SECONDS);
+      return new Set([...prev, phaseId]);
+    });
+  };
 
   // Build scenario-specific detect steps, applying seed IOC substitutions
   // so guidance references the same randomized IOCs shown in the evidence
@@ -249,6 +259,11 @@ export default function TrainingNarrative({ scenario, actionsLog, alerts, report
                 <div className="flex-1 min-w-0">
                   <div className={`text-xs font-semibold ${done ? "text-green-400" : active ? p.color : "text-muted-foreground"}`}>{p.label}</div>
                   <div className="text-[10px] text-muted-foreground truncate">{p.goal}</div>
+                  {revealedHints.has(p.id) && !done && (
+                    <span className="inline-flex items-center gap-0.5 mt-0.5 text-[9px] text-yellow-500/80 font-mono">
+                      <Lightbulb className="h-2 w-2" /> −{HINT_PENALTY_SECONDS}s
+                    </span>
+                  )}
                 </div>
                 {!locked && (
                   <ChevronRight className={`h-3 w-3 text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`} />
@@ -265,44 +280,61 @@ export default function TrainingNarrative({ scenario, actionsLog, alerts, report
                     className="overflow-hidden"
                   >
                     <div className="px-3 pb-3 space-y-2.5">
-                      {/* Multi-step instructions */}
-                      {p.id === "detect" ? (
-                        <div className="space-y-2">
-                          {detectSteps.map((step, si) => {
-                            const visited = tabsVisited && tabsVisited.has(step.tab);
-                            return (
-                              <div key={si} className={`rounded-lg border p-2.5 transition-all ${visited ? "border-green-500/30 bg-green-500/5" : "border-border/30 bg-secondary/20"}`}>
-                                <div className="flex items-center gap-2 mb-1">
-                                  {visited
-                                    ? <CheckCircle className="h-3 w-3 text-green-400 shrink-0" />
-                                    : <div className="h-3 w-3 rounded-full border border-muted-foreground/40 shrink-0" />
-                                  }
-                                  <span className={`text-[10px] font-semibold ${visited ? "text-green-400" : "text-foreground"}`}>Step {si + 1} — {step.label}</span>
-                                </div>
-                                <p className="text-[10px] text-muted-foreground leading-relaxed ml-5">
-                                  {step.instruction.split("**").map((part, i) =>
-                                    i % 2 === 1 ? <strong key={i} className="text-foreground font-medium">{part}</strong> : part
-                                  )}
-                                </p>
-                                {!visited && !done && (
-                                  <button
-                                    onClick={() => onNavigate(step.tab)}
-                                    className={`mt-2 ml-5 flex items-center gap-1 text-[10px] font-medium ${p.color} hover:opacity-80 transition-opacity`}
-                                  >
-                                    Go to {step.label} <ChevronRight className="h-2.5 w-2.5" />
-                                  </button>
+                      {/* Hint — hidden by default; revealing costs time off the clock */}
+                      {(() => {
+                        const revealed = revealedHints.has(p.id);
+                        if (!revealed) {
+                          return (
+                            <button
+                              onClick={() => revealHint(p.id)}
+                              className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-medium border border-yellow-500/30 bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 transition-all"
+                            >
+                              <Lightbulb className="h-3 w-3" /> Reveal Hint <span className="text-[9px] text-yellow-500/70">−{HINT_PENALTY_SECONDS}s</span>
+                            </button>
+                          );
+                        }
+                        return (
+                          <div className="space-y-2">
+                            {p.id === "detect" ? (
+                              <div className="space-y-2">
+                                {detectSteps.map((step, si) => {
+                                  const visited = tabsVisited && tabsVisited.has(step.tab);
+                                  return (
+                                    <div key={si} className={`rounded-lg border p-2.5 transition-all ${visited ? "border-green-500/30 bg-green-500/5" : "border-border/30 bg-secondary/20"}`}>
+                                      <div className="flex items-center gap-2 mb-1">
+                                        {visited
+                                          ? <CheckCircle className="h-3 w-3 text-green-400 shrink-0" />
+                                          : <div className="h-3 w-3 rounded-full border border-muted-foreground/40 shrink-0" />
+                                        }
+                                        <span className={`text-[10px] font-semibold ${visited ? "text-green-400" : "text-foreground"}`}>Step {si + 1} — {step.label}</span>
+                                      </div>
+                                      <p className="text-[10px] text-muted-foreground leading-relaxed ml-5">
+                                        {step.instruction.split("**").map((part, i) =>
+                                          i % 2 === 1 ? <strong key={i} className="text-foreground font-medium">{part}</strong> : part
+                                        )}
+                                      </p>
+                                      {!visited && !done && (
+                                        <button
+                                          onClick={() => onNavigate(step.tab)}
+                                          className={`mt-2 ml-5 flex items-center gap-1 text-[10px] font-medium ${p.color} hover:opacity-80 transition-opacity`}
+                                        >
+                                          Go to {step.label} <ChevronRight className="h-2.5 w-2.5" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="text-[11px] text-foreground/70 leading-relaxed bg-secondary/30 rounded-lg p-2.5">
+                                💡 {p.hint.split("**").map((part, i) =>
+                                  i % 2 === 1 ? <strong key={i} className="text-foreground font-semibold">{part}</strong> : part
                                 )}
                               </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="text-[11px] text-foreground/70 leading-relaxed bg-secondary/30 rounded-lg p-2.5">
-                          💡 {p.hint.split("**").map((part, i) =>
-                            i % 2 === 1 ? <strong key={i} className="text-foreground font-semibold">{part}</strong> : part
-                          )}
-                        </div>
-                      )}
+                            )}
+                          </div>
+                        );
+                      })()}
                       {/* Completion requirement indicator */}
                       <div className={`flex items-start gap-2 rounded-lg border px-2.5 py-2 text-[10px] ${done ? "border-green-500/30 bg-green-500/5" : "border-border/30 bg-secondary/20"}`}>
                         {done

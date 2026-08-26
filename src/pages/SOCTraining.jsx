@@ -341,7 +341,7 @@ export default function SOCTraining() {
         </div>
         <div className="w-px shrink-0 bg-gradient-to-b from-transparent via-primary/40 to-transparent" />
         <div className="w-80 shrink-0 flex flex-col overflow-hidden">
-          <TrainingNarrative scenario={selectedScenario} actionsLog={actionsLog} alerts={evolution.liveAlerts} reportGenerated={reportGenerated} activeTab={activeTab} onNavigate={handleTabChange} tabsVisited={tabsVisited} threatLevel={evolution.threatLevel} eventFeed={evolution.eventFeed} status={evolution.status} seed={runSeed} />
+          <TrainingNarrative scenario={selectedScenario} actionsLog={actionsLog} alerts={evolution.liveAlerts} reportGenerated={reportGenerated} activeTab={activeTab} onNavigate={handleTabChange} tabsVisited={tabsVisited} threatLevel={evolution.threatLevel} eventFeed={evolution.eventFeed} status={evolution.status} seed={runSeed} onHintUsed={evolution.addTimePenalty} />
         </div>
       </div>
 
