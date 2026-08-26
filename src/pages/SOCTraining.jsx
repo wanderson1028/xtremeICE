@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield, ChevronRight, Network, Clock, BarChart2, Terminal,
-  Cpu, Monitor, FileText, X, AlertTriangle, CheckCircle, Zap, BookOpen
+  Cpu, Monitor, FileText, X, AlertTriangle, CheckCircle, Zap, BookOpen, Flag
 } from "lucide-react";
 
 import { SCENARIOS, ENDPOINTS, generateLogs, generateAlerts, generateEDRDetections } from "@/components/soc/socData";
@@ -21,6 +21,7 @@ import DrillReview from "@/components/soc/DrillReview";
 import ScenarioBriefing from "@/components/soc/ScenarioBriefing";
 import TrainingNarrative from "@/components/soc/TrainingNarrative";
 import { getScenarioPlaybook, getRequiredActionIds } from "@/components/soc/scenarioPlaybooks";
+import { calculateSurrenderScore } from "@/components/soc/drillReview";
 
 const ALL_BEGINNER = SCENARIOS.filter(s => s.difficulty === "Beginner");
 
@@ -89,7 +90,7 @@ export default function SOCTraining() {
 
   // Persist a SOCSession record when the drill reaches a terminal state
   useEffect(() => {
-    if (evolution.status !== "complete" && evolution.status !== "failed") return;
+    if (!["complete", "failed", "surrendered"].includes(evolution.status)) return;
     if (sessionSavedRef.current) return;
     if (!selectedScenario || !currentUser?.email) return;
     sessionSavedRef.current = true;
@@ -194,6 +195,13 @@ export default function SOCTraining() {
     const requiredIds = new Set(getRequiredActionIds(selectedScenario?.id));
     const scenarioScore = requiredIds.has(cleanId) ? 14 : 4;
     setScore(prev => Math.min(prev + scenarioScore, 100));
+  };
+
+  const handleCompleteScenario = () => {
+    if (!window.confirm("Complete this scenario now? This means you are giving up. Your work so far will be scored and submitted to your stats and dashboard.")) return;
+    const finalScore = calculateSurrenderScore(selectedScenario, actionsLog, evolution.liveAlerts, evolution.liveEndpoints);
+    setScore(finalScore);
+    evolution.completeScenario();
   };
 
   const handleTabChange = (tabId) => {
@@ -380,6 +388,10 @@ export default function SOCTraining() {
             <span className={openAlerts > 0 ? "text-red-400" : "text-green-400"}>{openAlerts} open</span>
           </div>
           <div className="text-xs font-mono text-primary font-semibold">{score}pts</div>
+          <button onClick={handleCompleteScenario}
+            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 border border-amber-500/30 transition-all">
+            <Flag className="h-3.5 w-3.5" /> Complete Scenario
+          </button>
           <button onClick={exitSimulation}
             className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-red-400 hover:bg-red-500/10 border border-border/30 transition-all">
             <X className="h-3.5 w-3.5" /> Exit
@@ -409,7 +421,7 @@ export default function SOCTraining() {
 
       {/* Post-Incident Review */}
       <AnimatePresence>
-        {(evolution.status === "failed" || evolution.status === "complete") && (
+        {(["failed", "complete", "surrendered"].includes(evolution.status)) && (
           <DrillReview
             scenario={selectedScenario}
             actionsLog={actionsLog}
