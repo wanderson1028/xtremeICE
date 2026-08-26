@@ -101,7 +101,7 @@ export const BEGINNER_PLAYBOOKS = {
     ["restore_backup"]),
   unusual_process: p("Suspicious Endpoint Process", "P1",
     ["Validate the process path and ancestry", "Identify C2 behavior", "Remove persistence"],
-    { triage:{all:["collect_forensics","quarantine_file"]}, contain:{all:["isolate_host","block_ip"]}, recover:{all:["kill_process","remove_persistence"]} },
+    { triage:{all:["collect_forensics","preserve_evidence","quarantine_file"]}, contain:{all:["isolate_host","block_ip"]}, recover:{all:["kill_process","remove_persistence"]} },
     ["Process tree and hash", "C2 destination", "Persistence artifacts"],
     "The malicious process, C2 channel, and persistence were removed.",
     "The process retained C2 access and dumped credentials.",
