@@ -176,7 +176,7 @@ export default function RealAttackDrills() {
 
   const { data: feedItems = [], isLoading: feedLoading } = useQuery({
     queryKey: ["threat-feed-items"],
-    queryFn: () => base44.entities.ThreatFeedItem.list("-ingested_at", 200),
+    queryFn: () => base44.entities.ThreatFeedItem.list("-ingested_at", 25),
   });
 
   const { data: networks = [] } = useQuery({
