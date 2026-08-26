@@ -35,12 +35,12 @@ export default function DrillReview({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-start sm:items-center justify-center z-50 p-3 sm:p-6 overflow-y-auto"
+      className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-50 p-3 sm:p-6 overflow-hidden"
     >
       <motion.div
         initial={{ scale: 0.96, y: 16 }}
         animate={{ scale: 1, y: 0 }}
-        className="bg-card border border-border/50 rounded-2xl w-full max-w-4xl my-2 shadow-2xl overflow-hidden flex flex-col"
+        className="bg-card border border-border/50 rounded-2xl w-full max-w-5xl max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] shadow-2xl overflow-hidden flex flex-col"
       >
         {/* Outcome banner */}
         <div className={`px-5 sm:px-7 py-5 border-b ${contained ? "bg-green-500/10 border-green-500/30" : "bg-red-500/10 border-red-500/30"}`}>
@@ -74,7 +74,7 @@ export default function DrillReview({
         </div>
 
         {/* Scrollable body */}
-        <div className="p-4 sm:p-6 space-y-5 overflow-y-auto">
+        <div className="min-h-0 flex-1 p-4 sm:p-6 space-y-5 overflow-y-auto overscroll-contain">
           {/* Completed + Missed — two columns on desktop */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Completed */}
@@ -84,7 +84,7 @@ export default function DrillReview({
                 <span className="text-xs font-semibold uppercase text-green-400">What You Completed</span>
                 <span className="ml-auto text-xs font-mono text-green-400/70">{completed.length}/{expected.length}</span>
               </div>
-              <div className="p-3 space-y-1.5 max-h-56 overflow-y-auto">
+              <div className="p-3 space-y-1.5 max-h-64 overflow-y-auto overscroll-contain">
                 {completed.length === 0 ? (
                   <div className="py-4 text-center text-xs text-muted-foreground">No expected actions were taken</div>
                 ) : (
@@ -106,7 +106,7 @@ export default function DrillReview({
                 <span className="text-xs font-semibold uppercase text-red-400">What You Failed To Do</span>
                 <span className="ml-auto text-xs font-mono text-red-400/70">{missed.length}/{expected.length}</span>
               </div>
-              <div className="p-3 space-y-1.5 max-h-56 overflow-y-auto">
+              <div className="p-3 space-y-1.5 max-h-64 overflow-y-auto overscroll-contain">
                 {missed.length === 0 ? (
                   <div className="py-4 text-center text-xs text-green-400/80 flex items-center justify-center gap-1.5">
                     <CheckCircle className="h-3.5 w-3.5" /> All expected actions completed
@@ -145,7 +145,7 @@ export default function DrillReview({
                     <CheckCircle className="h-3.5 w-3.5" /> All alerts triaged
                   </div>
                 ) : (
-                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                  <div className="space-y-1.5 max-h-52 overflow-y-auto overscroll-contain">
                     {openAlerts.map(a => (
                       <div key={a.id} className="flex items-center gap-2">
                         <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${sevColor(a.sev || a.severity)}`}>
@@ -168,7 +168,7 @@ export default function DrillReview({
                     <CheckCircle className="h-3.5 w-3.5" /> All endpoints secured
                   </div>
                 ) : (
-                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                  <div className="space-y-1.5 max-h-52 overflow-y-auto overscroll-contain">
                     {compromisedEps.map(ep => (
                       <div key={ep.id} className="flex items-center gap-2">
                         <span className="h-1.5 w-1.5 rounded-full bg-red-500 shrink-0" />
