@@ -19,6 +19,7 @@ export default function DrillReview({
   const openAlerts = (alerts || []).filter(a => a.status === "open");
   const compromisedEps = (endpoints || []).filter(e => e.status === "compromised");
   const contained = status === "complete";
+  const surrendered = status === "surrendered";
   const cleanRun = compromisedEps.length === 0 && openAlerts.length === 0;
 
   const sevColor = (s) => {
@@ -49,7 +50,7 @@ export default function DrillReview({
             </div>
             <div className="min-w-0 flex-1">
               <h2 className={`text-xl sm:text-2xl font-bold ${contained ? "text-green-400" : "text-red-400"}`}>
-                {contained ? "Incident Contained" : "Attack Succeeded"}
+                {contained ? "Incident Contained" : surrendered ? "Scenario Ended Early" : "Attack Succeeded"}
               </h2>
               <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 line-clamp-2">
                 {contained ? successMessage : failureMessage}
