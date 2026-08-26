@@ -180,7 +180,9 @@ export default function RemediationPanel({ endpoints, alerts, logs = [], actions
               {catActions.map(action => {
                 const taken = takenActionIds.has(action.id);
                 const attempted = attemptedActions.has(action.id);
-                const disabled = taken || attempted;
+                const actionChallenge = action.id === "block_ip" ? buildChallenge(action.id, endpoints, alerts, scenario, seed, logs) : null;
+                const unavailable = action.id === "block_ip" && !actionChallenge?.correctAnswer;
+                const disabled = taken || attempted || unavailable;
                 const fails = failedAttempts[action.id] || 0;
                 const wasFailed = attempted && !taken;
                 return (
@@ -188,7 +190,7 @@ export default function RemediationPanel({ endpoints, alerts, logs = [], actions
                     key={action.id}
                     onClick={() => openChallenge(action)}
                     disabled={disabled}
-                    title={action.description}
+                    title={unavailable ? "No verified attacker IP appears in this scenario’s SIEM evidence. Use the scenario-specific containment action." : action.description}
                     className={`relative flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
                       disabled
                         ? "opacity-40 cursor-not-allowed border-border/20 text-muted-foreground"
@@ -199,6 +201,7 @@ export default function RemediationPanel({ endpoints, alerts, logs = [], actions
                     <span className="truncate">{action.label}</span>
                     {taken && <CheckCircle className="h-3 w-3 ml-auto shrink-0 text-green-500" />}
                     {wasFailed && <span className="ml-auto text-[9px] font-bold text-red-400">✗</span>}
+                    {unavailable && <Lock className="h-3 w-3 ml-auto shrink-0" />}
                   </button>
                 );
               })}
