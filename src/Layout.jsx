@@ -180,7 +180,7 @@ function TrainingDropdown({ currentPageName, access }) {
   const [simOpen, setSimOpen] = useState(false);
   const [socOpen, setSocOpen] = useState(false);
   const ref = useRef(null);
-  const isActive = ["Labs", "VirtualLabs", "SOCSimulation", "SOCTraining", "SOCAssessments", "InteractiveVirtualLabs", "LabCourses"].includes(currentPageName);
+  const isActive = ["Labs", "VirtualLabs", "SOCSimulation", "SOCTraining", "RealAttackDrills", "SOCAssessments", "InteractiveVirtualLabs", "LabCourses"].includes(currentPageName);
 
   useEffect(() => {
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -190,7 +190,7 @@ function TrainingDropdown({ currentPageName, access }) {
 
   if (!access.hasTraining) return null;
 
-  const showSocSub = access.hasSocTraining;
+  const showSocSub = access.hasSocTraining || access.hasRealAttackDrills;
 
   return (
     <div className="relative" ref={ref}>
@@ -241,7 +241,12 @@ function TrainingDropdown({ currentPageName, access }) {
                       {t("nav.socTraining")}
                     </Link>
                   )}
-
+                  {access.hasRealAttackDrills && (
+                    <Link to="/real-attack-drills" onClick={() => setOpen(false)}
+                      className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
+                      Real Attack Drills
+                    </Link>
+                  )}
                 </>
               )}
             </>

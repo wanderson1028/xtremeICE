@@ -2,6 +2,8 @@
 // Each scenario escalates differently — new alerts/logs appear over time,
 // compromise spreads to new endpoints, and the threat level rises until contained.
 
+import { getDynamicEscalation, getDynamicCompromised } from "./dynamicRegistry";
+
 export const COMPROMISED_MAP = {
   phishing_compromise: ["win-ws-01", "win-srv-01"],
   ransomware_outbreak: ["win-ws-01", "win-ws-02", "win-srv-01"],
@@ -656,7 +658,8 @@ const ACTION_CONSEQUENCES = {
 };
 
 export function getProgressionConfig(scenarioId, seed) {
-  const baseEvents = ESCALATION_EVENTS[scenarioId] || generateGenericEscalation(scenarioId);
+  const dynEscalation = getDynamicEscalation(scenarioId);
+  const baseEvents = dynEscalation || ESCALATION_EVENTS[scenarioId] || generateGenericEscalation(scenarioId);
   const branch = seed?.escalationBranch ?? 0;
 
   // Generate branch variations: different timing, different threat increases,
@@ -744,4 +747,10 @@ function applySubs(text, subs) {
     result = result.split(from).join(String(to));
   }
   return result;
+}
+
+// Helper for dynamic scenarios — returns compromised endpoints from the registry
+// or falls back to the static COMPROMISED_MAP.
+export function getCompromisedEndpoints(scenarioId) {
+  return getDynamicCompromised(scenarioId) || COMPROMISED_MAP[scenarioId] || [];
 }

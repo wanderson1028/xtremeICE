@@ -3,6 +3,7 @@
 // answer derives from this seed, so remediation always matches the visible evidence.
 
 import { ENDPOINTS } from "./socData";
+import { getDynamicProfile } from "./dynamicRegistry";
 
 // ─── IOC Pools ────────────────────────────────────────────────────────────────
 
@@ -292,7 +293,10 @@ function randRange(min, max) {
 // ─── Seed Generation ────────────────────────────────────────────────────────────
 
 export function generateRunSeed(scenarioId) {
-  const profile = PROFILES[scenarioId] || { iocs: [], defaults: {}, patientZero: "win-ws-01" };
+  const dynProfile = getDynamicProfile(scenarioId);
+  const profile = dynProfile
+    ? { iocs: dynProfile.iocs || [], defaults: {}, patientZero: dynProfile.patientZero || "win-ws-01" }
+    : (PROFILES[scenarioId] || { iocs: [], defaults: {}, patientZero: "win-ws-01" });
   const iocTypes = new Set(profile.iocs);
   const seed = {
     scenarioId,

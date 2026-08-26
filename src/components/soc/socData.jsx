@@ -1,6 +1,7 @@
 // ─── Remediation Actions ─────────────────────────────────────────────────────
 
 import { generateEDRFromSeed } from "./runSeed";
+import { getDynamicAlerts, getDynamicLogs, getDynamicEDR } from "./dynamicRegistry";
 
 export const REMEDIATION_ACTIONS = [
   { id: "isolate_host", label: "Isolate Host", icon: "🔒", category: "Containment", description: "Network-isolate the selected endpoint immediately" },
@@ -753,6 +754,19 @@ const LOG_TEMPLATES = {
 };
 
 export function generateLogs(scenarioId, seed) {
+  const dynLogs = getDynamicLogs(scenarioId);
+  if (dynLogs) {
+    const now = Date.now();
+    const subs = seed?.substitutions || {};
+    return dynLogs.map((t, i) => ({
+      id: `log-${i}`,
+      timestamp: new Date(now + t.ts * 60000).toISOString(),
+      source: applySubs(t.src, subs),
+      type: t.type,
+      severity: t.sev,
+      message: applySubs(t.msg, subs),
+    }));
+  }
   const templates = LOG_TEMPLATES[scenarioId] || LOG_TEMPLATES["phishing_compromise"];
   const now = Date.now();
   const subs = seed?.substitutions || {};
@@ -1010,6 +1024,19 @@ const ALERT_TEMPLATES = {
 };
 
 export function generateAlerts(scenarioId, seed) {
+  const dynAlerts = getDynamicAlerts(scenarioId);
+  if (dynAlerts) {
+    const subs = seed?.substitutions || {};
+    return dynAlerts.map(t => {
+      const alert = { ...t };
+      if (alert.src) alert.src = applySubs(alert.src, subs);
+      if (alert.title) alert.title = applySubs(alert.title, subs);
+      if (alert.rule) alert.rule = applySubs(alert.rule, subs);
+      alert.status = "open";
+      alert.timestamp = new Date().toISOString();
+      return alert;
+    });
+  }
   const templates = ALERT_TEMPLATES[scenarioId] || ALERT_TEMPLATES["phishing_compromise"];
   const subs = seed?.substitutions || {};
   return templates.map(t => {
@@ -1026,6 +1053,26 @@ export function generateAlerts(scenarioId, seed) {
 // ─── EDR Detection Generator ──────────────────────────────────────────────────
 
 export function generateEDRDetections(scenarioId, seed) {
+  // Check dynamic registry first (for real-attack-generated scenarios)
+  const dynEDR = getDynamicEDR(scenarioId);
+  if (dynEDR) {
+    const now = Date.now();
+    const subs = seed?.substitutions || {};
+    return dynEDR.map((d, i) => {
+      const ep = ENDPOINTS.find(e => e.id === (d.endpointId || seed?.patientZero)) || ENDPOINTS[0];
+      return {
+        id: `edr-${i}`,
+        endpoint: ep.name,
+        process: d.process,
+        pid: 1000 + i * 137 + Math.floor(Math.random() * 900),
+        parent: d.parent || "services.exe",
+        cmdline: applySubs(d.cmdline, subs),
+        severity: d.severity,
+        mitre: d.mitre,
+        time: new Date(now - (30 - i * 5) * 60000).toISOString(),
+      };
+    });
+  }
   // Delegate to seed-based EDR generator for scenario-specific, seed-consistent detections
   return generateEDRFromSeed(scenarioId, seed);
 }

@@ -1,0 +1,95 @@
+{
+  "name": "ThreatFeedItem",
+  "type": "object",
+  "properties": {
+    "source": {
+      "type": "string",
+      "enum": [
+        "CISA-KEV",
+        "NVD-CVE"
+      ],
+      "description": "Feed source"
+    },
+    "external_id": {
+      "type": "string",
+      "description": "Unique ID from the source feed (CVE ID or KEV catalog ID)"
+    },
+    "cve_id": {
+      "type": "string",
+      "description": "CVE identifier (e.g. CVE-2024-12345)"
+    },
+    "title": {
+      "type": "string",
+      "description": "Short title / vulnerability name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of the vulnerability / exploit"
+    },
+    "severity": {
+      "type": "number",
+      "description": "CVSS score (0-10)"
+    },
+    "severity_label": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "description": "Severity bucket derived from CVSS"
+    },
+    "affected_products": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Affected vendor/product/version strings"
+    },
+    "mitre_techniques": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "MITRE ATT&CK technique IDs associated with this vulnerability"
+    },
+    "published_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the vulnerability was published or added to the feed"
+    },
+    "ingested_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this record was last ingested from the feed"
+    },
+    "raw": {
+      "type": "object",
+      "description": "Slim subset of the original feed payload (kept small to avoid oversized records)"
+    }
+  },
+  "required": [
+    "source",
+    "external_id",
+    "title"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

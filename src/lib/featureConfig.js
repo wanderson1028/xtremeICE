@@ -52,6 +52,15 @@ export const FEATURES = [
     nav_sub_group: "soc",
   },
   {
+    key: "real_attack_drills",
+    labelKey: "home.feature_real_attack_drills",
+    icon: "socTraining",
+    bg: "bg-cyan-400/10 border-cyan-400/20",
+    path: "/real-attack-drills",
+    nav_group: "training",
+    nav_sub_group: "soc",
+  },
+  {
     key: "lab_scenarios",
     labelKey: "home.feature_labs",
     icon: "labs",
@@ -78,10 +87,11 @@ export function getAccessFromKeys(keys) {
   return {
     hasDesign:        has("network_design_wizard") || has("visual_design_editor"),
     hasCollaboration: has("cyber_range"),
-    hasTraining:      has("lab_scenarios") || has("soc_training") || has("soc_assessments"),
+    hasTraining:      has("lab_scenarios") || has("soc_training") || has("soc_assessments") || has("real_attack_drills"),
     hasLabScenarios:  has("lab_scenarios"),
     hasSocTraining:   has("soc_training"),
     hasSocAssessments:has("soc_assessments"),
+    hasRealAttackDrills: has("real_attack_drills"),
     hasLabBuilder:    has("course_lab_builder"),
   };
 }
@@ -94,5 +104,6 @@ export const ADMIN_ACCESS = {
   hasLabScenarios: true,
   hasSocTraining: true,
   hasSocAssessments: true,
+  hasRealAttackDrills: true,
   hasLabBuilder: true,
 };

@@ -1,0 +1,45 @@
+{
+  "description": "Fetches CISA KEV and NVD CVE feeds nightly and upserts ThreatFeedItem records so the Real Attack Drills catalog stays fresh.",
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "nightly_threat_feed_ingestion",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "ingest_feeds": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "ingestThreatFeeds",
+            "args": {}
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Ingest threat feeds",
+            "description": "Fetch CISA KEV + NVD CVE and upsert records"
+          }
+        }
+      }
+    ]
+  },
+  "name": "Nightly Threat Feed Ingestion",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "0 2 * * *",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  }
+}
