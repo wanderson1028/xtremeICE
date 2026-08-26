@@ -76,7 +76,7 @@ const urgencyStyles = {
   medium: { label: "MEDIUM SEVERITY", color: "text-yellow-400", bg: "bg-yellow-500/10 border-yellow-500/30", pulse: false },
 };
 
-export default function ScenarioBriefing({ scenario, mode, onConfirm, onBack }) {
+export default function ScenarioBriefing({ scenario, mode, attemptMode = "unguided", onAttemptModeChange, guidedTimeLimit, onConfirm, onBack }) {
   const [accepted, setAccepted] = useState(false);
   const playbook = getScenarioPlaybook(scenario?.id);
   const briefing = BRIEFINGS[scenario?.id] || {
@@ -160,6 +160,31 @@ export default function ScenarioBriefing({ scenario, mode, onConfirm, onBack }) 
             </div>
           </div>
 
+          {/* Attempt mode selection */}
+          {mode !== "assessment" && (
+            <div className="mx-6 mb-4">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono mb-2">Choose Attempt Type</div>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => onAttemptModeChange?.("guided")}
+                  className={`p-3 rounded-xl border text-left transition-all ${attemptMode === "guided" ? "border-cyan-400 bg-cyan-500/10 ring-1 ring-cyan-400/30" : "border-border/40 bg-secondary/20 hover:border-cyan-500/40"}`}
+                >
+                  <div className={`text-sm font-semibold ${attemptMode === "guided" ? "text-cyan-400" : "text-foreground"}`}>🧭 Guided</div>
+                  <div className="text-[10px] text-muted-foreground mt-1 leading-relaxed">All phase steps and instructions are revealed. Shorter {guidedTimeLimit}-minute time limit.</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onAttemptModeChange?.("unguided")}
+                  className={`p-3 rounded-xl border text-left transition-all ${attemptMode === "unguided" ? "border-primary bg-primary/10 ring-1 ring-primary/30" : "border-border/40 bg-secondary/20 hover:border-primary/40"}`}
+                >
+                  <div className={`text-sm font-semibold ${attemptMode === "unguided" ? "text-primary" : "text-foreground"}`}>🎯 Unguided</div>
+                  <div className="text-[10px] text-muted-foreground mt-1 leading-relaxed">Current drill experience. Steps remain hidden until revealed, with the standard time allowance.</div>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Mode reminder */}
           <div className={`mx-6 mb-4 p-3 rounded-xl border flex items-start gap-3 ${
             mode === "assessment"
@@ -176,7 +201,9 @@ export default function ScenarioBriefing({ scenario, mode, onConfirm, onBack }) 
               <div className="text-[11px] text-muted-foreground mt-0.5">
                 {mode === "assessment"
                   ? "You'll be given a task checklist. Work independently — the system provides minimal guidance. You'll be scored on your actions and decisions."
-                  : "A Story Guide will walk you through each phase. The Analyst is ready to help with hints, MITRE mapping, and step-by-step guidance."
+                  : attemptMode === "guided"
+                    ? `Guided attempt: all response steps are visible. Complete the incident within ${guidedTimeLimit} minutes.`
+                    : "Unguided attempt: the drill works as before. Steps remain hidden until you choose to reveal them."
                 }
               </div>
             </div>
@@ -199,7 +226,7 @@ export default function ScenarioBriefing({ scenario, mode, onConfirm, onBack }) 
               }`}
             >
               <Play className="h-4 w-4" />
-              {mode === "assessment" ? "Begin Assessment" : "Start Training"}
+              {mode === "assessment" ? "Begin Assessment" : `Start ${attemptMode === "guided" ? "Guided" : "Unguided"} Attempt`}
             </button>
           </div>
         </div>
