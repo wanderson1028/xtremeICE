@@ -170,10 +170,10 @@ export function buildChallenge(actionId, endpoints, alerts, scenario, seed, logs
         { id: "wrong2", label: "deny tcp any any eq 443", correct: false },
         { id: "wrong3", label: "no ip access-list extended BLOCK", correct: false },
       ],
-      explanation: attackerIP
-        ? `The correct rule blocks both inbound and outbound traffic to and from ${attackerIP}, the IOC shown in this run’s SIEM evidence.`
-        : scenarioTarget
-          ? `The correct control targets ${scenarioTarget.target}, which is the malicious domain, service, or wireless identifier shown in the SIEM evidence.`
+      explanation: scenarioTarget
+        ? `The correct control targets ${scenarioTarget.target}, which is the malicious domain, service, or wireless identifier shown in the SIEM evidence.`
+        : attackerIP
+          ? `The correct rule blocks both inbound and outbound traffic to and from ${attackerIP}, the IOC shown in this run’s SIEM evidence.`
           : "Choose a narrowly scoped control derived from the scenario evidence; never apply a broad deny rule without a verified IOC.",
     },
     remove_persistence: {
