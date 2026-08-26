@@ -134,8 +134,8 @@ const PROFILES = {
     patientZero: "dc-01",
   },
   malicious_macro: {
-    iocs: ["compromisedUser", "maliciousProcess", "persistence"],
-    defaults: { compromisedUser: "jsmith" },
+    iocs: ["attackerIP", "compromisedUser", "maliciousProcess", "persistence"],
+    defaults: { attackerIP: "185.220.101.5", compromisedUser: "jsmith" },
     patientZero: "win-ws-01",
   },
   dlp_alert: {
@@ -154,8 +154,8 @@ const PROFILES = {
     patientZero: "win-ws-01",
   },
   unusual_process: {
-    iocs: ["compromisedUser", "maliciousFile", "maliciousProcess", "persistence"],
-    defaults: { compromisedUser: "jsmith", maliciousFile: "C:\\Users\\jsmith\\AppData\\Roaming\\svchost32.exe" },
+    iocs: ["attackerIP", "compromisedUser", "maliciousFile", "maliciousProcess", "persistence"],
+    defaults: { attackerIP: "5.188.10.220", compromisedUser: "jsmith", maliciousFile: "C:\\Users\\jsmith\\AppData\\Roaming\\svchost32.exe" },
     patientZero: "win-ws-01",
   },
   dns_anomaly: {
