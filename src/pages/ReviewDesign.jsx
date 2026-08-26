@@ -4,7 +4,7 @@ import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Eye, Loader2, Plus, Network, ChevronRight, Trash2, Edit, Terminal } from "lucide-react";
+import { ArrowLeft, Eye, Loader2, Plus, Network, ChevronRight, Trash2, Terminal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence } from "framer-motion";
 import NetworkConsole from "@/components/console/NetworkConsole";
@@ -67,7 +67,7 @@ function DesignList() {
             {designs.map(d => (
               <div
                 key={d.id}
-                onClick={() => navigate(`/VisualDesignEditor?id=${d.id}`)}
+                onClick={() => navigate(createPageUrl(`ReviewDesign?id=${d.id}`))}
                 className="group bg-card border border-border rounded-xl px-5 py-4 flex items-center justify-between cursor-pointer shadow-sm hover:border-primary/50 hover:shadow-md transition-all"
               >
                 <div className="flex items-center gap-4">
@@ -181,12 +181,6 @@ export default function ReviewDesign() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button
-              onClick={() => navigate(`/VisualDesignEditor?id=${design.id}`)}
-              className="gap-2 bg-amber-500 hover:bg-amber-400 text-black font-semibold shadow-lg shadow-amber-500/30"
-            >
-              <Edit className="h-4 w-4" /> Edit in Visual Designer
-            </Button>
-            <Button
               onClick={() => {
                 const validation = validateNetworkDesign(design);
                 setValidationResult(validation);
@@ -202,7 +196,7 @@ export default function ReviewDesign() {
             >
               <Eye className="h-4 w-4" /> View & Export
             </Button>
-            <Button variant="outline" onClick={() => navigate(createPageUrl("Home"))} className="gap-2 border-gray-600 text-gray-300 hover:text-white hover:border-gray-400">
+            <Button variant="outline" onClick={() => navigate(createPageUrl("ReviewDesign"))} className="gap-2 border-gray-600 text-gray-300 hover:text-white hover:border-gray-400">
               <ArrowLeft className="h-4 w-4" /> Back
             </Button>
           </div>
