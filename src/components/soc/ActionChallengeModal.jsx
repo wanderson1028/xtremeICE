@@ -49,16 +49,16 @@ export function buildChallenge(actionId, endpoints, alerts, scenario, seed, logs
     rogue_wifi: { target: "BSSID 00:1A:2B:3C:4D:5E", rule: "Quarantine rogue BSSID through WLAN/NAC policy" },
   };
   const scenarioTarget = scenarioBlockTargets[scenario?.id];
-  const fwScripts = attackerIP ? [
-    { id: "correct", label: `deny ip host ${attackerIP} any\ndeny ip any host ${attackerIP}`, correct: true },
-    { id: "wrong1", label: `permit ip host ${attackerIP} any\ndeny udp any any`, correct: false },
-    { id: "wrong2", label: `deny tcp any any eq 80\ndeny tcp any any eq 443`, correct: false },
-    { id: "wrong3", label: `no ip access-list extended BLOCK_ATTACKER`, correct: false },
-  ] : scenarioTarget ? [
+  const fwScripts = scenarioTarget ? [
     { id: "correct", label: `${scenarioTarget.rule}: ${scenarioTarget.target}`, correct: true },
     { id: "wrong1", label: `Allowlist ${scenarioTarget.target} for all users`, correct: false },
     { id: "wrong2", label: "Disable all inbound and outbound web traffic", correct: false },
     { id: "wrong3", label: "Remove the existing security policy", correct: false },
+  ] : attackerIP ? [
+    { id: "correct", label: `deny ip host ${attackerIP} any\ndeny ip any host ${attackerIP}`, correct: true },
+    { id: "wrong1", label: `permit ip host ${attackerIP} any\ndeny udp any any`, correct: false },
+    { id: "wrong2", label: `deny tcp any any eq 80\ndeny tcp any any eq 443`, correct: false },
+    { id: "wrong3", label: `no ip access-list extended BLOCK_ATTACKER`, correct: false },
   ] : null;
 
   // ─── Malicious processes (from seed, with plausible distractors) ──────────
