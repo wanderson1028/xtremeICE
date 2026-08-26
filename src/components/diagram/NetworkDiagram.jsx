@@ -479,7 +479,7 @@ function hitTestAnnotation(annotations, cx, cy) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 const NetworkDiagram = forwardRef(function NetworkDiagram(
-  { diagramData, onNodeClick, onNodeHover, onNodeUpdate, onNodesMoved, simulationMode, annotations = [], annotationMode = false, onAnnotationAdd, simulationTrafficPattern = "steady", simulationScenario = null },
+  { diagramData, onNodeClick, onNodeHover, onNodeUpdate, onNodesMoved, simulationMode, annotations = [], annotationMode = false, onAnnotationAdd, simulationTrafficPattern = "steady", simulationScenario = null, canvasHeight = 1100 },
   ref
 ) {
   const canvasRef = useRef(null);
@@ -1178,7 +1178,7 @@ const NetworkDiagram = forwardRef(function NetworkDiagram(
         <canvas
           ref={canvasRef}
           className="w-full"
-          style={{ minHeight: 1100, display: "block", cursor: draggingNode ? "grabbing" : panStartRef.current ? "grabbing" : annotationMode ? "crosshair" : "grab", touchAction: "none" }}
+          style={{ height: canvasHeight, minHeight: canvasHeight, display: "block", cursor: draggingNode ? "grabbing" : panStartRef.current ? "grabbing" : annotationMode ? "crosshair" : "grab", touchAction: "none" }}
           onClick={handleClick}
           onMouseDown={handleMouseDown}
           onMouseMove={(e) => { handleMouseMove(e); handleMouseUpOrMove(e); }}
