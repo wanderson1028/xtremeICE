@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield, ChevronRight, Network, Clock, BarChart2, Terminal,
@@ -163,6 +164,8 @@ export default function RealAttackDrills() {
   const [tabsVisited, setTabsVisited] = useState(new Set(["dashboard"]));
   const [reportGenerated, setReportGenerated] = useState(false);
   const [runSeed, setRunSeed] = useState(null);
+  const [sessionStartedAt, setSessionStartedAt] = useState(null);
+  const sessionSavedRef = useRef(false);
 
   // Filter state
   const [search, setSearch] = useState("");
@@ -170,6 +173,48 @@ export default function RealAttackDrills() {
   const [sourceFilter, setSourceFilter] = useState("all");
 
   const evolution = useThreatEvolution(selectedScenario, simData, runSeed);
+  const queryClient = useQueryClient();
+
+  const { data: currentUser } = useQuery({
+    queryKey: ["me"],
+    queryFn: () => base44.auth.me(),
+  });
+
+  // Persist a SOCSession record when the drill reaches a terminal state
+  useEffect(() => {
+    if (evolution.status !== "complete" && evolution.status !== "failed") return;
+    if (sessionSavedRef.current) return;
+    if (!selectedScenario || !currentUser?.email) return;
+    sessionSavedRef.current = true;
+
+    const compromisedAssets = (evolution.liveEndpoints || [])
+      .filter(ep => ep.status === "compromised")
+      .map(ep => ep.id);
+
+    const triagedAlerts = (evolution.liveAlerts || [])
+      .filter(a => a.status !== "open")
+      .map(a => a.id);
+
+    base44.entities.SOCSession.create({
+      network_design_id: selectedNetwork?.id || "default",
+      scenario_id: selectedScenario.id,
+      scenario_name: selectedScenario.name,
+      user_email: currentUser.email,
+      user_name: currentUser.full_name,
+      mode: "training",
+      status: "completed",
+      started_at: sessionStartedAt || new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      actions_taken: actionsLog,
+      alerts_triaged: triagedAlerts,
+      score: score,
+      score_breakdown: { finalThreatLevel: evolution.threatLevel, elapsedMinutes: evolution.elapsedMinutes, outcome: evolution.status },
+      affected_assets: compromisedAssets,
+      iocs: runSeed?.iocs || [],
+    }).then(() => {
+      queryClient.invalidateQueries({ queryKey: ["my-soc-sessions"] });
+    }).catch(() => {});
+  }, [evolution.status, selectedScenario, currentUser, selectedNetwork, sessionStartedAt, actionsLog, score, evolution.liveEndpoints, evolution.liveAlerts, evolution.threatLevel, evolution.elapsedMinutes, evolution.status, runSeed, queryClient]);
 
   const { data: feedItems = [], isLoading: feedLoading } = useQuery({
     queryKey: ["threat-feed-items"],
@@ -231,6 +276,8 @@ export default function RealAttackDrills() {
     setTabsVisited(new Set(["dashboard"]));
     setReportGenerated(false);
     setRunSeed(seed);
+    setSessionStartedAt(new Date().toISOString());
+    sessionSavedRef.current = false;
     setActiveTab("dashboard");
     setPhase("active");
   };

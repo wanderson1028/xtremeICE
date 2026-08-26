@@ -166,12 +166,15 @@ export default function UserDashboard({ userEmail, assignedKeys = [], isAdmin = 
       else break;
     }
 
-    // Activity chart — last 14 days (all lab activity)
+    // Include SOC session dates in activity tracking
+    const socSessionDates = socSessions.map(s => s.completed_at || s.started_at || s.created_date);
+
+    // Activity chart — last 14 days (all lab + SOC activity)
     const actByDay = {};
     for (let i = 13; i >= 0; i--) {
       actByDay[format(subDays(new Date(), i), "MMM d")] = 0;
     }
-    allActivityDates.filter(Boolean).forEach(d => {
+    [...allActivityDates, ...socSessionDates].filter(Boolean).forEach(d => {
       const key = format(parseISO(d), "MMM d");
       if (key in actByDay) actByDay[key]++;
     });
@@ -190,7 +193,7 @@ export default function UserDashboard({ userEmail, assignedKeys = [], isAdmin = 
     }));
     const scoresChart = [...labScoreChart, ...attemptChart].slice(0, 10);
 
-    // Recent activity feed — merge attempts + lab scores
+    // Recent activity feed — merge attempts + lab scores + SOC sessions
     const recentActivity = [
       ...attempts.slice(0, 5).map(a => {
         const scenario = scenarios.find(s => s.id === a.scenario_id);
@@ -201,6 +204,7 @@ export default function UserDashboard({ userEmail, assignedKeys = [], isAdmin = 
           score: a.score,
           passed: a.passed,
           date: a.created_date,
+          type: "lab",
         };
       }),
       ...labScores.slice(0, 5).map(s => ({
@@ -210,6 +214,16 @@ export default function UserDashboard({ userEmail, assignedKeys = [], isAdmin = 
         score: s.points_possible > 0 ? Math.round((s.points_earned / s.points_possible) * 100) : null,
         passed: true,
         date: s.completed_at || s.created_date,
+        type: "lab",
+      })),
+      ...socSessions.slice(0, 5).map(s => ({
+        id: s.id,
+        scenarioName: s.scenario_name || "SOC Drill",
+        status: "completed",
+        score: s.score != null ? s.score : null,
+        passed: (s.score_breakdown?.outcome === "complete") || (s.score || 0) >= 50,
+        date: s.completed_at || s.started_at || s.created_date,
+        type: "soc",
       })),
     ]
       .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
