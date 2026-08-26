@@ -2,6 +2,7 @@
 // Pure functions — no entity or backend dependency.
 
 import { REMEDIATION_ACTIONS } from "./socData";
+import { getRequiredActionIds } from "./scenarioPlaybooks";
 
 // Which attack tactics each remediation action closes.
 // Mirrors ACTION_CONSEQUENCES.closeAlertTactics in scenarioProgression.jsx.
@@ -40,12 +41,16 @@ const EXFIL_TECHNIQUES = ["t1041", "t1567", "t1048", "t1568"];
 // Derive the per-scenario expected-actions checklist from the alert tactics.
 export function getExpectedActions(scenario, alerts) {
   if (!scenario) return [];
-  const alertTactics = new Set((alerts || []).map(a => a.tactic).filter(Boolean));
-  const expectedIds = new Set(STANDARD_IR_ACTIONS);
+  const scenarioRequirements = getRequiredActionIds(scenario.id);
+  const expectedIds = scenarioRequirements.length > 0
+    ? new Set(scenarioRequirements)
+    : new Set(STANDARD_IR_ACTIONS);
 
-  for (const [actionId, tactics] of Object.entries(CLOSE_ALERT_TACTICS)) {
-    if (tactics.some(t => alertTactics.has(t))) {
-      expectedIds.add(actionId);
+  // Non-configured scenarios retain tactic-derived expectations.
+  if (scenarioRequirements.length === 0) {
+    const alertTactics = new Set((alerts || []).map(a => a.tactic).filter(Boolean));
+    for (const [actionId, tactics] of Object.entries(CLOSE_ALERT_TACTICS)) {
+      if (tactics.some(t => alertTactics.has(t))) expectedIds.add(actionId);
     }
   }
 
