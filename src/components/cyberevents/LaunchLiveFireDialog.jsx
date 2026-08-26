@@ -77,7 +77,7 @@ export default function LaunchLiveFireDialog({ event, open, onOpenChange }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl bg-gray-950 border-red-900/40 text-white">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-gray-950 border-red-900/40 text-white">
         <DialogHeader>
           <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-400/30 flex items-center justify-center mb-2">
             <Flame className="h-5 w-5 text-orange-400" />
