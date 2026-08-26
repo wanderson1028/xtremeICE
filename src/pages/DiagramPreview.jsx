@@ -542,7 +542,7 @@ Return a flat object with field names matching the design schema directly.`,
         </div>
 
         <div className={`grid grid-cols-1 gap-6 items-start ${sidebarCollapsed ? "xl:grid-cols-1" : "xl:grid-cols-5"}`}>
-          <div className={sidebarCollapsed ? "xl:col-span-1 space-y-3" : "xl:col-span-3 space-y-3"}>
+          <div className={`${sidebarCollapsed ? "xl:col-span-1" : "xl:col-span-3"} space-y-3 ${simulationMode ? "xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto xl:pr-1" : ""}`}>
             <div className="flex items-center justify-between flex-wrap gap-2">
               {/* View mode toggle */}
               <div className="flex items-center gap-1 bg-secondary rounded-lg p-1 border border-border">
@@ -659,6 +659,7 @@ Return a flat object with field names matching the design schema directly.`,
                   simulationMode={simulationMode}
                   simulationTrafficPattern={activeTrafficPattern}
                   simulationScenario={activeScenario}
+                  canvasHeight={simulationMode ? "clamp(560px, calc(100vh - 11rem), 900px)" : 1100}
                   annotations={annotations}
                   annotationMode={annotationMode}
                   onAnnotationAdd={(x, y) => {
@@ -730,9 +731,16 @@ Return a flat object with field names matching the design schema directly.`,
 
           </div>
 
-          <div className={`${sidebarCollapsed ? "hidden" : "xl:col-span-2"} space-y-6 xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto pb-4`}>
+          <div className={`${sidebarCollapsed ? "hidden" : "xl:col-span-2"} space-y-6 xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto xl:pr-1 pb-4`}>
             {simulationMode && (
                <>
+                  <div className="bg-card border border-border rounded-xl px-4 py-3 flex items-center justify-between gap-3 sticky top-0 z-20 shadow-sm">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Simulation Workspace</p>
+                      <p className="text-xs text-muted-foreground">Controls and dashboards scroll here while the topology stays visible.</p>
+                    </div>
+                    <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${simRunning ? "bg-green-500 animate-pulse" : "bg-muted-foreground/50"}`} title={simRunning ? "Simulation running" : "Simulation idle"} />
+                  </div>
                   {/* Traffic Flow + Exploit — moved here from below canvas to prevent page height change */}
                   <div className="space-y-4">
                     <TrafficFlowPanel
