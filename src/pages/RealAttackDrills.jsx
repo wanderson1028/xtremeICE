@@ -21,6 +21,7 @@ import RemediationPanel from "@/components/soc/RemediationPanel";
 import IncidentReport from "@/components/soc/IncidentReport";
 import ScenarioBriefing from "@/components/soc/ScenarioBriefing";
 import TrainingNarrative from "@/components/soc/TrainingNarrative";
+import GeneratingIndicator from "@/components/soc/GeneratingIndicator";
 
 const TABS = [
   { id: "dashboard", label: "Dashboard", icon: Monitor },
@@ -131,19 +132,15 @@ function AttackDetailModal({ item, onGenerate, onClose, generating }) {
           )}
         </div>
         <div className="px-6 pb-6">
-          <button
-            onClick={() => onGenerate(item)}
-            disabled={generating}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-all disabled:opacity-60"
-          >
-            {generating ? (
-              <><Loader2 className="h-4 w-4 animate-spin" /> Generating Drill...</>
-            ) : (
-              <><Zap className="h-4 w-4" /> Generate Drill</>
-            )}
-          </button>
-          {generating && (
-            <p className="text-[11px] text-muted-foreground text-center mt-2">Building a custom scenario from this attack — takes ~10 seconds</p>
+          {generating ? (
+            <GeneratingIndicator />
+          ) : (
+            <button
+              onClick={() => onGenerate(item)}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-all"
+            >
+              <Zap className="h-4 w-4" /> Generate Drill
+            </button>
           )}
         </div>
       </motion.div>
