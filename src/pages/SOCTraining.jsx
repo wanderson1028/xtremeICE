@@ -20,6 +20,7 @@ import IncidentReport from "@/components/soc/IncidentReport";
 import DrillReview from "@/components/soc/DrillReview";
 import ScenarioBriefing from "@/components/soc/ScenarioBriefing";
 import TrainingNarrative from "@/components/soc/TrainingNarrative";
+import { getScenarioPlaybook, getRequiredActionIds } from "@/components/soc/scenarioPlaybooks";
 
 const ALL_BEGINNER = SCENARIOS.filter(s => s.difficulty === "Beginner");
 
@@ -169,6 +170,16 @@ export default function SOCTraining() {
   };
 
   const handleAction = (action) => {
+    const cleanId = action.id?.replace("rmm_", "").replace("edr_", "");
+    const playbook = getScenarioPlaybook(selectedScenario?.id);
+    const isProhibited = playbook.prohibited.includes(cleanId);
+    if (isProhibited) {
+      const penalty = { ...action, isPenalty: true, scoreOverride: -10, label: `${action.label} — inappropriate for ${selectedScenario?.name}` };
+      evolution.processAction(penalty);
+      setScore(prev => Math.max(prev - 10, 0));
+      return;
+    }
+
     // Apply simulation consequences (threat level, alert closure, endpoint isolation)
     evolution.processAction(action);
 
@@ -179,8 +190,9 @@ export default function SOCTraining() {
       return;
     }
     setActionsLog(prev => prev.find(a => a.id === action.id) ? prev : [...prev, action]);
-    const scoreMap = { isolate_host: 15, block_ip: 12, disable_user: 10, reset_password: 8, kill_process: 10, quarantine_file: 8, collect_forensics: 12, preserve_evidence: 10, update_fw_rule: 8, patch_system: 10, restore_backup: 15, escalate_ir: 5, notify_customer: 5, open_ticket: 3, start_coc: 8, remove_persistence: 12, analyst_note: 1 };
-    setScore(prev => Math.min(prev + (scoreMap[action.id] || 2), 100));
+    const requiredIds = new Set(getRequiredActionIds(selectedScenario?.id));
+    const scenarioScore = requiredIds.has(cleanId) ? 14 : 4;
+    setScore(prev => Math.min(prev + scenarioScore, 100));
   };
 
   const handleTabChange = (tabId) => {
