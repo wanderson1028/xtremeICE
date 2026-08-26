@@ -177,35 +177,58 @@ Deno.serve(async (req) => {
   }
 });
 
-async function getCounts(svc, user) {
-  const [designs, sessions, labs, assessments, invitations, threats] = await Promise.all([
-    svc.entities.NetworkDesign.filter({ name: { $regex: '^\\[DEMO\\]' } }),
-    svc.entities.SOCSession.filter({ user_email: user.email, scenario_id: { $regex: '^demo_' } }),
-    svc.entities.LabScore.filter({ user_email: user.email, lab_title: { $regex: '^\\[DEMO\\]' } }),
-    svc.entities.Assessment.filter({ created_by_email: user.email, title: { $regex: '^\\[DEMO\\]' } }),
+async function collectDemoRecords(svc, user) {
+  const [allDesigns, userSessions, userLabs, userAssessments, invitations, allThreats] = await Promise.all([
+    svc.entities.NetworkDesign.list('-created_date', 500),
+    svc.entities.SOCSession.filter({ user_email: user.email }),
+    svc.entities.LabScore.filter({ user_email: user.email }),
+    svc.entities.Assessment.filter({ created_by_email: user.email }),
     svc.entities.CandidateInvitation.filter({ invited_by_id: user.id, candidate_email: 'demo.candidate@xtreme-ice.invalid' }),
-    svc.entities.ThreatFeedItem.filter({ external_id: { $regex: '^DEMO-' } }),
+    svc.entities.ThreatFeedItem.list('-created_date', 500),
   ]);
   return {
-    network_designs: designs.length,
-    soc_sessions: sessions.length,
-    lab_scores: labs.length,
-    assessments: assessments.length,
-    candidate_invitations: invitations.length,
-    threat_items: threats.length,
-    total: designs.length + sessions.length + labs.length + assessments.length + invitations.length + threats.length,
+    designs: allDesigns.filter(r => r.name?.startsWith(PREFIX)),
+    sessions: userSessions.filter(r => r.scenario_id?.startsWith('demo_')),
+    labs: userLabs.filter(r => r.lab_title?.startsWith(PREFIX)),
+    assessments: userAssessments.filter(r => r.title?.startsWith(PREFIX)),
+    invitations,
+    threats: allThreats.filter(r => r.external_id?.startsWith('DEMO-')),
   };
 }
 
+async function getCounts(svc, user) {
+  const records = await collectDemoRecords(svc, user);
+  const counts = {
+    network_designs: records.designs.length,
+    soc_sessions: records.sessions.length,
+    lab_scores: records.labs.length,
+    assessments: records.assessments.length,
+    candidate_invitations: records.invitations.length,
+    threat_items: records.threats.length,
+  };
+  return { ...counts, total: Object.values(counts).reduce((sum, value) => sum + value, 0) };
+}
+
 async function removeDemoData(svc, user) {
-  const counts = await getCounts(svc, user);
-  await Promise.all([
-    svc.entities.CandidateInvitation.deleteMany({ invited_by_id: user.id, candidate_email: 'demo.candidate@xtreme-ice.invalid' }),
-    svc.entities.Assessment.deleteMany({ created_by_email: user.email, title: { $regex: '^\\[DEMO\\]' } }),
-    svc.entities.SOCSession.deleteMany({ user_email: user.email, scenario_id: { $regex: '^demo_' } }),
-    svc.entities.LabScore.deleteMany({ user_email: user.email, lab_title: { $regex: '^\\[DEMO\\]' } }),
-    svc.entities.NetworkDesign.deleteMany({ name: { $regex: '^\\[DEMO\\]' } }),
-    svc.entities.ThreatFeedItem.deleteMany({ external_id: { $regex: '^DEMO-' } }),
-  ]);
-  return counts;
+  const records = await collectDemoRecords(svc, user);
+  const groups = [
+    [svc.entities.CandidateInvitation, records.invitations],
+    [svc.entities.Assessment, records.assessments],
+    [svc.entities.SOCSession, records.sessions],
+    [svc.entities.LabScore, records.labs],
+    [svc.entities.NetworkDesign, records.designs],
+    [svc.entities.ThreatFeedItem, records.threats],
+  ];
+  for (const [entity, rows] of groups) {
+    for (const row of rows) await entity.delete(row.id);
+  }
+  const counts = {
+    network_designs: records.designs.length,
+    soc_sessions: records.sessions.length,
+    lab_scores: records.labs.length,
+    assessments: records.assessments.length,
+    candidate_invitations: records.invitations.length,
+    threat_items: records.threats.length,
+  };
+  return { ...counts, total: Object.values(counts).reduce((sum, value) => sum + value, 0) };
 }
