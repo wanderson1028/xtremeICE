@@ -187,6 +187,26 @@ html {
   .glow-cyan    { background: linear-gradient(to top, #155e75, #06b6d4 50%, #67e8f9 85%); --gs: rgba(6,182,212,0.55); }
   .glow-rose    { background: linear-gradient(to top, #9f1239, #f43f5e 50%, #fda4af 85%); --gs: rgba(244,63,94,0.55); }
 
+  /* Icon-only glow — solid color + flicker animation on the icon itself */
+  .icon-glow {
+    animation: iconGlowFlicker 1.5s ease-in-out infinite alternate;
+  }
+  @keyframes iconGlowFlicker {
+    0%   { filter: drop-shadow(0 0 2px var(--gs)) brightness(0.95); }
+    50%  { filter: drop-shadow(0 0 6px var(--gs)) brightness(1.15); }
+    100% { filter: drop-shadow(0 0 3px var(--gs)) brightness(1); }
+  }
+  .icon-glow-green   { color: #22c55e; --gs: rgba(34,197,94,0.6); }
+  .icon-glow-emerald { color: #10b981; --gs: rgba(16,185,129,0.6); }
+  .icon-glow-indigo  { color: #6366f1; --gs: rgba(99,102,241,0.6); }
+  .icon-glow-blue    { color: #3b82f6; --gs: rgba(59,130,246,0.6); }
+  .icon-glow-purple  { color: #a855f7; --gs: rgba(168,85,247,0.6); }
+  .icon-glow-red     { color: #ef4444; --gs: rgba(239,68,68,0.6); }
+  .icon-glow-orange  { color: #f97316; --gs: rgba(249,115,22,0.6); }
+  .icon-glow-amber   { color: #f59e0b; --gs: rgba(245,158,11,0.6); }
+  .icon-glow-cyan    { color: #06b6d4; --gs: rgba(6,182,212,0.6); }
+  .icon-glow-rose    { color: #f43f5e; --gs: rgba(244,63,94,0.6); }
+
   @keyframes flameFlicker {
     0% {
       background: linear-gradient(to top, #f97316, #ef4444 40%, #facc15 80%);

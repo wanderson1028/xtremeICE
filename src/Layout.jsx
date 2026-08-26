@@ -58,18 +58,18 @@ function DesignDropdown({ currentPageName, access }) {
       {open && (
         <div className="absolute right-0 top-full mt-1 w-52 bg-gray-950 border border-red-900/40 rounded-xl shadow-xl z-50 py-1 overflow-hidden">
           <Link to={createPageUrl("NetworkWizard")} onClick={() => setOpen(false)}
-            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors glow-text glow-green">
-            <PenTool className="h-4 w-4 shrink-0" />
+            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors">
+            <PenTool className="h-4 w-4 shrink-0 icon-glow icon-glow-green" />
             {t("nav.newDesign")}
           </Link>
           <Link to={createPageUrl("SmartDesign")} onClick={() => setOpen(false)}
-            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors glow-text glow-emerald">
-            <Sparkles className="h-4 w-4 shrink-0" />
+            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors">
+            <Sparkles className="h-4 w-4 shrink-0 icon-glow icon-glow-emerald" />
             {t("nav.smartDesign")}
           </Link>
           <Link to={createPageUrl("ReviewDesign")} onClick={() => setOpen(false)}
-            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors glow-text glow-indigo">
-            <ClipboardCheck className="h-4 w-4 shrink-0" />
+            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors">
+            <ClipboardCheck className="h-4 w-4 shrink-0 icon-glow icon-glow-indigo" />
             {t("nav.reviewDesign")}
           </Link>
         </div>
@@ -106,8 +106,8 @@ function CollaborationDropdown({ currentPageName, access }) {
       {open && (
         <div className="absolute right-0 top-full mt-1 w-56 bg-gray-950 border border-red-900/40 rounded-xl shadow-xl z-50 py-1 overflow-hidden">
           <Link to={createPageUrl("CyberEventBuilder")} onClick={() => setOpen(false)}
-            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors glow-text glow-blue">
-            <Swords className="h-4 w-4 shrink-0" />
+            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors">
+            <Swords className="h-4 w-4 shrink-0 icon-glow icon-glow-blue" />
             {t("nav.redVsBlue")}
           </Link>
           <div className="border-t border-red-900/30" />
@@ -124,16 +124,16 @@ function CollaborationDropdown({ currentPageName, access }) {
           {liveFireOpen && (
             <>
               <Link to="/LiveFireDashboard" onClick={() => setOpen(false)}
-                className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors glow-text glow-orange">
-                <LayoutDashboard className="h-4 w-4 shrink-0" />
+                className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
+                <LayoutDashboard className="h-4 w-4 shrink-0 icon-glow icon-glow-orange" />
                 Live Fire Dashboard
               </Link>
               <button
                 onClick={() => setMyLabsOpen(v => !v)}
-                className="flex items-center justify-between w-full pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors glow-text glow-amber"
+                className="flex items-center justify-between w-full pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors"
               >
                 <span className="flex items-center gap-2.5">
-                  <FolderOpen className="h-4 w-4 shrink-0" />
+                  <FolderOpen className="h-4 w-4 shrink-0 icon-glow icon-glow-amber" />
                   My Labs
                 </span>
                 <ChevronDown className={`h-3 w-3 text-gray-400 transition-transform ${myLabsOpen ? "rotate-180" : ""}`} />
@@ -141,45 +141,45 @@ function CollaborationDropdown({ currentPageName, access }) {
               {myLabsOpen && (
                 <>
                   <Link to="/my-labs" onClick={() => setOpen(false)}
-                    className="flex items-center gap-2.5 pl-12 pr-4 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-red-950/50 transition-colors glow-text glow-amber">
-                    <FolderOpen className="h-3.5 w-3.5 shrink-0" />
+                    className="flex items-center gap-2.5 pl-12 pr-4 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-red-950/50 transition-colors">
+                    <FolderOpen className="h-3.5 w-3.5 shrink-0 icon-glow icon-glow-amber" />
                     View All
                   </Link>
                   <Link to="/shared-labs" onClick={() => setOpen(false)}
-                    className="flex items-center gap-2.5 pl-12 pr-4 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-red-950/50 transition-colors glow-text glow-amber">
-                    <Share2 className="h-3.5 w-3.5 shrink-0" />
+                    className="flex items-center gap-2.5 pl-12 pr-4 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-red-950/50 transition-colors">
+                    <Share2 className="h-3.5 w-3.5 shrink-0 icon-glow icon-glow-amber" />
                     Shared Labs
                   </Link>
                   <Link to="/running-labs" onClick={() => setOpen(false)}
-                    className="flex items-center gap-2.5 pl-12 pr-4 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-red-950/50 transition-colors glow-text glow-amber">
-                    <Activity className="h-3.5 w-3.5 shrink-0" />
+                    className="flex items-center gap-2.5 pl-12 pr-4 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-red-950/50 transition-colors">
+                    <Activity className="h-3.5 w-3.5 shrink-0 icon-glow icon-glow-amber" />
                     Running Labs
                   </Link>
                 </>
               )}
               <Link to="/lf-templates" onClick={() => setOpen(false)}
-                className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors glow-text glow-orange">
-                <LayoutTemplate className="h-4 w-4 shrink-0" />
+                className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
+                <LayoutTemplate className="h-4 w-4 shrink-0 icon-glow icon-glow-orange" />
                 Templates
               </Link>
               <Link to="/image-repository" onClick={() => setOpen(false)}
-                className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors glow-text glow-orange">
-                <Server className="h-4 w-4 shrink-0" />
+                className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
+                <Server className="h-4 w-4 shrink-0 icon-glow icon-glow-orange" />
                 Image Repository
               </Link>
               <Link to="/marketplace" onClick={() => setOpen(false)}
-                className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors glow-text glow-orange">
-                <ShoppingBag className="h-4 w-4 shrink-0" />
+                className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
+                <ShoppingBag className="h-4 w-4 shrink-0 icon-glow icon-glow-orange" />
                 Marketplace
               </Link>
               <Link to="/cloud-resources" onClick={() => setOpen(false)}
-                className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors glow-text glow-orange">
-                <Cloud className="h-4 w-4 shrink-0" />
+                className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
+                <Cloud className="h-4 w-4 shrink-0 icon-glow icon-glow-orange" />
                 Cloud Resources
               </Link>
               <Link to="/lf-administration" onClick={() => setOpen(false)}
-                className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors glow-text glow-orange">
-                <Settings className="h-4 w-4 shrink-0" />
+                className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
+                <Settings className="h-4 w-4 shrink-0 icon-glow icon-glow-orange" />
                 Administration
               </Link>
             </>
@@ -223,10 +223,10 @@ function TrainingDropdown({ currentPageName, access }) {
             <>
               <button
                 onClick={() => setSimOpen(v => !v)}
-                className="flex items-center justify-between w-full px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors glow-text glow-cyan"
+                className="flex items-center justify-between w-full px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors"
               >
                 <span className="flex items-center gap-2.5">
-                  <GraduationCap className="h-4 w-4 shrink-0" />
+                  <GraduationCap className="h-4 w-4 shrink-0 icon-glow icon-glow-cyan" />
                   {t("nav.trainingSims")}
                 </span>
                 <ChevronDown className={`h-3 w-3 text-gray-400 transition-transform ${simOpen ? "rotate-180" : ""}`} />
@@ -234,8 +234,8 @@ function TrainingDropdown({ currentPageName, access }) {
               {simOpen && (
                 <>
                   <Link to="/InteractiveVirtualLabs" onClick={() => setOpen(false)}
-                    className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors glow-text glow-cyan">
-                    <FlaskConical className="h-4 w-4 shrink-0" />
+                    className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
+                    <FlaskConical className="h-4 w-4 shrink-0 icon-glow icon-glow-cyan" />
                     Active Labs
                   </Link>
 
@@ -248,10 +248,10 @@ function TrainingDropdown({ currentPageName, access }) {
               {access.hasLabScenarios && <div className="border-t border-red-900/30" />}
               <button
                 onClick={() => setSocOpen(v => !v)}
-                className="flex items-center justify-between w-full px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors glow-text glow-purple"
+                className="flex items-center justify-between w-full px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors"
               >
                 <span className="flex items-center gap-2.5">
-                  <ShieldCheck className="h-4 w-4 shrink-0" />
+                  <ShieldCheck className="h-4 w-4 shrink-0 icon-glow icon-glow-purple" />
                   {t("nav.socSimulations")}
                 </span>
                 <ChevronDown className={`h-3 w-3 text-gray-400 transition-transform ${socOpen ? "rotate-180" : ""}`} />
@@ -260,15 +260,15 @@ function TrainingDropdown({ currentPageName, access }) {
                 <>
                   {access.hasSocTraining && (
                     <Link to="/soc-training" onClick={() => setOpen(false)}
-                      className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors glow-text glow-purple">
-                      <ShieldCheck className="h-4 w-4 shrink-0" />
+                      className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
+                      <ShieldCheck className="h-4 w-4 shrink-0 icon-glow icon-glow-purple" />
                       {t("nav.socTraining")}
                     </Link>
                   )}
                   {access.hasRealAttackDrills && (
                     <Link to="/real-attack-drills" onClick={() => setOpen(false)}
-                      className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors glow-text glow-red">
-                      <Bug className="h-4 w-4 shrink-0" />
+                      className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
+                      <Bug className="h-4 w-4 shrink-0 icon-glow icon-glow-red" />
                       Real Attack Drills
                     </Link>
                   )}
@@ -307,14 +307,14 @@ function SpecialFeaturesDropdown({ currentPageName, access }) {
       {open && (
         <div className="absolute right-0 top-full mt-1 w-56 bg-gray-950 border border-red-900/40 rounded-xl shadow-xl z-50 py-1 overflow-hidden">
           <Link to="/LabBuilderDashboard" onClick={() => setOpen(false)}
-            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors glow-text glow-amber">
-            <BookOpen className="h-4 w-4 shrink-0" />
+            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors">
+            <BookOpen className="h-4 w-4 shrink-0 icon-glow icon-glow-amber" />
             Course Lab Builder
           </Link>
           <div className="border-t border-red-900/30" />
           <Link to="/CandidateAssessments" onClick={() => setOpen(false)}
-            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors glow-text glow-rose">
-            <UserCheck className="h-4 w-4 shrink-0" />
+            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors">
+            <UserCheck className="h-4 w-4 shrink-0 icon-glow icon-glow-rose" />
             Candidate Assessments
           </Link>
         </div>
