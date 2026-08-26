@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, Swords, Check, Save, Loader2, Plus, ChevronRight, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Swords, Check, Save, Loader2, Plus, ChevronRight, Trash2, Flame } from "lucide-react";
 import ScenarioCatalogPDF from "@/components/cyberevents/ScenarioCatalogPDF";
 import { toast } from "sonner";
 
@@ -16,6 +16,7 @@ import StepNetworkTopology from "@/components/cyberevents/StepNetworkTopology";
 import StepExportBundle from "@/components/cyberevents/StepExportBundle";
 import StepFinancialImpact from "@/components/cyberevents/StepFinancialImpact";
 import EventSummaryPanel from "@/components/cyberevents/EventSummaryPanel";
+import LaunchLiveFireDialog from "@/components/cyberevents/LaunchLiveFireDialog";
 
 // Phase 1: Build Scenario (sub-steps)
 const SCENARIO_STEPS = [
@@ -67,6 +68,7 @@ export default function CyberEventBuilder() {
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState(isNewFromUrl ? "edit" : null);
+  const [launchEvent, setLaunchEvent] = useState(null);
 
   useEffect(() => {
     if (isNewFromUrl) window.history.replaceState({}, "", window.location.pathname);
@@ -551,6 +553,13 @@ IMPORTANT: Write the 'description' field as an immersive operational scenario br
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-[10px] text-muted-foreground hidden sm:block">{new Date(ev.created_date).toLocaleDateString()}</span>
+                  <Button
+                    size="sm"
+                    onClick={e => { e.stopPropagation(); setLaunchEvent(ev); }}
+                    className="h-8 gap-1.5 bg-red-700 text-white hover:bg-red-600"
+                  >
+                    <Flame className="h-3.5 w-3.5" /> Live Fire
+                  </Button>
                   <button onClick={e => handleDeleteEvent(e, ev.id)} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all">
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -561,6 +570,11 @@ IMPORTANT: Write the 'description' field as an immersive operational scenario br
           </div>
         )}
       </div>
+      <LaunchLiveFireDialog
+        event={launchEvent}
+        open={!!launchEvent}
+        onOpenChange={open => { if (!open) setLaunchEvent(null); }}
+      />
     </div>
   );
 }
