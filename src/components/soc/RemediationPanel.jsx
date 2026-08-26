@@ -42,7 +42,7 @@ const ACTION_OUTCOMES = {
 
 const PENALTY = -5;
 
-export default function RemediationPanel({ endpoints, alerts, actionsLog, onAction, score, scenario, seed }) {
+export default function RemediationPanel({ endpoints, alerts, logs = [], actionsLog, onAction, score, scenario, seed }) {
   const [activeChallenge, setActiveChallenge] = useState(null); // { action, challenge }
   const [noteText, setNoteText] = useState("");
   const [notes, setNotes] = useState([]);
@@ -69,7 +69,7 @@ export default function RemediationPanel({ endpoints, alerts, actionsLog, onActi
 
   const openChallenge = (action) => {
     if (takenActionIds.has(action.id)) return;
-    const challenge = buildChallenge(action.id, endpoints, alerts, scenario, seed);
+    const challenge = buildChallenge(action.id, endpoints, alerts, scenario, seed, logs);
     if (!challenge) {
       // No challenge defined — apply directly (fallback)
       applyAction(action, true);
