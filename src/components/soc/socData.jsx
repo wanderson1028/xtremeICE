@@ -545,7 +545,7 @@ const LOG_TEMPLATES = {
   ],
   account_lockout: [
     { ts: -10, src: "dc-01", type: "auth", sev: "high", msg: "Account lockout storm: 47 AD accounts locked in 8 minutes" },
-    { ts: -8, src: "vpn-gw", type: "auth", sev: "high", msg: "Failed VPN authentications: 1,200 attempts against locked accounts from 91.92.0.0/16" },
+    { ts: -8, src: "vpn-gw", type: "auth", sev: "high", msg: "Failed VPN authentications: 1,200 attempts against locked accounts from 91.92.0.50" },
     { ts: -5, src: "dc-01", type: "auth", sev: "medium", msg: "Help desk queue: 38 password reset tickets opened in last 5 minutes" },
   ],
   malicious_macro: [
@@ -869,7 +869,7 @@ const ALERT_TEMPLATES = {
   ],
   account_lockout: [
     { id: "a1", title: "Mass Account Lockout Event", sev: "high", src: "dc-01", tactic: "Credential Access", rule: "AUTH: >20 lockouts in 5 minutes" },
-    { id: "a2", title: "Brute Force from External IP", sev: "high", src: "vpn-gw", tactic: "Credential Access", rule: "THRESHOLD: Auth storms from 91.92.0.0/16" },
+    { id: "a2", title: "Brute Force from External IP", sev: "high", src: "vpn-gw", tactic: "Credential Access", rule: "THRESHOLD: Auth storms from 91.92.0.50" },
   ],
   malicious_macro: [
     { id: "a1", title: "Office Macro Execution", sev: "critical", src: "DESKTOP-WIN01", tactic: "Execution", rule: "SIGMA: WINWORD spawned powershell" },
