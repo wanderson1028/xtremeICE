@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Flame, Loader2, Network, ShieldCheck, Users, Clock, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
@@ -19,15 +20,29 @@ export default function LaunchLiveFireDialog({ event, open, onOpenChange }) {
   const [visibility, setVisibility] = useState("private");
   const [autoShutdown, setAutoShutdown] = useState(120);
   const [launching, setLaunching] = useState(false);
+  const [selectedDesignId, setSelectedDesignId] = useState("");
+
+  const { data: designs = [], isLoading: loadingDesigns } = useQuery({
+    queryKey: ["network-designs-for-live-fire"],
+    queryFn: () => base44.entities.NetworkDesign.list("-created_date", 100),
+    enabled: open,
+  });
+
+  useEffect(() => {
+    setSelectedDesignId(event?.network_design_id || "");
+  }, [event?.id, event?.network_design_id, open]);
 
   if (!event) return null;
 
+  const selectedDesign = designs.find(design => design.id === selectedDesignId);
+  const designIsGenerated = !!selectedDesign?.diagram_data?.nodes?.length;
+
   const checks = [
-    { label: "Network design linked", ok: !!event.network_design_id, icon: Network },
+    { label: designIsGenerated ? "Network design ready" : "Select a generated design", ok: designIsGenerated, icon: Network },
     { label: "Team objectives configured", ok: !!(event.red_team_objectives?.length && event.blue_team_objectives?.length), icon: Users },
     { label: "Rules and scoring configured", ok: !!(event.rules_of_engagement && event.scoring_criteria), icon: ShieldCheck },
   ];
-  const canLaunch = !!event.network_design_id;
+  const canLaunch = !!selectedDesignId && designIsGenerated;
 
   const changeProvider = (provider) => {
     setCloudProvider(provider);
@@ -38,6 +53,9 @@ export default function LaunchLiveFireDialog({ event, open, onOpenChange }) {
     if (!canLaunch) return;
     setLaunching(true);
     try {
+      if (selectedDesignId !== event.network_design_id) {
+        await base44.entities.CyberEvent.update(event.id, { network_design_id: selectedDesignId });
+      }
       const response = await base44.functions.invoke("launchCyberEventLiveFire", {
         cyber_event_id: event.id,
         cloud_provider: cloudProvider,
@@ -82,11 +100,34 @@ export default function LaunchLiveFireDialog({ event, open, onOpenChange }) {
             ))}
           </div>
 
-          {!canLaunch && (
-            <div className="rounded-xl border border-red-800/50 bg-red-950/30 p-3 text-xs text-red-300">
-              Link and generate a Network Design before launching this scenario in Live Fire.
+          <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-4 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold text-white">Network Design</p>
+                <p className="text-[11px] text-gray-500">Choose the saved topology to use for this Live Fire exercise.</p>
+              </div>
+              <Network className="h-4 w-4 text-red-400" />
             </div>
-          )}
+            <select
+              value={selectedDesignId}
+              onChange={e => setSelectedDesignId(e.target.value)}
+              disabled={loadingDesigns}
+              className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2.5 text-sm text-white"
+            >
+              <option value="">{loadingDesigns ? "Loading network designs…" : "Select a network design…"}</option>
+              {designs.map(design => (
+                <option key={design.id} value={design.id}>
+                  {design.name || "Untitled Design"}{design.diagram_data?.nodes?.length ? ` · ${design.diagram_data.nodes.length} devices` : " · topology not generated"}
+                </option>
+              ))}
+            </select>
+            {selectedDesignId && !designIsGenerated && (
+              <p className="text-xs text-amber-300">This design has no generated topology. Open it under Design → Network Diagram and generate/save the topology first.</p>
+            )}
+            {!selectedDesignId && (
+              <p className="text-xs text-red-300">A generated network design is required before a Live Fire draft can be created.</p>
+            )}
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label className="space-y-1.5">
