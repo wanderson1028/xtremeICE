@@ -26,7 +26,7 @@ export default function ExerciseBriefingPanel({ config, compact = false }) {
           <div className="grid gap-3 md:grid-cols-3">
             {teams.map(team => (
               <div key={team.key} className="rounded-lg border border-gray-800 bg-black/20 p-3">
-                <p className={`mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide ${team.color}`}><Users className="h-3.5 w-3.5" />{team.label} · {config[`${team.key}_team_size`] || 0}</p>
+                <p className={`mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide ${team.color}`}><Users className="h-3.5 w-3.5" />{team.label} · {config.team_sizes?.[team.key] || config[`${team.key}_team_size`] || 0}</p>
                 {team.objectives.slice(0, 3).map((objective, index) => <p key={index} className="mt-1.5 text-xs leading-relaxed text-gray-400">• {objective}</p>)}
                 {!team.objectives.length && <p className="text-xs italic text-gray-600">No objectives configured</p>}
               </div>
