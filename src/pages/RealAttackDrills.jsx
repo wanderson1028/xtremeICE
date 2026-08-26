@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield, ChevronRight, Network, Clock, BarChart2, Terminal,
   Cpu, Monitor, FileText, X, AlertTriangle, CheckCircle, Zap,
-  Search, Database, Loader2, Globe, ChevronDown,
+  Search, Database, Loader2, Globe, ChevronDown, Flag,
 } from "lucide-react";
 
 import { ENDPOINTS, generateLogs, generateAlerts, generateEDRDetections } from "@/components/soc/socData";
@@ -24,6 +24,7 @@ import DrillReview from "@/components/soc/DrillReview";
 import ScenarioBriefing from "@/components/soc/ScenarioBriefing";
 import TrainingNarrative from "@/components/soc/TrainingNarrative";
 import GeneratingIndicator from "@/components/soc/GeneratingIndicator";
+import { calculateSurrenderScore } from "@/components/soc/drillReview";
 
 const TABS = [
   { id: "dashboard", label: "Dashboard", icon: Monitor },
@@ -183,7 +184,7 @@ export default function RealAttackDrills() {
 
   // Persist a SOCSession record when the drill reaches a terminal state
   useEffect(() => {
-    if (evolution.status !== "complete" && evolution.status !== "failed") return;
+    if (!["complete", "failed", "surrendered"].includes(evolution.status)) return;
     if (sessionSavedRef.current) return;
     if (!selectedScenario || !currentUser?.email) return;
     sessionSavedRef.current = true;
@@ -294,6 +295,13 @@ export default function RealAttackDrills() {
     setActionsLog(prev => prev.find(a => a.id === action.id) ? prev : [...prev, action]);
     const scoreMap = { isolate_host: 15, block_ip: 12, disable_user: 10, reset_password: 8, kill_process: 10, quarantine_file: 8, collect_forensics: 12, preserve_evidence: 10, update_fw_rule: 8, patch_system: 10, restore_backup: 15, escalate_ir: 5, notify_customer: 5, open_ticket: 3, start_coc: 8, remove_persistence: 12, analyst_note: 1 };
     setScore(prev => Math.min(prev + (scoreMap[action.id] || 2), 100));
+  };
+
+  const handleCompleteScenario = () => {
+    if (!window.confirm("Complete this scenario now? This means you are giving up. Your work so far will be scored and submitted to your stats and dashboard.")) return;
+    const finalScore = calculateSurrenderScore(selectedScenario, actionsLog, evolution.liveAlerts, evolution.liveEndpoints);
+    setScore(finalScore);
+    evolution.completeScenario();
   };
 
   const handleTabChange = (tabId) => {
@@ -538,6 +546,10 @@ export default function RealAttackDrills() {
             <span className={openAlerts > 0 ? "text-red-400" : "text-green-400"}>{openAlerts} open</span>
           </div>
           <div className="text-xs font-mono text-primary font-semibold">{score}pts</div>
+          <button onClick={handleCompleteScenario}
+            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 border border-amber-500/30 transition-all">
+            <Flag className="h-3.5 w-3.5" /> Complete Scenario
+          </button>
           <button onClick={exitSimulation}
             className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-red-400 hover:bg-red-500/10 border border-border/30 transition-all">
             <X className="h-3.5 w-3.5" /> Exit
@@ -567,7 +579,7 @@ export default function RealAttackDrills() {
 
       {/* Post-Incident Review */}
       <AnimatePresence>
-        {(evolution.status === "failed" || evolution.status === "complete") && (
+        {(["failed", "complete", "surrendered"].includes(evolution.status)) && (
           <DrillReview
             scenario={selectedScenario}
             actionsLog={actionsLog}
