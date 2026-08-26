@@ -5,6 +5,26 @@ import { getScenarioPlaybook } from "./scenarioPlaybooks";
 // Challenge definitions per action ID
 // All correct answers are derived from the run-seed so they always match the
 // evidence the analyst sees in SIEM, EDR, alerts, and endpoints.
+function deriveAttackerIPFromLogs(logs = [], endpoints = []) {
+  const endpointIPs = new Set(endpoints.map(endpoint => endpoint.ip).filter(Boolean));
+  const candidates = new Map();
+  const suspiciousTerms = /attacker|c2|command and control|brute force|failed (?:vpn )?auth|scan|unknown ip|foreign ip|reverse shell|beacon|spoof/i;
+
+  logs.forEach(log => {
+    const text = `${log.source || ""} ${log.message || ""}`;
+    if (!suspiciousTerms.test(text)) return;
+    const matches = text.match(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g) || [];
+    matches.forEach(ip => {
+      const octets = ip.split(".").map(Number);
+      const valid = octets.length === 4 && octets.every(value => value >= 0 && value <= 255);
+      if (!valid || endpointIPs.has(ip) || ip === "0.0.0.0" || ip.endsWith(".0") || ip.endsWith(".255")) return;
+      candidates.set(ip, (candidates.get(ip) || 0) + 1);
+    });
+  });
+
+  return [...candidates.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+}
+
 export function buildChallenge(actionId, endpoints, alerts, scenario, seed, logs = []) {
   const compromisedEndpoints = endpoints.filter((e) => e.status !== "healthy").map((e) => e.name);
   const playbook = getScenarioPlaybook(scenario?.id);
