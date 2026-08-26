@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield, Play, ChevronRight, Network, Clock, BarChart2, Terminal,
-  Cpu, Monitor, FileText, MessageSquare, X, AlertTriangle, CheckCircle, Zap
+  Cpu, Monitor, FileText, MessageSquare, X, AlertTriangle, CheckCircle, Zap, Flag
 } from "lucide-react";
 
 import { SCENARIOS, ENDPOINTS, generateLogs, generateAlerts, generateEDRDetections } from "@/components/soc/socData";
@@ -19,6 +19,7 @@ import ScenarioBriefing from "@/components/soc/ScenarioBriefing";
 import TrainingNarrative from "@/components/soc/TrainingNarrative";
 import AssessmentTaskList from "@/components/soc/AssessmentTaskList";
 import AssessmentSummary from "@/components/soc/AssessmentSummary";
+import { calculateSurrenderScore } from "@/components/soc/drillReview";
 
 const difficultyColor = {
   Beginner: "text-green-400 bg-green-500/10 border-green-500/30",
@@ -114,6 +115,12 @@ export default function SOCSimulation() {
   const [reportGenerated, setReportGenerated] = useState(false);
   const startTimeRef = useRef(null);
   const timerRef = useRef(null);
+  const sessionSavedRef = useRef(false);
+
+  const { data: currentUser } = useQuery({
+    queryKey: ["me"],
+    queryFn: () => base44.auth.me(),
+  });
 
   const { data: networks = [], isLoading: networksLoading } = useQuery({
     queryKey: ["network-designs"],
@@ -169,6 +176,7 @@ export default function SOCSimulation() {
     setTabsVisited(new Set(["dashboard"]));
     setReportGenerated(false);
     setActiveTab("dashboard");
+    sessionSavedRef.current = false;
     setPhase("active");
   };
 
@@ -216,6 +224,45 @@ export default function SOCSimulation() {
 
   const handleEDRAction = (action) => handleAction(action);
   const handleRMMAction = (action) => handleAction(action);
+
+  const handleCompleteScenario = async () => {
+    if (!window.confirm("Complete this scenario now? This means you are giving up. Your work so far will be scored and submitted to your stats and dashboard.")) return;
+    clearInterval(timerRef.current);
+    const finalScore = calculateSurrenderScore(selectedScenario, actionsLog, alerts, endpoints);
+    setScore(finalScore);
+    setPhase("summary");
+
+    if (!sessionSavedRef.current && selectedScenario && currentUser?.email) {
+      sessionSavedRef.current = true;
+      const triagedAlerts = alerts.filter(a => a.status !== "open").map(a => a.id);
+      const compromisedAssets = endpoints.filter(ep => ep.status === "compromised").map(ep => ep.id);
+      try {
+        await base44.entities.SOCSession.create({
+          network_design_id: selectedNetwork?.id || "default",
+          scenario_id: selectedScenario.id,
+          scenario_name: selectedScenario.name,
+          user_email: currentUser.email,
+          user_name: currentUser.full_name,
+          mode,
+          status: "completed",
+          started_at: startTimeRef.current ? new Date(startTimeRef.current).toISOString() : new Date().toISOString(),
+          completed_at: new Date().toISOString(),
+          actions_taken: actionsLog,
+          alerts_triaged: triagedAlerts,
+          score: finalScore,
+          score_breakdown: { elapsedMinutes, outcome: "surrendered", reportGenerated },
+          affected_assets: compromisedAssets,
+          iocs: [],
+        });
+        queryClient.invalidateQueries({ queryKey: ["my-soc-sessions"] });
+        queryClient.invalidateQueries({ queryKey: ["soc-sessions"] });
+        queryClient.invalidateQueries({ queryKey: ["soc-sessions-detail"] });
+        queryClient.invalidateQueries({ queryKey: ["soc-sessions-leaderboard"] });
+      } catch {
+        sessionSavedRef.current = false;
+      }
+    }
+  };
 
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
@@ -475,6 +522,12 @@ export default function SOCSimulation() {
             <span className={openAlerts > 0 ? "text-red-400" : "text-green-400"}>{openAlerts} open</span>
           </div>
           <div className="text-xs font-mono text-primary font-semibold">{score}pts</div>
+          <button
+            onClick={handleCompleteScenario}
+            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 border border-amber-500/30 transition-all font-medium"
+          >
+            <Flag className="h-3.5 w-3.5" /> Complete Scenario
+          </button>
           {mode === "assessment" && (
             <button
               onClick={endAssessment}
