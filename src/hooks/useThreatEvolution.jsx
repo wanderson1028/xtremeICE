@@ -6,7 +6,7 @@ import { getScenarioPlaybook, actionRuleComplete } from "@/components/soc/scenar
 // Dynamic threat evolution engine for SOC training.
 // Makes scenarios adaptive: attacks progress in real-time, actions have
 // real consequences on the simulation state, and each scenario escalates uniquely.
-export function useThreatEvolution(scenario, simData, seed) {
+export function useThreatEvolution(scenario, simData, seed, attemptMode = "unguided") {
   const [threatLevel, setThreatLevel] = useState(30);
   const [liveAlerts, setLiveAlerts] = useState([]);
   const [liveLogs, setLiveLogs] = useState([]);
@@ -63,6 +63,23 @@ export function useThreatEvolution(scenario, simData, seed) {
     }, 10000);
     return () => clearInterval(interval);
   }, [status, scenario]);
+
+  // Guided attempts reveal the playbook, so they use a shorter hard time limit.
+  const timeLimitMinutes = scenario && attemptMode === "guided"
+    ? Math.max(5, Math.ceil((scenario.duration_min || 15) * 0.65))
+    : null;
+
+  useEffect(() => {
+    if (status !== "active" || !timeLimitMinutes) return;
+    if (elapsedSeconds < timeLimitMinutes * 60) return;
+    setStatus("failed");
+    setEventFeed(prev => [...prev, {
+      id: `evt-time-limit-${Date.now()}`,
+      time: new Date().toLocaleTimeString(),
+      message: `Guided attempt time limit reached (${timeLimitMinutes} minutes).`,
+      type: "penalty",
+    }]);
+  }, [elapsedSeconds, status, timeLimitMinutes]);
 
   // Track threat trend for UI indicator
   useEffect(() => {
@@ -214,6 +231,8 @@ export function useThreatEvolution(scenario, simData, seed) {
     eventFeed,
     elapsedSeconds,
     elapsedMinutes: Math.floor(elapsedSeconds / 60),
+    timeLimitMinutes,
+    attemptMode,
     status,
     processAction,
     markComplete,
