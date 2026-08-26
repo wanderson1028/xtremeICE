@@ -121,6 +121,9 @@ export default function SOCTraining() {
       iocs: runSeed?.iocs || [],
     }).then(() => {
       queryClient.invalidateQueries({ queryKey: ["my-soc-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["soc-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["soc-sessions-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["soc-sessions-leaderboard"] });
     }).catch(() => {});
   }, [evolution.status, selectedScenario, currentUser, selectedNetwork, sessionStartedAt, actionsLog, score, evolution.liveEndpoints, evolution.liveAlerts, evolution.threatLevel, evolution.elapsedMinutes, evolution.timeLimitMinutes, attemptMode, runSeed, queryClient]);
 
