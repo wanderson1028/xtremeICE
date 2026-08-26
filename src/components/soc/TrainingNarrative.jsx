@@ -125,7 +125,7 @@ const BASE_PHASES = [
   },
 ];
 
-export default function TrainingNarrative({ scenario, actionsLog, alerts, reportGenerated, activeTab, onNavigate, onPhaseChange, tabsVisited, threatLevel = 30, eventFeed = [], status = "active", seed, onHintUsed }) {
+export default function TrainingNarrative({ guided = false, scenario, actionsLog, alerts, reportGenerated, activeTab, onNavigate, onPhaseChange, tabsVisited, threatLevel = 30, eventFeed = [], status = "active", seed, onHintUsed }) {
   const [currentPhase, setCurrentPhase] = useState(0);
   const [expandedPhase, setExpandedPhase] = useState(0);
   const playbook = useMemo(() => getScenarioPlaybook(scenario?.id), [scenario?.id]);
@@ -197,6 +197,7 @@ export default function TrainingNarrative({ scenario, actionsLog, alerts, report
       <div className="px-4 py-3 border-b border-border/20 bg-primary/5 flex items-center gap-2">
         <BookOpen className="h-4 w-4 text-primary" />
         <span className="text-xs font-semibold">Story Guide</span>
+        {guided && <span className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-cyan-500/30 text-cyan-400">ALL STEPS REVEALED</span>}
         <span className="ml-auto text-[10px] text-muted-foreground font-mono">Phase {Math.min(currentPhase + 1, 5)}/5</span>
       </div>
 
@@ -251,7 +252,7 @@ export default function TrainingNarrative({ scenario, actionsLog, alerts, report
           const done = idx < currentPhase;
           const active = idx === currentPhase;
           const locked = idx > currentPhase;
-          const open = idx === expandedPhase;
+          const open = guided || idx === expandedPhase;
 
           return (
             <div
@@ -264,8 +265,8 @@ export default function TrainingNarrative({ scenario, actionsLog, alerts, report
             >
               <button
                 className="w-full flex items-center gap-3 px-3 py-2.5 text-left"
-                onClick={() => !locked && setExpandedPhase(open ? -1 : idx)}
-                disabled={locked}
+                onClick={() => !guided && !locked && setExpandedPhase(open ? -1 : idx)}
+                disabled={locked && !guided}
               >
                 <div className={`h-7 w-7 rounded-lg flex items-center justify-center shrink-0 ${done ? "bg-green-500/20" : active ? p.bg.split(" ")[0] : "bg-secondary"}`}>
                   {done ? <CheckCircle className="h-3.5 w-3.5 text-green-400" /> : <Icon className={`h-3.5 w-3.5 ${p.color}`} />}
@@ -285,7 +286,7 @@ export default function TrainingNarrative({ scenario, actionsLog, alerts, report
               </button>
 
               <AnimatePresence>
-                {open && !locked && (
+                {open && (!locked || guided) && (
                   <motion.div
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: "auto", opacity: 1 }}
@@ -296,7 +297,7 @@ export default function TrainingNarrative({ scenario, actionsLog, alerts, report
                     <div className="px-3 pb-3 space-y-2.5">
                       {/* Hint — hidden by default; revealing costs time off the clock */}
                       {(() => {
-                        const revealed = revealedHints.has(p.id);
+                        const revealed = guided || revealedHints.has(p.id);
                         if (!revealed) {
                           return (
                             <button
