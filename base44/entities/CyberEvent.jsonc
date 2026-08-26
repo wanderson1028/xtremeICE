@@ -183,6 +183,13 @@
     },
     "export_bundle": {
       "type": "string"
+    },
+    "live_fire_lab_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Live Fire exercise drafts launched from this scenario"
     }
   },
   "required": [
