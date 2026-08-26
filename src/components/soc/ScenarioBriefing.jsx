@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { AlertTriangle, Clock, Shield, Zap, ChevronRight, Play, BookOpen, ClipboardList } from "lucide-react";
+import { getScenarioPlaybook } from "./scenarioPlaybooks";
 
 const difficultyColor = {
   Beginner: "text-green-400 bg-green-500/10 border-green-500/30",
@@ -77,6 +78,7 @@ const urgencyStyles = {
 
 export default function ScenarioBriefing({ scenario, mode, onConfirm, onBack }) {
   const [accepted, setAccepted] = useState(false);
+  const playbook = getScenarioPlaybook(scenario?.id);
   const briefing = BRIEFINGS[scenario?.id] || {
     time: "Now",
     caller: "Alert System",
@@ -120,7 +122,7 @@ export default function ScenarioBriefing({ scenario, mode, onConfirm, onBack }) 
               </div>
             </div>
             <span className={`text-[10px] font-mono px-2 py-0.5 rounded border shrink-0 ${difficultyColor[scenario?.difficulty]}`}>
-              {scenario?.difficulty}
+              {scenario?.difficulty} · {playbook.severity}
             </span>
           </div>
 
@@ -148,7 +150,7 @@ export default function ScenarioBriefing({ scenario, mode, onConfirm, onBack }) 
               <div className="bg-secondary/30 rounded-xl p-3">
                 <div className="text-[10px] text-muted-foreground uppercase mb-1.5 font-mono">Your Objectives</div>
                 <ul className="space-y-1">
-                  {["Detect & triage the incident", "Contain the threat", "Collect evidence", "Eradicate & recover", "Document findings"].map(obj => (
+                  {playbook.objectives.map(obj => (
                     <li key={obj} className="text-[10px] text-foreground/70 flex items-center gap-1.5">
                       <ChevronRight className="h-2.5 w-2.5 text-primary shrink-0" /> {obj}
                     </li>
