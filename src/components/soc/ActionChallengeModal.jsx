@@ -39,11 +39,26 @@ export function buildChallenge(actionId, endpoints, alerts, scenario, seed, logs
   const seedPersistence = seed?.persistenceArtifacts || [];
 
   // ─── Firewall rule scripts (derived from seed attacker IP) ─────────────────
+  const scenarioBlockTargets = {
+    spam_campaign: { target: "invoices-payable.xyz", rule: "Block sender domain and quarantine matching messages" },
+    web_phishing_report: { target: "company-helpdesk.net", rule: "Block URL/domain at secure web gateway and mail filter" },
+    dns_anomaly: { target: "*.randomchars.c2server.ru", rule: "Create DNS RPZ deny rule and sinkhole matching queries" },
+    crypto_miner: { target: "pool.minexmr.com", rule: "Block mining-pool domain and outbound TLS destination" },
+    data_on_pastebin: { target: "pastebin.com", rule: "Block paste-site access and alert on matching DLP uploads" },
+    shadow_it: { target: "box.com", rule: "Block unsanctioned cloud-storage tenant via CASB/SWG policy" },
+    rogue_wifi: { target: "BSSID 00:1A:2B:3C:4D:5E", rule: "Quarantine rogue BSSID through WLAN/NAC policy" },
+  };
+  const scenarioTarget = scenarioBlockTargets[scenario?.id];
   const fwScripts = attackerIP ? [
     { id: "correct", label: `deny ip host ${attackerIP} any\ndeny ip any host ${attackerIP}`, correct: true },
     { id: "wrong1", label: `permit ip host ${attackerIP} any\ndeny udp any any`, correct: false },
     { id: "wrong2", label: `deny tcp any any eq 80\ndeny tcp any any eq 443`, correct: false },
     { id: "wrong3", label: `no ip access-list extended BLOCK_ATTACKER`, correct: false },
+  ] : scenarioTarget ? [
+    { id: "correct", label: `${scenarioTarget.rule}: ${scenarioTarget.target}`, correct: true },
+    { id: "wrong1", label: `Allowlist ${scenarioTarget.target} for all users`, correct: false },
+    { id: "wrong2", label: "Disable all inbound and outbound web traffic", correct: false },
+    { id: "wrong3", label: "Remove the existing security policy", correct: false },
   ] : null;
 
   // ─── Malicious processes (from seed, with plausible distractors) ──────────
@@ -155,7 +170,11 @@ export function buildChallenge(actionId, endpoints, alerts, scenario, seed, logs
         { id: "wrong2", label: "deny tcp any any eq 443", correct: false },
         { id: "wrong3", label: "no ip access-list extended BLOCK", correct: false },
       ],
-      explanation: `The correct rule uses 'deny ip host ${attackerIP || "10.0.1.50"} any' AND 'deny ip any host ${attackerIP || "10.0.1.50"}' — blocking both inbound and outbound traffic to/from the attacker IP. Using 'permit' would allow the attacker through. Blocking ports blindly would break all web traffic. Deleting the ACL entirely removes all protections.`,
+      explanation: attackerIP
+        ? `The correct rule blocks both inbound and outbound traffic to and from ${attackerIP}, the IOC shown in this run’s SIEM evidence.`
+        : scenarioTarget
+          ? `The correct control targets ${scenarioTarget.target}, which is the malicious domain, service, or wireless identifier shown in the SIEM evidence.`
+          : "Choose a narrowly scoped control derived from the scenario evidence; never apply a broad deny rule without a verified IOC.",
     },
     remove_persistence: {
       type: "multi_select",
