@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { motion, AnimatePresence } from "framer-motion";
@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 
 import { SCENARIOS, ENDPOINTS, generateLogs, generateAlerts, generateEDRDetections } from "@/components/soc/socData";
+import { COMPROMISED_MAP } from "@/components/soc/scenarioProgression";
+import { useThreatEvolution } from "@/hooks/useThreatEvolution";
 import SOCDashboard from "@/components/soc/SOCDashboard";
 import SIEMViewer from "@/components/soc/SIEMViewer";
 import EDRModule from "@/components/soc/EDRModule";
@@ -63,18 +65,14 @@ export default function SOCTraining() {
   const [phase, setPhase] = useState("select_network");
   const [selectedNetwork, setSelectedNetwork] = useState(null);
   const [selectedScenario, setSelectedScenario] = useState(null);
+  const [simData, setSimData] = useState(null);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [actionsLog, setActionsLog] = useState([]);
   const [score, setScore] = useState(0);
-  const [alerts, setAlerts] = useState([]);
-  const [endpoints, setEndpoints] = useState([]);
-  const [logs, setLogs] = useState([]);
-  const [edrDetections, setEdrDetections] = useState([]);
-  const [elapsedMinutes, setElapsedMinutes] = useState(0);
   const [tabsVisited, setTabsVisited] = useState(new Set(["dashboard"]));
   const [reportGenerated, setReportGenerated] = useState(false);
-  const startTimeRef = useRef(null);
-  const timerRef = useRef(null);
+
+  const evolution = useThreatEvolution(selectedScenario, simData);
 
   const { data: currentUser } = useQuery({
     queryKey: ["me"],
@@ -105,38 +103,15 @@ export default function SOCTraining() {
     queryFn: () => base44.entities.NetworkTemplate.filter({ category: "built-in" }),
   });
 
-  useEffect(() => {
-    if (phase === "active") {
-      startTimeRef.current = Date.now();
-      timerRef.current = setInterval(() => {
-        setElapsedMinutes(Math.floor((Date.now() - startTimeRef.current) / 60000));
-      }, 10000);
-    }
-    return () => clearInterval(timerRef.current);
-  }, [phase]);
-
   const launchScenario = (scenario) => {
     const scenarioAlerts = generateAlerts(scenario.id);
     const scenarioLogs = generateLogs(scenario.id);
     const scenarioEDR = generateEDRDetections(scenario.id);
-    const compromisedMap = {
-      phishing_compromise: ["win-ws-01", "win-srv-01"],
-      ransomware_outbreak: ["win-ws-01", "win-ws-02", "win-srv-01"],
-      brute_force_vpn: ["vpn-gw"],
-      lateral_movement: ["win-ws-01", "win-srv-01", "dc-01"],
-      data_exfiltration: ["linux-srv-01"],
-      insider_threat: ["win-ws-02"],
-      web_compromise: ["linux-web-01"],
-    };
-    const compromised = new Set(compromisedMap[scenario.id] || []);
+    const compromised = new Set(COMPROMISED_MAP[scenario.id] || []);
     const updatedEps = [...ENDPOINTS].map(ep => ({ ...ep, status: compromised.has(ep.id) ? "compromised" : "healthy" }));
-    setAlerts(scenarioAlerts);
-    setLogs(scenarioLogs);
-    setEdrDetections(scenarioEDR);
-    setEndpoints(updatedEps);
+    setSimData({ alerts: scenarioAlerts, logs: scenarioLogs, endpoints: updatedEps, edr: scenarioEDR });
     setActionsLog([]);
     setScore(0);
-    setElapsedMinutes(0);
     setTabsVisited(new Set(["dashboard"]));
     setReportGenerated(false);
     setActiveTab("dashboard");
@@ -145,6 +120,9 @@ export default function SOCTraining() {
   };
 
   const handleAction = (action) => {
+    // Apply simulation consequences (threat level, alert closure, endpoint isolation)
+    evolution.processAction(action);
+
     if (action.isPenalty) { setScore(prev => Math.max(prev + (action.scoreOverride || -5), 0)); return; }
     if (action.scoreOverride !== undefined) {
       setActionsLog(prev => prev.find(a => a.id === action.id) ? prev : [...prev, action]);
@@ -154,12 +132,6 @@ export default function SOCTraining() {
     setActionsLog(prev => prev.find(a => a.id === action.id) ? prev : [...prev, action]);
     const scoreMap = { isolate_host: 15, block_ip: 12, disable_user: 10, reset_password: 8, kill_process: 10, quarantine_file: 8, collect_forensics: 12, preserve_evidence: 10, update_fw_rule: 8, patch_system: 10, restore_backup: 15, escalate_ir: 5, notify_customer: 5, open_ticket: 3, start_coc: 8, remove_persistence: 12, analyst_note: 1 };
     setScore(prev => Math.min(prev + (scoreMap[action.id] || 2), 100));
-    if (action.id === "isolate_host" || action.id?.includes("isolate")) {
-      setEndpoints(prev => prev.map(ep => ep.name === action.target ? { ...ep, status: "isolated" } : ep));
-    }
-    if (["block_ip", "disable_user", "isolate_host", "kill_process"].includes(action.id)) {
-      setAlerts(prev => prev.map((a, idx) => idx === 0 && a.status === "open" ? { ...a, status: "closed" } : a));
-    }
   };
 
   const handleTabChange = (tabId) => {
@@ -168,9 +140,9 @@ export default function SOCTraining() {
   };
 
   const exitSimulation = () => {
-    clearInterval(timerRef.current);
     setPhase("select_network");
     setSelectedScenario(null);
+    setSimData(null);
     setActionsLog([]);
     setScore(0);
   };
@@ -289,18 +261,33 @@ export default function SOCTraining() {
   }
 
   // ── ACTIVE SIMULATION ────────────────────────────────────────────────────────
-  const openAlerts = alerts.filter(a => a.status === "open").length;
+  const openAlerts = evolution.liveAlerts.filter(a => a.status === "open").length;
+  const threatColor = evolution.threatLevel >= 75 ? "text-red-400" : evolution.threatLevel >= 40 ? "text-orange-400" : evolution.threatLevel >= evolution.containmentThreshold ? "text-yellow-400" : "text-green-400";
+  const threatBg = evolution.threatLevel >= 75 ? "bg-red-500" : evolution.threatLevel >= 40 ? "bg-orange-500" : evolution.threatLevel >= evolution.containmentThreshold ? "bg-yellow-500" : "bg-green-500";
+  const threatLabel = evolution.status === "contained" ? "CONTAINED" : evolution.threatLevel >= 75 ? "CRITICAL" : evolution.threatLevel >= 40 ? "ESCALATING" : "ACTIVE";
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       {/* Top bar */}
       <div className="flex items-center gap-3 px-4 py-2 bg-card border-b border-border/40 shrink-0">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <Shield className="h-5 w-5 text-green-400" />
-          <span className="font-semibold text-sm">{selectedScenario?.name}</span>
+          <span className="font-semibold text-sm hidden sm:inline">{selectedScenario?.name}</span>
           <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border text-green-400 border-green-500/30">Beginner</span>
-          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border text-primary border-primary/30">🎓 Training</span>
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border text-primary border-primary/30 hidden sm:inline">🎓 Training</span>
         </div>
+
+        {/* Threat Level Indicator */}
+        <div className="flex items-center gap-2 px-3 py-1 rounded-lg border border-border/30 bg-secondary/30 shrink-0">
+          <div className="flex items-center gap-1.5">
+            <span className={`text-[10px] font-bold font-mono ${threatColor}`}>{threatLabel}</span>
+            <div className="w-20 h-1.5 bg-secondary rounded-full overflow-hidden">
+              <div className={`h-full ${threatBg} rounded-full transition-all duration-500`} style={{ width: `${evolution.threatLevel}%` }} />
+            </div>
+            <span className={`text-xs font-mono font-bold ${threatColor}`}>{evolution.threatLevel}%</span>
+          </div>
+        </div>
+
         <div className="flex items-center gap-0.5 bg-secondary/50 rounded-lg p-0.5 mx-auto overflow-x-auto">
           {TABS.map(tab => {
             const Icon = tab.icon;
@@ -317,7 +304,7 @@ export default function SOCTraining() {
         <div className="flex items-center gap-3 shrink-0">
           <div className="flex items-center gap-1.5 text-xs font-mono">
             <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-muted-foreground">{elapsedMinutes}m</span>
+            <span className="text-muted-foreground">{evolution.elapsedMinutes}m</span>
           </div>
           <div className="flex items-center gap-1.5 text-xs font-mono">
             {openAlerts > 0 ? <AlertTriangle className="h-3.5 w-3.5 text-red-400" /> : <CheckCircle className="h-3.5 w-3.5 text-green-400" />}
@@ -336,20 +323,56 @@ export default function SOCTraining() {
         <div className="flex-1 overflow-hidden">
           <AnimatePresence mode="wait">
             <motion.div key={activeTab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="h-full">
-              {activeTab === "dashboard" && <SOCDashboard alerts={alerts} logs={logs} edrDetections={edrDetections} endpoints={endpoints} actionsLog={actionsLog} scenario={selectedScenario} elapsedMinutes={elapsedMinutes} score={score} />}
-              {activeTab === "siem" && <SIEMViewer logs={logs} />}
-              {activeTab === "edr" && <EDRModule detections={edrDetections} endpoints={endpoints} onAction={handleAction} />}
-              {activeTab === "rmm" && <RMMModule endpoints={endpoints} onAction={handleAction} />}
-              {activeTab === "remediation" && <RemediationPanel endpoints={endpoints} alerts={alerts} actionsLog={actionsLog} onAction={handleAction} score={score} scenario={selectedScenario} />}
-              {activeTab === "report" && <IncidentReport scenario={selectedScenario} alerts={alerts} logs={logs} actionsLog={actionsLog} endpoints={endpoints} score={score} elapsedMinutes={elapsedMinutes} onReportGenerated={() => setReportGenerated(true)} />}
+              {activeTab === "dashboard" && <SOCDashboard alerts={evolution.liveAlerts} logs={evolution.liveLogs} edrDetections={evolution.liveEDR} endpoints={evolution.liveEndpoints} actionsLog={actionsLog} scenario={selectedScenario} elapsedMinutes={evolution.elapsedMinutes} score={score} threatLevel={evolution.threatLevel} threatTrend={evolution.threatTrend} eventFeed={evolution.eventFeed} status={evolution.status} />}
+              {activeTab === "siem" && <SIEMViewer logs={evolution.liveLogs} />}
+              {activeTab === "edr" && <EDRModule detections={evolution.liveEDR} endpoints={evolution.liveEndpoints} onAction={handleAction} />}
+              {activeTab === "rmm" && <RMMModule endpoints={evolution.liveEndpoints} onAction={handleAction} />}
+              {activeTab === "remediation" && <RemediationPanel endpoints={evolution.liveEndpoints} alerts={evolution.liveAlerts} actionsLog={actionsLog} onAction={handleAction} score={score} scenario={selectedScenario} />}
+              {activeTab === "report" && <IncidentReport scenario={selectedScenario} alerts={evolution.liveAlerts} logs={evolution.liveLogs} actionsLog={actionsLog} endpoints={evolution.liveEndpoints} score={score} elapsedMinutes={evolution.elapsedMinutes} onReportGenerated={() => { setReportGenerated(true); evolution.markComplete(); }} />}
             </motion.div>
           </AnimatePresence>
         </div>
         <div className="w-px shrink-0 bg-gradient-to-b from-transparent via-primary/40 to-transparent" />
         <div className="w-80 shrink-0 flex flex-col overflow-hidden">
-          <TrainingNarrative scenario={selectedScenario} actionsLog={actionsLog} alerts={alerts} reportGenerated={reportGenerated} activeTab={activeTab} onNavigate={handleTabChange} tabsVisited={tabsVisited} />
+          <TrainingNarrative scenario={selectedScenario} actionsLog={actionsLog} alerts={evolution.liveAlerts} reportGenerated={reportGenerated} activeTab={activeTab} onNavigate={handleTabChange} tabsVisited={tabsVisited} threatLevel={evolution.threatLevel} eventFeed={evolution.eventFeed} status={evolution.status} />
         </div>
       </div>
+
+      {/* Win/Lose Overlay */}
+      <AnimatePresence>
+        {(evolution.status === "failed" || evolution.status === "complete") && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-card border border-border/50 rounded-2xl p-8 max-w-md w-full text-center shadow-2xl">
+              {evolution.status === "complete" ? (
+                <>
+                  <div className="h-16 w-16 rounded-full bg-green-500/20 border-2 border-green-500/40 flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle className="h-8 w-8 text-green-400" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-green-400 mb-2">Incident Contained!</h2>
+                  <p className="text-sm text-muted-foreground mb-4">{evolution.successMessage}</p>
+                  <div className="grid grid-cols-3 gap-3 mb-6">
+                    <div className="bg-secondary/30 rounded-lg p-3"><div className="text-2xl font-bold text-primary">{score}</div><div className="text-[10px] text-muted-foreground">Score</div></div>
+                    <div className="bg-secondary/30 rounded-lg p-3"><div className="text-2xl font-bold text-primary">{evolution.elapsedMinutes}m</div><div className="text-[10px] text-muted-foreground">Time</div></div>
+                    <div className="bg-secondary/30 rounded-lg p-3"><div className="text-2xl font-bold text-primary">{actionsLog.filter(a => !a.isPenalty).length}</div><div className="text-[10px] text-muted-foreground">Actions</div></div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="h-16 w-16 rounded-full bg-red-500/20 border-2 border-red-500/40 flex items-center justify-center mx-auto mb-4">
+                    <AlertTriangle className="h-8 w-8 text-red-400" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-red-400 mb-2">Attack Succeeded</h2>
+                  <p className="text-sm text-muted-foreground mb-4">{evolution.failureMessage}</p>
+                  <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 mb-6 text-left">
+                    <div className="text-xs text-red-300/80">Threat level reached 100% before containment. Try acting faster — prioritize isolation and IP blocking to slow the attack progression.</div>
+                  </div>
+                </>
+              )}
+              <button onClick={exitSimulation} className="px-6 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:bg-primary/90 transition-all">Back to Scenarios</button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

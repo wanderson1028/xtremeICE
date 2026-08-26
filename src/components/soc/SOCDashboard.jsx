@@ -1,5 +1,5 @@
 import React from "react";
-import { AlertTriangle, CheckCircle, Shield, Clock, Activity, Monitor, Star, TrendingUp, Award } from "lucide-react";
+import { AlertTriangle, CheckCircle, Shield, Clock, Activity, Monitor, Star, TrendingUp, Award, TrendingDown, Zap, Radio } from "lucide-react";
 
 const ACTION_POINTS = {
   isolate_host: 15, block_ip: 12, disable_user: 10, reset_password: 8,
@@ -22,12 +22,19 @@ const statusColor = {
   isolated: "text-orange-400",
 };
 
-export default function SOCDashboard({ alerts, logs, edrDetections, endpoints, actionsLog, scenario, elapsedMinutes, score }) {
+export default function SOCDashboard({ alerts, logs, edrDetections, endpoints, actionsLog, scenario, elapsedMinutes, score, threatLevel = 30, threatTrend = "stable", eventFeed = [], status = "active" }) {
   const openAlerts = alerts.filter(a => a.status === "open");
   const closedAlerts = alerts.filter(a => a.status === "closed");
   const criticalAlerts = openAlerts.filter(a => a.severity === "critical");
   const compromisedEps = endpoints.filter(e => e.status === "compromised");
   const isolatedEps = endpoints.filter(e => e.status === "isolated");
+
+  const threatColor = threatLevel >= 75 ? "text-red-400" : threatLevel >= 40 ? "text-orange-400" : threatLevel >= 20 ? "text-yellow-400" : "text-green-400";
+  const threatBg = threatLevel >= 75 ? "bg-red-500" : threatLevel >= 40 ? "bg-orange-500" : threatLevel >= 20 ? "bg-yellow-500" : "bg-green-500";
+  const threatBorder = threatLevel >= 75 ? "border-red-500/40" : threatLevel >= 40 ? "border-orange-500/40" : threatLevel >= 20 ? "border-yellow-500/40" : "border-green-500/40";
+  const threatBgLight = threatLevel >= 75 ? "bg-red-500/10" : threatLevel >= 40 ? "bg-orange-500/10" : threatLevel >= 20 ? "bg-yellow-500/10" : "bg-green-500/10";
+  const threatLabel = status === "contained" ? "CONTAINED" : threatLevel >= 75 ? "CRITICAL" : threatLevel >= 40 ? "ESCALATING" : "ACTIVE";
+  const recentEvents = eventFeed.slice(-4).reverse();
 
   const successActions = actionsLog.filter(a => !a.isPenalty);
   const totalPossible = Object.values(ACTION_POINTS).reduce((s, v) => s + v, 0);
@@ -64,6 +71,41 @@ export default function SOCDashboard({ alerts, logs, edrDetections, endpoints, a
           <div className="text-3xl font-black font-mono text-primary">{score}</div>
           <div className="text-[10px] text-muted-foreground">/ 100 pts</div>
         </div>
+      </div>
+
+      {/* Threat Level Meter */}
+      <div className={`rounded-2xl border ${threatBorder} ${threatBgLight} p-4`}>
+        <div className="flex items-center gap-3 mb-2">
+          <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${threatBgLight} border ${threatBorder}`}>
+            {threatLevel >= 75 ? <AlertTriangle className={`h-5 w-5 ${threatColor}`} /> : threatLevel >= 40 ? <Activity className={`h-5 w-5 ${threatColor}`} /> : status === "contained" ? <CheckCircle className={`h-5 w-5 ${threatColor}`} /> : <Radio className={`h-5 w-5 ${threatColor}`} />}
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <span className={`text-sm font-bold ${threatColor}`}>{threatLabel}</span>
+              <span className="text-[10px] text-muted-foreground">Threat Level</span>
+              {threatTrend === "rising" && <TrendingUp className="h-3 w-3 text-red-400" />}
+              {threatTrend === "falling" && <TrendingDown className="h-3 w-3 text-green-400" />}
+            </div>
+            <div className="h-2.5 bg-secondary rounded-full overflow-hidden mt-1.5">
+              <div className={`h-full ${threatBg} rounded-full transition-all duration-500`} style={{ width: `${threatLevel}%` }} />
+            </div>
+          </div>
+          <div className="text-right shrink-0">
+            <div className={`text-2xl font-black font-mono ${threatColor}`}>{threatLevel}</div>
+            <div className="text-[10px] text-muted-foreground">/ 100</div>
+          </div>
+        </div>
+        {/* Live Event Feed */}
+        {recentEvents.length > 0 && (
+          <div className="mt-2 pt-2 border-t border-border/20 space-y-1">
+            {recentEvents.map((evt, i) => (
+              <div key={evt.id || i} className="flex items-start gap-2 text-[10px]">
+                <span className="font-mono text-muted-foreground shrink-0">{evt.time}</span>
+                <span className={evt.type === "escalation" ? "text-red-300" : evt.type === "penalty" ? "text-red-300" : evt.type === "action" ? "text-green-300" : "text-muted-foreground"}>{evt.message}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* KPI row */}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronRight, BookOpen, AlertTriangle, Shield, CheckCircle, FileText, Radio } from "lucide-react";
+import { ChevronRight, BookOpen, AlertTriangle, Shield, CheckCircle, FileText, Radio, Activity, TrendingUp, TrendingDown, Zap } from "lucide-react";
 
 // Per-scenario detect guidance: what to look for on each tab
 const DETECT_GUIDANCE = {
@@ -114,12 +114,24 @@ const PHASES = [
   },
 ];
 
-export default function TrainingNarrative({ scenario, actionsLog, alerts, reportGenerated, activeTab, onNavigate, onPhaseChange, tabsVisited }) {
+export default function TrainingNarrative({ scenario, actionsLog, alerts, reportGenerated, activeTab, onNavigate, onPhaseChange, tabsVisited, threatLevel = 30, eventFeed = [], status = "active" }) {
   const [currentPhase, setCurrentPhase] = useState(0);
   const [expandedPhase, setExpandedPhase] = useState(0);
 
   // Build scenario-specific detect steps once
   const detectSteps = getDetectSteps(scenario?.id);
+
+  // Adaptive guidance based on threat level and status
+  const adaptiveGuidance = (() => {
+    if (status === "contained") return { msg: "Threat contained! Generate your incident report to complete the drill.", color: "text-green-400", icon: CheckCircle, bg: "bg-green-500/10 border-green-500/30" };
+    if (status === "failed") return { msg: "The attack succeeded. Review your response and try again.", color: "text-red-400", icon: AlertTriangle, bg: "bg-red-500/10 border-red-500/30" };
+    if (threatLevel >= 75) return { msg: "CRITICAL: Attack escalating rapidly! Isolate compromised hosts and block attacker IPs immediately!", color: "text-red-400", icon: AlertTriangle, bg: "bg-red-500/10 border-red-500/30" };
+    if (threatLevel >= 50) return { msg: "WARNING: Threat is escalating. Prioritize containment actions — isolate hosts and block IPs.", color: "text-orange-400", icon: AlertTriangle, bg: "bg-orange-500/10 border-orange-500/30" };
+    if (threatLevel >= 30) return { msg: "Attack is active. Investigate alerts and begin containment actions.", color: "text-yellow-400", icon: Radio, bg: "bg-yellow-500/10 border-yellow-500/30" };
+    return { msg: "Threat under control. Continue investigation and document findings.", color: "text-green-400", icon: CheckCircle, bg: "bg-green-500/10 border-green-500/30" };
+  })();
+
+  const recentEvents = eventFeed.slice(-5).reverse();
 
   useEffect(() => {
     const actionIds = new Set(actionsLog.map(a => a.id));
@@ -151,6 +163,50 @@ export default function TrainingNarrative({ scenario, actionsLog, alerts, report
         <BookOpen className="h-4 w-4 text-primary" />
         <span className="text-xs font-semibold">Story Guide</span>
         <span className="ml-auto text-[10px] text-muted-foreground font-mono">Phase {Math.min(currentPhase + 1, 5)}/5</span>
+      </div>
+
+      {/* Live Situation Update */}
+      <div className="px-3 py-2.5 border-b border-border/20 space-y-2">
+        {/* Threat Level Bar */}
+        <div className={`rounded-lg border px-3 py-2 ${adaptiveGuidance.bg}`}>
+          <div className="flex items-center gap-2 mb-1.5">
+            {React.createElement(adaptiveGuidance.icon, { className: `h-3.5 w-3.5 ${adaptiveGuidance.color} shrink-0` })}
+            <span className={`text-[10px] font-semibold ${adaptiveGuidance.color}`}>Live Situation</span>
+            <span className="ml-auto flex items-center gap-1">
+              {threatLevel >= 75 ? <TrendingUp className="h-3 w-3 text-red-400" /> : threatLevel >= 40 ? <Activity className="h-3 w-3 text-orange-400" /> : <TrendingDown className="h-3 w-3 text-green-400" />}
+              <span className={`text-xs font-mono font-bold ${adaptiveGuidance.color}`}>{threatLevel}%</span>
+            </span>
+          </div>
+          <div className="h-1.5 bg-secondary rounded-full overflow-hidden mb-1.5">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${threatLevel >= 75 ? "bg-red-500" : threatLevel >= 40 ? "bg-orange-500" : threatLevel >= 20 ? "bg-yellow-500" : "bg-green-500"}`}
+              style={{ width: `${threatLevel}%` }}
+            />
+          </div>
+          <p className={`text-[10px] leading-relaxed ${adaptiveGuidance.color}`}>{adaptiveGuidance.msg}</p>
+        </div>
+
+        {/* Recent Events Feed */}
+        {recentEvents.length > 0 && (
+          <div className="rounded-lg border border-border/20 bg-secondary/20 overflow-hidden">
+            <div className="px-2.5 py-1.5 border-b border-border/10 flex items-center gap-1.5">
+              <Zap className="h-3 w-3 text-yellow-400" />
+              <span className="text-[10px] font-semibold text-muted-foreground">Live Events</span>
+            </div>
+            <div className="max-h-24 overflow-y-auto">
+              {recentEvents.map((evt, i) => (
+                <div key={evt.id || i} className={`px-2.5 py-1.5 border-b border-border/5 last:border-0 flex items-start gap-2 ${
+                  evt.type === "escalation" ? "bg-red-500/5" : evt.type === "penalty" ? "bg-red-500/5" : evt.type === "action" ? "bg-green-500/5" : ""
+                }`}>
+                  <span className={`text-[9px] font-mono text-muted-foreground shrink-0 mt-0.5`}>{evt.time}</span>
+                  <span className={`text-[10px] leading-relaxed ${
+                    evt.type === "escalation" ? "text-red-300" : evt.type === "penalty" ? "text-red-300" : evt.type === "action" ? "text-green-300" : "text-muted-foreground"
+                  }`}>{evt.message}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Phase list */}
