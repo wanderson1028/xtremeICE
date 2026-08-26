@@ -58,7 +58,6 @@ export default function LaunchLiveFireDialog({ event, open, onOpenChange }) {
       }
       const response = await base44.functions.invoke("launchCyberEventLiveFire", {
         cyber_event_id: event.id,
-        network_design_id: selectedDesignId,
         cloud_provider: cloudProvider,
         region,
         visibility,
