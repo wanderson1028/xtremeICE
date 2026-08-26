@@ -147,5 +147,22 @@ export function calculateDrillCost(scenario, endpoints, alerts) {
   return { total, breakdown };
 }
 
+// Partial-performance score used when an analyst ends a scenario early.
+// Required response actions carry 60%, alert resolution 25%, and host containment 15%.
+export function calculateSurrenderScore(scenario, actionsLog, alerts, endpoints) {
+  const expected = getExpectedActions(scenario, alerts);
+  const taken = getTakenActionIds(actionsLog);
+  const requiredRatio = expected.length ? expected.filter(a => taken.has(a.id)).length / expected.length : 0;
+
+  const allAlerts = alerts || [];
+  const resolvedRatio = allAlerts.length ? allAlerts.filter(a => a.status !== "open").length / allAlerts.length : 0;
+
+  const affected = (endpoints || []).filter(e => ["compromised", "isolated"].includes(e.status));
+  const containedRatio = affected.length ? affected.filter(e => e.status === "isolated").length / affected.length : 1;
+
+  const raw = Math.round((requiredRatio * 60) + (resolvedRatio * 25) + (containedRatio * 15));
+  return Math.min(raw, 85); // A surrendered attempt cannot receive a passing-perfect score.
+}
+
 export const formatCurrency = (n) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
