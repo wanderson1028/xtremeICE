@@ -588,7 +588,7 @@ const NetworkDiagram = forwardRef(function NetworkDiagram(
     // Traffic pattern modulation
     switch (pattern) {
       case "bursty":   base = t % 30 < 6 ? 0.95 : 0.2; break;
-      case "ramp_up":  base = Math.min(0.95, 0.15 + (t / 300) * 0.85); break;
+      case "ramp_up":  base = Math.min(0.82, 0.2 + (Math.min(t, 360) / 360) * 0.62); break;
       case "sine":     base = 0.3 + 0.65 * (0.5 + 0.5 * Math.sin((t / 40) * Math.PI)); break;
       default:         base = isWan ? 0.5 + Math.random() * 0.1 : 0.25 + Math.random() * 0.1;
     }
@@ -603,6 +603,12 @@ const NetworkDiagram = forwardRef(function NetworkDiagram(
       device_reboot:   0.15,
       firewall_breach: 0.7,
       server_crash:    0.4,
+      brute_force:     0.35,
+      cross_site_scripting: 0.2,
+      sql_injection:   0.4,
+      ransomware:      0.55,
+      phishing:        0.2,
+      privilege_escalation: 0.3,
     };
     if (scenario) base = Math.min(1, base + (scenarioBoost[scenario.id] || 0) * (isWan ? 0.8 : 0.6));
 
@@ -622,7 +628,7 @@ const NetworkDiagram = forwardRef(function NetworkDiagram(
     // How many packets to spawn this tick (frequency driven by traffic load)
     let spawnCount = 1;
     if (pattern === "bursty")       spawnCount = t % 30 < 6 ? 4 : 0;
-    else if (pattern === "ramp_up") spawnCount = Math.ceil(1 + (t / 120) * 3);
+    else if (pattern === "ramp_up") spawnCount = Math.min(3, 1 + Math.floor(Math.min(t, 360) / 180));
     else if (pattern === "sine")    spawnCount = Math.round(1 + 2 * (0.5 + 0.5 * Math.sin((t / 40) * Math.PI)));
     else                            spawnCount = 1 + (scenario ? 2 : 0);
 
@@ -642,7 +648,7 @@ const NetworkDiagram = forwardRef(function NetworkDiagram(
       else                  color = "#ef4444"; // red – congested
 
       // Packet size reflects load
-      const radius = 3 + load * 5;
+      const radius = 2.5 + load * 2.5;
       // Speed: congested packets move slower (queuing delay)
       const speed = (0.014 - load * 0.007) + Math.random() * 0.005;
 
@@ -747,7 +753,7 @@ const NetworkDiagram = forwardRef(function NetworkDiagram(
         const from = mapped.find(n => n.id === link.from), to = mapped.find(n => n.id === link.to);
         if (!from || !to) return;
         const load = linkLoadRef.current[`${link.from}-${link.to}`] ?? 0;
-        if (load < 0.35) return; // no overlay for low-load links
+        if (load < 0.5) return; // keep normal and moderate paths visually clean
 
         const sz1 = DEVICE_SIZE[from.type] || { w: 52, h: 42 };
         const sz2 = DEVICE_SIZE[to.type] || { w: 52, h: 42 };
@@ -765,9 +771,9 @@ const NetworkDiagram = forwardRef(function NetworkDiagram(
 
         ctx.save();
         ctx.strokeStyle = glowColor;
-        ctx.lineWidth = 2 + load * 8;
+        ctx.lineWidth = 1.5 + load * 3;
         ctx.shadowColor = glowColor;
-        ctx.shadowBlur = 8 + load * 12;
+        ctx.shadowBlur = 3 + load * 4;
         ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(tx, ty); ctx.stroke();
         ctx.restore();
       });
@@ -779,7 +785,7 @@ const NetworkDiagram = forwardRef(function NetworkDiagram(
       const py = pkt.from.y + (pkt.to.y - pkt.from.y) * pkt.progress;
       const r = pkt.radius ?? 5;
       ctx.save();
-      ctx.shadowColor = pkt.color; ctx.shadowBlur = 6 + r * 2; ctx.fillStyle = pkt.color;
+      ctx.shadowColor = pkt.color; ctx.shadowBlur = 3 + r; ctx.fillStyle = pkt.color;
       ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     });
@@ -841,7 +847,7 @@ const NetworkDiagram = forwardRef(function NetworkDiagram(
 
       // Spawn frequency: base 18 frames, reduced when bursty/congested
       const spawnInterval = trafficPatternRef.current === "bursty" ? 10
-        : trafficPatternRef.current === "ramp_up" ? Math.max(6, 18 - Math.floor(animTickRef.current / 30))
+        : trafficPatternRef.current === "ramp_up" ? Math.max(10, 20 - Math.floor(Math.min(animTickRef.current, 300) / 50))
         : trafficPatternRef.current === "sine" ? 14
         : 18;
 
@@ -849,7 +855,8 @@ const NetworkDiagram = forwardRef(function NetworkDiagram(
 
       packetsRef.current = packetsRef.current
         .map(p => ({ ...p, progress: p.progress + p.speed }))
-        .filter(p => p.progress < 1);
+        .filter(p => p.progress < 1)
+        .slice(-80);
 
       draw(selectedRef.current, hoveredRef.current, packetsRef.current, selectedAnnotation);
       animFrameRef.current = requestAnimationFrame(animate);
