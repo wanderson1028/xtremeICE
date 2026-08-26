@@ -414,7 +414,7 @@ export default function SOCTraining() {
               {activeTab === "siem" && <SIEMViewer logs={evolution.liveLogs} />}
               {activeTab === "edr" && <EDRModule detections={evolution.liveEDR} endpoints={evolution.liveEndpoints} onAction={handleAction} />}
               {activeTab === "rmm" && <RMMModule endpoints={evolution.liveEndpoints} onAction={handleAction} />}
-              {activeTab === "remediation" && <RemediationPanel endpoints={evolution.liveEndpoints} alerts={evolution.liveAlerts} actionsLog={actionsLog} onAction={handleAction} score={score} scenario={selectedScenario} seed={runSeed} />}
+              {activeTab === "remediation" && <RemediationPanel endpoints={evolution.liveEndpoints} alerts={evolution.liveAlerts} logs={evolution.liveLogs} actionsLog={actionsLog} onAction={handleAction} score={score} scenario={selectedScenario} seed={runSeed} />}
               {activeTab === "report" && <IncidentReport scenario={selectedScenario} alerts={evolution.liveAlerts} logs={evolution.liveLogs} actionsLog={actionsLog} endpoints={evolution.liveEndpoints} score={score} elapsedMinutes={evolution.elapsedMinutes} onReportGenerated={() => { setReportGenerated(true); evolution.markComplete(); }} />}
             </motion.div>
           </AnimatePresence>
