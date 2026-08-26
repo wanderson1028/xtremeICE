@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 
 import { SCENARIOS, ENDPOINTS, generateLogs, generateAlerts, generateEDRDetections } from "@/components/soc/socData";
+import { generateRunSeed } from "@/components/soc/runSeed";
+import { COMPROMISED_MAP } from "@/components/soc/scenarioProgression";
 import SOCDashboard from "@/components/soc/SOCDashboard";
 import SIEMViewer from "@/components/soc/SIEMViewer";
 import EDRModule from "@/components/soc/EDRModule";
@@ -115,6 +117,7 @@ export default function SOCSimulation() {
   const [tabsVisited, setTabsVisited] = useState(new Set(["dashboard"]));
   const [reportGenerated, setReportGenerated] = useState(false);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [runSeed, setRunSeed] = useState(null);
   const startTimeRef = useRef(null);
   const timerRef = useRef(null);
   const sessionSavedRef = useRef(false);
@@ -148,24 +151,17 @@ export default function SOCSimulation() {
   const launchScenario = (scenario, mode) => {
     setSelectedScenario(scenario);
     setMode(mode);
-    const scenarioAlerts = generateAlerts(scenario.id);
-    const scenarioLogs = generateLogs(scenario.id);
-    const scenarioEDR = generateEDRDetections(scenario.id);
+    const seed = generateRunSeed(scenario.id);
+    const scenarioAlerts = generateAlerts(scenario.id, seed);
+    const scenarioLogs = generateLogs(scenario.id, seed);
+    const scenarioEDR = generateEDRDetections(scenario.id, seed);
+    setRunSeed(seed);
 
     // Merge network endpoints with fixed scenario endpoints
     const epList = [...ENDPOINTS];
-    // Mark some endpoints as compromised based on scenario
-    const compromisedMap = {
-      phishing_compromise: ["win-ws-01", "win-srv-01"],
-      ransomware_outbreak: ["win-ws-01", "win-ws-02", "win-srv-01"],
-      brute_force_vpn: ["vpn-gw"],
-      lateral_movement: ["win-ws-01", "win-srv-01", "dc-01"],
-      data_exfiltration: ["linux-srv-01"],
-      insider_threat: ["win-ws-02"],
-      web_compromise: ["linux-web-01"],
-      cloud_compromise: [],
-    };
-    const compromised = new Set(compromisedMap[scenario.id] || []);
+    // Use the same scenario registry and patient-zero seed as SIEM/EDR evidence.
+    const compromised = new Set(COMPROMISED_MAP[scenario.id] || []);
+    if (seed.patientZero) compromised.add(seed.patientZero);
     const updatedEps = epList.map(ep => ({ ...ep, status: compromised.has(ep.id) ? "compromised" : "healthy" }));
 
     setAlerts(scenarioAlerts);
@@ -613,10 +609,12 @@ export default function SOCSimulation() {
                 <RemediationPanel
                   endpoints={endpoints}
                   alerts={alerts}
+                  logs={logs}
                   actionsLog={actionsLog}
                   onAction={handleAction}
                   score={score}
                   scenario={selectedScenario}
+                  seed={runSeed}
                 />
               )}
               {activeTab === "report" && (
