@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Edit, Trash2, Link as LinkIcon, Download, Loader2, Eye } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Link as LinkIcon, Download, Loader2, Eye, Flame } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
+import LaunchLiveFireDialog from "@/components/cyberevents/LaunchLiveFireDialog";
 
 export default function EventSummaryPanel({ event, onBack, onEdit, onDelete, onLinkDesign }) {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ export default function EventSummaryPanel({ event, onBack, onEdit, onDelete, onL
   const [selectedDesignId, setSelectedDesignId] = useState(event.network_design_id || "");
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [showLiveFireDialog, setShowLiveFireDialog] = useState(false);
 
   const { data: designs = [] } = useQuery({
     queryKey: ["designs-for-link"],
@@ -67,7 +69,14 @@ export default function EventSummaryPanel({ event, onBack, onEdit, onDelete, onL
           <h2 className="text-2xl font-bold text-foreground truncate">{event.title || "Untitled Event"}</h2>
           <p className="text-sm text-muted-foreground mt-1">{event.description}</p>
         </div>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex flex-wrap justify-end gap-2 shrink-0">
+          <Button
+            size="sm"
+            onClick={() => setShowLiveFireDialog(true)}
+            className="gap-2 bg-red-700 text-white hover:bg-red-600"
+          >
+            <Flame className="h-4 w-4" /> Launch in Live Fire
+          </Button>
           {event.network_design_id && (
             <Button
               variant="outline"
@@ -261,6 +270,7 @@ export default function EventSummaryPanel({ event, onBack, onEdit, onDelete, onL
           <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{event.red_team_directions}</p>
         </div>
       )}
+      <LaunchLiveFireDialog event={event} open={showLiveFireDialog} onOpenChange={setShowLiveFireDialog} />
     </div>
   );
 }
