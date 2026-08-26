@@ -158,7 +158,7 @@ export function calculateSurrenderScore(scenario, actionsLog, alerts, endpoints)
   const resolvedRatio = allAlerts.length ? allAlerts.filter(a => a.status !== "open").length / allAlerts.length : 0;
 
   const affected = (endpoints || []).filter(e => ["compromised", "isolated"].includes(e.status));
-  const containedRatio = affected.length ? affected.filter(e => e.status === "isolated").length / affected.length : 1;
+  const containedRatio = affected.length ? affected.filter(e => e.status === "isolated").length / affected.length : 0;
 
   const raw = Math.round((requiredRatio * 60) + (resolvedRatio * 25) + (containedRatio * 15));
   return Math.min(raw, 85); // A surrendered attempt cannot receive a passing-perfect score.
