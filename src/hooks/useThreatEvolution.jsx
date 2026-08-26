@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { getProgressionConfig, COMPROMISED_MAP } from "@/components/soc/scenarioProgression";
 import { generateAlerts, generateLogs, generateEDRDetections, ENDPOINTS } from "@/components/soc/socData";
+import { getScenarioPlaybook, actionRuleComplete } from "@/components/soc/scenarioPlaybooks";
 
 // Dynamic threat evolution engine for SOC training.
 // Makes scenarios adaptive: attacks progress in real-time, actions have
@@ -18,6 +19,7 @@ export function useThreatEvolution(scenario, simData, seed) {
   const [threatTrend, setThreatTrend] = useState("stable"); // rising | falling | stable
 
   const prevThreatRef = useRef(30);
+  const completedActionsRef = useRef(new Set());
 
   // Reset simulation when new scenario data is provided
   useEffect(() => {
@@ -34,6 +36,7 @@ export function useThreatEvolution(scenario, simData, seed) {
     setInjectedEvents(new Set());
     setStatus("active");
     setThreatTrend("stable");
+    completedActionsRef.current = new Set();
   }, [simData, scenario?.id, seed]);
 
   // Tick timer — runs every second while active
@@ -145,11 +148,17 @@ export function useThreatEvolution(scenario, simData, seed) {
 
     if (!consequence) return;
 
+    completedActionsRef.current.add(actionId);
+    const playbook = getScenarioPlaybook(scenario.id);
+    const responseComplete = ["triage", "contain", "recover"].every(phase =>
+      actionRuleComplete(playbook.phases[phase], completedActionsRef.current)
+    );
+
     // Apply threat reduction
     if (consequence.threatReduction) {
       setThreatLevel(prev => {
         const next = Math.max(prev - consequence.threatReduction, 0);
-        if (next <= config.containmentThreshold) {
+        if (next <= config.containmentThreshold && responseComplete) {
           setStatus(prevStatus => prevStatus === "active" ? "contained" : prevStatus);
         }
         return next;
