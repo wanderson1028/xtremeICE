@@ -153,6 +153,14 @@
     "folder_id": {
       "type": "string",
       "description": "ID of the LiveFireFolder this lab belongs to"
+    },
+    "cyber_event_id": {
+      "type": "string",
+      "description": "Source Red vs Blue CyberEvent for this exercise"
+    },
+    "exercise_config": {
+      "type": "object",
+      "description": "Snapshot of Red, Blue, and White Team exercise instructions, ingress points, rules, scoring, and flags"
     }
   },
   "required": [
