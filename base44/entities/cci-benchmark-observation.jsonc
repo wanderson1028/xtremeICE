@@ -1,0 +1,107 @@
+{
+  "name": "CCIBenchmarkObservation",
+  "type": "object",
+  "properties": {
+    "observation_key": {
+      "type": "string",
+      "description": "Stable source-and-scenario identifier"
+    },
+    "scenario_id": {
+      "type": "string",
+      "description": "CCI scenario identifier"
+    },
+    "source_name": {
+      "type": "string"
+    },
+    "source_url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "publication_year": {
+      "type": "integer"
+    },
+    "reported_amount": {
+      "type": "number"
+    },
+    "normalized_amount": {
+      "type": "number",
+      "description": "USD economic-loss value after scope normalization"
+    },
+    "statistic_type": {
+      "type": "string",
+      "enum": [
+        "mean",
+        "median",
+        "derived_mean",
+        "modeled_composite",
+        "incident_disclosure"
+      ]
+    },
+    "sample_size": {
+      "type": "integer",
+      "default": 0
+    },
+    "source_quality": {
+      "type": "number",
+      "description": "0-1 quality weight"
+    },
+    "scope_factor": {
+      "type": "number",
+      "description": "Adjustment for excluded economic cost categories"
+    },
+    "region": {
+      "type": "string",
+      "default": "global"
+    },
+    "industry": {
+      "type": "string",
+      "default": "all"
+    },
+    "cost_scope": {
+      "type": "string"
+    },
+    "exclusions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "feed_version": {
+      "type": "string"
+    },
+    "validated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "observation_key",
+    "scenario_id",
+    "source_name",
+    "publication_year",
+    "normalized_amount",
+    "source_quality"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

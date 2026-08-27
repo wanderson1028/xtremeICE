@@ -106,7 +106,9 @@ Deno.serve(async (req) => {
       scenario_id: scenarioId, is_active: true
     });
     if (!observations.length) {
-      observations = [...baselineObservations(), ...OFFICIAL].filter(o => o.scenario_id === scenarioId);
+      const seeded = [...baselineObservations(), ...OFFICIAL].filter(o => o.scenario_id === scenarioId);
+      for (const observation of seeded) await upsert(base44, observation);
+      observations = seeded;
     }
 
     const region = body.region || "global";
