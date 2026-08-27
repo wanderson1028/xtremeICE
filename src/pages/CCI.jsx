@@ -48,7 +48,7 @@ const SCENARIOS = [
   },
   {
     id: "bec", name: "Business Email Compromise", tag: "Financial fraud", base: 2_740_000,
-    compatible: ["unattributed", "scattered-spider", "lazarus", "fin7"],
+    compatible: ["unattributed", "scattered-spider", "lazarus", "fin7", "lapsus", "muddywater"],
     summary: "Mailbox takeover, session persistence, payment diversion and executive impersonation.",
     phases: [
       ["Initial Access", "TA0001", "Spearphishing Link · T1566.002", "An employee enters credentials into a counterfeit sign-in page.", 55_000, 150_000, "Triage, mailbox review and user response"],
@@ -89,7 +89,7 @@ const SCENARIOS = [
   },
   {
     id: "web-breach", name: "Public Web Application Breach", tag: "Data exposure", base: 5_350_000,
-    compatible: ["unattributed", "scattered-spider", "fin7", "clop", "lapsus", "apt28"],
+    compatible: ["unattributed", "scattered-spider", "fin7", "clop", "lapsus", "apt28", "lockbit", "blackcat"],
     summary: "A public application flaw enables access, collection and theft of customer data.",
     phases: [
       ["Reconnaissance", "TA0043", "Active Scanning · T1595", "The public application and exposed services are mapped.", 18_000, 85_000, "Validation and threat-hunting activity"],
@@ -103,7 +103,7 @@ const SCENARIOS = [
   },
   {
     id: "ddos", name: "DDoS with Extortion", tag: "Availability", base: 1_950_000,
-    compatible: ["unattributed", "lockbit", "fin7"],
+    compatible: ["unattributed", "lockbit", "fin7", "blackcat", "clop"],
     summary: "A sustained availability attack disrupts customer access and applies extortion pressure.",
     phases: [
       ["Reconnaissance", "TA0043", "Network Service Scanning · T1046", "Public services and capacity limits are profiled.", 20_000, 90_000, "Validation and protective capacity review"],
@@ -114,7 +114,7 @@ const SCENARIOS = [
   },
   {
     id: "cloud-identity", name: "Cloud Identity & Tenant Takeover", tag: "Cloud control plane", base: 6_850_000,
-    compatible: ["unattributed", "scattered-spider", "apt29", "muddywater", "lapsus", "salt-typhoon"],
+    compatible: ["unattributed", "scattered-spider", "apt29", "muddywater", "lapsus", "salt-typhoon", "blackcat"],
     summary: "Stolen identity tokens are used to establish persistence, access cloud resources and expose enterprise data.",
     phases: [
       ["Initial Access", "TA0001", "Valid Accounts · T1078", "A compromised identity is used to enter the cloud tenant.", 95_000, 380_000, "Identity investigation and emergency access restrictions"],
