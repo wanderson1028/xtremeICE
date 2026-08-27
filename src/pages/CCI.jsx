@@ -20,12 +20,20 @@ const ADVERSARIES = [
   { id: "volt-typhoon", name: "Volt Typhoon", alias: "Vanguard Panda", origin: "PRC-nexus", motive: "Espionage & disruption", bias: 1.08, accent: "cyan" },
   { id: "lazarus", name: "Lazarus Group", alias: "APT38 / Hidden Cobra", origin: "DPRK-nexus", motive: "State revenue", bias: 1.15, accent: "amber" },
   { id: "fin7", name: "FIN7", alias: "Carbanak / Sangria Tempest", origin: "RU-nexus", motive: "Financial", bias: 1.1, accent: "orange" },
+  { id: "apt29", name: "APT29", alias: "Cozy Bear / Midnight Blizzard", origin: "RU-nexus", motive: "Strategic espionage", bias: 1.14, accent: "blue" },
+  { id: "apt28", name: "APT28", alias: "Fancy Bear / Forest Blizzard", origin: "RU-nexus", motive: "Military intelligence", bias: 1.13, accent: "indigo" },
+  { id: "sandworm", name: "Sandworm", alias: "Voodoo Bear / Seashell Blizzard", origin: "RU-nexus", motive: "Destruction & disruption", bias: 1.28, accent: "red" },
+  { id: "blackcat", name: "BlackCat / ALPHV", alias: "Noberus", origin: "RU-nexus", motive: "Ransomware & extortion", bias: 1.2, accent: "rose" },
+  { id: "clop", name: "Cl0p", alias: "TA505 / Lace Tempest", origin: "RU-nexus", motive: "Data theft & extortion", bias: 1.17, accent: "pink" },
+  { id: "muddywater", name: "MuddyWater", alias: "Seedworm / Mango Sandstorm", origin: "IR-nexus", motive: "Espionage & access", bias: 1.09, accent: "emerald" },
+  { id: "lapsus", name: "LAPSUS$", alias: "DEV-0537 / Strawberry Tempest", origin: "Global", motive: "Extortion & notoriety", bias: 1.11, accent: "fuchsia" },
+  { id: "salt-typhoon", name: "Salt Typhoon", alias: "GhostEmperor / FamousSparrow", origin: "PRC-nexus", motive: "Telecom espionage", bias: 1.16, accent: "teal" },
 ];
 
 const SCENARIOS = [
   {
     id: "ransomware", name: "Ransomware — Double Extortion", tag: "High disruption", base: 8_480_000,
-    compatible: ["unattributed", "scattered-spider", "lockbit", "lazarus", "fin7"],
+    compatible: ["unattributed", "scattered-spider", "lockbit", "lazarus", "fin7", "blackcat", "clop", "lapsus"],
     summary: "Credential compromise, lateral movement, data theft, encryption and extortion pressure.",
     phases: [
       ["Initial Access", "TA0001", "Spearphishing Link · T1566.002", "A user account is compromised through a targeted lure.", 90_000, 240_000, "Investigation, account response and initial containment"],
@@ -53,7 +61,7 @@ const SCENARIOS = [
   },
   {
     id: "supply-chain", name: "Software Supply-Chain Compromise", tag: "Systemic exposure", base: 12_600_000,
-    compatible: ["unattributed", "lazarus", "volt-typhoon"],
+    compatible: ["unattributed", "lazarus", "volt-typhoon", "apt29", "sandworm", "muddywater"],
     summary: "Trusted software or vendor access is weaponized to reach multiple critical systems.",
     phases: [
       ["Resource Development", "TA0042", "Compromise Client Software Binary · T1584.004", "A trusted delivery mechanism is prepared for abuse.", 180_000, 600_000, "Vendor investigation and emergency assurance activity"],
@@ -68,7 +76,7 @@ const SCENARIOS = [
   },
   {
     id: "ot", name: "OT / ICS Operational Disruption", tag: "Safety & production", base: 18_900_000,
-    compatible: ["unattributed", "volt-typhoon", "lazarus"],
+    compatible: ["unattributed", "volt-typhoon", "lazarus", "sandworm", "apt28", "salt-typhoon"],
     summary: "Enterprise access crosses into operational systems and interrupts physical production.",
     phases: [
       ["Initial Access", "TA0001", "External Remote Services · T1133", "Remote access is abused to enter the enterprise environment.", 130_000, 480_000, "Access review and emergency containment"],
@@ -81,7 +89,7 @@ const SCENARIOS = [
   },
   {
     id: "web-breach", name: "Public Web Application Breach", tag: "Data exposure", base: 5_350_000,
-    compatible: ["unattributed", "scattered-spider", "fin7"],
+    compatible: ["unattributed", "scattered-spider", "fin7", "clop", "lapsus", "apt28"],
     summary: "A public application flaw enables access, collection and theft of customer data.",
     phases: [
       ["Reconnaissance", "TA0043", "Active Scanning · T1595", "The public application and exposed services are mapped.", 18_000, 85_000, "Validation and threat-hunting activity"],
@@ -102,6 +110,84 @@ const SCENARIOS = [
       ["Resource Development", "TA0042", "Develop Capabilities · T1587", "Distributed attack infrastructure is assembled.", 15_000, 160_000, "Threat monitoring and provider coordination"],
       ["Command and Control", "TA0011", "Application Layer Protocol · T1071", "Attack nodes coordinate traffic against the service.", 115_000, 430_000, "Traffic engineering and mitigation activation"],
       ["Impact", "TA0040", "Network Denial of Service · T1498", "Customer-facing services become unavailable.", 1_800_000, 0, "Lost transactions, SLA penalties, response and customer impact"],
+    ]
+  },
+  {
+    id: "cloud-identity", name: "Cloud Identity & Tenant Takeover", tag: "Cloud control plane", base: 6_850_000,
+    compatible: ["unattributed", "scattered-spider", "apt29", "muddywater", "lapsus", "salt-typhoon"],
+    summary: "Stolen identity tokens are used to establish persistence, access cloud resources and expose enterprise data.",
+    phases: [
+      ["Initial Access", "TA0001", "Valid Accounts · T1078", "A compromised identity is used to enter the cloud tenant.", 95_000, 380_000, "Identity investigation and emergency access restrictions"],
+      ["Persistence", "TA0003", "Additional Cloud Roles · T1098", "New roles, credentials and application grants preserve access.", 420_000, 980_000, "Tenant-wide privilege and application-consent review"],
+      ["Privilege Escalation", "TA0004", "Valid Accounts: Cloud Accounts · T1078.004", "The attacker reaches administrative cloud privileges.", 730_000, 1_650_000, "Control-plane exposure and privileged identity recovery"],
+      ["Discovery", "TA0007", "Cloud Service Discovery · T1526", "Storage, applications, secrets and connected services are mapped.", 505_000, 1_700_000, "Expanded investigation and dependency analysis"],
+      ["Collection", "TA0009", "Data from Cloud Storage · T1530", "Sensitive cloud-hosted information is assembled.", 1_450_000, 2_000_000, "Record review, legal analysis and notification preparation"],
+      ["Exfiltration", "TA0010", "Exfiltration to Cloud Storage · T1567.002", "Enterprise information is removed through an external cloud service.", 3_650_000, 0, "Regulatory, customer, contractual and intellectual-property impact"],
+    ]
+  },
+  {
+    id: "destructive-wiper", name: "Destructive Wiper Campaign", tag: "Irrecoverable loss", base: 22_400_000,
+    compatible: ["sandworm", "lazarus", "apt28", "unattributed"],
+    summary: "A state-aligned intrusion moves from access and privilege escalation to broad destructive impact.",
+    phases: [
+      ["Initial Access", "TA0001", "Exploit Public-Facing Application · T1190", "An exposed service provides the initial foothold.", 210_000, 780_000, "Emergency remediation and incident mobilization"],
+      ["Execution", "TA0002", "Command and Scripting Interpreter · T1059", "Remote tooling deploys the destructive payload.", 460_000, 1_450_000, "Endpoint response and forensic acquisition"],
+      ["Privilege Escalation", "TA0004", "Exploitation for Privilege Escalation · T1068", "Administrative control is obtained across core systems.", 1_100_000, 3_400_000, "Enterprise credential recovery and access disruption"],
+      ["Lateral Movement", "TA0008", "Windows Admin Shares · T1021.002", "The payload is positioned across critical workloads.", 2_250_000, 5_800_000, "Large-scale isolation and business interruption"],
+      ["Inhibit Recovery", "TA0040", "Inhibit System Recovery · T1490", "Recovery services, snapshots and backup access are impaired.", 5_600_000, 7_200_000, "Extended outage and complex rebuild requirements"],
+      ["Impact", "TA0040", "Disk Structure Wipe · T1561.002", "Data and system structures are destroyed across the environment.", 12_780_000, 0, "Reconstruction, permanent data loss, revenue interruption and crisis operations"],
+    ]
+  },
+  {
+    id: "ip-theft", name: "Intellectual Property & R&D Theft", tag: "Strategic loss", base: 14_750_000,
+    compatible: ["apt29", "apt28", "volt-typhoon", "muddywater", "lazarus", "salt-typhoon"],
+    summary: "A patient espionage campaign targets research, source code, designs and strategic plans.",
+    phases: [
+      ["Reconnaissance", "TA0043", "Search Open Websites/Domains · T1593", "Research teams, suppliers and technology programs are profiled.", 40_000, 240_000, "Threat analysis and exposed-information review"],
+      ["Initial Access", "TA0001", "Spearphishing Attachment · T1566.001", "A targeted employee opens a weaponized document.", 120_000, 520_000, "User, endpoint and email investigation"],
+      ["Persistence", "TA0003", "Web Service · T1102", "A covert long-term access channel is established.", 360_000, 1_100_000, "Extended hunting and historical forensic review"],
+      ["Discovery", "TA0007", "File and Directory Discovery · T1083", "High-value engineering and research repositories are identified.", 590_000, 2_400_000, "Expanded scope and commercial-impact analysis"],
+      ["Collection", "TA0009", "Data from Information Repositories · T1213", "Source code, product plans and technical designs are collected.", 3_200_000, 4_600_000, "Trade-secret, contractual and competitive exposure"],
+      ["Exfiltration", "TA0010", "Exfiltration Over C2 Channel · T1041", "Strategic intellectual property is removed covertly.", 10_440_000, 0, "Lost exclusivity, competitive harm, legal response and valuation impact"],
+    ]
+  },
+  {
+    id: "zero-day-mass", name: "Zero-Day Mass Data Theft", tag: "Mass exploitation", base: 10_900_000,
+    compatible: ["clop", "unattributed", "apt29", "apt28", "lazarus"],
+    summary: "A newly exploited edge or file-transfer vulnerability enables rapid theft before remediation is available.",
+    phases: [
+      ["Reconnaissance", "TA0043", "Vulnerability Scanning · T1595.002", "Internet-facing instances of the vulnerable product are identified.", 35_000, 220_000, "Exposure inventory and emergency threat hunting"],
+      ["Initial Access", "TA0001", "Exploit Public-Facing Application · T1190", "The zero-day is used to bypass normal access controls.", 380_000, 1_200_000, "Emergency containment, vendor coordination and service interruption"],
+      ["Execution", "TA0002", "Server Software Component · T1505", "Attacker code runs within the exposed service.", 620_000, 1_650_000, "Forensic analysis and rebuild of affected services"],
+      ["Discovery", "TA0007", "System Information Discovery · T1082", "Accessible tenants, files and connected systems are enumerated.", 465_000, 1_900_000, "Expanded legal and customer-impact assessment"],
+      ["Collection", "TA0009", "Archive Collected Data · T1560", "Large volumes of customer and partner data are packaged.", 2_300_000, 2_750_000, "Record-level review and multi-party notification planning"],
+      ["Exfiltration", "TA0010", "Exfiltration Over Web Service · T1567", "Bulk data is removed before defenders can remediate.", 7_100_000, 0, "Notification, litigation, regulatory, contractual and customer costs"],
+    ]
+  },
+  {
+    id: "telecom-espionage", name: "Telecommunications Espionage", tag: "Persistent access", base: 16_300_000,
+    compatible: ["salt-typhoon", "volt-typhoon", "apt29", "apt28"],
+    summary: "A stealth-focused actor compromises identity and network infrastructure to access communications and metadata.",
+    phases: [
+      ["Initial Access", "TA0001", "Valid Accounts · T1078", "Compromised administrative access is used against perimeter infrastructure.", 180_000, 650_000, "Credential response and infrastructure access review"],
+      ["Persistence", "TA0003", "Modify Authentication Process · T1556", "Authentication pathways are altered to retain quiet access.", 720_000, 1_900_000, "Identity architecture restoration and extended hunting"],
+      ["Defense Evasion", "TA0005", "Impair Defenses · T1562", "Logging and defensive visibility are selectively degraded.", 1_050_000, 2_600_000, "Monitoring restoration and historical evidence reconstruction"],
+      ["Discovery", "TA0007", "Network Device Discovery · T1016", "Routing, subscriber and communications systems are mapped.", 1_300_000, 3_400_000, "Critical-infrastructure and customer-scope analysis"],
+      ["Collection", "TA0009", "Network Sniffing · T1040", "Communications metadata and selected traffic are collected.", 4_150_000, 4_200_000, "Privacy, legal, government and customer exposure"],
+      ["Exfiltration", "TA0010", "Exfiltration Over C2 Channel · T1041", "Sensitive communications intelligence is removed covertly.", 8_900_000, 0, "National-security coordination, legal response and trust impact"],
+    ]
+  },
+  {
+    id: "crypto-theft", name: "Cryptocurrency Platform Theft", tag: "Digital asset loss", base: 24_800_000,
+    compatible: ["lazarus", "fin7", "unattributed"],
+    summary: "Targeted social engineering and privileged access culminate in unauthorized digital-asset transfers.",
+    phases: [
+      ["Reconnaissance", "TA0043", "Search Victim-Owned Websites · T1594", "Developers, administrators and signing workflows are profiled.", 55_000, 310_000, "Threat review and personnel exposure analysis"],
+      ["Initial Access", "TA0001", "Spearphishing Attachment · T1566.001", "A privileged employee workstation is compromised.", 190_000, 780_000, "Endpoint containment and identity response"],
+      ["Credential Access", "TA0006", "Credentials from Password Stores · T1555", "Wallet, cloud and administrative credentials are captured.", 780_000, 2_900_000, "Secret rotation and high-risk transaction controls"],
+      ["Discovery", "TA0007", "Permission Groups Discovery · T1069", "Signing authority and transfer-control weaknesses are mapped.", 1_250_000, 4_500_000, "Governance review and emergency transaction restrictions"],
+      ["Collection", "TA0009", "Input Capture · T1056", "Additional authentication material is collected.", 2_525_000, 6_000_000, "Privileged-system rebuild and custody investigation"],
+      ["Impact", "TA0040", "Unauthorized Asset Transfer", "Digital assets are transferred to attacker-controlled wallets.", 20_000_000, 0, "Direct asset loss, tracing, legal response, liquidity and customer impact"],
     ]
   },
 ];
