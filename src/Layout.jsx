@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { ChevronDown, Flame, PenTool, Sparkles, ClipboardCheck, Swords, LayoutDashboard, FolderOpen, Share2, Activity, LayoutTemplate, Server, ShoppingBag, Cloud, Settings, GraduationCap, FlaskConical, ShieldCheck, Bug, BookOpen, UserCheck } from "lucide-react";
+import { ChevronDown, Flame, PenTool, Sparkles, ClipboardCheck, Swords, LayoutDashboard, FolderOpen, Share2, Activity, LayoutTemplate, Server, ShoppingBag, Cloud, Settings, GraduationCap, FlaskConical, ShieldCheck, Bug, BookOpen, UserCheck, CircleDollarSign } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useQuery } from "@tanstack/react-query";
@@ -388,6 +388,16 @@ export default function Layout({ children, currentPageName }) {
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${currentPageName === "EnvironmentHub" ? NAV_ACTIVE : NAV_IDLE}`}
               >
                 <span>{t("nav.dashboard")}</span>
+              </Link>
+
+              <div className="h-5 w-px bg-red-800/50 mx-1" />
+              <Link
+                to="/CCI"
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${currentPageName === "CCI" ? NAV_ACTIVE : NAV_IDLE}`}
+                title="Cyber Capital Intelligence"
+              >
+                <CircleDollarSign className="h-4 w-4 text-amber-400" />
+                <span>CCI</span>
               </Link>
 
               {showTrainingSep && <div className="h-5 w-px bg-red-800/50 mx-1" />}
