@@ -287,19 +287,19 @@ export default function CCI() {
         </div>
       </header>
 
-      <section className="rounded-2xl border border-slate-700/70 bg-slate-950/45 p-4 shadow-2xl">
+      <section className="rounded-2xl border border-slate-700/70 bg-slate-950/45 p-3 shadow-2xl sm:p-4">
         <div className="mb-3 flex items-center justify-between">
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-400">1 · Adversary emulation</div>
           <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">MITRE ATT&CK · tactic-weighted visualization</div>
         </div>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-7">
           {ADVERSARIES.map(a => <button key={a.id} onClick={() => { setAdversaryId(a.id); reset(); }}
-            className={`rounded-xl border px-4 py-3 text-left transition ${adversaryId === a.id ? "border-amber-400/80 bg-amber-400/10 shadow-[0_0_22px_rgba(251,191,36,.08)]" : "border-slate-700 bg-slate-900/65 hover:border-slate-500"}`}>
-            <div className="flex items-center justify-between"><span className="text-sm font-semibold">{a.name}</span>{adversaryId === a.id && <Target className="h-4 w-4 text-amber-400" />}</div>
-            <div className="mt-1 text-[11px] text-slate-400">{a.alias} · {a.origin}</div>
+            className={`min-w-0 rounded-lg border px-3 py-2 text-left transition ${adversaryId === a.id ? "border-amber-400/80 bg-amber-400/10 shadow-[0_0_22px_rgba(251,191,36,.08)]" : "border-slate-700 bg-slate-900/65 hover:border-slate-500"}`}>
+            <div className="flex min-w-0 items-center justify-between gap-1"><span className="truncate text-[13px] font-semibold" title={a.name}>{a.name}</span>{adversaryId === a.id && <Target className="h-3.5 w-3.5 shrink-0 text-amber-400" />}</div>
+            <div className="mt-0.5 truncate text-[10px] text-slate-400" title={`${a.alias} · ${a.origin}`}>{a.alias} · {a.origin}</div>
           </button>)}
         </div>
-        <div className="mt-3 grid gap-3 rounded-xl border border-slate-800 bg-slate-900/50 p-3 md:grid-cols-3">
+        <div className="mt-2 grid gap-2 rounded-lg border border-slate-800 bg-slate-900/50 px-3 py-2 md:grid-cols-3">
           <div><div className="text-[9px] uppercase tracking-widest text-slate-500">Motive</div><div className="mt-1 text-sm">{adversary.motive}</div></div>
           <div><div className="text-[9px] uppercase tracking-widest text-slate-500">Severity weighting</div><div className="mt-1 text-sm text-amber-300">×{factor.toFixed(2)}</div></div>
           <div><div className="text-[9px] uppercase tracking-widest text-slate-500">Available scenarios</div><div className="mt-1 text-sm">{available.length} emulations</div></div>
