@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { base44 } from "@/api/base44Client";
 import {
   Activity, AlertTriangle, BarChart3, CheckCircle2, ChevronRight, CircleDollarSign,
   Clock3, Database, Pause, Play, RefreshCcw, ShieldAlert, SkipForward, Target,
@@ -211,6 +212,32 @@ export default function CCI() {
   const [running, setRunning] = useState(false);
   const [active, setActive] = useState(-1);
   const [speed, setSpeed] = useState(1800);
+  const [benchmark, setBenchmark] = useState(null);
+  const [benchmarkLoading, setBenchmarkLoading] = useState(false);
+  const [benchmarkError, setBenchmarkError] = useState("");
+
+  useEffect(() => {
+    if (!scenario || !adversary) return;
+    let cancelled = false;
+    setBenchmarkLoading(true);
+    setBenchmarkError("");
+    base44.functions.invoke("calculateCCIBenchmark", {
+      scenario_id: scenario.id,
+      adversary_id: adversary.id,
+      adversary_factor: adversary.bias,
+      phase_weights: scenario.phases.map(p => p[4]),
+      region: "global",
+      industry: "all"
+    }).then(response => {
+      if (!cancelled) setBenchmark(response.data);
+    }).catch(error => {
+      if (!cancelled) {
+        setBenchmark(null);
+        setBenchmarkError(error?.response?.data?.error || error.message || "Benchmark service unavailable");
+      }
+    }).finally(() => { if (!cancelled) setBenchmarkLoading(false); });
+    return () => { cancelled = true; };
+  }, [scenario?.id, adversary?.id]);
 
   useEffect(() => {
     if (!available.some(s => s.id === scenarioId)) setScenarioId(available[0]?.id);
@@ -228,10 +255,14 @@ export default function CCI() {
 
   const factor = adversary?.bias || 1;
   const completed = Math.max(0, active + 1);
-  const phaseCost = active >= 0 ? scenario.phases[active][4] * factor : 0;
-  const cumulative = scenario.phases.slice(0, completed).reduce((sum, p) => sum + p[4] * factor, 0);
-  const exposure = active >= 0 ? scenario.phases[active][5] * factor : 0;
-  const expectedTotal = scenario.base * factor;
+  const expectedTotal = benchmark?.expected_cost || scenario.base * factor;
+  const calculatedPhaseCosts = benchmark?.phase_costs?.length === scenario.phases.length
+    ? benchmark.phase_costs
+    : scenario.phases.map(p => p[4] * factor);
+  const phaseCost = active >= 0 ? calculatedPhaseCosts[active] : 0;
+  const cumulative = calculatedPhaseCosts.slice(0, completed).reduce((sum, n) => sum + n, 0);
+  const benchmarkScale = expectedTotal / Math.max(scenario.base * factor, 1);
+  const exposure = active >= 0 ? scenario.phases[active][5] * factor * benchmarkScale : 0;
   const progress = scenario.phases.length ? completed / scenario.phases.length * 100 : 0;
 
   const reset = () => { setRunning(false); setActive(-1); };
@@ -251,8 +282,8 @@ export default function CCI() {
           <p className="mt-1 max-w-3xl text-sm text-slate-400">Automated adversary emulation translating MITRE ATT&CK progression into phase-level business impact.</p>
         </div>
         <div className="rounded-lg border border-cyan-500/20 bg-cyan-950/20 px-3 py-2 text-xs text-cyan-200">
-          <span className="mr-2 inline-block h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
-          External CCI engine interface ready
+          <span className={`mr-2 inline-block h-2 w-2 rounded-full ${benchmarkError ? "bg-amber-400" : "bg-cyan-400 animate-pulse"}`} />
+          {benchmarkLoading ? "Calculating financial benchmark…" : benchmarkError ? "Benchmark fallback active" : "Financial benchmark service connected"}
         </div>
       </header>
 
@@ -315,7 +346,7 @@ export default function CCI() {
               <Stat icon={CircleDollarSign} label="Phase cost" value={money(phaseCost)} sub={active >= 0 ? scenario.phases[active][0] : "Run to begin"} tone="text-cyan-300" />
               <Stat icon={TrendingUp} label="Exposure added" value={money(exposure)} sub="Potential future loss" tone="text-orange-300" />
               <Stat icon={BarChart3} label="Cumulative cost" value={money(cumulative)} sub={`${completed} of ${scenario.phases.length} phases`} tone="text-amber-300" />
-              <Stat icon={ShieldAlert} label="Expected scenario" value={money(expectedTotal)} sub="Adversary-adjusted benchmark" tone="text-red-300" />
+              <Stat icon={ShieldAlert} label="Expected scenario" value={benchmarkLoading ? "Calculating…" : money(expectedTotal)} sub={benchmark ? `${benchmark.observation_count} observations · ${benchmark.confidence} confidence` : "Validated fallback benchmark"} tone="text-red-300" />
             </div>
 
             <div className="px-5 pb-5">
@@ -340,7 +371,7 @@ export default function CCI() {
                       </div>
                       <div><div className="text-xs text-slate-300">{p[3]}</div><div className="mt-1 text-[10px] text-slate-500">{p[6]}</div></div>
                       <div className="flex items-center justify-between gap-3 lg:justify-end">
-                        <div className="text-right"><div className="text-[9px] uppercase tracking-widest text-slate-500">Phase impact</div><div className={`mt-1 text-sm font-semibold ${done ? "text-amber-300" : "text-slate-600"}`}>{done ? money(p[4] * factor) : "Pending"}</div></div>
+                        <div className="text-right"><div className="text-[9px] uppercase tracking-widest text-slate-500">Phase impact</div><div className={`mt-1 text-sm font-semibold ${done ? "text-amber-300" : "text-slate-600"}`}>{done ? money(calculatedPhaseCosts[i]) : "Pending"}</div></div>
                       </div>
                     </div>
                   </div>;
@@ -351,13 +382,28 @@ export default function CCI() {
 
           {active >= scenario.phases.length - 1 && !running && <section className="grid gap-4 rounded-2xl border border-red-500/25 bg-gradient-to-r from-red-950/30 to-slate-950 p-5 md:grid-cols-[1fr_auto]">
             <div><div className="flex items-center gap-2 text-sm font-semibold text-red-200"><Zap className="h-4 w-4 text-red-400" />Scenario impact established</div><p className="mt-2 text-xs text-slate-400">The automated run completed all applicable MITRE ATT&CK tactics. The external CCI service can replace these benchmark values with organization-specific economic results without changing this visualization.</p></div>
-            <div className="grid grid-cols-3 gap-5 text-center"><div><div className="text-[9px] uppercase text-slate-500">Low</div><div className="mt-1 text-sm text-amber-200">{money(expectedTotal * .48)}</div></div><div><div className="text-[9px] uppercase text-slate-500">Expected</div><div className="mt-1 text-sm font-semibold text-red-300">{money(expectedTotal)}</div></div><div><div className="text-[9px] uppercase text-slate-500">Severe</div><div className="mt-1 text-sm text-red-200">{money(expectedTotal * 1.95)}</div></div></div>
+            <div className="grid grid-cols-3 gap-5 text-center"><div><div className="text-[9px] uppercase text-slate-500">Low</div><div className="mt-1 text-sm text-amber-200">{money(benchmark?.low_cost || expectedTotal * .48)}</div></div><div><div className="text-[9px] uppercase text-slate-500">Expected</div><div className="mt-1 text-sm font-semibold text-red-300">{money(expectedTotal)}</div></div><div><div className="text-[9px] uppercase text-slate-500">Severe</div><div className="mt-1 text-sm text-red-200">{money(benchmark?.severe_cost || expectedTotal * 1.95)}</div></div></div>
+          </section>}
+
+          {benchmark && <section className="rounded-2xl border border-cyan-500/20 bg-cyan-950/10 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div><div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-300">Financial benchmark calculation</div><div className="mt-1 text-sm text-slate-300">{benchmark.observation_count} weighted observations · {benchmark.confidence} confidence</div></div>
+              <div className="rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs text-slate-300">Model {benchmark.model_version}</div>
+            </div>
+            <div className="mt-4 grid gap-2 md:grid-cols-2">
+              {benchmark.sources.map((source, index) => <a key={`${source.name}-${index}`} href={source.url} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-800 bg-slate-900/55 p-3 transition hover:border-cyan-500/30">
+                <div className="flex items-start justify-between gap-3"><div className="text-xs font-medium text-slate-200">{source.name}</div><div className="text-[10px] text-slate-500">{source.year}</div></div>
+                <div className="mt-1 text-[10px] text-slate-400">{source.cost_scope}</div>
+                <div className="mt-2 flex flex-wrap gap-2 text-[9px] text-slate-500"><span>{source.statistic_type.replaceAll("_", " ")}</span><span>Weight {source.calculation_weight}</span>{source.sample_size > 0 && <span>n={source.sample_size.toLocaleString()}</span>}</div>
+                {source.exclusions?.length > 0 && <div className="mt-2 text-[9px] text-amber-300/70">Excludes: {source.exclusions.slice(0, 3).join(", ")}</div>}
+              </a>)}
+            </div>
           </section>}
 
           <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/45 px-4 py-3 text-[10px] text-slate-500">
-            <span className="flex items-center gap-2"><Database className="h-3.5 w-3.5" />Benchmark visualization dataset · model CCI-DEMO-1.0</span>
+            <span className="flex items-center gap-2"><Database className="h-3.5 w-3.5" />{benchmark ? `Weighted financial feed · ${benchmark.model_version}` : "Validated fallback registry"}</span>
             <span className="flex items-center gap-2"><Clock3 className="h-3.5 w-3.5" />External organization profile: not connected</span>
-            <span className="flex items-center gap-2"><Activity className="h-3.5 w-3.5 text-cyan-400" />MITRE mappings displayed for attribution; cost values are CCI-modeled</span>
+            <span className="flex items-center gap-2"><Activity className="h-3.5 w-3.5 text-cyan-400" />MITRE maps attack behavior; CCI calculates financial impact</span>
           </section>
         </main>
       </div>
