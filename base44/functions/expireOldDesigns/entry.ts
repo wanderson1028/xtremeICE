@@ -6,14 +6,12 @@ export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
 
-    // If a user session is present, require admin (blocks direct non-admin invocation).
-    // Scheduled-workflow invocations have no user session and proceed via service role.
-    const isAuth = await base44.auth.isAuthenticated().catch(() => false);
-    if (isAuth) {
-      const user = await base44.auth.me();
-      if (user?.role !== 'admin') {
-        return Response.json({ error: 'Forbidden' }, { status: 403 });
-      }
+    const user = await base44.auth.me().catch(() => null);
+    if (!user) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (user.role !== 'admin') {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const cutoff = new Date(Date.now() - MAX_AGE_DAYS * 24 * 60 * 60 * 1000).toISOString();
