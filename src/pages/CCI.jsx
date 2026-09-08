@@ -5,6 +5,7 @@ import {
   Clock3, Database, Pause, Play, RefreshCcw, ShieldAlert, SkipForward, Target,
   TrendingUp, Zap
 } from "lucide-react";
+import PhaseDetailModal from "@/components/cci/PhaseDetailModal";
 
 const money = (value) => {
   const n = Number(value || 0);
@@ -215,6 +216,7 @@ export default function CCI() {
   const [benchmark, setBenchmark] = useState(null);
   const [benchmarkLoading, setBenchmarkLoading] = useState(false);
   const [benchmarkError, setBenchmarkError] = useState("");
+  const [selectedPhase, setSelectedPhase] = useState(null);
 
   useEffect(() => {
     if (!scenario || !adversary) return;
@@ -360,7 +362,7 @@ export default function CCI() {
                 {scenario.phases.map((p, i) => {
                   const done = i <= active;
                   const current = i === active;
-                  return <div key={p[0]} className={`relative grid grid-cols-[36px_minmax(0,1fr)] gap-3 rounded-xl border p-3 transition-all duration-500 ${current ? "border-amber-400/60 bg-amber-400/8 shadow-[0_0_25px_rgba(251,191,36,.08)]" : done ? "border-cyan-500/25 bg-cyan-950/10" : "border-slate-800 bg-slate-900/35 opacity-65"}`}>
+                  return <div key={p[0]} onClick={() => setSelectedPhase(i)} className={`relative grid cursor-pointer grid-cols-[36px_minmax(0,1fr)] gap-3 rounded-xl border p-3 transition-all duration-500 hover:border-slate-500 ${current ? "border-amber-400/60 bg-amber-400/8 shadow-[0_0_25px_rgba(251,191,36,.08)]" : done ? "border-cyan-500/25 bg-cyan-950/10" : "border-slate-800 bg-slate-900/35 opacity-65"}`}>
                     <div className={`z-10 flex h-9 w-9 items-center justify-center rounded-full border ${current ? "border-amber-300 bg-amber-400 text-slate-950 animate-pulse" : done ? "border-cyan-400/60 bg-cyan-950 text-cyan-300" : "border-slate-700 bg-slate-900 text-slate-600"}`}>
                       {done && !current ? <CheckCircle2 className="h-4 w-4" /> : <span className="text-xs font-bold">{i + 1}</span>}
                     </div>
@@ -407,6 +409,18 @@ export default function CCI() {
           </section>
         </main>
       </div>
+      {selectedPhase !== null && scenario && (
+        <PhaseDetailModal
+          phase={scenario.phases[selectedPhase]}
+          index={selectedPhase}
+          scenarioName={scenario.name}
+          adversary={adversary}
+          phaseCost={calculatedPhaseCosts[selectedPhase] || 0}
+          exposure={scenario.phases[selectedPhase]?.[5] * factor * benchmarkScale || 0}
+          done={selectedPhase <= active}
+          onClose={() => setSelectedPhase(null)}
+        />
+      )}
     </div>
   </div>;
 }
