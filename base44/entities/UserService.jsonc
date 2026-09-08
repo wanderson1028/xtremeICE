@@ -16,7 +16,8 @@
         "soc_assessments",
         "real_attack_drills",
         "lab_scenarios",
-        "course_lab_builder"
+        "course_lab_builder",
+        "cci"
       ],
       "description": "The service/feature assigned to the user"
     }

@@ -76,6 +76,14 @@ export const FEATURES = [
     path: "/LabBuilderDashboard",
     nav_group: "special",
   },
+  {
+    key: "cci",
+    labelKey: "home.feature_cci",
+    icon: "cci",
+    bg: "bg-amber-400/10 border-amber-400/20",
+    path: "/CCI",
+    nav_group: "special",
+  },
 ];
 
 /**
@@ -93,6 +101,7 @@ export function getAccessFromKeys(keys) {
     hasSocAssessments:has("soc_assessments"),
     hasRealAttackDrills: has("real_attack_drills"),
     hasLabBuilder:    has("course_lab_builder"),
+    hasCCI:           has("cci"),
   };
 }
 
@@ -106,4 +115,5 @@ export const ADMIN_ACCESS = {
   hasSocAssessments: true,
   hasRealAttackDrills: true,
   hasLabBuilder: true,
+  hasCCI: true,
 };

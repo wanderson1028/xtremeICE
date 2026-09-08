@@ -162,7 +162,7 @@ const AuthenticatedApp = () => {
       ))}
       <Route path="/EventView/:id" element={<LayoutWrapper currentPageName="EventView"><EventView /></LayoutWrapper>} />
       <Route path="/CyberCapitalDashboard" element={<LayoutWrapper currentPageName="CyberCapitalDashboard"><CyberCapitalDashboard /></LayoutWrapper>} />
-      <Route path="/CCI" element={<LayoutWrapper currentPageName="CCI"><CCI /></LayoutWrapper>} />
+      <Route path="/CCI" element={<LayoutWrapper currentPageName="CCI"><FeatureGate flagKey="cci"><CCI /></FeatureGate></LayoutWrapper>} />
       <Route path="/VisualDesignEditor" element={<LayoutWrapper currentPageName="VisualDesignEditor"><FeatureGate flagKey="visual_design_editor"><VisualDesignEditor /></FeatureGate></LayoutWrapper>} />
       <Route path="/VirtualLabs" element={<LayoutWrapper currentPageName="VirtualLabs"><VirtualLabs /></LayoutWrapper>} />
       <Route path="/AdminPanel" element={<LayoutWrapper currentPageName="AdminPanel"><AdminPanel /></LayoutWrapper>} />

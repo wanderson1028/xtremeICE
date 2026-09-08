@@ -40,6 +40,8 @@
     "feature_labs_desc": "NICE Framework-aligned labs with branching tasks and progress tracking",
     "feature_course_lab_builder": "Course Lab Builder",
     "feature_course_lab_builder_desc": "Build and manage NICE-aligned lab courses with smart assistance",
+    "feature_cci": "CCI — Cyber Capital Intelligence",
+    "feature_cci_desc": "Economic cyber twin simulation translating MITRE ATT&CK progression into financial impact",
     "feature_candidate_assessments": "Candidate Assessments",
     "feature_candidate_assessments_desc": "Generate role-specific hands-on technical assessments for hiring, invite candidates via email, and receive auto-scored evaluation reports with hiring recommendations.",
     "platformFeatures": "Platform Features",

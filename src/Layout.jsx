@@ -390,15 +390,19 @@ export default function Layout({ children, currentPageName }) {
                 <span>{t("nav.dashboard")}</span>
               </Link>
 
-              <div className="h-5 w-px bg-red-800/50 mx-1" />
-              <Link
-                to="/CCI"
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${currentPageName === "CCI" ? NAV_ACTIVE : NAV_IDLE}`}
-                title="Cyber Capital Intelligence"
-              >
-                <CircleDollarSign className="h-4 w-4 text-amber-400" />
-                <span>CCI</span>
-              </Link>
+              {access.hasCCI && (
+                <>
+                  <div className="h-5 w-px bg-red-800/50 mx-1" />
+                  <Link
+                    to="/CCI"
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${currentPageName === "CCI" ? NAV_ACTIVE : NAV_IDLE}`}
+                    title="Cyber Capital Intelligence"
+                  >
+                    <CircleDollarSign className="h-4 w-4 text-amber-400" />
+                    <span>CCI</span>
+                  </Link>
+                </>
+              )}
 
               {showTrainingSep && <div className="h-5 w-px bg-red-800/50 mx-1" />}
               <TrainingDropdown currentPageName={currentPageName} access={access} />
