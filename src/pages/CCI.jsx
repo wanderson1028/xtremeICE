@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import {
-  Activity, AlertTriangle, BarChart3, CheckCircle2, ChevronRight, CircleDollarSign,
+  Activity, AlertTriangle, BarChart3, CheckCircle2, ChevronDown, ChevronRight, CircleDollarSign,
   Clock3, Database, Pause, Play, RefreshCcw, ShieldAlert, SkipForward, Target,
   TrendingUp, Zap
 } from "lucide-react";
@@ -259,6 +259,9 @@ export default function CCI() {
   const [benchmarkLoading, setBenchmarkLoading] = useState(false);
   const [benchmarkError, setBenchmarkError] = useState("");
   const [selectedPhase, setSelectedPhase] = useState(null);
+  const [evidenceOpen, setEvidenceOpen] = useState(true);
+  const [financialSourcesOpen, setFinancialSourcesOpen] = useState(true);
+  const [organizationInputsOpen, setOrganizationInputsOpen] = useState(true);
 
   useEffect(() => {
     if (!scenario || !adversary) return;
@@ -429,44 +432,61 @@ export default function CCI() {
             <div className="grid grid-cols-3 gap-5 text-center"><div><div className="text-[9px] uppercase text-slate-500">Low</div><div className="mt-1 text-sm text-amber-200">{money(benchmark?.low_cost || expectedTotal * .48)}</div></div><div><div className="text-[9px] uppercase text-slate-500">Expected</div><div className="mt-1 text-sm font-semibold text-red-300">{money(expectedTotal)}</div></div><div><div className="text-[9px] uppercase text-slate-500">Severe</div><div className="mt-1 text-sm text-red-200">{money(benchmark?.severe_cost || expectedTotal * 1.95)}</div></div></div>
           </section>}
 
-          <section className="rounded-2xl border border-slate-700/70 bg-slate-950/45 p-5">
-            <div className="mb-4">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-400">CCI Evidence Architecture</div>
-              <p className="mt-1 text-xs text-slate-400">Each evidence class has a defined role. Only financial observations contribute to the displayed dollar estimate.</p>
-            </div>
-            <div className="grid gap-4 lg:grid-cols-2">
-              {SOURCE_LAYERS.map(layer => <SourceLayer key={layer.id} layer={layer} />)}
-            </div>
+          <section className="overflow-hidden rounded-2xl border border-slate-700/70 bg-slate-950/45">
+            <button type="button" onClick={() => setEvidenceOpen(value => !value)} aria-expanded={evidenceOpen} className="flex w-full items-center justify-between gap-4 p-5 text-left transition hover:bg-slate-900/35">
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-400">CCI Evidence Architecture</div>
+                <p className="mt-1 text-xs text-slate-400">Attack intelligence and frequency sources · {SOURCE_LAYERS.reduce((sum, layer) => sum + layer.sources.length, 0)} references</p>
+              </div>
+              <ChevronDown className={`h-5 w-5 shrink-0 text-slate-400 transition-transform ${evidenceOpen ? "rotate-180" : ""}`} />
+            </button>
+            {evidenceOpen && <div className="border-t border-slate-800 px-5 pb-5 pt-4">
+              <p className="mb-4 text-xs text-slate-400">Each evidence class has a defined role. Only financial observations contribute to the displayed dollar estimate.</p>
+              <div className="grid gap-4 lg:grid-cols-2">
+                {SOURCE_LAYERS.map(layer => <SourceLayer key={layer.id} layer={layer} />)}
+              </div>
+            </div>}
           </section>
 
-          {benchmark && <section className="rounded-2xl border border-amber-500/20 bg-amber-950/10 p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+          {benchmark && <section className="overflow-hidden rounded-2xl border border-amber-500/20 bg-amber-950/10">
+            <button type="button" onClick={() => setFinancialSourcesOpen(value => !value)} aria-expanded={financialSourcesOpen} className="flex w-full items-center justify-between gap-4 p-5 text-left transition hover:bg-amber-950/20">
               <div>
                 <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300">Financial Benchmark Sources</div>
                 <div className="mt-1 text-sm text-slate-300">{benchmark.observation_count} weighted observations · {benchmark.confidence} confidence</div>
-                <div className="mt-1 text-[10px] text-slate-500">These are the only observations included in the current expected-loss average.</div>
               </div>
-              <div className="rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs text-slate-300">Model {benchmark.model_version}</div>
-            </div>
-            <div className="mt-4 grid gap-2 md:grid-cols-2">
-              {benchmark.sources.map((source, index) => <a key={`${source.name}-${index}`} href={source.url} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-800 bg-slate-900/55 p-3 transition hover:border-amber-500/30">
-                <div className="flex items-start justify-between gap-3"><div className="text-xs font-medium text-slate-200">{source.name}</div><div className="text-[10px] text-slate-500">{source.year}</div></div>
-                <div className="mt-1 text-[10px] text-slate-400">{source.cost_scope}</div>
-                <div className="mt-2 flex flex-wrap gap-2 text-[9px] text-slate-500"><span>{source.statistic_type.replaceAll("_", " ")}</span><span>Weight {source.calculation_weight}</span>{source.sample_size > 0 && <span>n={source.sample_size.toLocaleString()}</span>}</div>
-                {source.exclusions?.length > 0 && <div className="mt-2 text-[9px] text-amber-300/70">Excludes: {source.exclusions.slice(0, 3).join(", ")}</div>}
-              </a>)}
-            </div>
+              <div className="flex shrink-0 items-center gap-3">
+                <div className="hidden rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs text-slate-300 sm:block">Model {benchmark.model_version}</div>
+                <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform ${financialSourcesOpen ? "rotate-180" : ""}`} />
+              </div>
+            </button>
+            {financialSourcesOpen && <div className="border-t border-amber-500/15 px-5 pb-5 pt-4">
+              <div className="mb-3 text-[10px] text-slate-500">These are the only observations included in the current expected-loss average.</div>
+              <div className="grid gap-2 md:grid-cols-2">
+                {benchmark.sources.map((source, index) => <a key={`${source.name}-${index}`} href={source.url} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-800 bg-slate-900/55 p-3 transition hover:border-amber-500/30">
+                  <div className="flex items-start justify-between gap-3"><div className="text-xs font-medium text-slate-200">{source.name}</div><div className="text-[10px] text-slate-500">{source.year}</div></div>
+                  <div className="mt-1 text-[10px] text-slate-400">{source.cost_scope}</div>
+                  <div className="mt-2 flex flex-wrap gap-2 text-[9px] text-slate-500"><span>{source.statistic_type.replaceAll("_", " ")}</span><span>Weight {source.calculation_weight}</span>{source.sample_size > 0 && <span>n={source.sample_size.toLocaleString()}</span>}</div>
+                  {source.exclusions?.length > 0 && <div className="mt-2 text-[9px] text-amber-300/70">Excludes: {source.exclusions.slice(0, 3).join(", ")}</div>}
+                </a>)}
+              </div>
+            </div>}
           </section>}
 
-          <section className="rounded-2xl border border-emerald-500/20 bg-emerald-950/10 p-5">
-            <div className="flex flex-wrap items-start justify-between gap-3">
+          <section className="overflow-hidden rounded-2xl border border-emerald-500/20 bg-emerald-950/10">
+            <button type="button" onClick={() => setOrganizationInputsOpen(value => !value)} aria-expanded={organizationInputsOpen} className="flex w-full items-center justify-between gap-4 p-5 text-left transition hover:bg-emerald-950/20">
               <div>
                 <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300">Organization-Specific Inputs</div>
-                <p className="mt-2 max-w-3xl text-xs leading-relaxed text-slate-300">Revenue, EBITDA, liquidity, asset criticality, downtime cost, insurance, control maturity, industry and location will personalize the benchmark through the external CCI engine.</p>
+                <p className="mt-1 text-xs text-slate-400">Company-level financial and operational personalization</p>
               </div>
-              <span className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-amber-300">Not connected</span>
-            </div>
-            <div className="mt-3 rounded-lg border border-slate-800 bg-slate-950/35 px-3 py-2 text-[10px] text-slate-400">Current results remain market benchmarks and must not be interpreted as a company-specific forecast.</div>
+              <div className="flex shrink-0 items-center gap-3">
+                <span className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-amber-300">Not connected</span>
+                <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform ${organizationInputsOpen ? "rotate-180" : ""}`} />
+              </div>
+            </button>
+            {organizationInputsOpen && <div className="border-t border-emerald-500/15 px-5 pb-5 pt-4">
+              <p className="max-w-3xl text-xs leading-relaxed text-slate-300">Revenue, EBITDA, liquidity, asset criticality, downtime cost, insurance, control maturity, industry and location will personalize the benchmark through the external CCI engine.</p>
+              <div className="mt-3 rounded-lg border border-slate-800 bg-slate-950/35 px-3 py-2 text-[10px] text-slate-400">Current results remain market benchmarks and must not be interpreted as a company-specific forecast.</div>
+            </div>}
           </section>
 
           <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/45 px-4 py-3 text-[10px] text-slate-500">
