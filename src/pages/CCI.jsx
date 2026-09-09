@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import {
   Activity, AlertTriangle, BarChart3, CheckCircle2, ChevronDown, ChevronRight, CircleDollarSign,
-  Clock3, Database, Pause, Play, RefreshCcw, ShieldAlert, SkipForward, Target,
-  TrendingUp, Zap
+  Clock3, Database, Gauge, Pause, Play, RefreshCcw, Save, ScanSearch, ShieldAlert,
+  ShieldCheck, SkipForward, Target, TrendingUp, Zap
 } from "lucide-react";
 import PhaseDetailModal from "@/components/cci/PhaseDetailModal";
 
@@ -263,6 +263,29 @@ export default function CCI() {
   const [financialSourcesOpen, setFinancialSourcesOpen] = useState(true);
   const [organizationInputsOpen, setOrganizationInputsOpen] = useState(true);
   const [likelihoodOpen, setLikelihoodOpen] = useState(false);
+  const [securityRating, setSecurityRating] = useState(null);
+  const [ratingLoading, setRatingLoading] = useState(true);
+  const [ratingSaving, setRatingSaving] = useState(false);
+  const [ratingError, setRatingError] = useState("");
+  const [vulscanInput, setVulscanInput] = useState("");
+  const [vpentestInput, setVpentestInput] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    setRatingLoading(true);
+    base44.functions.invoke("calculateCCISecurityRating", { action: "get" })
+      .then(response => {
+        if (cancelled) return;
+        setSecurityRating(response.data);
+        setVulscanInput(response.data.vulscan_score ?? "");
+        setVpentestInput(response.data.vpentest_score ?? "");
+      })
+      .catch(error => {
+        if (!cancelled) setRatingError(error?.response?.data?.error || error.message || "Security rating unavailable");
+      })
+      .finally(() => { if (!cancelled) setRatingLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     if (!scenario || !adversary) return;
@@ -322,6 +345,29 @@ export default function CCI() {
     setRunning(true);
   };
 
+  const saveSecurityRating = async () => {
+    setRatingSaving(true);
+    setRatingError("");
+    try {
+      const response = await base44.functions.invoke("calculateCCISecurityRating", {
+        action: "save",
+        vulscan_score: vulscanInput === "" ? null : Number(vulscanInput),
+        vpentest_score: vpentestInput === "" ? null : Number(vpentestInput)
+      });
+      setSecurityRating(response.data);
+      setVulscanInput(response.data.vulscan_score ?? "");
+      setVpentestInput(response.data.vpentest_score ?? "");
+    } catch (error) {
+      setRatingError(error?.response?.data?.error || error.message || "Unable to calculate security rating");
+    } finally {
+      setRatingSaving(false);
+    }
+  };
+
+  const ratingScore = securityRating?.final_score ?? 650;
+  const ratingPosition = Math.max(0, Math.min(100, ((ratingScore - 300) / 550) * 100));
+  const ratingComplete = Math.round((securityRating?.data_completeness || 0) * 100);
+
   return <div className="min-h-screen bg-[#070c18] text-slate-100">
     <div className="mx-auto max-w-[1500px] px-4 py-7 lg:px-7">
       <header className="mb-5 flex flex-wrap items-end justify-between gap-4 border-b border-amber-500/20 pb-5">
@@ -337,6 +383,53 @@ export default function CCI() {
           {benchmarkLoading ? "Calculating financial benchmark…" : benchmarkError ? "Benchmark fallback active" : "Financial benchmark service connected"}
         </div>
       </header>
+
+      <section className="mb-5 overflow-hidden rounded-2xl border border-cyan-500/25 bg-gradient-to-br from-cyan-950/20 via-slate-950/80 to-slate-950 shadow-2xl">
+        <div className="grid lg:grid-cols-[minmax(280px,.75fr)_minmax(0,1.5fr)]">
+          <div className="border-b border-slate-800 p-5 lg:border-b-0 lg:border-r">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-300"><Gauge className="h-4 w-4" />CCI Security Rating</div>
+              <span className="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2 py-1 text-[9px] uppercase tracking-wider text-cyan-300">{securityRating?.calculation_version || "CCI-RATING-2026.1"}</span>
+            </div>
+            <div className="mt-4 flex items-end gap-3">
+              <div className="text-5xl font-semibold tracking-tight text-white">{ratingLoading ? "—" : ratingScore}</div>
+              <div className="pb-1"><div className="text-sm font-medium text-cyan-300">{securityRating?.rating_band || "Baseline"}</div><div className="text-[10px] text-slate-500">300–850 scale</div></div>
+            </div>
+            <div className="relative mt-5">
+              <div className="h-2 rounded-full bg-gradient-to-r from-red-500 via-amber-400 to-emerald-400" />
+              <div className="absolute top-1/2 h-5 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_0_12px_rgba(255,255,255,.8)] transition-all" style={{ left: `${ratingPosition}%` }} />
+              <div className="mt-2 flex justify-between text-[9px] text-slate-500"><span>300 Critical</span><span>650 Baseline</span><span>850 Exceptional</span></div>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="rounded-lg border border-slate-800 bg-slate-900/55 p-3"><div className="text-[9px] uppercase tracking-wider text-slate-500">Baseline</div><div className="mt-1 text-lg font-semibold">650</div></div>
+              <div className="rounded-lg border border-slate-800 bg-slate-900/55 p-3"><div className="text-[9px] uppercase tracking-wider text-slate-500">Point change</div><div className={`mt-1 text-lg font-semibold ${(securityRating?.score_change || 0) >= 0 ? "text-emerald-300" : "text-red-300"}`}>{(securityRating?.score_change || 0) > 0 ? "+" : ""}{securityRating?.score_change || 0}</div></div>
+            </div>
+          </div>
+
+          <div className="p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div><div className="text-sm font-semibold text-slate-100">{securityRating?.organization_name || "Company security profile"}</div><p className="mt-1 text-xs text-slate-400">Enter normalized 0–100 scan scores. Higher scores indicate stronger posture; missing data does not reduce the 650 baseline.</p></div>
+              <span className="rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-[10px] text-slate-400">{ratingComplete}% scan data complete</span>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              {[
+                { label: "VulScan", value: vulscanInput, setValue: setVulscanInput, source: securityRating?.vulscan_source, detail: "Vulnerability exposure and remediation posture", icon: ScanSearch },
+                { label: "vPentest", value: vpentestInput, setValue: setVpentestInput, source: securityRating?.vpentest_source, detail: "Validated resistance to attack paths", icon: ShieldCheck }
+              ].map(item => <label key={item.label} className="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
+                <div className="flex items-center justify-between gap-2"><span className="flex items-center gap-2 text-xs font-semibold"><item.icon className="h-4 w-4 text-cyan-300" />{item.label}</span><span className="text-[9px] uppercase tracking-wider text-slate-500">{item.source === "api" ? "API" : item.source === "manual" ? "Manual" : "Pending"}</span></div>
+                <div className="mt-3 flex items-center gap-2"><input type="number" min="0" max="100" step="1" value={item.value} onChange={e => item.setValue(e.target.value)} placeholder="Pending" className="h-10 min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 text-lg font-semibold text-white outline-none focus:border-cyan-400" /><span className="text-xs text-slate-500">/100</span></div>
+                <div className="mt-2 text-[10px] text-slate-500">{item.detail}</div>
+              </label>)}
+            </div>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="text-[10px] text-slate-500">Manual inputs are active now. Future VulScan and vPentest APIs can post to this same rating engine.</div>
+              <button type="button" onClick={saveSecurityRating} disabled={ratingSaving || ratingLoading} className="flex h-9 items-center gap-2 rounded-lg bg-cyan-400 px-4 text-xs font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"><Save className="h-4 w-4" />{ratingSaving ? "Calculating…" : "Save & calculate"}</button>
+            </div>
+            {ratingError && <div className="mt-3 rounded-lg border border-red-500/30 bg-red-950/30 px-3 py-2 text-xs text-red-300">{ratingError}</div>}
+          </div>
+        </div>
+        <div className="border-t border-slate-800 bg-slate-950/55 px-5 py-3 text-[10px] text-slate-500">The CCI Security Rating measures company posture. Financial benchmark loss and annual risk below remain tied to the selected adversary emulation and scenario.</div>
+      </section>
 
       <section className="rounded-2xl border border-slate-700/70 bg-slate-950/45 p-3 shadow-2xl sm:p-4">
         <div className="mb-3 flex items-center justify-between">
@@ -505,7 +598,7 @@ export default function CCI() {
             <button type="button" onClick={() => setOrganizationInputsOpen(value => !value)} aria-expanded={organizationInputsOpen} className="flex w-full items-center justify-between gap-4 p-5 text-left transition hover:bg-emerald-950/20">
               <div>
                 <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300">Organization-Specific Inputs</div>
-                <p className="mt-1 text-xs text-slate-400">Company-level financial and operational personalization</p>
+                <p className="mt-1 text-xs text-slate-400">Financial and operational personalization beyond the active scan-based security rating</p>
               </div>
               <div className="flex shrink-0 items-center gap-3">
                 <span className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-amber-300">Not connected</span>
@@ -520,7 +613,7 @@ export default function CCI() {
 
           <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/45 px-4 py-3 text-[10px] text-slate-500">
             <span className="flex items-center gap-2"><Database className="h-3.5 w-3.5" />{benchmark ? `Weighted financial feed · ${benchmark.model_version}` : "Validated fallback registry"}</span>
-            <span className="flex items-center gap-2"><Clock3 className="h-3.5 w-3.5" />External organization profile: not connected</span>
+            <span className="flex items-center gap-2"><Clock3 className="h-3.5 w-3.5" />External financial profile: not connected</span>
             <span className="flex items-center gap-2"><Activity className="h-3.5 w-3.5 text-cyan-400" />MITRE maps attack behavior; CCI calculates financial impact</span>
           </section>
         </main>
