@@ -204,8 +204,8 @@ const SOURCE_LAYERS = [
     influence: "Scenario structure and current relevance — never averaged as a dollar loss.",
     tone: "cyan",
     sources: [
-      { name: "MITRE ATT&CK", detail: "Tactics, techniques, software and threat-group mappings", url: "https://attack.mitre.org/" },
-      { name: "CISA KEV", detail: "Vulnerabilities confirmed as exploited in the wild", url: "https://www.cisa.gov/known-exploited-vulnerabilities-catalog" },
+      { name: "MITRE ATT&CK", detail: "Tactics, techniques, software and threat-group mappings", mode: "Nightly feed", url: "https://attack.mitre.org/" },
+      { name: "CISA KEV", detail: "Vulnerabilities confirmed as exploited in the wild", mode: "Nightly feed", url: "https://www.cisa.gov/known-exploited-vulnerabilities-catalog" },
     ],
   },
   {
@@ -215,8 +215,8 @@ const SOURCE_LAYERS = [
     influence: "Future likelihood model input — does not directly change the current loss average.",
     tone: "violet",
     sources: [
-      { name: "Verizon DBIR 2026", detail: "Incident patterns, vectors, actors and industry prevalence", url: "https://www.verizon.com/business/resources/Tfdc/reports/2026-dbir-data-breach-investigations-report.pdf" },
-      { name: "ENISA Threat Landscape 2025", detail: "Threat trends, motivations, sectors and European context", url: "https://www.enisa.europa.eu/sites/default/files/2025-11/ENISA%20Threat%20Landscape%202025.pdf" },
+      { name: "Verizon DBIR 2026", detail: "Incident patterns, vectors, actors and industry prevalence", mode: "Annual reviewed import", url: "https://www.verizon.com/business/resources/Tfdc/reports/2026-dbir-data-breach-investigations-report.pdf" },
+      { name: "ENISA Threat Landscape 2025", detail: "Threat trends, motivations, sectors and European context", mode: "Annual reviewed import", url: "https://www.enisa.europa.eu/sites/default/files/2025-11/ENISA%20Threat%20Landscape%202025.pdf" },
     ],
   },
 ];
@@ -230,7 +230,7 @@ function SourceLayer({ layer }) {
     <p className="mt-2 text-xs leading-relaxed text-slate-300">{layer.purpose}</p>
     <div className="mt-3 grid gap-2 sm:grid-cols-2">
       {layer.sources.map(source => <a key={source.name} href={source.url} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-800 bg-slate-950/45 p-3 transition hover:border-slate-600">
-        <div className="text-xs font-medium text-slate-100">{source.name}</div>
+        <div className="flex items-start justify-between gap-2"><div className="text-xs font-medium text-slate-100">{source.name}</div><span className="shrink-0 rounded border border-slate-700 px-1.5 py-0.5 text-[8px] uppercase tracking-wider text-slate-400">{source.mode}</span></div>
         <div className="mt-1 text-[10px] leading-relaxed text-slate-400">{source.detail}</div>
       </a>)}
     </div>
