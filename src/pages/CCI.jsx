@@ -196,6 +196,48 @@ const SCENARIOS = [
 
 const phaseColors = ["#22d3ee", "#60a5fa", "#a78bfa", "#f59e0b", "#fb7185", "#ef4444"];
 
+const SOURCE_LAYERS = [
+  {
+    id: "attack",
+    title: "Attack Intelligence",
+    purpose: "Defines adversary behavior, tactics, techniques and currently exploited weaknesses.",
+    influence: "Scenario structure and current relevance — never averaged as a dollar loss.",
+    tone: "cyan",
+    sources: [
+      { name: "MITRE ATT&CK", detail: "Tactics, techniques, software and threat-group mappings", url: "https://attack.mitre.org/" },
+      { name: "CISA KEV", detail: "Vulnerabilities confirmed as exploited in the wild", url: "https://www.cisa.gov/known-exploited-vulnerabilities-catalog" },
+    ],
+  },
+  {
+    id: "likelihood",
+    title: "Frequency & Likelihood",
+    purpose: "Provides breach-pattern, actor, sector and regional prevalence context.",
+    influence: "Future likelihood model input — does not directly change the current loss average.",
+    tone: "violet",
+    sources: [
+      { name: "Verizon DBIR 2026", detail: "Incident patterns, vectors, actors and industry prevalence", url: "https://www.verizon.com/business/resources/Tfdc/reports/2026-dbir-data-breach-investigations-report.pdf" },
+      { name: "ENISA Threat Landscape 2025", detail: "Threat trends, motivations, sectors and European context", url: "https://www.enisa.europa.eu/sites/default/files/2025-11/ENISA%20Threat%20Landscape%202025.pdf" },
+    ],
+  },
+];
+
+function SourceLayer({ layer }) {
+  const palette = layer.tone === "cyan"
+    ? "border-cyan-500/20 bg-cyan-950/10 text-cyan-300"
+    : "border-violet-500/20 bg-violet-950/10 text-violet-300";
+  return <section className={`rounded-2xl border p-5 ${palette}`}>
+    <div className="text-[10px] font-semibold uppercase tracking-[0.18em]">{layer.title}</div>
+    <p className="mt-2 text-xs leading-relaxed text-slate-300">{layer.purpose}</p>
+    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+      {layer.sources.map(source => <a key={source.name} href={source.url} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-800 bg-slate-950/45 p-3 transition hover:border-slate-600">
+        <div className="text-xs font-medium text-slate-100">{source.name}</div>
+        <div className="mt-1 text-[10px] leading-relaxed text-slate-400">{source.detail}</div>
+      </a>)}
+    </div>
+    <div className="mt-3 rounded-lg border border-slate-800 bg-slate-950/35 px-3 py-2 text-[10px] leading-relaxed text-slate-400">{layer.influence}</div>
+  </section>;
+}
+
 function Stat({ icon: Icon, label, value, sub, tone = "text-amber-300" }) {
   return <div className="rounded-xl border border-slate-700/70 bg-slate-900/75 p-4">
     <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-slate-400"><Icon className="h-3.5 w-3.5" />{label}</div>
@@ -387,13 +429,27 @@ export default function CCI() {
             <div className="grid grid-cols-3 gap-5 text-center"><div><div className="text-[9px] uppercase text-slate-500">Low</div><div className="mt-1 text-sm text-amber-200">{money(benchmark?.low_cost || expectedTotal * .48)}</div></div><div><div className="text-[9px] uppercase text-slate-500">Expected</div><div className="mt-1 text-sm font-semibold text-red-300">{money(expectedTotal)}</div></div><div><div className="text-[9px] uppercase text-slate-500">Severe</div><div className="mt-1 text-sm text-red-200">{money(benchmark?.severe_cost || expectedTotal * 1.95)}</div></div></div>
           </section>}
 
-          {benchmark && <section className="rounded-2xl border border-cyan-500/20 bg-cyan-950/10 p-5">
+          <section className="rounded-2xl border border-slate-700/70 bg-slate-950/45 p-5">
+            <div className="mb-4">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-400">CCI Evidence Architecture</div>
+              <p className="mt-1 text-xs text-slate-400">Each evidence class has a defined role. Only financial observations contribute to the displayed dollar estimate.</p>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              {SOURCE_LAYERS.map(layer => <SourceLayer key={layer.id} layer={layer} />)}
+            </div>
+          </section>
+
+          {benchmark && <section className="rounded-2xl border border-amber-500/20 bg-amber-950/10 p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-300">Financial benchmark calculation</div><div className="mt-1 text-sm text-slate-300">{benchmark.observation_count} weighted observations · {benchmark.confidence} confidence</div></div>
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300">Financial Benchmark Sources</div>
+                <div className="mt-1 text-sm text-slate-300">{benchmark.observation_count} weighted observations · {benchmark.confidence} confidence</div>
+                <div className="mt-1 text-[10px] text-slate-500">These are the only observations included in the current expected-loss average.</div>
+              </div>
               <div className="rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs text-slate-300">Model {benchmark.model_version}</div>
             </div>
             <div className="mt-4 grid gap-2 md:grid-cols-2">
-              {benchmark.sources.map((source, index) => <a key={`${source.name}-${index}`} href={source.url} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-800 bg-slate-900/55 p-3 transition hover:border-cyan-500/30">
+              {benchmark.sources.map((source, index) => <a key={`${source.name}-${index}`} href={source.url} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-800 bg-slate-900/55 p-3 transition hover:border-amber-500/30">
                 <div className="flex items-start justify-between gap-3"><div className="text-xs font-medium text-slate-200">{source.name}</div><div className="text-[10px] text-slate-500">{source.year}</div></div>
                 <div className="mt-1 text-[10px] text-slate-400">{source.cost_scope}</div>
                 <div className="mt-2 flex flex-wrap gap-2 text-[9px] text-slate-500"><span>{source.statistic_type.replaceAll("_", " ")}</span><span>Weight {source.calculation_weight}</span>{source.sample_size > 0 && <span>n={source.sample_size.toLocaleString()}</span>}</div>
@@ -401,6 +457,17 @@ export default function CCI() {
               </a>)}
             </div>
           </section>}
+
+          <section className="rounded-2xl border border-emerald-500/20 bg-emerald-950/10 p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300">Organization-Specific Inputs</div>
+                <p className="mt-2 max-w-3xl text-xs leading-relaxed text-slate-300">Revenue, EBITDA, liquidity, asset criticality, downtime cost, insurance, control maturity, industry and location will personalize the benchmark through the external CCI engine.</p>
+              </div>
+              <span className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-amber-300">Not connected</span>
+            </div>
+            <div className="mt-3 rounded-lg border border-slate-800 bg-slate-950/35 px-3 py-2 text-[10px] text-slate-400">Current results remain market benchmarks and must not be interpreted as a company-specific forecast.</div>
+          </section>
 
           <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/45 px-4 py-3 text-[10px] text-slate-500">
             <span className="flex items-center gap-2"><Database className="h-3.5 w-3.5" />{benchmark ? `Weighted financial feed · ${benchmark.model_version}` : "Validated fallback registry"}</span>
