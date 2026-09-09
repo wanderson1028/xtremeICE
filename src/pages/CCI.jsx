@@ -446,31 +446,6 @@ export default function CCI() {
               <Stat icon={ShieldAlert} label="Expected scenario" value={benchmarkLoading ? "Calculating…" : money(expectedTotal)} sub={benchmark ? `${benchmark.observation_count} observations · ${benchmark.confidence} confidence` : "Validated fallback benchmark"} tone="text-red-300" />
             </div>
 
-            {likelihood && <div className="mx-5 mb-5 overflow-hidden rounded-xl border border-violet-500/25 bg-violet-950/10">
-              <button type="button" onClick={() => setLikelihoodOpen(value => !value)} aria-expanded={likelihoodOpen} className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition hover:bg-violet-950/20">
-                <div>
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-300">Automatic Likelihood & Annual Risk</div>
-                  <div className="mt-1 text-[10px] text-slate-500">{likelihood.model_version} · {likelihood.confidence} confidence · recalculates with emulation and scenario</div>
-                </div>
-                <ChevronDown className={`h-5 w-5 shrink-0 text-slate-400 transition-transform ${likelihoodOpen ? "rotate-180" : ""}`} />
-              </button>
-              <div className="grid gap-px border-t border-violet-500/15 bg-slate-800/70 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="bg-slate-950/80 p-3"><div className="text-[9px] uppercase tracking-wider text-slate-500">Likelihood score</div><div className="mt-1 text-xl font-semibold text-violet-300">{likelihood.score}<span className="text-xs text-slate-500">/100</span></div></div>
-                <div className="bg-slate-950/80 p-3"><div className="text-[9px] uppercase tracking-wider text-slate-500">Annual probability</div><div className="mt-1 text-xl font-semibold text-cyan-300">{Math.round(likelihood.annual_probability * 100)}%</div><div className="text-[9px] text-slate-500">{Math.round(likelihood.probability_low * 100)}–{Math.round(likelihood.probability_high * 100)}% modeled range</div></div>
-                <div className="bg-slate-950/80 p-3"><div className="text-[9px] uppercase tracking-wider text-slate-500">Conditional loss</div><div className="mt-1 text-xl font-semibold text-red-300">{money(expectedTotal)}</div><div className="text-[9px] text-slate-500">If scenario succeeds</div></div>
-                <div className="bg-slate-950/80 p-3"><div className="text-[9px] uppercase tracking-wider text-slate-500">Annual risk exposure</div><div className="mt-1 text-xl font-semibold text-amber-300">{money(likelihood.expected_annual_exposure)}</div><div className="text-[9px] text-slate-500">Probability × conditional loss</div></div>
-              </div>
-              {likelihoodOpen && <div className="border-t border-violet-500/15 p-4">
-                <div className="mb-3 text-[10px] leading-relaxed text-slate-400">The likelihood model is separate from the financial benchmark. Intelligence changes probability and confidence; it never becomes a dollar-loss observation.</div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {likelihood.factors.map(factorItem => <div key={factorItem.name} className="rounded-lg border border-slate-800 bg-slate-950/45 px-3 py-2">
-                    <div className="flex items-center justify-between gap-3"><span className="text-[10px] font-medium text-slate-200">{factorItem.name}</span><span className="text-[10px] text-violet-300">{factorItem.value}</span></div>
-                    <div className="mt-1 text-[9px] text-slate-500">{factorItem.effect}</div>
-                  </div>)}
-                </div>
-              </div>}
-            </div>}
-
             <div className="px-5 pb-5">
               <div className="mb-2 flex justify-between text-[10px] uppercase tracking-widest text-slate-500"><span>Automated attack progression</span><span>{Math.round(progress)}%</span></div>
               <div className="h-1.5 overflow-hidden rounded-full bg-slate-800"><div className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-amber-400 to-red-500 transition-all duration-700" style={{width: `${progress}%`}} /></div>
@@ -503,25 +478,9 @@ export default function CCI() {
           </section>
 
           {active >= scenario.phases.length - 1 && !running && <section className="grid gap-4 rounded-2xl border border-red-500/25 bg-gradient-to-r from-red-950/30 to-slate-950 p-5 md:grid-cols-[1fr_auto]">
-            <div><div className="flex items-center gap-2 text-sm font-semibold text-red-200"><Zap className="h-4 w-4 text-red-400" />Scenario impact established</div><p className="mt-2 text-xs text-slate-400">The automated run completed all applicable MITRE ATT&CK tactics. The external CCI service can replace these benchmark values with organization-specific economic results without changing this visualization.</p></div>
+            <div><div className="flex items-center gap-2 text-sm font-semibold text-red-200"><Zap className="h-4 w-4 text-red-400" />Scenario impact established</div><p className="mt-2 text-xs text-slate-400">The automated visualization completed every phase in the selected scenario. These financial estimates remain separate from the scan-driven company rating.</p></div>
             <div className="grid grid-cols-3 gap-5 text-center"><div><div className="text-[9px] uppercase text-slate-500">Low</div><div className="mt-1 text-sm text-amber-200">{money(benchmark?.low_cost || expectedTotal * .48)}</div></div><div><div className="text-[9px] uppercase text-slate-500">Expected</div><div className="mt-1 text-sm font-semibold text-red-300">{money(expectedTotal)}</div></div><div><div className="text-[9px] uppercase text-slate-500">Severe</div><div className="mt-1 text-sm text-red-200">{money(benchmark?.severe_cost || expectedTotal * 1.95)}</div></div></div>
           </section>}
-
-          <section className="overflow-hidden rounded-2xl border border-slate-700/70 bg-slate-950/45">
-            <button type="button" onClick={() => setEvidenceOpen(value => !value)} aria-expanded={evidenceOpen} className="flex w-full items-center justify-between gap-4 p-5 text-left transition hover:bg-slate-900/35">
-              <div>
-                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-400">CCI Evidence Architecture</div>
-                <p className="mt-1 text-xs text-slate-400">Attack intelligence and frequency sources · {SOURCE_LAYERS.reduce((sum, layer) => sum + layer.sources.length, 0)} references</p>
-              </div>
-              <ChevronDown className={`h-5 w-5 shrink-0 text-slate-400 transition-transform ${evidenceOpen ? "rotate-180" : ""}`} />
-            </button>
-            {evidenceOpen && <div className="border-t border-slate-800 px-5 pb-5 pt-4">
-              <p className="mb-4 text-xs text-slate-400">Each evidence class has a defined role. Only financial observations contribute to the displayed dollar estimate.</p>
-              <div className="grid gap-4 lg:grid-cols-2">
-                {SOURCE_LAYERS.map(layer => <SourceLayer key={layer.id} layer={layer} />)}
-              </div>
-            </div>}
-          </section>
 
           {benchmark && <section className="overflow-hidden rounded-2xl border border-amber-500/20 bg-amber-950/10">
             <button type="button" onClick={() => setFinancialSourcesOpen(value => !value)} aria-expanded={financialSourcesOpen} className="flex w-full items-center justify-between gap-4 p-5 text-left transition hover:bg-amber-950/20">
