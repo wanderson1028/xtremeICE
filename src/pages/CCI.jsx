@@ -262,6 +262,7 @@ export default function CCI() {
   const [evidenceOpen, setEvidenceOpen] = useState(true);
   const [financialSourcesOpen, setFinancialSourcesOpen] = useState(true);
   const [organizationInputsOpen, setOrganizationInputsOpen] = useState(true);
+  const [likelihoodOpen, setLikelihoodOpen] = useState(false);
 
   useEffect(() => {
     if (!scenario || !adversary) return;
@@ -271,8 +272,10 @@ export default function CCI() {
     base44.functions.invoke("calculateCCIBenchmark", {
       scenario_id: scenario.id,
       adversary_id: adversary.id,
+      adversary_name: adversary.name,
       adversary_factor: adversary.bias,
       phase_weights: scenario.phases.map(p => p[4]),
+      technique_ids: [...new Set(scenario.phases.flatMap(p => p[2].match(/T\d{4}(?:\.\d{3})?/g) || []))],
       region: "global",
       industry: "all"
     }).then(response => {
@@ -311,6 +314,7 @@ export default function CCI() {
   const benchmarkScale = expectedTotal / Math.max(scenario.base * factor, 1);
   const exposure = active >= 0 ? scenario.phases[active][5] * factor * benchmarkScale : 0;
   const progress = scenario.phases.length ? completed / scenario.phases.length * 100 : 0;
+  const likelihood = benchmark?.likelihood;
 
   const reset = () => { setRunning(false); setActive(-1); };
   const run = () => {
@@ -395,6 +399,31 @@ export default function CCI() {
               <Stat icon={BarChart3} label="Cumulative cost" value={money(cumulative)} sub={`${completed} of ${scenario.phases.length} phases`} tone="text-amber-300" />
               <Stat icon={ShieldAlert} label="Expected scenario" value={benchmarkLoading ? "Calculating…" : money(expectedTotal)} sub={benchmark ? `${benchmark.observation_count} observations · ${benchmark.confidence} confidence` : "Validated fallback benchmark"} tone="text-red-300" />
             </div>
+
+            {likelihood && <div className="mx-5 mb-5 overflow-hidden rounded-xl border border-violet-500/25 bg-violet-950/10">
+              <button type="button" onClick={() => setLikelihoodOpen(value => !value)} aria-expanded={likelihoodOpen} className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition hover:bg-violet-950/20">
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-300">Automatic Likelihood & Annual Risk</div>
+                  <div className="mt-1 text-[10px] text-slate-500">{likelihood.model_version} · {likelihood.confidence} confidence · recalculates with emulation and scenario</div>
+                </div>
+                <ChevronDown className={`h-5 w-5 shrink-0 text-slate-400 transition-transform ${likelihoodOpen ? "rotate-180" : ""}`} />
+              </button>
+              <div className="grid gap-px border-t border-violet-500/15 bg-slate-800/70 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="bg-slate-950/80 p-3"><div className="text-[9px] uppercase tracking-wider text-slate-500">Likelihood score</div><div className="mt-1 text-xl font-semibold text-violet-300">{likelihood.score}<span className="text-xs text-slate-500">/100</span></div></div>
+                <div className="bg-slate-950/80 p-3"><div className="text-[9px] uppercase tracking-wider text-slate-500">Annual probability</div><div className="mt-1 text-xl font-semibold text-cyan-300">{Math.round(likelihood.annual_probability * 100)}%</div><div className="text-[9px] text-slate-500">{Math.round(likelihood.probability_low * 100)}–{Math.round(likelihood.probability_high * 100)}% modeled range</div></div>
+                <div className="bg-slate-950/80 p-3"><div className="text-[9px] uppercase tracking-wider text-slate-500">Conditional loss</div><div className="mt-1 text-xl font-semibold text-red-300">{money(expectedTotal)}</div><div className="text-[9px] text-slate-500">If scenario succeeds</div></div>
+                <div className="bg-slate-950/80 p-3"><div className="text-[9px] uppercase tracking-wider text-slate-500">Annual risk exposure</div><div className="mt-1 text-xl font-semibold text-amber-300">{money(likelihood.expected_annual_exposure)}</div><div className="text-[9px] text-slate-500">Probability × conditional loss</div></div>
+              </div>
+              {likelihoodOpen && <div className="border-t border-violet-500/15 p-4">
+                <div className="mb-3 text-[10px] leading-relaxed text-slate-400">The likelihood model is separate from the financial benchmark. Intelligence changes probability and confidence; it never becomes a dollar-loss observation.</div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {likelihood.factors.map(factorItem => <div key={factorItem.name} className="rounded-lg border border-slate-800 bg-slate-950/45 px-3 py-2">
+                    <div className="flex items-center justify-between gap-3"><span className="text-[10px] font-medium text-slate-200">{factorItem.name}</span><span className="text-[10px] text-violet-300">{factorItem.value}</span></div>
+                    <div className="mt-1 text-[9px] text-slate-500">{factorItem.effect}</div>
+                  </div>)}
+                </div>
+              </div>}
+            </div>}
 
             <div className="px-5 pb-5">
               <div className="mb-2 flex justify-between text-[10px] uppercase tracking-widest text-slate-500"><span>Automated attack progression</span><span>{Math.round(progress)}%</span></div>
