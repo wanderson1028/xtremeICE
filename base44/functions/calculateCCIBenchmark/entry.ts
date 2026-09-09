@@ -9,6 +9,15 @@ const BASELINES: Record<string, number> = {
   "telecom-espionage": 16300000, "crypto-theft": 24800000
 };
 
+const ANNUAL_PROBABILITY_PRIORS: Record<string, number> = {
+  ransomware: 0.22, bec: 0.20, "supply-chain": 0.08, ot: 0.06,
+  "web-breach": 0.18, ddos: 0.12, "cloud-identity": 0.17,
+  "destructive-wiper": 0.035, "ip-theft": 0.07, "zero-day-mass": 0.05,
+  "telecom-espionage": 0.045, "crypto-theft": 0.09
+};
+const RISK_MODEL_VERSION = "CCI-RISK-2026.1";
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+
 const OFFICIAL = [
   {
     observation_key: "fbi-ic3-2025-bec", scenario_id: "bec", source_name: "FBI IC3 2025",
@@ -141,11 +150,78 @@ Deno.serve(async (req) => {
     const effectiveWeight = rows.reduce((s: number, o: any) => s + o.calculation_weight, 0);
     const confidence = rows.length >= 4 && effectiveWeight >= 3 ? "High" : rows.length >= 2 ? "Moderate" : "Low";
 
+    const techniqueIds = Array.isArray(body.technique_ids)
+      ? [...new Set(body.technique_ids.map((id: any) => String(id).toUpperCase()).filter(Boolean))]
+      : [];
+    const adversaryName = String(body.adversary_name || body.adversary_id || "").toLowerCase();
+    let evidence: any[] = [];
+    try {
+      evidence = await base44.asServiceRole.entities.CCIEvidenceObservation.list("-ingested_at", 1000);
+    } catch (_) {
+      evidence = [];
+    }
+
+    const mitreTechniqueRows = evidence.filter((item: any) =>
+      item.source === "MITRE ATT&CK" && item.observation_type === "technique" && techniqueIds.includes(String(item.external_id).toUpperCase())
+    );
+    const adversaryRows = evidence.filter((item: any) => {
+      if (item.source !== "MITRE ATT&CK" || item.observation_type !== "adversary") return false;
+      const haystack = [item.title, ...(item.raw?.aliases || [])].join(" ").toLowerCase();
+      return adversaryName.length > 2 && (haystack.includes(adversaryName) || adversaryName.includes(String(item.title || "").toLowerCase()));
+    });
+    const cisaRows = evidence.filter((item: any) =>
+      item.source === "CISA KEV" && item.observation_type === "exploited_vulnerability"
+    );
+    const relevantKevRows = scenarioId === "ransomware"
+      ? cisaRows.filter((item: any) => (item.scenario_tags || []).includes("ransomware"))
+      : [];
+    const reviewedReports = evidence.filter((item: any) =>
+      item.observation_type === "reviewed_report" && item.source_category === "frequency_likelihood"
+    );
+    const freshCutoff = Date.now() - 400 * 24 * 60 * 60 * 1000;
+    const freshEvidence = [...mitreTechniqueRows, ...adversaryRows, ...relevantKevRows]
+      .filter((item: any) => new Date(item.ingested_at || item.published_date || 0).getTime() >= freshCutoff).length;
+
+    const prior = ANNUAL_PROBABILITY_PRIORS[scenarioId];
+    const techniqueCoverage = techniqueIds.length ? mitreTechniqueRows.length / techniqueIds.length : 0;
+    const adversaryModifier = clamp(adversaryFactor, 0.85, 1.25);
+    const mitreModifier = 1 + Math.min(0.05, techniqueCoverage * 0.05);
+    const actorModifier = adversaryRows.length ? 1.05 : 1;
+    const kevModifier = relevantKevRows.length
+      ? 1 + Math.min(0.12, Math.log10(1 + relevantKevRows.length) * 0.035)
+      : 1;
+    const annualProbability = clamp(prior * adversaryModifier * mitreModifier * actorModifier * kevModifier, 0.01, 0.65);
+    const probabilityLow = clamp(annualProbability * 0.72, 0.005, 0.65);
+    const probabilityHigh = clamp(annualProbability * 1.32, 0.01, 0.75);
+    const likelihoodConfidence = techniqueCoverage >= 0.6 && adversaryRows.length && reviewedReports.length >= 2
+      ? "Moderate" : evidence.length ? "Low-Moderate" : "Low";
+    const expectedAnnualExposure = expected * annualProbability;
+
+    const likelihood = {
+      score: Math.round(annualProbability * 100),
+      annual_probability: Number(annualProbability.toFixed(4)),
+      probability_low: Number(probabilityLow.toFixed(4)),
+      probability_high: Number(probabilityHigh.toFixed(4)),
+      expected_annual_exposure: Math.round(expectedAnnualExposure),
+      confidence: likelihoodConfidence,
+      model_version: RISK_MODEL_VERSION,
+      automatic: true,
+      factors: [
+        { name: "CCI scenario prior", value: Number(prior.toFixed(4)), effect: "Starting annual probability" },
+        { name: "Adversary relevance", value: Number(adversaryModifier.toFixed(3)), effect: "Selected emulation modifier" },
+        { name: "MITRE technique coverage", value: Number(techniqueCoverage.toFixed(3)), effect: `${mitreTechniqueRows.length} of ${techniqueIds.length} techniques matched` },
+        { name: "MITRE adversary match", value: adversaryRows.length ? 1 : 0, effect: adversaryRows.length ? "Matched" : "No ingested match" },
+        { name: "CISA KEV ransomware signal", value: relevantKevRows.length, effect: scenarioId === "ransomware" ? "Known ransomware-use entries" : "Not applicable without asset/CVE matching" },
+        { name: "Reviewed frequency sources", value: reviewedReports.length, effect: "Confidence only until normalized statistics are approved" },
+        { name: "Fresh evidence", value: freshEvidence, effect: "Ingested or published within 400 days" }
+      ]
+    };
+
     return Response.json({
       scenario_id: scenarioId, expected_cost: Math.round(expected), low_cost: Math.round(low),
       severe_cost: Math.round(severe), phase_costs: phase_costs.map(Math.round),
       observation_count: rows.length, confidence, model_version: FEED_VERSION,
-      calculated_at: new Date().toISOString(),
+      likelihood, calculated_at: new Date().toISOString(),
       sources: rows.map((o: any) => ({
         name: o.source_name, url: o.source_url, year: o.publication_year,
         statistic_type: o.statistic_type, sample_size: o.sample_size,
