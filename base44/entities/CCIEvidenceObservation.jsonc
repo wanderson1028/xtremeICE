@@ -1,0 +1,94 @@
+{
+  "properties": {
+    "description": {
+      "type": "string"
+    },
+    "external_id": {
+      "description": "Stable source identifier",
+      "type": "string"
+    },
+    "ingested_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "ingestion_mode": {
+      "enum": [
+        "automated_feed",
+        "reviewed_annual_report"
+      ],
+      "type": "string"
+    },
+    "observation_type": {
+      "description": "Normalized evidence type",
+      "enum": [
+        "technique",
+        "adversary",
+        "exploited_vulnerability",
+        "reviewed_report"
+      ],
+      "type": "string"
+    },
+    "published_date": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "raw": {
+      "description": "Small normalized subset of source data",
+      "type": "object"
+    },
+    "scenario_tags": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "source": {
+      "description": "Authoritative evidence source",
+      "type": "string"
+    },
+    "source_category": {
+      "description": "How CCI is permitted to use the observation",
+      "enum": [
+        "attack_intelligence",
+        "frequency_likelihood",
+        "financial_reference"
+      ],
+      "type": "string"
+    },
+    "source_url": {
+      "format": "uri",
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "source",
+    "source_category",
+    "external_id",
+    "title",
+    "observation_type",
+    "ingestion_mode"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {},
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  },
+  "type": "object",
+  "name": "CCIEvidenceObservation"
+}

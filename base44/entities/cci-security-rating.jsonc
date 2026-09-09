@@ -1,0 +1,104 @@
+{
+  "name": "CCISecurityRating",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "description": "Organization or individual profile key"
+    },
+    "organization_name": {
+      "type": "string"
+    },
+    "baseline_score": {
+      "type": "number",
+      "default": 650
+    },
+    "vulscan_score": {
+      "type": "number",
+      "description": "Normalized 0-100 VulScan posture score; higher is better"
+    },
+    "vpentest_score": {
+      "type": "number",
+      "description": "Normalized 0-100 vPentest resilience score; higher is better"
+    },
+    "vulscan_source": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "manual",
+        "api"
+      ],
+      "default": "pending"
+    },
+    "vpentest_source": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "manual",
+        "api"
+      ],
+      "default": "pending"
+    },
+    "final_score": {
+      "type": "number"
+    },
+    "rating_band": {
+      "type": "string"
+    },
+    "score_change": {
+      "type": "number"
+    },
+    "calculation_version": {
+      "type": "string"
+    },
+    "calculated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "factors": {
+      "type": "object"
+    },
+    "external_references": {
+      "type": "object",
+      "description": "Future API connection identifiers without credentials"
+    }
+  },
+  "required": [
+    "organization_id",
+    "baseline_score",
+    "final_score",
+    "rating_band"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "data.organization_id": "{{user.data.organization_id}}"
+        },
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
