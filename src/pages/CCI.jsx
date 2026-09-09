@@ -196,48 +196,6 @@ const SCENARIOS = [
 
 const phaseColors = ["#22d3ee", "#60a5fa", "#a78bfa", "#f59e0b", "#fb7185", "#ef4444"];
 
-const SOURCE_LAYERS = [
-  {
-    id: "attack",
-    title: "Attack Intelligence",
-    purpose: "Defines adversary behavior, tactics, techniques and currently exploited weaknesses.",
-    influence: "Scenario structure and current relevance — never averaged as a dollar loss.",
-    tone: "cyan",
-    sources: [
-      { name: "MITRE ATT&CK", detail: "Tactics, techniques, software and threat-group mappings", mode: "Nightly feed", url: "https://attack.mitre.org/" },
-      { name: "CISA KEV", detail: "Vulnerabilities confirmed as exploited in the wild", mode: "Nightly feed", url: "https://www.cisa.gov/known-exploited-vulnerabilities-catalog" },
-    ],
-  },
-  {
-    id: "likelihood",
-    title: "Frequency & Likelihood",
-    purpose: "Provides breach-pattern, actor, sector and regional prevalence context.",
-    influence: "Future likelihood model input — does not directly change the current loss average.",
-    tone: "violet",
-    sources: [
-      { name: "Verizon DBIR 2026", detail: "Incident patterns, vectors, actors and industry prevalence", mode: "Annual reviewed import", url: "https://www.verizon.com/business/resources/Tfdc/reports/2026-dbir-data-breach-investigations-report.pdf" },
-      { name: "ENISA Threat Landscape 2025", detail: "Threat trends, motivations, sectors and European context", mode: "Annual reviewed import", url: "https://www.enisa.europa.eu/sites/default/files/2025-11/ENISA%20Threat%20Landscape%202025.pdf" },
-    ],
-  },
-];
-
-function SourceLayer({ layer }) {
-  const palette = layer.tone === "cyan"
-    ? "border-cyan-500/20 bg-cyan-950/10 text-cyan-300"
-    : "border-violet-500/20 bg-violet-950/10 text-violet-300";
-  return <section className={`rounded-2xl border p-5 ${palette}`}>
-    <div className="text-[10px] font-semibold uppercase tracking-[0.18em]">{layer.title}</div>
-    <p className="mt-2 text-xs leading-relaxed text-slate-300">{layer.purpose}</p>
-    <div className="mt-3 grid gap-2 sm:grid-cols-2">
-      {layer.sources.map(source => <a key={source.name} href={source.url} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-800 bg-slate-950/45 p-3 transition hover:border-slate-600">
-        <div className="flex items-start justify-between gap-2"><div className="text-xs font-medium text-slate-100">{source.name}</div><span className="shrink-0 rounded border border-slate-700 px-1.5 py-0.5 text-[8px] uppercase tracking-wider text-slate-400">{source.mode}</span></div>
-        <div className="mt-1 text-[10px] leading-relaxed text-slate-400">{source.detail}</div>
-      </a>)}
-    </div>
-    <div className="mt-3 rounded-lg border border-slate-800 bg-slate-950/35 px-3 py-2 text-[10px] leading-relaxed text-slate-400">{layer.influence}</div>
-  </section>;
-}
-
 function Stat({ icon: Icon, label, value, sub, tone = "text-amber-300" }) {
   return <div className="rounded-xl border border-slate-700/70 bg-slate-900/75 p-4">
     <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-slate-400"><Icon className="h-3.5 w-3.5" />{label}</div>
@@ -259,10 +217,8 @@ export default function CCI() {
   const [benchmarkLoading, setBenchmarkLoading] = useState(false);
   const [benchmarkError, setBenchmarkError] = useState("");
   const [selectedPhase, setSelectedPhase] = useState(null);
-  const [evidenceOpen, setEvidenceOpen] = useState(true);
   const [financialSourcesOpen, setFinancialSourcesOpen] = useState(true);
   const [organizationInputsOpen, setOrganizationInputsOpen] = useState(true);
-  const [likelihoodOpen, setLikelihoodOpen] = useState(false);
   const [securityRating, setSecurityRating] = useState(null);
   const [ratingLoading, setRatingLoading] = useState(true);
   const [ratingSaving, setRatingSaving] = useState(false);
@@ -295,10 +251,8 @@ export default function CCI() {
     base44.functions.invoke("calculateCCIBenchmark", {
       scenario_id: scenario.id,
       adversary_id: adversary.id,
-      adversary_name: adversary.name,
       adversary_factor: adversary.bias,
       phase_weights: scenario.phases.map(p => p[4]),
-      technique_ids: [...new Set(scenario.phases.flatMap(p => p[2].match(/T\d{4}(?:\.\d{3})?/g) || []))],
       region: "global",
       industry: "all"
     }).then(response => {
@@ -337,7 +291,6 @@ export default function CCI() {
   const benchmarkScale = expectedTotal / Math.max(scenario.base * factor, 1);
   const exposure = active >= 0 ? scenario.phases[active][5] * factor * benchmarkScale : 0;
   const progress = scenario.phases.length ? completed / scenario.phases.length * 100 : 0;
-  const likelihood = benchmark?.likelihood;
 
   const reset = () => { setRunning(false); setActive(-1); };
   const run = () => {
@@ -376,7 +329,7 @@ export default function CCI() {
             <CircleDollarSign className="h-4 w-4" /> Cyber Capital Intelligence
           </div>
           <h1 className="text-2xl font-semibold tracking-tight lg:text-3xl">Economic Cyber Twin Simulation</h1>
-          <p className="mt-1 max-w-3xl text-sm text-slate-400">Automated adversary emulation translating MITRE ATT&CK progression into phase-level business impact.</p>
+          <p className="mt-1 max-w-3xl text-sm text-slate-400">A scan-driven company security rating with optional attack-scenario financial visualization.</p>
         </div>
         <div className="rounded-lg border border-cyan-500/20 bg-cyan-950/20 px-3 py-2 text-xs text-cyan-200">
           <span className={`mr-2 inline-block h-2 w-2 rounded-full ${benchmarkError ? "bg-amber-400" : "bg-cyan-400 animate-pulse"}`} />
@@ -428,13 +381,13 @@ export default function CCI() {
             {ratingError && <div className="mt-3 rounded-lg border border-red-500/30 bg-red-950/30 px-3 py-2 text-xs text-red-300">{ratingError}</div>}
           </div>
         </div>
-        <div className="border-t border-slate-800 bg-slate-950/55 px-5 py-3 text-[10px] text-slate-500">The CCI Security Rating measures company posture. Financial benchmark loss and annual risk below remain tied to the selected adversary emulation and scenario.</div>
+        <div className="border-t border-slate-800 bg-slate-950/55 px-5 py-3 text-[10px] text-slate-500">The CCI Security Rating is calculated only from VulScan and vPentest results. Attack scenarios and financial estimates below do not change the score.</div>
       </section>
 
       <section className="rounded-2xl border border-slate-700/70 bg-slate-950/45 p-3 shadow-2xl sm:p-4">
         <div className="mb-3 flex items-center justify-between">
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-400">1 · Adversary emulation</div>
-          <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">MITRE ATT&CK · tactic-weighted visualization</div>
+          <div className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Scenario visualization · does not affect rating</div>
         </div>
         <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-7">
           {ADVERSARIES.map(a => <button key={a.id} onClick={() => { setAdversaryId(a.id); reset(); }}
@@ -462,7 +415,7 @@ export default function CCI() {
           </div>
           <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-[11px] leading-relaxed text-slate-400">
             <AlertTriangle className="mb-2 h-4 w-4 text-amber-400" />
-            Costs shown are modeled benchmark estimates for visualization—not official MITRE values. Organization-specific inputs will be supplied by the external CCI engine.
+            Costs shown are modeled benchmark estimates for visualization. They are separate from the scan-driven CCI Security Rating.
           </div>
         </aside>
 
@@ -614,7 +567,7 @@ export default function CCI() {
           <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/45 px-4 py-3 text-[10px] text-slate-500">
             <span className="flex items-center gap-2"><Database className="h-3.5 w-3.5" />{benchmark ? `Weighted financial feed · ${benchmark.model_version}` : "Validated fallback registry"}</span>
             <span className="flex items-center gap-2"><Clock3 className="h-3.5 w-3.5" />External financial profile: not connected</span>
-            <span className="flex items-center gap-2"><Activity className="h-3.5 w-3.5 text-cyan-400" />MITRE maps attack behavior; CCI calculates financial impact</span>
+            <span className="flex items-center gap-2"><Activity className="h-3.5 w-3.5 text-cyan-400" />CCI rating uses VulScan and vPentest only</span>
           </section>
         </main>
       </div>
