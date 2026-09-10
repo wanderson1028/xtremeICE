@@ -158,8 +158,6 @@
   "required": [
     "organization_id",
     "business_name",
-    "business_address",
-    "poc_name",
     "status"
   ],
   "rls": {
