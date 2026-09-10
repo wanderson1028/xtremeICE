@@ -24,7 +24,7 @@ Deno.serve(async(req)=>{
    profile_updated_at:new Date().toISOString(),
    profile_updated_by:String(user.id)
   };
-  if(!profile.business_name||!profile.business_address||!profile.poc_name)return Response.json({error:"Business name, address, and point of contact are required"},{status:400});
+  if(!profile.business_name)return Response.json({error:"Business name is required"},{status:400});
   const updated=await base44.asServiceRole.entities.CCIAssessment.update(assessmentId,profile);
   const ratings=await base44.asServiceRole.entities.CCISecurityRating.filter({organization_id:assessment.organization_id});
   if(ratings[0]&&assessment.is_current_rating)await base44.asServiceRole.entities.CCISecurityRating.update(ratings[0].id,{organization_name:profile.business_name});
