@@ -1,6 +1,6 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.40";
 
-const BASELINE=650, MIN=300, MAX=850, VERSION="CCI-ASSESS-2026.2";
+const BASELINE=650, MIN=300, MAX=850, VERSION="CCI-ASSESS-2026.3";
 const clamp=(n:number,a=0,b=100)=>Math.min(b,Math.max(a,n));
 const sev=(s:unknown)=>String(s||"informational").toLowerCase();
 const band=(n:number)=>n>=800?"Exceptional":n>=740?"Strong":n>=670?"Good":n>=600?"Fair":n>=500?"High Risk":"Critical";
@@ -19,6 +19,10 @@ Deno.serve(async(req)=>{
   if(!files.length)return Response.json({error:"Upload at least one assessment report"},{status:400});
   const allowed=/\.(pdf|doc|docx|xls|xlsx|csv)$/i;
   if(files.some((f:any)=>!allowed.test(String(f.name||""))))return Response.json({error:"Supported report formats are PDF, Word, Excel, and CSV"},{status:400});
+  const orgId=user.role==="admin"&&b.organization_id?String(b.organization_id):String(user.organization_id||`individual:${user.id}`);
+  const reportFingerprint=files.map((f:any)=>`${f.category}:${f.name}:${f.size||0}:${f.last_modified||0}`).sort().join("|");
+  const prior=await base44.asServiceRole.entities.CCIAssessment.filter({organization_id:orgId,report_fingerprint:reportFingerprint,calculation_version:VERSION,status:"completed"});
+  if(prior[0])return Response.json({success:true,assessment:prior[0],reused:true});
   const extracted:any[]=[];
   for(const file of files){
    const category=String(file.category||"report");
@@ -88,10 +92,9 @@ Deno.serve(async(req)=>{
   const ageDays=oldest?Math.floor((Date.now()-oldest.getTime())/86400000):null;
   const confidence=ageDays===null?"unknown":ageDays>365?"expired":ageDays>305?"expiring":"current";
   const current=confidence==="current"||confidence==="expiring";
-  const orgId=user.role==="admin"&&b.organization_id?String(b.organization_id):String(user.organization_id||`individual:${user.id}`);
   const allItems=[...vItems.map(i=>({...i,category:"Vulnerability Assessment"})),...pItems.map(i=>({...i,category:"Penetration Test"}))];
   const primary=[...allItems].sort((a,b)=>a.points-b.points)[0]?.label||"No scored deductions";
-  const record={organization_id:orgId,business_name:String(b.business_name).trim(),business_address:String(b.business_address).trim(),poc_name:String(b.poc_name).trim(),poc_email:String(b.poc_email||"").trim(),poc_phone:String(b.poc_phone||"").trim(),source_mode:"upload",status:"completed",report_files:files,assessment_dates:x.assessment_dates||{},vulnerability_counts:vc,vulnerability_findings:vf,pentest_findings:pf,attack_evidence:attacks,vulnerability_score:vulnerabilityScore,penetration_test_score:pentestScore,baseline_score:BASELINE,final_score:finalScore,rating_band:band(finalScore),score_change:finalScore-BASELINE,data_confidence:confidence,confidence_message:confidence==="expired"?`Expired: oldest scored report is ${ageDays} days old. A new scan is required.`:confidence==="unknown"?"Unknown: report dates could not be verified.":confidence==="expiring"?`Current but expires soon: oldest report is ${ageDays} days old.`:`Current: all scored reports are within one year (${ageDays} days).`,is_current_rating:current,scoring_breakdown:{vulnerability:{starting_score:100,items:vItems,final_score:vulnerabilityScore,rubric:vDed},penetration_test:{starting_score:100,items:pItems,final_score:pentestScore,rubric:pDed},rating:{baseline:BASELINE,vulnerability_adjustment:vAdj,penetration_test_adjustment:pAdj,formula:"650 + Vulnerability Assessment adjustment + Penetration Test adjustment"}},executive_summary:String(x.executive_summary||""),primary_deduction:primary,coverage_summary:String(x.coverage_summary||""),warnings:x.warnings||[],calculation_version:VERSION,analyzed_at:new Date().toISOString()};
+  const record={organization_id:orgId,business_name:String(b.business_name).trim(),business_address:String(b.business_address).trim(),poc_name:String(b.poc_name).trim(),poc_email:String(b.poc_email||"").trim(),poc_phone:String(b.poc_phone||"").trim(),source_mode:"upload",status:"completed",report_fingerprint:reportFingerprint,report_files:files,assessment_dates:x.assessment_dates||{},vulnerability_counts:vc,vulnerability_findings:vf,pentest_findings:pf,attack_evidence:attacks,vulnerability_score:vulnerabilityScore,penetration_test_score:pentestScore,baseline_score:BASELINE,final_score:finalScore,rating_band:band(finalScore),score_change:finalScore-BASELINE,data_confidence:confidence,confidence_message:confidence==="expired"?`Expired: oldest scored report is ${ageDays} days old. A new scan is required.`:confidence==="unknown"?"Unknown: report dates could not be verified.":confidence==="expiring"?`Current but expires soon: oldest report is ${ageDays} days old.`:`Current: all scored reports are within one year (${ageDays} days).`,is_current_rating:current,scoring_breakdown:{vulnerability:{starting_score:100,items:vItems,final_score:vulnerabilityScore,rubric:vDed},penetration_test:{starting_score:100,items:pItems,final_score:pentestScore,rubric:pDed},rating:{baseline:BASELINE,vulnerability_adjustment:vAdj,penetration_test_adjustment:pAdj,formula:"650 + Vulnerability Assessment adjustment + Penetration Test adjustment"}},executive_summary:String(x.executive_summary||""),primary_deduction:primary,coverage_summary:String(x.coverage_summary||""),warnings:x.warnings||[],calculation_version:VERSION,analyzed_at:new Date().toISOString()};
   const created=await base44.asServiceRole.entities.CCIAssessment.create(record);
   if(current){
    const rows=await base44.asServiceRole.entities.CCISecurityRating.filter({organization_id:orgId});
