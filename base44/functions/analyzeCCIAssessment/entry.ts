@@ -31,7 +31,8 @@ Deno.serve(async(req)=>{
    if(!revisionOf||String(revisionOf.organization_id)!==orgId)return Response.json({error:"The selected assessment cannot be revised for this organization"},{status:403});
   }
   const reportFingerprint=apiImport?`vpentest:${apiImport.company_id}:${apiImport.assessment_id}`:files.map((f:any)=>`${f.category}:${f.name}:${f.size||0}:${f.last_modified||0}`).sort().join("|");
-  const extractionTargets=apiImport?files:(revisionOf?files.filter((f:any)=>f.new_upload===true):files);
+  // vPenTest API imports already contain normalized findings and activities. Keep report URLs for audit/drill-down, but do not re-download and AI-extract the same PDFs during the request.
+  const extractionTargets=apiImport?[]:(revisionOf?files.filter((f:any)=>f.new_upload===true):files);
   if(revisionOf&&!extractionTargets.length&&!apiImport)return Response.json({error:"No new evidence or replacement report was provided"},{status:400});
   const prior=await base44.asServiceRole.entities.CCIAssessment.filter({organization_id:orgId,report_fingerprint:reportFingerprint,calculation_version:VERSION,status:"completed"});
   if(prior[0])return Response.json({success:true,assessment:prior[0],reused:true});
@@ -81,7 +82,7 @@ Deno.serve(async(req)=>{
   const x:any={
    vulnerability_findings:vf,pentest_findings:pf,attack_evidence:attackRows,assessment_dates,
    executive_summary:`Assessment Intelligence identified ${vf.length} vulnerability finding(s), ${pf.length} penetration-test finding(s), and ${attackRows.length} documented attack activity record(s).`,
-   coverage_summary:`${reportFiles.length} assessment report(s) and ${evidenceFiles.length} supporting evidence file(s) are included; ${extractionTargets.length} newly submitted file(s) were analyzed in this run.`,
+   coverage_summary:apiImport?`${reportFiles.length} source report link(s) retained for audit and drill-down; scoring used ${importedFindings.length} structured finding(s) and ${importedActivities.length} structured activity record(s) from the vPenTest API.`:`${reportFiles.length} assessment report(s) and ${evidenceFiles.length} supporting evidence file(s) are included; ${extractionTargets.length} newly submitted file(s) were analyzed in this run.`,
    warnings:extracted.flatMap(d=>d.warnings||[])
   };
   if(!vf.length&&!pf.length&&!attackRows.length)return Response.json({error:"The reports were readable, but no findings or attack activity could be extracted. No score was issued; review the report contents or upload text-searchable versions."},{status:422});
