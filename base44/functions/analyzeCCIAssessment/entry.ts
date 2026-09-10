@@ -46,7 +46,7 @@ Deno.serve(async(req)=>{
    });
    if(result.status==="success"&&result.output)extracted.push({category,name:file.name,...result.output});
   }
-  if(!extracted.length)return Response.json({error:"No report content could be extracted. Please verify the files are readable and try again."},{status:422});
+  if(extracted.length!==files.length)return Response.json({error:`Only ${extracted.length} of ${files.length} reports could be extracted. No score was issued because partial evidence could create an inaccurate rating. Verify each file is text-searchable and try again.`},{status:422});
   const rawV=extracted.flatMap(d=>(d.vulnerability_findings||[]).map((f:any)=>({...f,source_report:d.name}))).filter((f:any)=>f.title&&f.severity);
   const rawP=extracted.filter(d=>d.category==="technical_report").flatMap(d=>(d.pentest_findings||[]).map((f:any)=>({...f,source_report:d.name}))).filter((f:any)=>f.title&&f.severity);
   const fallbackP=extracted.flatMap(d=>(d.pentest_findings||[]).map((f:any)=>({...f,source_report:d.name}))).filter((f:any)=>f.title&&f.severity);
