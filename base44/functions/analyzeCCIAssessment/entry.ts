@@ -108,7 +108,8 @@ Deno.serve(async(req)=>{
   const pentestScore=clamp(100+pItems.reduce((s,i)=>s+i.points,0));
   const vAdj=Math.round(adjust(vulnerabilityScore,110,190)), pAdj=Math.round(adjust(pentestScore,90,160));
   const currentAssessmentScore=Math.round(clamp(BASELINE+vAdj+pAdj,MIN,MAX));
-  const priorHistory=(await base44.asServiceRole.entities.CCIAssessment.filter({organization_id:orgId})).filter((row:any)=>row.status==="completed").sort((a:any,b:any)=>new Date(b.analyzed_at||b.created_date||0).getTime()-new Date(a.analyzed_at||a.created_date||0).getTime()).slice(0,7);
+  const priorRows=(await base44.asServiceRole.entities.CCIAssessment.filter({organization_id:orgId})).filter((row:any)=>row.status==="completed"&&row.report_fingerprint!==reportFingerprint).sort((a:any,b:any)=>new Date(b.analyzed_at||b.created_date||0).getTime()-new Date(a.analyzed_at||a.created_date||0).getTime());
+  const priorHistory=Array.from(new Map(priorRows.map((row:any)=>[row.report_fingerprint||row.id,row])).values()).slice(0,7);
   const historySamples=[{score:currentAssessmentScore,date:new Date(),label:"Current assessment"},...priorHistory.map((row:any)=>({score:Number(row.scoring_breakdown?.rating?.current_assessment_score??row.final_score??BASELINE),date:new Date(row.analyzed_at||row.created_date||0),label:row.report_fingerprint||row.id}))].filter((sample:any)=>Number.isFinite(sample.score)&&!Number.isNaN(sample.date.getTime())&&(Date.now()-sample.date.getTime())<=730*86400000);
   const weightedSamples=historySamples.map((sample:any,index:number)=>({...sample,weight:index===0?1:Math.pow(.65,index)*Math.exp(-Math.max(0,Date.now()-sample.date.getTime())/(365*86400000))}));
   const weightTotal=weightedSamples.reduce((sum:number,sample:any)=>sum+sample.weight,0)||1;
