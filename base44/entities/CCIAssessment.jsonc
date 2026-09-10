@@ -1,0 +1,169 @@
+{
+  "name": "CCIAssessment",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string"
+    },
+    "business_name": {
+      "type": "string"
+    },
+    "business_address": {
+      "type": "string"
+    },
+    "poc_name": {
+      "type": "string"
+    },
+    "poc_email": {
+      "type": "string"
+    },
+    "poc_phone": {
+      "type": "string"
+    },
+    "source_mode": {
+      "type": "string",
+      "enum": [
+        "upload",
+        "api"
+      ],
+      "default": "upload"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "analyzing",
+        "completed",
+        "failed"
+      ]
+    },
+    "report_files": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "assessment_dates": {
+      "type": "object"
+    },
+    "vulnerability_counts": {
+      "type": "object"
+    },
+    "vulnerability_findings": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "pentest_findings": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "attack_evidence": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "vulnerability_score": {
+      "type": "number"
+    },
+    "penetration_test_score": {
+      "type": "number"
+    },
+    "baseline_score": {
+      "type": "number",
+      "default": 650
+    },
+    "final_score": {
+      "type": "number"
+    },
+    "rating_band": {
+      "type": "string"
+    },
+    "score_change": {
+      "type": "number"
+    },
+    "data_confidence": {
+      "type": "string",
+      "enum": [
+        "current",
+        "expiring",
+        "expired",
+        "unknown"
+      ]
+    },
+    "confidence_message": {
+      "type": "string"
+    },
+    "is_current_rating": {
+      "type": "boolean"
+    },
+    "scoring_breakdown": {
+      "type": "object"
+    },
+    "executive_summary": {
+      "type": "string"
+    },
+    "primary_deduction": {
+      "type": "string"
+    },
+    "coverage_summary": {
+      "type": "string"
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "calculation_version": {
+      "type": "string"
+    },
+    "analyzed_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "organization_id",
+    "business_name",
+    "business_address",
+    "poc_name",
+    "status"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "data.organization_id": "{{user.data.organization_id}}"
+        },
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
