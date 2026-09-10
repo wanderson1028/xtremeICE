@@ -7,13 +7,14 @@ import {
 } from "lucide-react";
 import PhaseDetailModal from "@/components/cci/PhaseDetailModal";
 
-const money = (value) => {
-  const n = Number(value || 0);
-  if (n >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(1)}B`;
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(n >= 10_000_000 ? 1 : 2)}M`;
-  if (n >= 1_000) return `$${Math.round(n / 1_000)}K`;
-  return `$${n.toLocaleString()}`;
+const SCENARIO_POINT_IMPACT = {
+  ransomware: 145, bec: 70, "supply-chain": 165, ot: 190,
+  "web-breach": 110, ddos: 60, "cloud-identity": 125,
+  "destructive-wiper": 210, "ip-theft": 175, "zero-day-mass": 155,
+  "telecom-espionage": 180, "crypto-theft": 200
 };
+
+const points = (value) => `${Math.max(0, Math.round(Number(value || 0)))} pts`;
 
 const ADVERSARIES = [
   { id: "unattributed", name: "Unattributed", alias: "Opportunistic actor", origin: "Global", motive: "Financial", bias: 1.0, accent: "slate" },
@@ -213,12 +214,7 @@ export default function CCI() {
   const [running, setRunning] = useState(false);
   const [active, setActive] = useState(-1);
   const [speed, setSpeed] = useState(1800);
-  const [benchmark, setBenchmark] = useState(null);
-  const [benchmarkLoading, setBenchmarkLoading] = useState(false);
-  const [benchmarkError, setBenchmarkError] = useState("");
   const [selectedPhase, setSelectedPhase] = useState(null);
-  const [financialSourcesOpen, setFinancialSourcesOpen] = useState(true);
-  const [organizationInputsOpen, setOrganizationInputsOpen] = useState(true);
   const [securityRating, setSecurityRating] = useState(null);
   const [ratingLoading, setRatingLoading] = useState(true);
   const [ratingSaving, setRatingSaving] = useState(false);
@@ -244,29 +240,6 @@ export default function CCI() {
   }, []);
 
   useEffect(() => {
-    if (!scenario || !adversary) return;
-    let cancelled = false;
-    setBenchmarkLoading(true);
-    setBenchmarkError("");
-    base44.functions.invoke("calculateCCIBenchmark", {
-      scenario_id: scenario.id,
-      adversary_id: adversary.id,
-      adversary_factor: adversary.bias,
-      phase_weights: scenario.phases.map(p => p[4]),
-      region: "global",
-      industry: "all"
-    }).then(response => {
-      if (!cancelled) setBenchmark(response.data);
-    }).catch(error => {
-      if (!cancelled) {
-        setBenchmark(null);
-        setBenchmarkError(error?.response?.data?.error || error.message || "Benchmark service unavailable");
-      }
-    }).finally(() => { if (!cancelled) setBenchmarkLoading(false); });
-    return () => { cancelled = true; };
-  }, [scenario?.id, adversary?.id]);
-
-  useEffect(() => {
     if (!available.some(s => s.id === scenarioId)) setScenarioId(available[0]?.id);
   }, [adversaryId, available, scenarioId]);
 
@@ -282,14 +255,14 @@ export default function CCI() {
 
   const factor = adversary?.bias || 1;
   const completed = Math.max(0, active + 1);
-  const expectedTotal = benchmark?.expected_cost || scenario.base * factor;
-  const calculatedPhaseCosts = benchmark?.phase_costs?.length === scenario.phases.length
-    ? benchmark.phase_costs
-    : scenario.phases.map(p => p[4] * factor);
-  const phaseCost = active >= 0 ? calculatedPhaseCosts[active] : 0;
-  const cumulative = calculatedPhaseCosts.slice(0, completed).reduce((sum, n) => sum + n, 0);
-  const benchmarkScale = expectedTotal / Math.max(scenario.base * factor, 1);
-  const exposure = active >= 0 ? scenario.phases[active][5] * factor * benchmarkScale : 0;
+  const expectedPointImpact = Math.min(250, Math.round((SCENARIO_POINT_IMPACT[scenario.id] || 100) * factor));
+  const phaseWeightTotal = scenario.phases.reduce((sum, _, index) => sum + Math.pow(index + 1, 1.35), 0);
+  const calculatedPhasePoints = scenario.phases.map((_, index) =>
+    Math.max(1, Math.round(expectedPointImpact * Math.pow(index + 1, 1.35) / phaseWeightTotal))
+  );
+  const phasePoints = active >= 0 ? calculatedPhasePoints[active] : 0;
+  const cumulativePoints = calculatedPhasePoints.slice(0, completed).reduce((sum, n) => sum + n, 0);
+  const projectedRating = Math.max(300, ratingScore - cumulativePoints);
   const progress = scenario.phases.length ? completed / scenario.phases.length * 100 : 0;
 
   const reset = () => { setRunning(false); setActive(-1); };
@@ -329,11 +302,11 @@ export default function CCI() {
             <CircleDollarSign className="h-4 w-4" /> Cyber Capital Intelligence
           </div>
           <h1 className="text-2xl font-semibold tracking-tight lg:text-3xl">Economic Cyber Twin Simulation</h1>
-          <p className="mt-1 max-w-3xl text-sm text-slate-400">A scan-driven company security rating with optional attack-scenario financial visualization.</p>
+          <p className="mt-1 max-w-3xl text-sm text-slate-400">A scan-driven company security rating with attack-scenario point-impact visualization.</p>
         </div>
         <div className="rounded-lg border border-cyan-500/20 bg-cyan-950/20 px-3 py-2 text-xs text-cyan-200">
-          <span className={`mr-2 inline-block h-2 w-2 rounded-full ${benchmarkError ? "bg-amber-400" : "bg-cyan-400 animate-pulse"}`} />
-          {benchmarkLoading ? "Calculating financial benchmark…" : benchmarkError ? "Benchmark fallback active" : "Financial benchmark service connected"}
+          <span className="mr-2 inline-block h-2 w-2 animate-pulse rounded-full bg-cyan-400" />
+          Scan-based rating engine connected
         </div>
       </header>
 
@@ -381,7 +354,7 @@ export default function CCI() {
             {ratingError && <div className="mt-3 rounded-lg border border-red-500/30 bg-red-950/30 px-3 py-2 text-xs text-red-300">{ratingError}</div>}
           </div>
         </div>
-        <div className="border-t border-slate-800 bg-slate-950/55 px-5 py-3 text-[10px] text-slate-500">The CCI Security Rating is calculated only from VulScan and vPentest results. Attack scenarios and financial estimates below do not change the score.</div>
+        <div className="border-t border-slate-800 bg-slate-950/55 px-5 py-3 text-[10px] text-slate-500">The saved CCI Security Rating is calculated only from VulScan and vPentest results. Scenario point impacts below are illustrative and do not overwrite it.</div>
       </section>
 
       <section className="rounded-2xl border border-slate-700/70 bg-slate-950/45 p-3 shadow-2xl sm:p-4">
@@ -410,12 +383,12 @@ export default function CCI() {
             {available.map(s => <button key={s.id} onClick={() => { setScenarioId(s.id); reset(); }}
               className={`w-full rounded-xl border p-3 text-left transition ${scenario?.id === s.id ? "border-amber-400/70 bg-amber-400/10" : "border-slate-800 bg-slate-900/60 hover:border-slate-600"}`}>
               <div className="flex items-start justify-between gap-2"><span className="text-sm font-medium">{s.name}</span><ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" /></div>
-              <div className="mt-2 flex items-center justify-between text-[10px]"><span className="rounded bg-slate-800 px-2 py-1 text-slate-400">{s.tag}</span><span className="text-amber-300">{money(s.base * factor)}</span></div>
+              <div className="mt-2 flex items-center justify-between text-[10px]"><span className="rounded bg-slate-800 px-2 py-1 text-slate-400">{s.tag}</span><span className="text-amber-300">−{points(Math.min(250, (SCENARIO_POINT_IMPACT[s.id] || 100) * factor))}</span></div>
             </button>)}
           </div>
           <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-[11px] leading-relaxed text-slate-400">
             <AlertTriangle className="mb-2 h-4 w-4 text-amber-400" />
-            Costs shown are modeled benchmark estimates for visualization. They are separate from the scan-driven CCI Security Rating.
+            Point impacts show the modeled severity of a successful scenario. They do not modify the saved scan-driven rating.
           </div>
         </aside>
 
@@ -440,10 +413,10 @@ export default function CCI() {
             </div>
 
             <div className="grid gap-3 p-5 md:grid-cols-4">
-              <Stat icon={CircleDollarSign} label="Phase cost" value={money(phaseCost)} sub={active >= 0 ? scenario.phases[active][0] : "Run to begin"} tone="text-cyan-300" />
-              <Stat icon={TrendingUp} label="Exposure added" value={money(exposure)} sub="Potential future loss" tone="text-orange-300" />
-              <Stat icon={BarChart3} label="Cumulative cost" value={money(cumulative)} sub={`${completed} of ${scenario.phases.length} phases`} tone="text-amber-300" />
-              <Stat icon={ShieldAlert} label="Expected scenario" value={benchmarkLoading ? "Calculating…" : money(expectedTotal)} sub={benchmark ? `${benchmark.observation_count} observations · ${benchmark.confidence} confidence` : "Validated fallback benchmark"} tone="text-red-300" />
+              <Stat icon={Activity} label="Phase deduction" value={active >= 0 ? `−${points(phasePoints)}` : "0 pts"} sub={active >= 0 ? scenario.phases[active][0] : "Run to begin"} tone="text-cyan-300" />
+              <Stat icon={TrendingUp} label="Cumulative deduction" value={`−${points(cumulativePoints)}`} sub={`${completed} of ${scenario.phases.length} phases`} tone="text-orange-300" />
+              <Stat icon={BarChart3} label="Projected rating" value={projectedRating} sub="Illustrative score after completed phases" tone="text-amber-300" />
+              <Stat icon={ShieldAlert} label="Scenario impact" value={`−${points(expectedPointImpact)}`} sub="Maximum modeled point exposure" tone="text-red-300" />
             </div>
 
             <div className="px-5 pb-5">
@@ -468,7 +441,7 @@ export default function CCI() {
                       </div>
                       <div><div className="text-xs text-slate-300">{p[3]}</div><div className="mt-1 text-[10px] text-slate-500">{p[6]}</div></div>
                       <div className="flex items-center justify-between gap-3 lg:justify-end">
-                        <div className="text-right"><div className="text-[9px] uppercase tracking-widest text-slate-500">Phase impact</div><div className={`mt-1 text-sm font-semibold ${done ? "text-amber-300" : "text-slate-600"}`}>{done ? money(calculatedPhaseCosts[i]) : "Pending"}</div></div>
+                        <div className="text-right"><div className="text-[9px] uppercase tracking-widest text-slate-500">Phase impact</div><div className={`mt-1 text-sm font-semibold ${done ? "text-amber-300" : "text-slate-600"}`}>{done ? `−${points(calculatedPhasePoints[i])}` : "Pending"}</div></div>
                       </div>
                     </div>
                   </div>;
@@ -478,8 +451,8 @@ export default function CCI() {
           </section>
 
           {active >= scenario.phases.length - 1 && !running && <section className="grid gap-4 rounded-2xl border border-red-500/25 bg-gradient-to-r from-red-950/30 to-slate-950 p-5 md:grid-cols-[1fr_auto]">
-            <div><div className="flex items-center gap-2 text-sm font-semibold text-red-200"><Zap className="h-4 w-4 text-red-400" />Scenario impact established</div><p className="mt-2 text-xs text-slate-400">The automated visualization completed every phase in the selected scenario. These financial estimates remain separate from the scan-driven company rating.</p></div>
-            <div className="grid grid-cols-3 gap-5 text-center"><div><div className="text-[9px] uppercase text-slate-500">Low</div><div className="mt-1 text-sm text-amber-200">{money(benchmark?.low_cost || expectedTotal * .48)}</div></div><div><div className="text-[9px] uppercase text-slate-500">Expected</div><div className="mt-1 text-sm font-semibold text-red-300">{money(expectedTotal)}</div></div><div><div className="text-[9px] uppercase text-slate-500">Severe</div><div className="mt-1 text-sm text-red-200">{money(benchmark?.severe_cost || expectedTotal * 1.95)}</div></div></div>
+            <div><div className="flex items-center gap-2 text-sm font-semibold text-red-200"><Zap className="h-4 w-4 text-red-400" />Scenario impact established</div><p className="mt-2 text-xs text-slate-400">The automated visualization completed every phase. The point deductions show modeled scenario severity and remain separate from the saved scan-driven company rating.</p></div>
+            <div className="grid grid-cols-3 gap-5 text-center"><div><div className="text-[9px] uppercase text-slate-500">Limited</div><div className="mt-1 text-sm text-amber-200">−{points(expectedPointImpact * .6)}</div></div><div><div className="text-[9px] uppercase text-slate-500">Expected</div><div className="mt-1 text-sm font-semibold text-red-300">−{points(expectedPointImpact)}</div></div><div><div className="text-[9px] uppercase text-slate-500">Severe</div><div className="mt-1 text-sm text-red-200">−{points(Math.min(250, expectedPointImpact * 1.25))}</div></div></div>
           </section>}
 
           {benchmark && <section className="overflow-hidden rounded-2xl border border-amber-500/20 bg-amber-950/10">
@@ -536,8 +509,8 @@ export default function CCI() {
           index={selectedPhase}
           scenarioName={scenario.name}
           adversary={adversary}
-          phaseCost={calculatedPhaseCosts[selectedPhase] || 0}
-          exposure={scenario.phases[selectedPhase]?.[5] * factor * benchmarkScale || 0}
+          phasePoints={calculatedPhasePoints[selectedPhase] || 0}
+          projectedScore={Math.max(300, ratingScore - calculatedPhasePoints.slice(0, selectedPhase + 1).reduce((sum, value) => sum + value, 0))}
           done={selectedPhase <= active}
           onClose={() => setSelectedPhase(null)}
         />
