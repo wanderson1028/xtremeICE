@@ -16,7 +16,7 @@ const ALL_SERVICES = [
   { key: "soc_assessments",        label: "SOC Assessments",             short: "SOCA", granular: true  },
   { key: "lab_scenarios",          label: "Active Labs",                 short: "ALabs", granular: true  },
   { key: "course_lab_builder",     label: "Course Lab Builder",          short: "CLB",  granular: false },
-  { key: "cci",                    label: "CCI — Cyber Capital Intel",   short: "CCI",   granular: false },
+  { key: "cci",                    label: "Capital Intelligence — CFRS", short: "CFRS", granular: false },
 ];
 
 export default function ServiceManager() {
