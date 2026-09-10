@@ -81,7 +81,7 @@ export const FEATURES = [
     labelKey: "home.feature_cci",
     icon: "cci",
     bg: "bg-amber-400/10 border-amber-400/20",
-    path: "/CCI",
+    path: "/CFRS",
     nav_group: "special",
   },
 ];
