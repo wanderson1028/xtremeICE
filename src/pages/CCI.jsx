@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import {
-  Activity, AlertTriangle, BarChart3, CheckCircle2, ChevronDown, ChevronRight, CircleDollarSign,
-  Clock3, Database, Gauge, Pause, Play, RefreshCcw, Save, ScanSearch, ShieldAlert,
-  ShieldCheck, SkipForward, Target, TrendingUp, Zap
+  Activity, AlertTriangle, BarChart3, CheckCircle2, ChevronRight, Gauge, Pause, Play,
+  RefreshCcw, Save, ScanSearch, ShieldAlert, ShieldCheck, SkipForward, Target,
+  TrendingUp, Zap
 } from "lucide-react";
 import PhaseDetailModal from "@/components/cci/PhaseDetailModal";
 
@@ -194,8 +194,6 @@ const SCENARIOS = [
     ]
   },
 ];
-
-const phaseColors = ["#22d3ee", "#60a5fa", "#a78bfa", "#f59e0b", "#fb7185", "#ef4444"];
 
 function Stat({ icon: Icon, label, value, sub, tone = "text-amber-300" }) {
   return <div className="rounded-xl border border-slate-700/70 bg-slate-900/75 p-4">
