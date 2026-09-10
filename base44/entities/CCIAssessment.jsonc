@@ -47,6 +47,23 @@
         "type": "object"
       }
     },
+    "evidence_files": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "evidence_count": {
+      "type": "number",
+      "default": 0
+    },
+    "revision_of_id": {
+      "type": "string"
+    },
+    "revision_number": {
+      "type": "number",
+      "default": 1
+    },
     "assessment_dates": {
       "type": "object"
     },
