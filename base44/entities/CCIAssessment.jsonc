@@ -37,6 +37,10 @@
         "failed"
       ]
     },
+    "report_fingerprint": {
+      "type": "string",
+      "description": "Stable report-set identity used for repeatable scoring"
+    },
     "report_files": {
       "type": "array",
       "items": {
