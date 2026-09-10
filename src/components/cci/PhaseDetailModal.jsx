@@ -40,7 +40,7 @@ Clarify that scenario points are illustrative and that the saved CCI rating is c
       if (!cancelled) setError(err?.message || "Analysis unavailable");
     }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [phase?.[0], adversary?.id]);
+  }, [phase?.[0], adversary?.id, phasePoints, projectedScore]);
 
   if (!phase) return null;
 
