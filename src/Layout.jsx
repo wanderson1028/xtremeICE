@@ -35,7 +35,7 @@ function useNavAccess(currentUser) {
 function CapitalIntelligenceDropdown({ currentPageName, access }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
-  const isActive = currentPageName === "CCI";
+  const isActive = ["CFRS", "CCI"].includes(currentPageName);
 
   useEffect(() => {
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -59,7 +59,7 @@ function CapitalIntelligenceDropdown({ currentPageName, access }) {
       {open && (
         <div className="absolute left-0 top-full mt-1 w-64 overflow-hidden rounded-xl border border-red-900/40 bg-gray-950 py-1 shadow-xl z-50">
           <Link
-            to="/CCI"
+            to="/CFRS"
             onClick={() => setOpen(false)}
             className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 transition-colors hover:bg-red-950/50 hover:text-white"
           >
