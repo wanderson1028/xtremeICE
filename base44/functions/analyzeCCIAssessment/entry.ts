@@ -29,10 +29,12 @@ Deno.serve(async(req)=>{
    if(!revisionOf||String(revisionOf.organization_id)!==orgId)return Response.json({error:"The selected assessment cannot be revised for this organization"},{status:403});
   }
   const reportFingerprint=files.map((f:any)=>`${f.category}:${f.name}:${f.size||0}:${f.last_modified||0}`).sort().join("|");
+  const extractionTargets=revisionOf?files.filter((f:any)=>f.new_upload===true):files;
+  if(revisionOf&&!extractionTargets.length)return Response.json({error:"No new evidence or replacement report was provided"},{status:400});
   const prior=await base44.asServiceRole.entities.CCIAssessment.filter({organization_id:orgId,report_fingerprint:reportFingerprint,calculation_version:VERSION,status:"completed"});
   if(prior[0])return Response.json({success:true,assessment:prior[0],reused:true});
   const extracted:any[]=[];
-  for(const file of files){
+  for(const file of extractionTargets){
    const category=String(file.category||"report");
    const isActivity=category==="activity_report";
    const isVulnerability=category==="vulnerability_report";
@@ -55,13 +57,15 @@ Deno.serve(async(req)=>{
    });
    if(result.status==="success"&&result.output)extracted.push({category,name:file.name,...result.output});
   }
-  if(extracted.length!==files.length)return Response.json({error:`Only ${extracted.length} of ${files.length} reports could be extracted. No score was issued because partial evidence could create an inaccurate rating. Verify each file is text-searchable and try again.`},{status:422});
-  const rawV=extracted.flatMap(d=>(d.vulnerability_findings||[]).map((f:any)=>({...f,source_report:d.name}))).filter((f:any)=>f.title&&f.severity);
-  const rawP=extracted.filter(d=>d.category==="technical_report").flatMap(d=>(d.pentest_findings||[]).map((f:any)=>({...f,source_report:d.name}))).filter((f:any)=>f.title&&f.severity);
-  const fallbackP=extracted.flatMap(d=>(d.pentest_findings||[]).map((f:any)=>({...f,source_report:d.name}))).filter((f:any)=>f.title&&f.severity);
-  const vf=uniq(rawV), pf=uniq(rawP.length?rawP:fallbackP);
-  const attackRows=extracted.flatMap(d=>(d.attack_evidence||[]).map((q:any)=>({...q,source_report:d.name}))).filter((q:any)=>q.name&&q.evidence);
-  const assessment_dates:any={};
+  if(extracted.length!==extractionTargets.length)return Response.json({error:`Only ${extracted.length} of ${extractionTargets.length} newly submitted file(s) could be extracted. No score was issued because partial evidence could create an inaccurate rating. Verify each file is text-searchable and try again.`},{status:422});
+  const previousV=revisionOf?.vulnerability_findings||[], previousP=revisionOf?.pentest_findings||[], previousAttacks=revisionOf?.attack_evidence||[];
+  const rawV=[...previousV,...extracted.flatMap(d=>(d.vulnerability_findings||[]).map((f:any)=>({...f,source_report:d.name})))].filter((f:any)=>f.title&&f.severity);
+  const newP=extracted.filter(d=>d.category==="technical_report").flatMap(d=>(d.pentest_findings||[]).map((f:any)=>({...f,source_report:d.name}))).filter((f:any)=>f.title&&f.severity);
+  const fallbackNewP=extracted.flatMap(d=>(d.pentest_findings||[]).map((f:any)=>({...f,source_report:d.name}))).filter((f:any)=>f.title&&f.severity);
+  const rawP=[...previousP,...(newP.length?newP:fallbackNewP)];
+  const vf=uniq(rawV), pf=uniq(rawP);
+  const attackRows=[...previousAttacks,...extracted.flatMap(d=>(d.attack_evidence||[]).map((q:any)=>({...q,source_report:d.name})))].filter((q:any)=>q.name&&q.evidence);
+  const assessment_dates:any={...(revisionOf?.assessment_dates||{})};
   for(const d of extracted)if(d.report_date){
    if(d.category==="vulnerability_report")assessment_dates.vulnerability_assessment=d.report_date;
    else if(!assessment_dates.penetration_test)assessment_dates.penetration_test=d.report_date;
@@ -69,7 +73,7 @@ Deno.serve(async(req)=>{
   const x:any={
    vulnerability_findings:vf,pentest_findings:pf,attack_evidence:attackRows,assessment_dates,
    executive_summary:`Assessment Intelligence identified ${vf.length} vulnerability finding(s), ${pf.length} penetration-test finding(s), and ${attackRows.length} documented attack activity record(s).`,
-   coverage_summary:`${reportFiles.length} assessment report(s) and ${evidenceFiles.length} supporting evidence file(s) were successfully extracted and reconciled.`,
+   coverage_summary:`${reportFiles.length} assessment report(s) and ${evidenceFiles.length} supporting evidence file(s) are included; ${extractionTargets.length} newly submitted file(s) were analyzed in this run.`,
    warnings:extracted.flatMap(d=>d.warnings||[])
   };
   if(!vf.length&&!pf.length&&!attackRows.length)return Response.json({error:"The reports were readable, but no findings or attack activity could be extracted. No score was issued; review the report contents or upload text-searchable versions."},{status:422});
@@ -104,7 +108,8 @@ Deno.serve(async(req)=>{
   const current=confidence==="current"||confidence==="expiring";
   const allItems=[...vItems.map(i=>({...i,category:"Vulnerability Assessment"})),...pItems.map(i=>({...i,category:"Penetration Test"}))];
   const primary=[...allItems].sort((a,b)=>a.points-b.points)[0]?.label||"No scored deductions";
-  const record={organization_id:orgId,business_name:String(b.business_name).trim(),business_address:String(b.business_address).trim(),poc_name:String(b.poc_name).trim(),poc_email:String(b.poc_email||"").trim(),poc_phone:String(b.poc_phone||"").trim(),source_mode:"upload",status:"completed",report_fingerprint:reportFingerprint,report_files:reportFiles,evidence_files:evidenceFiles,evidence_count:evidenceFiles.length,revision_of_id:revisionOf?.id||"",revision_number:revisionOf?Number(revisionOf.revision_number||1)+1:1,assessment_dates:x.assessment_dates||{},vulnerability_counts:vc,vulnerability_findings:vf,pentest_findings:pf,attack_evidence:attacks,vulnerability_score:vulnerabilityScore,penetration_test_score:pentestScore,baseline_score:BASELINE,final_score:finalScore,rating_band:band(finalScore),score_change:finalScore-BASELINE,data_confidence:confidence,confidence_message:confidence==="expired"?`Expired: oldest scored report is ${ageDays} days old. A new scan is required.`:confidence==="unknown"?"Unknown: report dates could not be verified.":confidence==="expiring"?`Current but expires soon: oldest report is ${ageDays} days old.`:`Current: all scored reports are within one year (${ageDays} days).`,is_current_rating:current,scoring_breakdown:{vulnerability:{starting_score:100,items:vItems,final_score:vulnerabilityScore,rubric:vDed},penetration_test:{starting_score:100,items:pItems,final_score:pentestScore,rubric:pDed},rating:{baseline:BASELINE,vulnerability_adjustment:vAdj,penetration_test_adjustment:pAdj,formula:"650 + Vulnerability Assessment adjustment + Penetration Test adjustment"}},executive_summary:String(x.executive_summary||""),primary_deduction:primary,coverage_summary:String(x.coverage_summary||""),warnings:x.warnings||[],calculation_version:VERSION,analyzed_at:new Date().toISOString()};
+  const storedReportFiles=reportFiles.map(({new_upload,...f}:any)=>f), storedEvidenceFiles=evidenceFiles.map(({new_upload,...f}:any)=>f);
+  const record={organization_id:orgId,business_name:String(b.business_name).trim(),business_address:String(b.business_address).trim(),poc_name:String(b.poc_name).trim(),poc_email:String(b.poc_email||"").trim(),poc_phone:String(b.poc_phone||"").trim(),source_mode:"upload",status:"completed",report_fingerprint:reportFingerprint,report_files:storedReportFiles,evidence_files:storedEvidenceFiles,evidence_count:storedEvidenceFiles.length,revision_of_id:revisionOf?.id||"",revision_number:revisionOf?Number(revisionOf.revision_number||1)+1:1,assessment_dates:x.assessment_dates||{},vulnerability_counts:vc,vulnerability_findings:vf,pentest_findings:pf,attack_evidence:attacks,vulnerability_score:vulnerabilityScore,penetration_test_score:pentestScore,baseline_score:BASELINE,final_score:finalScore,rating_band:band(finalScore),score_change:finalScore-BASELINE,data_confidence:confidence,confidence_message:confidence==="expired"?`Expired: oldest scored report is ${ageDays} days old. A new scan is required.`:confidence==="unknown"?"Unknown: report dates could not be verified.":confidence==="expiring"?`Current but expires soon: oldest report is ${ageDays} days old.`:`Current: all scored reports are within one year (${ageDays} days).`,is_current_rating:current,scoring_breakdown:{vulnerability:{starting_score:100,items:vItems,final_score:vulnerabilityScore,rubric:vDed},penetration_test:{starting_score:100,items:pItems,final_score:pentestScore,rubric:pDed},rating:{baseline:BASELINE,vulnerability_adjustment:vAdj,penetration_test_adjustment:pAdj,formula:"650 + Vulnerability Assessment adjustment + Penetration Test adjustment"}},executive_summary:String(x.executive_summary||""),primary_deduction:primary,coverage_summary:String(x.coverage_summary||""),warnings:x.warnings||[],calculation_version:VERSION,analyzed_at:new Date().toISOString()};
   const created=await base44.asServiceRole.entities.CCIAssessment.create(record);
   if(current){
    const rows=await base44.asServiceRole.entities.CCISecurityRating.filter({organization_id:orgId});
