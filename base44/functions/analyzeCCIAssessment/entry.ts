@@ -1,6 +1,6 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.40";
 
-const BASELINE=650, MIN=300, MAX=850, VERSION="CCI-ASSESS-2026.5";
+const BASELINE=650, MIN=300, MAX=850, VERSION="CFRS-ASSESS-2026.6";
 const clamp=(n:number,a=0,b=100)=>Math.min(b,Math.max(a,n));
 const sev=(s:unknown)=>String(s||"informational").toLowerCase();
 const band=(n:number)=>n>=800?"Exceptional":n>=740?"Strong":n>=670?"Good":n>=600?"Fair":n>=500?"High Risk":"Critical";
@@ -15,11 +15,19 @@ Deno.serve(async(req)=>{
   if(!user)return Response.json({error:"Unauthorized"},{status:401});
   const b=await req.json();
   for(const k of ["business_name","business_address","poc_name"])if(!String(b[k]||"").trim())return Response.json({error:`${k.replaceAll("_"," ")} is required`},{status:400});
-  const files=(b.report_files||[]).filter((f:any)=>f?.file_url);
-  if(!files.length)return Response.json({error:"Upload at least one assessment report"},{status:400});
-  const allowed=/\.(pdf|doc|docx|xls|xlsx|csv)$/i;
-  if(files.some((f:any)=>!allowed.test(String(f.name||""))))return Response.json({error:"Supported report formats are PDF, Word, Excel, and CSV"},{status:400});
+  const reportFiles=(b.report_files||[]).filter((f:any)=>f?.file_url);
+  const evidenceFiles=(b.evidence_files||[]).filter((f:any)=>f?.file_url).map((f:any)=>({...f,category:"evidence"}));
+  const files=[...reportFiles,...evidenceFiles];
+  if(!reportFiles.length)return Response.json({error:"Upload at least one assessment report, or revise a saved assessment that already has reports"},{status:400});
+  const allowed=/\.(pdf|doc|docx|xls|xlsx|csv|txt|json|log|xml)$/i;
+  if(files.some((f:any)=>!allowed.test(String(f.name||""))))return Response.json({error:"Supported formats are PDF, Word, Excel, CSV, TXT, JSON, LOG, and XML"},{status:400});
   const orgId=user.role==="admin"&&b.organization_id?String(b.organization_id):String(user.organization_id||`individual:${user.id}`);
+  let revisionOf:any=null;
+  if(b.revision_of_id){
+   const matches=await base44.asServiceRole.entities.CCIAssessment.filter({id:String(b.revision_of_id)});
+   revisionOf=matches[0];
+   if(!revisionOf||String(revisionOf.organization_id)!==orgId)return Response.json({error:"The selected assessment cannot be revised for this organization"},{status:403});
+  }
   const reportFingerprint=files.map((f:any)=>`${f.category}:${f.name}:${f.size||0}:${f.last_modified||0}`).sort().join("|");
   const prior=await base44.asServiceRole.entities.CCIAssessment.filter({organization_id:orgId,report_fingerprint:reportFingerprint,calculation_version:VERSION,status:"completed"});
   if(prior[0])return Response.json({success:true,assessment:prior[0],reused:true});
@@ -28,6 +36,7 @@ Deno.serve(async(req)=>{
    const category=String(file.category||"report");
    const isActivity=category==="activity_report";
    const isVulnerability=category==="vulnerability_report";
+   const isEvidence=category==="evidence";
    const result=await base44.integrations.Core.ExtractDataFromUploadedFile({
     file_url:file.file_url,
     json_schema:{type:"object",properties:{
@@ -38,7 +47,7 @@ Deno.serve(async(req)=>{
      pentest_findings:{type:"array",description:category==="technical_report"?"Every unique penetration-test finding. This report is authoritative.":"Only explicit penetration-test findings not merely repeated summary language.",items:{type:"object",properties:{
       id:{type:"string"},title:{type:"string"},severity:{type:"string"},asset:{type:"string"},evidence:{type:"string"},external_management_exposed:{type:"boolean",description:"True only if Internet-accessible remote administration is documented"}
      },required:["title","severity"]}},
-     attack_evidence:{type:"array",description:isActivity?"Every security test or attack performed, including discovery, scanning, enumeration, vulnerability import and exploit attempts. A launched/completed module is attempted, not successful. Include MITRE ATT&CK tactic and technique mapping where supported by the described action.":"Attack activity explicitly documented in this report. Never infer success.",items:{type:"object",properties:{
+     attack_evidence:{type:"array",description:isActivity?"Every security test or attack performed, including discovery, scanning, enumeration, vulnerability import and exploit attempts. A launched/completed module is attempted, not successful. Include MITRE ATT&CK tactic and technique mapping where supported by the described action.":isEvidence?"Extract each explicit test event or observed security outcome from this supporting evidence. Mark successful only when the artifact directly proves access, execution, credential compromise, privilege gain, lateral movement, persistence, data access/exfiltration, or control bypass. Never reproduce passwords, tokens, keys, hashes, patient data, or other sensitive values.":"Attack activity explicitly documented in this report. Never infer success.",items:{type:"object",properties:{
       name:{type:"string",description:"Plain-language attack or test name"},attack_correlation_type:{type:"string",description:"Attack family or correlated behavior, such as Ransomware, Spearphishing, Credential Attack, Web Application Attack, Network Reconnaissance, Vulnerability Discovery, Exploitation, Privilege Escalation, Lateral Movement, Data Exfiltration, Persistence, Command and Control, Denial of Service, Malware Execution, Cloud Attack, or Wireless Attack"},attack_vector:{type:"string",description:"How the activity reaches or tests the target, for example Network, Web Application, Authentication, Email, Endpoint, Wireless, Cloud, Supply Chain, Physical, or Discovery/Reconnaissance"},mitre_technique_id:{type:"string",description:"MITRE ATT&CK technique ID such as T1046; blank only when no defensible mapping exists"},mitre_technique_name:{type:"string"},mitre_tactic:{type:"string"},status:{type:"string",enum:["attempted","successful"],description:"Successful only when evidence proves exploitation, unauthorized access, execution, credential compromise, privilege gain, lateral movement, persistence, data access/exfiltration, or control bypass. Scanning, enumeration, discovery, module launch/completion, and vulnerability findings remain attempted."},affected_asset:{type:"string",description:"Company system, host, account, application, or data affected"},outcome:{type:"string",description:"What the test demonstrably achieved; do not infer success"},business_relevance:{type:"string",description:"Brief company-specific security or operational significance grounded in the report"},evidence:{type:"string"}
      },required:["name","status","evidence"]}},
      summary:{type:"string"},warnings:{type:"array",items:{type:"string"}}
@@ -60,7 +69,7 @@ Deno.serve(async(req)=>{
   const x:any={
    vulnerability_findings:vf,pentest_findings:pf,attack_evidence:attackRows,assessment_dates,
    executive_summary:`Assessment Intelligence identified ${vf.length} vulnerability finding(s), ${pf.length} penetration-test finding(s), and ${attackRows.length} documented attack activity record(s).`,
-   coverage_summary:`${extracted.length} of ${files.length} uploaded reports were successfully extracted and reconciled.`,
+   coverage_summary:`${reportFiles.length} assessment report(s) and ${evidenceFiles.length} supporting evidence file(s) were successfully extracted and reconciled.`,
    warnings:extracted.flatMap(d=>d.warnings||[])
   };
   if(!vf.length&&!pf.length&&!attackRows.length)return Response.json({error:"The reports were readable, but no findings or attack activity could be extracted. No score was issued; review the report contents or upload text-searchable versions."},{status:422});
@@ -95,7 +104,7 @@ Deno.serve(async(req)=>{
   const current=confidence==="current"||confidence==="expiring";
   const allItems=[...vItems.map(i=>({...i,category:"Vulnerability Assessment"})),...pItems.map(i=>({...i,category:"Penetration Test"}))];
   const primary=[...allItems].sort((a,b)=>a.points-b.points)[0]?.label||"No scored deductions";
-  const record={organization_id:orgId,business_name:String(b.business_name).trim(),business_address:String(b.business_address).trim(),poc_name:String(b.poc_name).trim(),poc_email:String(b.poc_email||"").trim(),poc_phone:String(b.poc_phone||"").trim(),source_mode:"upload",status:"completed",report_fingerprint:reportFingerprint,report_files:files,assessment_dates:x.assessment_dates||{},vulnerability_counts:vc,vulnerability_findings:vf,pentest_findings:pf,attack_evidence:attacks,vulnerability_score:vulnerabilityScore,penetration_test_score:pentestScore,baseline_score:BASELINE,final_score:finalScore,rating_band:band(finalScore),score_change:finalScore-BASELINE,data_confidence:confidence,confidence_message:confidence==="expired"?`Expired: oldest scored report is ${ageDays} days old. A new scan is required.`:confidence==="unknown"?"Unknown: report dates could not be verified.":confidence==="expiring"?`Current but expires soon: oldest report is ${ageDays} days old.`:`Current: all scored reports are within one year (${ageDays} days).`,is_current_rating:current,scoring_breakdown:{vulnerability:{starting_score:100,items:vItems,final_score:vulnerabilityScore,rubric:vDed},penetration_test:{starting_score:100,items:pItems,final_score:pentestScore,rubric:pDed},rating:{baseline:BASELINE,vulnerability_adjustment:vAdj,penetration_test_adjustment:pAdj,formula:"650 + Vulnerability Assessment adjustment + Penetration Test adjustment"}},executive_summary:String(x.executive_summary||""),primary_deduction:primary,coverage_summary:String(x.coverage_summary||""),warnings:x.warnings||[],calculation_version:VERSION,analyzed_at:new Date().toISOString()};
+  const record={organization_id:orgId,business_name:String(b.business_name).trim(),business_address:String(b.business_address).trim(),poc_name:String(b.poc_name).trim(),poc_email:String(b.poc_email||"").trim(),poc_phone:String(b.poc_phone||"").trim(),source_mode:"upload",status:"completed",report_fingerprint:reportFingerprint,report_files:reportFiles,evidence_files:evidenceFiles,evidence_count:evidenceFiles.length,revision_of_id:revisionOf?.id||"",revision_number:revisionOf?Number(revisionOf.revision_number||1)+1:1,assessment_dates:x.assessment_dates||{},vulnerability_counts:vc,vulnerability_findings:vf,pentest_findings:pf,attack_evidence:attacks,vulnerability_score:vulnerabilityScore,penetration_test_score:pentestScore,baseline_score:BASELINE,final_score:finalScore,rating_band:band(finalScore),score_change:finalScore-BASELINE,data_confidence:confidence,confidence_message:confidence==="expired"?`Expired: oldest scored report is ${ageDays} days old. A new scan is required.`:confidence==="unknown"?"Unknown: report dates could not be verified.":confidence==="expiring"?`Current but expires soon: oldest report is ${ageDays} days old.`:`Current: all scored reports are within one year (${ageDays} days).`,is_current_rating:current,scoring_breakdown:{vulnerability:{starting_score:100,items:vItems,final_score:vulnerabilityScore,rubric:vDed},penetration_test:{starting_score:100,items:pItems,final_score:pentestScore,rubric:pDed},rating:{baseline:BASELINE,vulnerability_adjustment:vAdj,penetration_test_adjustment:pAdj,formula:"650 + Vulnerability Assessment adjustment + Penetration Test adjustment"}},executive_summary:String(x.executive_summary||""),primary_deduction:primary,coverage_summary:String(x.coverage_summary||""),warnings:x.warnings||[],calculation_version:VERSION,analyzed_at:new Date().toISOString()};
   const created=await base44.asServiceRole.entities.CCIAssessment.create(record);
   if(current){
    const rows=await base44.asServiceRole.entities.CCISecurityRating.filter({organization_id:orgId});
