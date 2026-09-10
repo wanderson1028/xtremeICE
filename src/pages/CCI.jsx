@@ -251,6 +251,7 @@ export default function CCI() {
     return () => clearTimeout(t);
   }, [running, active, speed, scenario]);
 
+  const ratingScore = securityRating?.final_score ?? 650;
   const factor = adversary?.bias || 1;
   const completed = Math.max(0, active + 1);
   const expectedPointImpact = Math.min(250, Math.round((SCENARIO_POINT_IMPACT[scenario.id] || 100) * factor));
@@ -288,7 +289,6 @@ export default function CCI() {
     }
   };
 
-  const ratingScore = securityRating?.final_score ?? 650;
   const ratingPosition = Math.max(0, Math.min(100, ((ratingScore - 300) / 550) * 100));
   const ratingComplete = Math.round((securityRating?.data_completeness || 0) * 100);
 
