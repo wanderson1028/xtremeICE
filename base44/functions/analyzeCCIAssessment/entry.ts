@@ -35,7 +35,11 @@ Deno.serve(async(req)=>{
   const prior=await base44.asServiceRole.entities.CCIAssessment.filter({organization_id:orgId,report_fingerprint:reportFingerprint,calculation_version:VERSION,status:"completed"});
   if(prior[0])return Response.json({success:true,assessment:prior[0],reused:true});
   const importedFindings=(apiImport?.findings||[]).filter((f:any)=>f?.title);
-  const extracted:any[]=apiImport?[{category:"technical_report",name:`vPenTest · ${apiImport.assessment_name||apiImport.assessment_id}`,report_date:apiImport.assessment_date||"",vulnerability_findings:[],pentest_findings:importedFindings,attack_evidence:importedFindings.filter((f:any)=>f.mitre_technique_id||f.status).map((f:any)=>({name:f.title,status:/success|exploited|confirmed/i.test(String(f.status||""))?"successful":"attempted",evidence:f.evidence||"Imported vPenTest finding",affected_asset:f.asset||"",mitre_technique_id:f.mitre_technique_id||"",mitre_technique_name:f.mitre_technique_name||"",mitre_tactic:f.mitre_tactic||""})),warnings:apiImport.warnings||[]}]:[];
+  const isVulScan=(f:any)=>/vulscan|vulnerability\s*(assessment|scan)|scanner/i.test(`${f.source||""} ${f.assessment_type||""} ${f.category||""}`);
+  const importedVulnerabilities=importedFindings.filter(isVulScan), importedPentestFindings=importedFindings.filter((f:any)=>!isVulScan(f));
+  const importedActivities=(apiImport?.activities||[]).filter((a:any)=>a?.name&&a?.evidence);
+  const findingActivities=importedFindings.filter((f:any)=>f.mitre_technique_id||f.status).map((f:any)=>({name:f.title,status:/success|exploited|confirmed/i.test(String(f.status||""))?"successful":"attempted",evidence:f.evidence||"Imported vPenTest finding",affected_asset:f.asset||"",mitre_technique_id:f.mitre_technique_id||"",mitre_technique_name:f.mitre_technique_name||"",mitre_tactic:f.mitre_tactic||""}));
+  const extracted:any[]=apiImport?[{category:"technical_report",name:`vPenTest · ${apiImport.assessment_name||apiImport.assessment_id}`,report_date:apiImport.assessment_date||"",vulnerability_findings:importedVulnerabilities,pentest_findings:importedPentestFindings,attack_evidence:[...importedActivities,...findingActivities],warnings:apiImport.warnings||[]}]:[];
   for(const file of extractionTargets){
    const category=String(file.category||"report");
    const isActivity=category==="activity_report";
