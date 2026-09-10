@@ -14,11 +14,12 @@ Deno.serve(async(req)=>{
   const user=await base44.auth.me();
   if(!user)return Response.json({error:"Unauthorized"},{status:401});
   const b=await req.json();
+  const apiImport=user.role==="admin"&&b.api_import?.provider==="vpentest"?b.api_import:null;
   for(const k of ["business_name","business_address","poc_name"])if(!String(b[k]||"").trim())return Response.json({error:`${k.replaceAll("_"," ")} is required`},{status:400});
   const reportFiles=(b.report_files||[]).filter((f:any)=>f?.file_url);
   const evidenceFiles=(b.evidence_files||[]).filter((f:any)=>f?.file_url).map((f:any)=>({...f,category:"evidence"}));
   const files=[...reportFiles,...evidenceFiles];
-  if(!reportFiles.length)return Response.json({error:"Upload at least one assessment report, or revise a saved assessment that already has reports"},{status:400});
+  if(!reportFiles.length&&!apiImport)return Response.json({error:"Upload at least one assessment report, or import a vPenTest assessment"},{status:400});
   const allowed=/\.(pdf|doc|docx|xls|xlsx|csv|txt|json|log|xml)$/i;
   if(files.some((f:any)=>!allowed.test(String(f.name||""))))return Response.json({error:"Supported formats are PDF, Word, Excel, CSV, TXT, JSON, LOG, and XML"},{status:400});
   const orgId=user.role==="admin"&&b.organization_id?String(b.organization_id):String(user.organization_id||`individual:${user.id}`);
@@ -28,12 +29,13 @@ Deno.serve(async(req)=>{
    revisionOf=matches[0];
    if(!revisionOf||String(revisionOf.organization_id)!==orgId)return Response.json({error:"The selected assessment cannot be revised for this organization"},{status:403});
   }
-  const reportFingerprint=files.map((f:any)=>`${f.category}:${f.name}:${f.size||0}:${f.last_modified||0}`).sort().join("|");
-  const extractionTargets=revisionOf?files.filter((f:any)=>f.new_upload===true):files;
-  if(revisionOf&&!extractionTargets.length)return Response.json({error:"No new evidence or replacement report was provided"},{status:400});
+  const reportFingerprint=apiImport?`vpentest:${apiImport.company_id}:${apiImport.assessment_id}`:files.map((f:any)=>`${f.category}:${f.name}:${f.size||0}:${f.last_modified||0}`).sort().join("|");
+  const extractionTargets=apiImport?[]:(revisionOf?files.filter((f:any)=>f.new_upload===true):files);
+  if(revisionOf&&!extractionTargets.length&&!apiImport)return Response.json({error:"No new evidence or replacement report was provided"},{status:400});
   const prior=await base44.asServiceRole.entities.CCIAssessment.filter({organization_id:orgId,report_fingerprint:reportFingerprint,calculation_version:VERSION,status:"completed"});
   if(prior[0])return Response.json({success:true,assessment:prior[0],reused:true});
-  const extracted:any[]=[];
+  const importedFindings=(apiImport?.findings||[]).filter((f:any)=>f?.title);
+  const extracted:any[]=apiImport?[{category:"technical_report",name:`vPenTest · ${apiImport.assessment_name||apiImport.assessment_id}`,report_date:apiImport.assessment_date||"",vulnerability_findings:[],pentest_findings:importedFindings,attack_evidence:importedFindings.filter((f:any)=>f.mitre_technique_id||f.status).map((f:any)=>({name:f.title,status:/success|exploited|confirmed/i.test(String(f.status||""))?"successful":"attempted",evidence:f.evidence||"Imported vPenTest finding",affected_asset:f.asset||"",mitre_technique_id:f.mitre_technique_id||"",mitre_technique_name:f.mitre_technique_name||"",mitre_tactic:f.mitre_tactic||""})),warnings:apiImport.warnings||[]}]:[];
   for(const file of extractionTargets){
    const category=String(file.category||"report");
    const isActivity=category==="activity_report";
@@ -57,7 +59,7 @@ Deno.serve(async(req)=>{
    });
    if(result.status==="success"&&result.output)extracted.push({category,name:file.name,...result.output});
   }
-  if(extracted.length!==extractionTargets.length)return Response.json({error:`Only ${extracted.length} of ${extractionTargets.length} newly submitted file(s) could be extracted. No score was issued because partial evidence could create an inaccurate rating. Verify each file is text-searchable and try again.`},{status:422});
+  if(!apiImport&&extracted.length!==extractionTargets.length)return Response.json({error:`Only ${extracted.length} of ${extractionTargets.length} newly submitted file(s) could be extracted. No score was issued because partial evidence could create an inaccurate rating. Verify each file is text-searchable and try again.`},{status:422});
   const previousV=revisionOf?.vulnerability_findings||[], previousP=revisionOf?.pentest_findings||[], previousAttacks=revisionOf?.attack_evidence||[];
   const rawV=[...previousV,...extracted.flatMap(d=>(d.vulnerability_findings||[]).map((f:any)=>({...f,source_report:d.name})))].filter((f:any)=>f.title&&f.severity);
   const newP=extracted.filter(d=>d.category==="technical_report").flatMap(d=>(d.pentest_findings||[]).map((f:any)=>({...f,source_report:d.name}))).filter((f:any)=>f.title&&f.severity);
@@ -109,11 +111,11 @@ Deno.serve(async(req)=>{
   const allItems=[...vItems.map(i=>({...i,category:"Vulnerability Assessment"})),...pItems.map(i=>({...i,category:"Penetration Test"}))];
   const primary=[...allItems].sort((a,b)=>a.points-b.points)[0]?.label||"No scored deductions";
   const storedReportFiles=reportFiles.map(({new_upload,...f}:any)=>f), storedEvidenceFiles=evidenceFiles.map(({new_upload,...f}:any)=>f);
-  const record={organization_id:orgId,business_name:String(b.business_name).trim(),business_address:String(b.business_address).trim(),poc_name:String(b.poc_name).trim(),poc_email:String(b.poc_email||"").trim(),poc_phone:String(b.poc_phone||"").trim(),source_mode:"upload",status:"completed",report_fingerprint:reportFingerprint,report_files:storedReportFiles,evidence_files:storedEvidenceFiles,evidence_count:storedEvidenceFiles.length,revision_of_id:revisionOf?.id||"",revision_number:revisionOf?Number(revisionOf.revision_number||1)+1:1,assessment_dates:x.assessment_dates||{},vulnerability_counts:vc,vulnerability_findings:vf,pentest_findings:pf,attack_evidence:attacks,vulnerability_score:vulnerabilityScore,penetration_test_score:pentestScore,baseline_score:BASELINE,final_score:finalScore,rating_band:band(finalScore),score_change:finalScore-BASELINE,data_confidence:confidence,confidence_message:confidence==="expired"?`Expired: oldest scored report is ${ageDays} days old. A new scan is required.`:confidence==="unknown"?"Unknown: report dates could not be verified.":confidence==="expiring"?`Current but expires soon: oldest report is ${ageDays} days old.`:`Current: all scored reports are within one year (${ageDays} days).`,is_current_rating:current,scoring_breakdown:{vulnerability:{starting_score:100,items:vItems,final_score:vulnerabilityScore,rubric:vDed},penetration_test:{starting_score:100,items:pItems,final_score:pentestScore,rubric:pDed},rating:{baseline:BASELINE,vulnerability_adjustment:vAdj,penetration_test_adjustment:pAdj,formula:"650 + Vulnerability Assessment adjustment + Penetration Test adjustment"}},executive_summary:String(x.executive_summary||""),primary_deduction:primary,coverage_summary:String(x.coverage_summary||""),warnings:x.warnings||[],calculation_version:VERSION,analyzed_at:new Date().toISOString()};
+  const record={organization_id:orgId,business_name:String(b.business_name).trim(),business_address:String(b.business_address).trim(),poc_name:String(b.poc_name).trim(),poc_email:String(b.poc_email||"").trim(),poc_phone:String(b.poc_phone||"").trim(),source_mode:apiImport?"vpentest_api":"upload",status:"completed",report_fingerprint:reportFingerprint,report_files:storedReportFiles,evidence_files:storedEvidenceFiles,evidence_count:storedEvidenceFiles.length,revision_of_id:revisionOf?.id||"",revision_number:revisionOf?Number(revisionOf.revision_number||1)+1:1,assessment_dates:x.assessment_dates||{},vulnerability_counts:vc,vulnerability_findings:vf,pentest_findings:pf,attack_evidence:attacks,vulnerability_score:vulnerabilityScore,penetration_test_score:pentestScore,baseline_score:BASELINE,final_score:finalScore,rating_band:band(finalScore),score_change:finalScore-BASELINE,data_confidence:confidence,confidence_message:confidence==="expired"?`Expired: oldest scored report is ${ageDays} days old. A new scan is required.`:confidence==="unknown"?"Unknown: report dates could not be verified.":confidence==="expiring"?`Current but expires soon: oldest report is ${ageDays} days old.`:`Current: all scored reports are within one year (${ageDays} days).`,is_current_rating:current,scoring_breakdown:{vulnerability:{starting_score:100,items:vItems,final_score:vulnerabilityScore,rubric:vDed},penetration_test:{starting_score:100,items:pItems,final_score:pentestScore,rubric:pDed},rating:{baseline:BASELINE,vulnerability_adjustment:vAdj,penetration_test_adjustment:pAdj,formula:"650 + Vulnerability Assessment adjustment + Penetration Test adjustment"}},executive_summary:String(x.executive_summary||""),primary_deduction:primary,coverage_summary:String(x.coverage_summary||""),warnings:x.warnings||[],calculation_version:VERSION,analyzed_at:new Date().toISOString()};
   const created=await base44.asServiceRole.entities.CCIAssessment.create(record);
   if(current){
    const rows=await base44.asServiceRole.entities.CCISecurityRating.filter({organization_id:orgId});
-   const rating={organization_id:orgId,organization_name:record.business_name,vulscan_score:vulnerabilityScore,vpentest_score:pentestScore,vulscan_source:"api",vpentest_source:"api",baseline_score:BASELINE,final_score:finalScore,rating_band:record.rating_band,score_change:record.score_change,factors:record.scoring_breakdown.rating,calculation_version:VERSION,calculated_at:record.analyzed_at,external_references:{cci_assessment_id:created.id,source_mode:"upload"}};
+   const rating={organization_id:orgId,organization_name:record.business_name,vulscan_score:vulnerabilityScore,vpentest_score:pentestScore,vulscan_source:"api",vpentest_source:"api",baseline_score:BASELINE,final_score:finalScore,rating_band:record.rating_band,score_change:record.score_change,factors:record.scoring_breakdown.rating,calculation_version:VERSION,calculated_at:record.analyzed_at,external_references:{cci_assessment_id:created.id,source_mode:apiImport?"vpentest_api":"upload",vpentest_company_id:apiImport?.company_id||"",vpentest_assessment_id:apiImport?.assessment_id||""}};
    if(rows[0])await base44.asServiceRole.entities.CCISecurityRating.update(rows[0].id,rating);else await base44.asServiceRole.entities.CCISecurityRating.create(rating);
   }
   return Response.json({success:true,assessment:{id:created.id,...record}});
