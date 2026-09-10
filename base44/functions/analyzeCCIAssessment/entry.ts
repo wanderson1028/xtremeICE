@@ -3,7 +3,7 @@ import { createClientFromRequest } from "npm:@base44/sdk@0.8.40";
 const BASELINE=650, MIN=300, MAX=850, VERSION="CFRS-ASSESS-2026.9";
 const clamp=(n:number,a=0,b=100)=>Math.min(b,Math.max(a,n));
 const sev=(s:unknown)=>String(s||"informational").toLowerCase();
-const band=(n:number)=>n>=800?"Exceptional":n>=740?"Strong":n>=670?"Good":n>=600?"Fair":n>=500?"High Risk":"Critical";
+const band=(n:number)=>n>=800?"Exceptional":n>=740?"Strong":n>=670?"Good":n>=600?"Fair":n>=500?"Poor":"Critical";
 const adjust=(score:number,pos:number,neg:number)=>score>=65?((score-65)/35)*pos:((score-65)/65)*neg;
 const validDate=(v:unknown)=>{const d=new Date(String(v||""));return Number.isNaN(d.getTime())?null:d;};
 const uniq=(rows:any[])=>Array.from(new Map((rows||[]).map((r:any)=>[String(r.id||r.title||r.name||JSON.stringify(r)).toLowerCase(),r])).values());
