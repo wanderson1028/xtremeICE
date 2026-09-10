@@ -32,6 +32,49 @@ function useNavAccess(currentUser) {
   return getAccessFromKeys(keys);
 }
 
+function CapitalIntelligenceDropdown({ currentPageName, access }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const isActive = currentPageName === "CCI";
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  if (!access.hasCCI) return null;
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${isActive ? NAV_ACTIVE : NAV_IDLE}`}
+        title="Capital Intelligence"
+      >
+        <CircleDollarSign className="h-4 w-4 text-amber-400" />
+        <span>Capital Intelligence</span>
+        <ChevronDown className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full mt-1 w-64 overflow-hidden rounded-xl border border-red-900/40 bg-gray-950 py-1 shadow-xl z-50">
+          <Link
+            to="/CCI"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 transition-colors hover:bg-red-950/50 hover:text-white"
+          >
+            <ShieldCheck className="h-4 w-4 shrink-0 icon-glow icon-glow-cyan" />
+            <span>
+              <span className="block font-semibold">CFRS</span>
+              <span className="block text-[10px] text-gray-500">Cyber Financial Risk Score</span>
+            </span>
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DesignDropdown({ currentPageName, access }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -390,19 +433,8 @@ export default function Layout({ children, currentPageName }) {
                 <span>{t("nav.dashboard")}</span>
               </Link>
 
-              {access.hasCCI && (
-                <>
-                  <div className="h-5 w-px bg-red-800/50 mx-1" />
-                  <Link
-                    to="/CCI"
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${currentPageName === "CCI" ? NAV_ACTIVE : NAV_IDLE}`}
-                    title="Cyber Capital Intelligence"
-                  >
-                    <CircleDollarSign className="h-4 w-4 text-amber-400" />
-                    <span>CCI</span>
-                  </Link>
-                </>
-              )}
+              {access.hasCCI && <div className="h-5 w-px bg-red-800/50 mx-1" />}
+              <CapitalIntelligenceDropdown currentPageName={currentPageName} access={access} />
 
               {showTrainingSep && <div className="h-5 w-px bg-red-800/50 mx-1" />}
               <TrainingDropdown currentPageName={currentPageName} access={access} />
