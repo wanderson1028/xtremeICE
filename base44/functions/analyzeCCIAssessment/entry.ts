@@ -19,19 +19,47 @@ Deno.serve(async(req)=>{
   if(!files.length)return Response.json({error:"Upload at least one assessment report"},{status:400});
   const allowed=/\.(pdf|doc|docx|xls|xlsx|csv)$/i;
   if(files.some((f:any)=>!allowed.test(String(f.name||""))))return Response.json({error:"Supported report formats are PDF, Word, Excel, and CSV"},{status:400});
-  const prompt=`Act as a cybersecurity assessment evidence analyst. Review the attached reports for ${b.business_name}. Reconcile duplicates across executive, technical, activity, and vulnerability reports. The technical report is authoritative for penetration-test findings; an executive summary must not create duplicate findings. Activity logs prove an attack was attempted, but mark an attack successful ONLY when a report explicitly proves unauthorized access, execution, privilege, lateral movement, persistence, or data access. Never infer success from a module being launched or completed. Return concise evidence-grounded JSON. Dates must be ISO YYYY-MM-DD when available. Severity is critical, high, medium, low, or informational.
-Required output: vulnerability_counts {critical,high,medium,low,informational}; vulnerability_findings [{id,title,severity,asset,evidence,source_report}]; pentest_findings [{id,title,severity,asset,evidence,source_report,external_management_exposed:boolean}]; attack_evidence [{name,status:"attempted"|"successful",evidence,source_report}]; assessment_dates {vulnerability_assessment,penetration_test}; executive_summary; coverage_summary; warnings. Do not calculate scores.`;
-  const result=await base44.integrations.Core.InvokeLLM({
-   prompt, model:"claude_sonnet_4_6", file_urls:files.map((f:any)=>f.file_url),
-   response_json_schema:{type:"object",properties:{
-    vulnerability_counts:{type:"object"},vulnerability_findings:{type:"array",items:{type:"object"}},
-    pentest_findings:{type:"array",items:{type:"object"}},attack_evidence:{type:"array",items:{type:"object"}},
-    assessment_dates:{type:"object"},executive_summary:{type:"string"},coverage_summary:{type:"string"},
-    warnings:{type:"array",items:{type:"string"}}
-   }}
-  });
-  const x=result.response||result;
-  const vf=uniq(x.vulnerability_findings||[]), pf=uniq(x.pentest_findings||[]);
+  const extracted:any[]=[];
+  for(const file of files){
+   const category=String(file.category||"report");
+   const isActivity=category==="activity_report";
+   const isVulnerability=category==="vulnerability_report";
+   const result=await base44.integrations.Core.ExtractDataFromUploadedFile({
+    file_url:file.file_url,
+    json_schema:{type:"object",properties:{
+     report_date:{type:"string",description:"Engagement, scan, assessment, or report date in YYYY-MM-DD format. Search the entire document."},
+     vulnerability_findings:{type:"array",description:isVulnerability?"Every unique vulnerability finding in this scanner report. Do not omit medium findings.":"Only explicit vulnerability findings; do not duplicate summary prose.",items:{type:"object",properties:{
+      id:{type:"string"},title:{type:"string"},severity:{type:"string"},asset:{type:"string"},evidence:{type:"string"}
+     },required:["title","severity"]}},
+     pentest_findings:{type:"array",description:category==="technical_report"?"Every unique penetration-test finding. This report is authoritative.":"Only explicit penetration-test findings not merely repeated summary language.",items:{type:"object",properties:{
+      id:{type:"string"},title:{type:"string"},severity:{type:"string"},asset:{type:"string"},evidence:{type:"string"},external_management_exposed:{type:"boolean",description:"True only if Internet-accessible remote administration is documented"}
+     },required:["title","severity"]}},
+     attack_evidence:{type:"array",description:isActivity?"Every security test or attack performed, including discovery, scanning, enumeration, vulnerability import and exploit attempts. A launched/completed module is attempted, not successful. Include MITRE ATT&CK tactic and technique mapping where supported by the described action.":"Attack activity explicitly documented in this report. Never infer success.",items:{type:"object",properties:{
+      name:{type:"string",description:"Plain-language attack or test name"},mitre_technique_id:{type:"string",description:"MITRE ATT&CK technique ID such as T1046; blank only when no defensible mapping exists"},mitre_technique_name:{type:"string"},mitre_tactic:{type:"string"},status:{type:"string",enum:["attempted","successful"]},evidence:{type:"string"}
+     },required:["name","status","evidence"]}},
+     summary:{type:"string"},warnings:{type:"array",items:{type:"string"}}
+    }}
+   });
+   if(result.status==="success"&&result.output)extracted.push({category,name:file.name,...result.output});
+  }
+  if(!extracted.length)return Response.json({error:"No report content could be extracted. Please verify the files are readable and try again."},{status:422});
+  const rawV=extracted.flatMap(d=>(d.vulnerability_findings||[]).map((f:any)=>({...f,source_report:d.name}))).filter((f:any)=>f.title&&f.severity);
+  const rawP=extracted.filter(d=>d.category==="technical_report").flatMap(d=>(d.pentest_findings||[]).map((f:any)=>({...f,source_report:d.name}))).filter((f:any)=>f.title&&f.severity);
+  const fallbackP=extracted.flatMap(d=>(d.pentest_findings||[]).map((f:any)=>({...f,source_report:d.name}))).filter((f:any)=>f.title&&f.severity);
+  const vf=uniq(rawV), pf=uniq(rawP.length?rawP:fallbackP);
+  const attackRows=extracted.flatMap(d=>(d.attack_evidence||[]).map((q:any)=>({...q,source_report:d.name}))).filter((q:any)=>q.name&&q.evidence);
+  const assessment_dates:any={};
+  for(const d of extracted)if(d.report_date){
+   if(d.category==="vulnerability_report")assessment_dates.vulnerability_assessment=d.report_date;
+   else if(!assessment_dates.penetration_test)assessment_dates.penetration_test=d.report_date;
+  }
+  const x:any={
+   vulnerability_findings:vf,pentest_findings:pf,attack_evidence:attackRows,assessment_dates,
+   executive_summary:`Assessment Intelligence identified ${vf.length} vulnerability finding(s), ${pf.length} penetration-test finding(s), and ${attackRows.length} documented attack activity record(s).`,
+   coverage_summary:`${extracted.length} of ${files.length} uploaded reports were successfully extracted and reconciled.`,
+   warnings:extracted.flatMap(d=>d.warnings||[])
+  };
+  if(!vf.length&&!pf.length&&!attackRows.length)return Response.json({error:"The reports were readable, but no findings or attack activity could be extracted. No score was issued; review the report contents or upload text-searchable versions."},{status:422});
   const vc={critical:0,high:0,medium:0,low:0,informational:0};
   for(const f of vf){const s=sev(f.severity); if(s in vc)(vc as any)[s]++;}
   if(!vf.length)for(const k of Object.keys(vc))(vc as any)[k]=Number(x.vulnerability_counts?.[k]||0);
