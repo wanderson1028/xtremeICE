@@ -299,9 +299,9 @@ export default function CCI() {
       <header className="mb-5 flex flex-wrap items-end justify-between gap-4 border-b border-amber-500/20 pb-5">
         <div>
           <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-amber-400">
-            <CircleDollarSign className="h-4 w-4" /> Cyber Capital Intelligence
+            <Gauge className="h-4 w-4" /> Cyber Capital Intelligence
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight lg:text-3xl">Economic Cyber Twin Simulation</h1>
+          <h1 className="text-2xl font-semibold tracking-tight lg:text-3xl">Cyber Security Rating Simulation</h1>
           <p className="mt-1 max-w-3xl text-sm text-slate-400">A scan-driven company security rating with attack-scenario point-impact visualization.</p>
         </div>
         <div className="rounded-lg border border-cyan-500/20 bg-cyan-950/20 px-3 py-2 text-xs text-cyan-200">
@@ -455,51 +455,9 @@ export default function CCI() {
             <div className="grid grid-cols-3 gap-5 text-center"><div><div className="text-[9px] uppercase text-slate-500">Limited</div><div className="mt-1 text-sm text-amber-200">−{points(expectedPointImpact * .6)}</div></div><div><div className="text-[9px] uppercase text-slate-500">Expected</div><div className="mt-1 text-sm font-semibold text-red-300">−{points(expectedPointImpact)}</div></div><div><div className="text-[9px] uppercase text-slate-500">Severe</div><div className="mt-1 text-sm text-red-200">−{points(Math.min(250, expectedPointImpact * 1.25))}</div></div></div>
           </section>}
 
-          {benchmark && <section className="overflow-hidden rounded-2xl border border-amber-500/20 bg-amber-950/10">
-            <button type="button" onClick={() => setFinancialSourcesOpen(value => !value)} aria-expanded={financialSourcesOpen} className="flex w-full items-center justify-between gap-4 p-5 text-left transition hover:bg-amber-950/20">
-              <div>
-                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300">Financial Benchmark Sources</div>
-                <div className="mt-1 text-sm text-slate-300">{benchmark.observation_count} weighted observations · {benchmark.confidence} confidence</div>
-              </div>
-              <div className="flex shrink-0 items-center gap-3">
-                <div className="hidden rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs text-slate-300 sm:block">Model {benchmark.model_version}</div>
-                <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform ${financialSourcesOpen ? "rotate-180" : ""}`} />
-              </div>
-            </button>
-            {financialSourcesOpen && <div className="border-t border-amber-500/15 px-5 pb-5 pt-4">
-              <div className="mb-3 text-[10px] text-slate-500">These are the only observations included in the current expected-loss average.</div>
-              <div className="grid gap-2 md:grid-cols-2">
-                {benchmark.sources.map((source, index) => <a key={`${source.name}-${index}`} href={source.url} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-800 bg-slate-900/55 p-3 transition hover:border-amber-500/30">
-                  <div className="flex items-start justify-between gap-3"><div className="text-xs font-medium text-slate-200">{source.name}</div><div className="text-[10px] text-slate-500">{source.year}</div></div>
-                  <div className="mt-1 text-[10px] text-slate-400">{source.cost_scope}</div>
-                  <div className="mt-2 flex flex-wrap gap-2 text-[9px] text-slate-500"><span>{source.statistic_type.replaceAll("_", " ")}</span><span>Weight {source.calculation_weight}</span>{source.sample_size > 0 && <span>n={source.sample_size.toLocaleString()}</span>}</div>
-                  {source.exclusions?.length > 0 && <div className="mt-2 text-[9px] text-amber-300/70">Excludes: {source.exclusions.slice(0, 3).join(", ")}</div>}
-                </a>)}
-              </div>
-            </div>}
-          </section>}
-
-          <section className="overflow-hidden rounded-2xl border border-emerald-500/20 bg-emerald-950/10">
-            <button type="button" onClick={() => setOrganizationInputsOpen(value => !value)} aria-expanded={organizationInputsOpen} className="flex w-full items-center justify-between gap-4 p-5 text-left transition hover:bg-emerald-950/20">
-              <div>
-                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-300">Organization-Specific Inputs</div>
-                <p className="mt-1 text-xs text-slate-400">Financial and operational personalization beyond the active scan-based security rating</p>
-              </div>
-              <div className="flex shrink-0 items-center gap-3">
-                <span className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-[10px] font-medium uppercase tracking-wider text-amber-300">Not connected</span>
-                <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform ${organizationInputsOpen ? "rotate-180" : ""}`} />
-              </div>
-            </button>
-            {organizationInputsOpen && <div className="border-t border-emerald-500/15 px-5 pb-5 pt-4">
-              <p className="max-w-3xl text-xs leading-relaxed text-slate-300">Revenue, EBITDA, liquidity, asset criticality, downtime cost, insurance, control maturity, industry and location will personalize the benchmark through the external CCI engine.</p>
-              <div className="mt-3 rounded-lg border border-slate-800 bg-slate-950/35 px-3 py-2 text-[10px] text-slate-400">Current results remain market benchmarks and must not be interpreted as a company-specific forecast.</div>
-            </div>}
-          </section>
-
-          <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/45 px-4 py-3 text-[10px] text-slate-500">
-            <span className="flex items-center gap-2"><Database className="h-3.5 w-3.5" />{benchmark ? `Weighted financial feed · ${benchmark.model_version}` : "Validated fallback registry"}</span>
-            <span className="flex items-center gap-2"><Clock3 className="h-3.5 w-3.5" />External financial profile: not connected</span>
-            <span className="flex items-center gap-2"><Activity className="h-3.5 w-3.5 text-cyan-400" />CCI rating uses VulScan and vPentest only</span>
+          <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-cyan-500/20 bg-cyan-950/10 px-4 py-3 text-[10px] text-slate-400">
+            <span className="flex items-center gap-2"><ShieldCheck className="h-3.5 w-3.5 text-cyan-400" />Saved rating inputs: VulScan + vPentest</span>
+            <span>Scenario points are illustrative and never written to the company rating</span>
           </section>
         </main>
       </div>
