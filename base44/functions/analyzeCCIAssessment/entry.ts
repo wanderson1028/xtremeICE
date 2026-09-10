@@ -30,7 +30,7 @@ Deno.serve(async(req)=>{
    if(!revisionOf||String(revisionOf.organization_id)!==orgId)return Response.json({error:"The selected assessment cannot be revised for this organization"},{status:403});
   }
   const reportFingerprint=apiImport?`vpentest:${apiImport.company_id}:${apiImport.assessment_id}`:files.map((f:any)=>`${f.category}:${f.name}:${f.size||0}:${f.last_modified||0}`).sort().join("|");
-  const extractionTargets=apiImport?[]:(revisionOf?files.filter((f:any)=>f.new_upload===true):files);
+  const extractionTargets=apiImport?files:(revisionOf?files.filter((f:any)=>f.new_upload===true):files);
   if(revisionOf&&!extractionTargets.length&&!apiImport)return Response.json({error:"No new evidence or replacement report was provided"},{status:400});
   const prior=await base44.asServiceRole.entities.CCIAssessment.filter({organization_id:orgId,report_fingerprint:reportFingerprint,calculation_version:VERSION,status:"completed"});
   if(prior[0])return Response.json({success:true,assessment:prior[0],reused:true});
@@ -59,7 +59,8 @@ Deno.serve(async(req)=>{
    });
    if(result.status==="success"&&result.output)extracted.push({category,name:file.name,...result.output});
   }
-  if(!apiImport&&extracted.length!==extractionTargets.length)return Response.json({error:`Only ${extracted.length} of ${extractionTargets.length} newly submitted file(s) could be extracted. No score was issued because partial evidence could create an inaccurate rating. Verify each file is text-searchable and try again.`},{status:422});
+  const extractedFileCount=extracted.length-(apiImport?1:0);
+  if(extractedFileCount!==extractionTargets.length)return Response.json({error:`Only ${extractedFileCount} of ${extractionTargets.length} selected report file(s) could be extracted. No score was issued because partial evidence could create an inaccurate rating. Verify the vPenTest report is complete and try again.`},{status:422});
   const previousV=revisionOf?.vulnerability_findings||[], previousP=revisionOf?.pentest_findings||[], previousAttacks=revisionOf?.attack_evidence||[];
   const rawV=[...previousV,...extracted.flatMap(d=>(d.vulnerability_findings||[]).map((f:any)=>({...f,source_report:d.name})))].filter((f:any)=>f.title&&f.severity);
   const newP=extracted.filter(d=>d.category==="technical_report").flatMap(d=>(d.pentest_findings||[]).map((f:any)=>({...f,source_report:d.name}))).filter((f:any)=>f.title&&f.severity);
