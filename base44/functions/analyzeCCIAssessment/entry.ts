@@ -1,6 +1,6 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.40";
 
-const BASELINE=650, MIN=300, MAX=850, VERSION="CCI-ASSESS-2026.3";
+const BASELINE=650, MIN=300, MAX=850, VERSION="CCI-ASSESS-2026.4";
 const clamp=(n:number,a=0,b=100)=>Math.min(b,Math.max(a,n));
 const sev=(s:unknown)=>String(s||"informational").toLowerCase();
 const band=(n:number)=>n>=800?"Exceptional":n>=740?"Strong":n>=670?"Good":n>=600?"Fair":n>=500?"High Risk":"Critical";
@@ -39,7 +39,7 @@ Deno.serve(async(req)=>{
       id:{type:"string"},title:{type:"string"},severity:{type:"string"},asset:{type:"string"},evidence:{type:"string"},external_management_exposed:{type:"boolean",description:"True only if Internet-accessible remote administration is documented"}
      },required:["title","severity"]}},
      attack_evidence:{type:"array",description:isActivity?"Every security test or attack performed, including discovery, scanning, enumeration, vulnerability import and exploit attempts. A launched/completed module is attempted, not successful. Include MITRE ATT&CK tactic and technique mapping where supported by the described action.":"Attack activity explicitly documented in this report. Never infer success.",items:{type:"object",properties:{
-      name:{type:"string",description:"Plain-language attack or test name"},mitre_technique_id:{type:"string",description:"MITRE ATT&CK technique ID such as T1046; blank only when no defensible mapping exists"},mitre_technique_name:{type:"string"},mitre_tactic:{type:"string"},status:{type:"string",enum:["attempted","successful"]},evidence:{type:"string"}
+      name:{type:"string",description:"Plain-language attack or test name"},attack_vector:{type:"string",description:"How the activity reaches or tests the target, for example Network, Web Application, Authentication, Email, Endpoint, Wireless, Cloud, Supply Chain, Physical, or Discovery/Reconnaissance"},mitre_technique_id:{type:"string",description:"MITRE ATT&CK technique ID such as T1046; blank only when no defensible mapping exists"},mitre_technique_name:{type:"string"},mitre_tactic:{type:"string"},status:{type:"string",enum:["attempted","successful"]},affected_asset:{type:"string",description:"Company system, host, account, application, or data affected"},outcome:{type:"string",description:"What the test demonstrably achieved; do not infer success"},business_relevance:{type:"string",description:"Brief company-specific security or operational significance grounded in the report"},evidence:{type:"string"}
      },required:["name","status","evidence"]}},
      summary:{type:"string"},warnings:{type:"array",items:{type:"string"}}
     }}
