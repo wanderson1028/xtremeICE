@@ -8,6 +8,11 @@
     "business_name": {
       "type": "string"
     },
+    "source_assessment_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Authoritative vPenTest assessment date or best verified report date"
+    },
     "business_address": {
       "type": "string"
     },
