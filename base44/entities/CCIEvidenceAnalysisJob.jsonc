@@ -1,0 +1,77 @@
+{
+  "name": "CCIEvidenceAnalysisJob",
+  "type": "object",
+  "properties": {
+    "assessment_id": {
+      "type": "string"
+    },
+    "organization_id": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "processing",
+        "completed",
+        "failed"
+      ],
+      "default": "queued"
+    },
+    "file_index": {
+      "type": "number",
+      "default": 0
+    },
+    "file_count": {
+      "type": "number",
+      "default": 0
+    },
+    "extracted_results": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "current_file": {
+      "type": "string"
+    },
+    "error": {
+      "type": "string"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "assessment_id",
+    "organization_id",
+    "status"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
