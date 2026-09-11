@@ -114,7 +114,7 @@ Deno.serve(async(req)=>{
   const pentestScore=clamp(100+pItems.reduce((s,i)=>s+i.points,0));
   const allOrganizationRows=(await base44.asServiceRole.entities.CCIAssessment.filter({organization_id:orgId})).filter((row:any)=>row.status==="completed"&&row.report_fingerprint!==reportFingerprint);
   const priorFindingKeys=new Set(allOrganizationRows.flatMap((row:any)=>[...(row.vulnerability_findings||[]),...(row.pentest_findings||[])].map(normalizedFindingKey).filter(Boolean)));
-  const repeatItems=[...vf,...pf].filter((f:any)=>priorFindingKeys.has(normalizedFindingKey(f))).map((f:any)=>({label:`Repeated unresolved finding: ${f.title||f.name}`,points:-(sev(f.severity)==="critical"?20:sev(f.severity)==="high"?10:sev(f.severity)==="medium"?5:0),category:"Repeat Finding"})).filter((item:any)=>item.points<0);
+  const repeatItems=[...vf,...pf].filter((f:any)=>priorFindingKeys.has(normalizedFindingKey(f))&&!/resolved|remediated|closed|fixed/i.test(String(f.status||""))).map((f:any)=>({label:`Repeated unresolved finding: ${f.title||f.name}`,points:-(sev(f.severity)==="critical"?20:sev(f.severity)==="high"?10:sev(f.severity)==="medium"?5:0),category:"Repeat Finding"})).filter((item:any)=>item.points<0);
   const repeatFindingPenalty=Math.min(150,repeatItems.reduce((sum,item)=>sum+Math.abs(item.points),0));
   const concentratedExposureCount=[...vf,...pf].filter((f:any)=>["critical","high"].includes(sev(f.severity))).length+successes.length;
   const exposureConcentrationPenalty=concentratedExposureCount>=8?100:concentratedExposureCount>=5?60:concentratedExposureCount>=3?30:0;
