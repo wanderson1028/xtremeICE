@@ -1,9 +1,9 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.40";
 
-const BASELINE = 650;
-const MIN_SCORE = 300;
-const MAX_SCORE = 850;
-const MODEL_VERSION = "CCI-RATING-2026.1";
+const BASELINE = 600;
+const MIN_SCORE = -500;
+const MAX_SCORE = 1000;
+const MODEL_VERSION = "CFRS-RATING-2026.11";
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -16,23 +16,25 @@ const normalizeInput = (value: unknown) => {
 
 const adjustment = (score: number | null, positiveMax: number, negativeMax: number) => {
   if (score === null) return 0;
-  return score >= 65
-    ? ((score - 65) / 35) * positiveMax
-    : ((score - 65) / 65) * negativeMax;
+  return score >= 70
+    ? ((score - 70) / 30) * positiveMax
+    : -((70 - score) / 70) * negativeMax;
 };
 
 const bandFor = (score: number) => {
-  if (score >= 800) return "Exceptional";
-  if (score >= 740) return "Strong";
-  if (score >= 670) return "Good";
-  if (score >= 600) return "Fair";
-  if (score >= 500) return "High Risk";
-  return "Critical";
+  if (score >= 900) return "Exceptional";
+  if (score >= 750) return "Strong";
+  if (score >= 600) return "Good";
+  if (score >= 450) return "Fair";
+  if (score >= 250) return "Poor";
+  if (score >= 1) return "Critical";
+  if (score >= -249) return "Distressed";
+  return "Extreme Risk";
 };
 
 const calculate = (vulscanScore: number | null, vpentestScore: number | null) => {
-  const vulscanAdjustment = adjustment(vulscanScore, 110, 190);
-  const vpentestAdjustment = adjustment(vpentestScore, 90, 160);
+  const vulscanAdjustment = adjustment(vulscanScore, 150, 300);
+  const vpentestAdjustment = adjustment(vpentestScore, 200, 350);
   const finalScore = Math.round(clamp(BASELINE + vulscanAdjustment + vpentestAdjustment, MIN_SCORE, MAX_SCORE));
   return {
     baseline_score: BASELINE,
@@ -44,13 +46,13 @@ const calculate = (vulscanScore: number | null, vpentestScore: number | null) =>
         score: vulscanScore,
         adjustment: Math.round(vulscanAdjustment),
         status: vulscanScore === null ? "pending" : "included",
-        weight: "Vulnerability posture · up to +110 / -190 points"
+        weight: "Vulnerability posture · up to +150 / -300 points"
       },
       vpentest: {
         score: vpentestScore,
         adjustment: Math.round(vpentestAdjustment),
         status: vpentestScore === null ? "pending" : "included",
-        weight: "Validated attack resilience · up to +90 / -160 points"
+        weight: "Validated attack resilience · up to +200 / -350 points"
       }
     },
     data_completeness: [vulscanScore, vpentestScore].filter(value => value !== null).length / 2
