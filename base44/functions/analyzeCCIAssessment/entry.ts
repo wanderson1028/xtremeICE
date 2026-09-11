@@ -1,6 +1,6 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.40";
 
-const BASELINE=600, MIN=-500, MAX=1000, VERSION="CFRS-ASSESS-2026.11";
+const BASELINE=600, MIN=-500, MAX=1000, VERSION="CFRS-ASSESS-2026.12";
 const clamp=(n:number,a=0,b=100)=>Math.min(b,Math.max(a,n));
 const sev=(s:unknown)=>String(s||"informational").toLowerCase();
 const band=(n:number)=>n>=900?"Exceptional":n>=750?"Strong":n>=600?"Good":n>=450?"Fair":n>=250?"Poor":n>=1?"Critical":n>=-249?"Distressed":"Extreme Risk";
