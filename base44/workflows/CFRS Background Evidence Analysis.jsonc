@@ -1,0 +1,45 @@
+{
+  "description": "Processes one administrator-authorized CFRS evidence document per run.",
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "cfrs_background_evidence_analysis",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "process_evidence": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "processCCIEvidenceAnalysis",
+            "args": {}
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Process CFRS evidence",
+            "description": "Process one document from an authorized evidence job"
+          }
+        }
+      }
+    ]
+  },
+  "name": "CFRS Background Evidence Analysis",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "*/5 * * * *",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  }
+}
