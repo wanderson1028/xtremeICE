@@ -11,7 +11,7 @@
     },
     "baseline_score": {
       "type": "number",
-      "default": 650
+      "default": 600
     },
     "vulscan_score": {
       "type": "number",
