@@ -133,6 +133,10 @@
     "executive_summary": {
       "type": "string"
     },
+    "executive_score_explanation": {
+      "type": "object",
+      "description": "Evidence-grounded board-level explanation of the CFRS result, its principal drivers, and management priorities"
+    },
     "primary_deduction": {
       "type": "string"
     },
