@@ -145,6 +145,22 @@
         "type": "string"
       }
     },
+    "evidence_analysis_status": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "processing",
+        "completed",
+        "failed",
+        "not_required"
+      ]
+    },
+    "evidence_analysis_progress": {
+      "type": "number"
+    },
+    "evidence_analysis_message": {
+      "type": "string"
+    },
     "calculation_version": {
       "type": "string"
     },
