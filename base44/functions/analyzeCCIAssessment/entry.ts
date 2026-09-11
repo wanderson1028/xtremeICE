@@ -31,10 +31,10 @@ Deno.serve(async(req)=>{
    revisionOf=matches[0];
    if(!revisionOf||String(revisionOf.organization_id)!==orgId)return Response.json({error:"The selected assessment cannot be revised for this organization"},{status:403});
   }
-  const reportFingerprint=apiImport?`vpentest:${apiImport.company_id}:${apiImport.assessment_id}`:files.map((f:any)=>`${f.category}:${f.name}:${f.size||0}:${f.last_modified||0}`).sort().join("|");
+  const reportFingerprint=backgroundFinalize&&revisionOf?revisionOf.report_fingerprint:(apiImport?`vpentest:${apiImport.company_id}:${apiImport.assessment_id}`:files.map((f:any)=>`${f.category}:${f.name}:${f.size||0}:${f.last_modified||0}`).sort().join("|"));
   // vPenTest API imports already contain normalized findings and activities. Keep report URLs for audit/drill-down, but do not re-download and AI-extract the same PDFs during the request.
   const extractionTargets=apiImport?[]:(revisionOf?files.filter((f:any)=>f.new_upload===true):files);
-  if(revisionOf&&!extractionTargets.length&&!apiImport)return Response.json({error:"No new evidence or replacement report was provided"},{status:400});
+  if(revisionOf&&!extractionTargets.length&&!apiImport&&!backgroundFinalize)return Response.json({error:"No new evidence or replacement report was provided"},{status:400});
   const prior=await base44.asServiceRole.entities.CCIAssessment.filter({organization_id:orgId,report_fingerprint:reportFingerprint,calculation_version:VERSION,status:"completed"});
   if(prior[0]&&!backgroundFinalize)return Response.json({success:true,assessment:prior[0],reused:true});
   const importedFindings=(apiImport?.findings||[]).filter((f:any)=>f?.title);
