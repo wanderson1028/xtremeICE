@@ -1,8 +1,8 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.40";
 
-const BASELINE=600, MIN=-500, MAX=1000, VERSION="CFRS-ASSESS-2026.12";
+const BASELINE=600, MIN=-500, MAX=1000, VERSION="CFRS-ASSESS-2026.13";
 const clamp=(n:number,a=0,b=100)=>Math.min(b,Math.max(a,n));
-const sev=(s:unknown)=>String(s||"informational").toLowerCase();
+const sev=(s:unknown)=>{const value=String(s||"informational").toLowerCase().trim();if(/critical|severe/.test(value))return"critical";if(/high/.test(value))return"high";if(/medium|moderate/.test(value))return"medium";if(/low/.test(value))return"low";return"informational";};
 const band=(n:number)=>n>=900?"Exceptional":n>=750?"Strong":n>=600?"Good":n>=450?"Fair":n>=250?"Poor":n>=1?"Critical":n>=-249?"Distressed":"Extreme Risk";
 const postureAdjustment=(score:number,positive:number,negative:number)=>score>=70?((score-70)/30)*positive:-((70-score)/70)*negative;
 const normalizedFindingKey=(f:any)=>String(f.id||f.title||f.name||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
