@@ -160,9 +160,9 @@ Deno.serve(async(req)=>{
   const priorities=Array.from(new Set([
    ...(validatedAttackPenalty?["Require executive ownership for the attack paths that produced verified successful outcomes, then validate closure through retesting."]:[]),
    ...(repeatFindingPenalty?["Assign deadlines and accountable owners to recurring issues so they do not continue to weaken the organization’s risk position."]:[]),
-   ...(vulnerabilityScore<70?["Prioritize remediation of the highest-impact vulnerabilities and verify that corrective actions reduce measurable exposure."]:[]),
+   ...(vulnerabilityAssessed&&Number(vulnerabilityScore)<70?["Prioritize remediation of the highest-impact vulnerabilities and verify that corrective actions reduce measurable exposure."]:[]),
    ...(pentestScore<70?["Strengthen preventive and detective controls against the attack paths demonstrated during penetration testing."]:[]),
-   ...(!validatedAttackPenalty&&!repeatFindingPenalty&&vulnerabilityScore>=70&&pentestScore>=70?["Maintain the current assessment and remediation cadence, with leadership review of any material changes."]:[])
+   ...(!validatedAttackPenalty&&!repeatFindingPenalty&&(!vulnerabilityAssessed||Number(vulnerabilityScore)>=70)&&pentestScore>=70?["Maintain the current assessment and remediation cadence, with leadership review of any material changes."]:[])
   ])).slice(0,3);
   const executiveScoreExplanation={headline:`${String(b.business_name).trim()} has an assessment CFRS of ${finalScore}, rated ${rating}.`,summary:`This assessment reflects the combined effect of vulnerability exposure, demonstrated attack resilience, verified remediation, recurring issues, and historical performance. ${movement<0?"The current evidence indicates elevated potential for operational disruption and warrants focused management attention.":"The current evidence indicates comparatively stronger risk control, subject to continued validation and remediation discipline."}`,key_pressures:pressureDrivers.slice(0,3),key_strengths:strengthDrivers.slice(0,3),executive_priorities:priorities,method_note:"This explanation is generated only from scored assessment evidence and does not estimate unsupported financial loss."};
   const storedReportFiles=reportFiles.map(({new_upload,...f}:any)=>f), storedEvidenceFiles=evidenceFiles.map(({new_upload,...f}:any)=>f);
