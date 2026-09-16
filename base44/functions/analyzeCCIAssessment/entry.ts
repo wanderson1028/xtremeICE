@@ -1,6 +1,6 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.40";
 
-const BASELINE=600, MIN=-500, MAX=1000, VERSION="CFRS-ASSESS-2026.15";
+const BASELINE=600, MIN=-500, MAX=1000, VERSION="CFRS-ASSESS-2026.16";
 const clamp=(n:number,a=0,b=100)=>Math.min(b,Math.max(a,n));
 const sev=(s:unknown)=>{const value=String(s||"informational").toLowerCase().trim();if(/critical|severe/.test(value))return"critical";if(/high/.test(value))return"high";if(/medium|moderate/.test(value))return"medium";if(/low/.test(value))return"low";return"informational";};
 const band=(n:number)=>n>=900?"Exceptional":n>=750?"Strong":n>=600?"Good":n>=450?"Fair":n>=250?"Poor":n>=1?"Critical":n>=-249?"Distressed":"Extreme Risk";
@@ -112,7 +112,8 @@ Deno.serve(async(req)=>{
   ];
   const outcomeItems=outcomeRules.filter(rule=>successes.some((a:any)=>rule.match.test(`${a.name||""} ${a.outcome||""} ${a.evidence||""}`))).map(rule=>({label:rule.label,points:-rule.points,category:"Validated Attack Outcome"}));
   const validatedAttackPenalty=Math.min(400,outcomeItems.reduce((sum,item)=>sum+Math.abs(item.points),0));
-  const vulnerabilityAssessed=vf.length>0||reportFiles.some((f:any)=>f.category==="vulnerability_report");
+  const vulnerabilityReportAnalyzed=extracted.some((d:any)=>d.category==="vulnerability_report"&&Array.isArray(d.vulnerability_findings));
+  const vulnerabilityAssessed=vf.length>0||vulnerabilityReportAnalyzed;
   const vulnerabilityScore=vulnerabilityAssessed?clamp(100+vItems.reduce((s,i)=>s+i.points,0)):null;
   const pentestScore=clamp(100+pItems.reduce((s,i)=>s+i.points,0));
   const allOrganizationRows=(await base44.asServiceRole.entities.CCIAssessment.filter({organization_id:orgId})).filter((row:any)=>row.status==="completed"&&row.report_fingerprint!==reportFingerprint);
