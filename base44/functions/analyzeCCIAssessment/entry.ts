@@ -1,6 +1,6 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.40";
 
-const BASELINE=600, MIN=-500, MAX=1000, VERSION="CFRS-ASSESS-2026.14";
+const BASELINE=600, MIN=-500, MAX=1000, VERSION="CFRS-ASSESS-2026.15";
 const clamp=(n:number,a=0,b=100)=>Math.min(b,Math.max(a,n));
 const sev=(s:unknown)=>{const value=String(s||"informational").toLowerCase().trim();if(/critical|severe/.test(value))return"critical";if(/high/.test(value))return"high";if(/medium|moderate/.test(value))return"medium";if(/low/.test(value))return"low";return"informational";};
 const band=(n:number)=>n>=900?"Exceptional":n>=750?"Strong":n>=600?"Good":n>=450?"Fair":n>=250?"Poor":n>=1?"Critical":n>=-249?"Distressed":"Extreme Risk";
@@ -9,6 +9,7 @@ const normalizedFindingKey=(f:any)=>String(f.id||f.title||f.name||"").toLowerCas
 const validDate=(v:unknown)=>{const d=new Date(String(v||""));return Number.isNaN(d.getTime())?null:d;};
 const evidenceDate=(row:any)=>{const direct=validDate(row?.source_assessment_date);if(direct)return direct;const dates=Object.values(row?.assessment_dates||{}).map(validDate).filter(Boolean) as Date[];return dates.length?new Date(Math.max(...dates.map(d=>d.getTime()))):validDate(row?.analyzed_at||row?.created_date)||new Date(0);};
 const uniq=(rows:any[])=>Array.from(new Map((rows||[]).map((r:any)=>[String(r.id||r.title||r.name||JSON.stringify(r)).toLowerCase(),r])).values());
+const uniqFindings=(rows:any[])=>Array.from(new Map((rows||[]).map((r:any)=>[`${String(r.title||r.name||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim()}|${sev(r.severity)}`,r])).values());
 
 Deno.serve(async(req)=>{
  try{
@@ -38,11 +39,12 @@ Deno.serve(async(req)=>{
   if(revisionOf&&!extractionTargets.length&&!apiImport&&!backgroundFinalize)return Response.json({error:"No new evidence or replacement report was provided"},{status:400});
   const prior=await base44.asServiceRole.entities.CCIAssessment.filter({organization_id:orgId,report_fingerprint:reportFingerprint,calculation_version:VERSION,status:"completed"});
   if(prior[0]&&!backgroundFinalize)return Response.json({success:true,assessment:prior[0],reused:true});
-  const importedFindings=(apiImport?.findings||[]).filter((f:any)=>f?.title);
+  const importedFindings=uniqFindings((apiImport?.findings||[]).filter((f:any)=>f?.title));
   const isVulScan=(f:any)=>/vulscan|vulnerability\s*(assessment|scan)|scanner/i.test(`${f.source||""} ${f.assessment_type||""} ${f.category||""}`);
   const importedVulnerabilities=importedFindings.filter(isVulScan), importedPentestFindings=importedFindings.filter((f:any)=>!isVulScan(f));
   const importedActivities=(apiImport?.activities||[]).filter((a:any)=>a?.name&&a?.evidence);
-  const findingActivities=importedFindings.filter((f:any)=>f.mitre_technique_id||f.status).map((f:any)=>({name:f.title,status:/success|exploited|confirmed/i.test(String(f.status||""))?"successful":"attempted",evidence:f.evidence||"Imported vPenTest finding",affected_asset:f.asset||"",mitre_technique_id:f.mitre_technique_id||"",mitre_technique_name:f.mitre_technique_name||"",mitre_tactic:f.mitre_tactic||""}));
+  const validatedAttackFinding=(f:any)=>!isVulScan(f)&&["critical","high","medium"].includes(sev(f.severity))&&/spoof|poison|relay|credential|anonymous\s+ftp|null session|remote code execution|\brce\b|shell|injection|authentication bypass|privilege|lateral movement|exfiltrat|code execution/i.test(`${f.title||""} ${f.status||""}`);
+  const findingActivities=importedFindings.filter((f:any)=>validatedAttackFinding(f)||f.mitre_technique_id||f.status).map((f:any)=>{const validated=validatedAttackFinding(f)||/success|exploited|confirmed/i.test(String(f.status||""));return{name:f.title,status:validated?"successful":"attempted",outcome:validated?"Validated penetration-test finding":"Test activity documented without a confirmed successful outcome",evidence:f.evidence||"Imported vPenTest finding",affected_asset:f.asset||"",mitre_technique_id:f.mitre_technique_id||"",mitre_technique_name:f.mitre_technique_name||"",mitre_tactic:f.mitre_tactic||""};});
   const extracted:any[]=[...(apiImport?[{category:"technical_report",name:`vPenTest · ${apiImport.assessment_name||apiImport.assessment_id}`,report_date:apiImport.assessment_date||"",vulnerability_findings:importedVulnerabilities,pentest_findings:importedPentestFindings,attack_evidence:[...importedActivities,...findingActivities],warnings:apiImport.warnings||[]}]:[]),...(backgroundFinalize&&Array.isArray(b.pre_extracted)?b.pre_extracted:[])];
   for(const file of extractionTargets){
    const category=String(file.category||"report");
@@ -74,7 +76,7 @@ Deno.serve(async(req)=>{
   const newP=extracted.filter(d=>d.category==="technical_report").flatMap(d=>(d.pentest_findings||[]).map((f:any)=>({...f,source_report:d.name}))).filter((f:any)=>f.title&&f.severity);
   const fallbackNewP=extracted.flatMap(d=>(d.pentest_findings||[]).map((f:any)=>({...f,source_report:d.name}))).filter((f:any)=>f.title&&f.severity);
   const rawP=[...previousP,...(newP.length?newP:fallbackNewP)];
-  const vf=uniq(rawV), pf=uniq(rawP);
+  const vf=uniqFindings(rawV), pf=uniqFindings(rawP);
   const attackRows=[...previousAttacks,...extracted.flatMap(d=>(d.attack_evidence||[]).map((q:any)=>({...q,source_report:d.name})))].filter((q:any)=>q.name&&q.evidence);
   const assessment_dates:any={...(revisionOf?.assessment_dates||{})};
   for(const d of extracted)if(d.report_date){
@@ -98,7 +100,7 @@ Deno.serve(async(req)=>{
   const publicAdmin=pf.some((f:any)=>f.external_management_exposed===true);
   if(publicAdmin)pItems.push({label:"Publicly exposed remote administration",points:-12,source:"Validated control exposure"});
   const correlate=(r:any)=>{const s=`${r.name||""} ${r.mitre_technique_name||""} ${r.evidence||""}`.toLowerCase();if(/ransom|encrypt.*impact/.test(s))return"Ransomware";if(/spear.?phish|phish/.test(s))return"Spearphishing";if(/password|credential|brute.?force|spray/.test(s))return"Credential Attack";if(/sql injection|cross.?site|xss|web application/.test(s))return"Web Application Attack";if(/privilege|elevat/.test(s))return"Privilege Escalation";if(/lateral/.test(s))return"Lateral Movement";if(/exfil|data theft/.test(s))return"Data Exfiltration";if(/persist/.test(s))return"Persistence";if(/command and control|c2|c&c/.test(s))return"Command and Control";if(/denial|ddos|dos attack/.test(s))return"Denial of Service";if(/malware|payload|shellcode/.test(s))return"Malware Execution";if(/exploit/.test(s))return"Exploitation";if(/vulnerab/.test(s))return"Vulnerability Discovery";if(/scan|discover|enumerat|nmap|traceroute|dns|whois/.test(s))return"Network Reconnaissance";if(/cloud/.test(s))return"Cloud Attack";if(/wireless|wifi|wi-fi/.test(s))return"Wireless Attack";return"Security Testing";};
-  const attacks=uniq(x.attack_evidence||[]).map((r:any)=>{const text=`${r.name||""} ${r.outcome||""} ${r.evidence||""}`;const discovery=/scan|discover|enumerat|recon|nmap|traceroute|dns|whois|vulnerabilit/i.test(text);const compromise=/unauthorized access|access gained|shell obtained|compromised|credential.*captured|privilege.*(gained|escalat)|lateral movement.*(achieved|successful)|exfiltrat|code execution|control bypass|exploit.*successful/i.test(text);return{...r,attack_correlation_type:r.attack_correlation_type||correlate(r),status:String(r.status).toLowerCase()==="successful"&&(!discovery||compromise)?"successful":"attempted"};});
+  const attacks=uniq(x.attack_evidence||[]).map((r:any)=>{const text=`${r.name||""} ${r.outcome||""} ${r.evidence||""}`;const discovery=/scan|discover|enumerat|recon|nmap|traceroute|dns|whois|vulnerabilit/i.test(text);const compromise=/unauthorized access|access gained|shell obtained|compromised|credential.*captured|privilege.*(gained|escalat)|lateral movement.*(achieved|successful)|exfiltrat|code execution|control bypass|exploit.*successful|validated penetration-test finding|spoof|poison|relay/i.test(text);return{...r,attack_correlation_type:r.attack_correlation_type||correlate(r),status:String(r.status).toLowerCase()==="successful"&&(!discovery||compromise)?"successful":"attempted"};});
   const successes=attacks.filter((r:any)=>r.status==="successful");
   const outcomeRules=[
    {match:/unauthorized|initial access|shell|foothold/i,label:"Unauthorized access achieved",points:75},
