@@ -379,7 +379,7 @@ export default function TerminalSimulator({ suggestedCommands = [], onCommandRun
 
       {/* Input row */}
       <div className="flex items-center gap-2 px-4 py-3 border-t border-border bg-[#0d1117]">
-        <span className="text-green-400 shrink-0 text-[11px]">┌──(kali㉿lab)-[~]<br />└─$</span>
+        <span className="text-green-400 shrink-0 text-[11px]">┌──(student㉿{deviceHost})-[~]<br />└─$</span>
         <input
           ref={inputRef}
           type="text"
