@@ -239,8 +239,11 @@ function resolveCommand(raw) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function TerminalSimulator({ suggestedCommands = [], onCommandRun }) {
+export default function TerminalSimulator({ suggestedCommands = [], onCommandRun, activeDevice }) {
+  const deviceName = activeDevice?.name || "Lab Workstation";
+  const deviceHost = deviceName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "lab";
   const [history, setHistory] = useState([
+    { type: "system", text: `Connected to ${deviceName}${activeDevice?.ip ? ` (${activeDevice.ip})` : ""}` },
     { type: "system", text: "Kali Linux 2023.4 — Lab Terminal Simulator" },
     { type: "system", text: "Type 'help' to see available commands. Type a command and press Enter." },
     { type: "system", text: "─────────────────────────────────────────────────────────────────" },
@@ -311,7 +314,7 @@ export default function TerminalSimulator({ suggestedCommands = [], onCommandRun
             <div className="h-3 w-3 rounded-full bg-green-500/80" />
           </div>
           <span className="text-muted-foreground text-[11px] ml-2 flex items-center gap-1.5">
-            <Terminal className="h-3 w-3" /> kali@lab:~
+            <Terminal className="h-3 w-3" /> student@{deviceHost}:~
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -359,7 +362,7 @@ export default function TerminalSimulator({ suggestedCommands = [], onCommandRun
           <div key={i}>
             {line.type === "input" && (
               <div className="flex items-start gap-2">
-                <span className="text-green-400 shrink-0">┌──(kali㉿lab)-[~]<br />└─$</span>
+                <span className="text-green-400 shrink-0">┌──(student㉿{deviceHost})-[~]<br />└─$</span>
                 <span className="text-white ml-1">{line.text}</span>
               </div>
             )}
