@@ -443,5 +443,63 @@ export const COMPTIA_LABS = [
   },
 ];
 
+export const AZURE_LABS = [
+  {
+    id: "az900-domain1",
+    route: "/labs/az900-domain1",
+    title: "AZ-900 D1: Cloud Concepts",
+    description: "Explore cloud deployment models (public, private, hybrid), service models (IaaS, PaaS, SaaS), cloud benefits, pricing models, TCO analysis, and Azure Marketplace through interactive dashboard exercises.",
+    difficulty: "Beginner",
+    duration: 40,
+    category: "Cloud Training",
+    subCategory: "Microsoft Azure",
+    tags: ["Microsoft", "Azure", "AZ-900", "Cloud Concepts", "IaaS/PaaS/SaaS"],
+  },
+  {
+    id: "az900-domain2",
+    route: "/labs/az900-domain2",
+    title: "AZ-900 D2: Azure Core Services",
+    description: "Provision virtual machines, create virtual networks, deploy storage accounts, configure Azure SQL Database, deploy App Service web apps, and explore AKS through a simulated Azure Portal interface.",
+    difficulty: "Beginner",
+    duration: 50,
+    category: "Cloud Training",
+    subCategory: "Microsoft Azure",
+    tags: ["Microsoft", "Azure", "AZ-900", "VMs", "Storage", "App Service"],
+  },
+  {
+    id: "az900-domain3",
+    route: "/labs/az900-domain3",
+    title: "AZ-900 D3: Architecture & Core Solutions",
+    description: "Design resilient architectures using regions, availability zones, resource groups, load balancers, VNet peering, and disaster recovery through an interactive drag-and-drop canvas.",
+    difficulty: "Intermediate",
+    duration: 50,
+    category: "Cloud Training",
+    subCategory: "Microsoft Azure",
+    tags: ["Microsoft", "Azure", "AZ-900", "Architecture", "Availability Zones", "DR"],
+  },
+  {
+    id: "az900-domain4",
+    route: "/labs/az900-domain4",
+    title: "AZ-900 D4: Management & Governance",
+    description: "Explore cost management, configure RBAC role assignments, apply Azure Policy, set up monitoring alerts, use ARM templates, and review Azure Advisor recommendations through portal and dashboard exercises.",
+    difficulty: "Intermediate",
+    duration: 55,
+    category: "Cloud Training",
+    subCategory: "Microsoft Azure",
+    tags: ["Microsoft", "Azure", "AZ-900", "RBAC", "Policy", "Cost Management"],
+  },
+  {
+    id: "az900-domain5",
+    route: "/labs/az900-domain5",
+    title: "AZ-900 D5: Security, Privacy & Compliance",
+    description: "Review Defender for Cloud security posture, configure Microsoft Entra ID identity, implement Network Security Groups, explore Azure Key Vault, review compliance offerings, and implement data protection.",
+    difficulty: "Intermediate",
+    duration: 55,
+    category: "Cloud Training",
+    subCategory: "Microsoft Azure",
+    tags: ["Microsoft", "Azure", "AZ-900", "Security", "Entra ID", "Compliance"],
+  },
+];
+
 export { LINUX_LABS } from "./linuxLabData";
 export { POWERSHELL_LABS } from "./powershellLabData";

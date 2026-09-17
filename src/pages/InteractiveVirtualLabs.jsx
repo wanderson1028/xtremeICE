@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Clock, ChevronRight, Tag, Terminal, CheckCircle2, Search, X, ChevronDown, BookOpen, Filter, Cloud, Award } from "lucide-react";
-import { VIRTUAL_LABS, LINUX_LABS, POWERSHELL_LABS, LAB_COURSES, AWS_CLOUD_LABS, COMPTIA_LABS } from "@/lib/labCatalog";
+import { VIRTUAL_LABS, LINUX_LABS, POWERSHELL_LABS, LAB_COURSES, AWS_CLOUD_LABS, COMPTIA_LABS, AZURE_LABS } from "@/lib/labCatalog";
 import { useTranslation } from "react-i18next";
 
 function CategoryDropdown({ categories, onSelect }) {
@@ -128,6 +128,8 @@ export default function InteractiveVirtualLabs() {
   const visibleCompTIALabs = applyFilters(isAdmin || !hasAssignments ? COMPTIA_LABS : COMPTIA_LABS.filter(l => assignedIds.has(l.id)));
   const secPlusLabs        = visibleCompTIALabs.filter(l => l.subCategory === "CompTIA Security+");
   const netPlusLabs        = visibleCompTIALabs.filter(l => l.subCategory === "CompTIA Network+");
+  const visibleAzureLabs   = applyFilters(isAdmin || !hasAssignments ? AZURE_LABS : AZURE_LABS.filter(l => assignedIds.has(l.id)));
+  const az900Labs          = visibleAzureLabs.filter(l => l.subCategory === "Microsoft Azure");
 
   const LabCard = ({ lab, icon, accentColor = "red" }) => {
     const isCompleted = completedTitles.has(lab.title);
@@ -338,6 +340,28 @@ export default function InteractiveVirtualLabs() {
                     </div>
                   </div>
                 )}
+
+                {/* Microsoft Azure sub-header */}
+                <div className="flex items-center gap-2 mb-4 mt-6 pl-5">
+                  <Cloud className="h-4 w-4" style={{ color: "#0078D4" }} />
+                  <span className="text-sm font-medium" style={{ color: "#0078D4" }}>Microsoft Azure</span>
+                </div>
+
+                {/* AZ-900 — Azure Fundamentals */}
+                {az900Labs.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3 pl-8">
+                      <span className="h-1 w-1 rounded-full" style={{ backgroundColor: "#0078D4" }} />
+                      <span className="text-xs font-mono font-semibold" style={{ color: "#50A0E0" }}>Azure Fundamentals (AZ-900)</span>
+                      <span className="text-xs text-gray-500">({az900Labs.length})</span>
+                    </div>
+                    <div className="grid gap-5 sm:grid-cols-2">
+                      {az900Labs.map(lab => (
+                        <LabCard key={lab.id} lab={lab} icon={<Cloud className="h-5 w-5" style={{ color: "#0078D4" }} />} accentColor="amber" />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -396,7 +420,7 @@ export default function InteractiveVirtualLabs() {
           </div>
         )}
 
-        {visibleNetworkLabs.length === 0 && visibleLinuxLabs.length === 0 && visiblePSLabs.length === 0 && visibleCourseLabs.length === 0 && visibleAwsLabs.length === 0 && visibleCompTIALabs.length === 0 && (
+        {visibleNetworkLabs.length === 0 && visibleLinuxLabs.length === 0 && visiblePSLabs.length === 0 && visibleCourseLabs.length === 0 && visibleAwsLabs.length === 0 && visibleAzureLabs.length === 0 && visibleCompTIALabs.length === 0 && (
           <div className="text-center py-16 text-gray-500">
             {t("activeLabs.noLabs")}
           </div>
