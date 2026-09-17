@@ -35,6 +35,6 @@ const DEVICE_PATHS = {
 };
 
 export default function InfrastructureDeviceIcon({ type, className = "h-5 w-5", size = 1 }) {
-  const path = type === "workstation" ? mdiDevices : DEVICE_PATHS[type] || mdiDevices;
+  const path = DEVICE_PATHS[type] || mdiDevices;
   return <Icon path={path} size={size} className={className} aria-hidden="true" />;
 }
