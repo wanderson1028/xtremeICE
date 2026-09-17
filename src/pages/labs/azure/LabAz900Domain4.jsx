@@ -133,6 +133,41 @@ const steps = [
     nextStepDirections: "Finally, let's review Azure Advisor recommendations.",
   },
   {
+    stepLabel: "Configure an Azure Policy & RBAC",
+    explanation: "Now let's simulate configuring an Azure Policy assignment and a RBAC role assignment — the core governance tools in Azure. You'll set the policy scope, effect, name, and assign the right RBAC role to a team member, plus enable a monitoring alert.",
+    whyItMatters: "AZ-900 tests whether you know how Azure Policy enforces compliance (Deny/Audit effects) and how RBAC controls access (Owner/Contributor/Reader). Policy prevents non-compliant resources from being created; RBAC limits what users can do with existing resources.",
+    interaction: {
+      type: "config",
+      title: "Configure Governance Controls",
+      description: "Contoso needs to enforce a policy that blocks VMs in non-approved regions, and grant a developer the right access to manage resources. Configure the policy and RBAC assignment.",
+      sections: [
+        {
+          title: "Azure Policy Assignment",
+          fields: [
+            { id: "scope", label: "Policy scope", type: "select", options: ["Management Group", "Subscription", "Resource Group", "Individual Resource"], expected: "Subscription", hint: "Apply the policy at subscription level to cover all resource groups", required: true, correctFeedback: "Subscription scope covers all resources beneath it", wrongFeedback: "Resource Group scope is too narrow; Management Group is too broad for this case" },
+            { id: "effect", label: "Policy effect", type: "select", options: ["Deny", "Audit", "Disabled", "Append"], expected: "Deny", hint: "Block VMs in non-approved regions from being created", required: true, correctFeedback: "Deny prevents non-compliant resources from being created", wrongFeedback: "Audit only logs violations without blocking them" },
+            { id: "policyName", label: "Policy assignment name", type: "text", placeholder: "e.g. allowed-regions-policy", expectedRegex: "^[a-zA-Z0-9_-]{3,64}$", hint: "3-64 characters, letters/numbers/hyphens/underscores", required: true, correctFeedback: "Valid policy assignment name", wrongFeedback: "Must be 3-64 chars with letters, numbers, hyphens, or underscores" },
+          ],
+        },
+        {
+          title: "RBAC Role Assignment",
+          fields: [
+            { id: "role", label: "RBAC role for developer", type: "select", options: ["Owner", "Contributor", "Reader", "User Access Administrator"], expected: "Contributor", hint: "Developer needs to create/manage resources but not manage access", required: true, correctFeedback: "Contributor can manage resources but not access assignments", wrongFeedback: "Owner can manage access — too much privilege for a developer; Reader can't create resources" },
+            { id: "alert", label: "Enable cost alert when spend exceeds budget", type: "toggle", expected: true, hint: "Notify the team when monthly spend crosses the threshold", correctFeedback: "Cost alerts are a governance best practice", wrongFeedback: "Cost alerts should be enabled to catch overspending" },
+          ],
+        },
+      ],
+      feedback: "Governance configured correctly! Policy denies non-approved region VMs at subscription scope, developer has Contributor role, and cost alerts are enabled.",
+    },
+    question: {
+      text: "You need to prevent developers from creating VMs in regions that are not approved by your company. You also need to give a developer the ability to create and manage resources without letting them manage access for others. What should you configure?",
+      options: ["Azure Policy with Audit effect + Owner role", "Azure Policy with Deny effect at Subscription scope + Contributor role", "Azure Policy with Append effect + Reader role", "RBAC only — no policy needed + User Access Administrator"],
+      correctIndex: 1,
+      explanation: "Azure Policy with a Deny effect at the Subscription scope prevents any VM from being created in non-approved regions — the creation request is blocked. The Contributor role allows the developer to create and manage resources but does not allow them to manage role assignments (unlike Owner). Audit effect only logs violations without blocking them, which doesn't prevent non-compliant resources.",
+    },
+    nextStepDirections: "You've configured complete governance controls. You're ready for Domain 5: Security, Privacy & Compliance.",
+  },
+  {
     stepLabel: "Review Azure Advisor",
     explanation: "Azure Advisor analyzes your Azure resources and provides personalized recommendations across five categories: Cost, Security, Reliability, Operational Excellence, and Performance. It's a free service that helps you follow Azure best practices.",
     whyItMatters: "AZ-900 tests whether you know the five Advisor categories and that Advisor is free. It proactively identifies issues like unsecured storage accounts, underutilized VMs, and missing backup configurations.",

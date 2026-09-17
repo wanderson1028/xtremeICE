@@ -170,6 +170,41 @@ const steps = [
       explanation: "In AKS, Microsoft manages the Kubernetes control plane (API server, scheduler, controller manager, and etcd) at no additional cost. You only pay for the agent nodes (VMs) that run your containers. This is what makes AKS a 'managed' Kubernetes service — you don't need to maintain the complex control plane infrastructure. You still manage the node VMs, your container images, and your application code.",
     },
   },
+  {
+    stepLabel: "Configure a Storage Account",
+    explanation: "Now let's simulate configuring an Azure Storage Account from scratch. You'll set the account name, kind, replication strategy, access tier, and security settings — exactly as you would in the Azure Portal's Create Storage Account wizard.",
+    whyItMatters: "AZ-900 tests whether you know the required and recommended settings for an Azure Storage Account. The name must be globally unique (3-24 chars, lowercase + numbers only). Replication (LRS vs GRS) affects durability. Access tier (Hot/Cool/Archive) affects cost and retrieval latency.",
+    interaction: {
+      type: "config",
+      title: "Create a Storage Account",
+      description: "Configure a new Azure Storage Account for Contoso's document archive. The account must follow Azure naming rules, use geo-redundant replication for durability, and keep costs low for infrequently accessed documents.",
+      sections: [
+        {
+          title: "Basics",
+          fields: [
+            { id: "name", label: "Storage account name", type: "text", placeholder: "e.g. contosodocs2024", expectedRegex: "^[a-z0-9]{3,24}$", hint: "3-24 characters, lowercase letters and numbers only, globally unique", required: true, correctFeedback: "Valid storage account name", wrongFeedback: "Must be 3-24 chars, lowercase + numbers only" },
+            { id: "kind", label: "Account kind", type: "select", options: ["StorageV2 (general purpose v2)", "BlobStorage", "FileStorage", "BlockBlobStorage"], expected: "StorageV2 (general purpose v2)", hint: "GPv2 is the recommended, most versatile account kind", required: true, correctFeedback: "GPv2 is the recommended default", wrongFeedback: "GPv2 is the recommended kind for new storage accounts" },
+          ],
+        },
+        {
+          title: "Replication & Access Tier",
+          fields: [
+            { id: "repl", label: "Replication", type: "select", options: ["LRS (locally redundant)", "GRS (geo-redundant)", "RA-GRS (read-access geo)", "ZRS (zone-redundant)"], expected: "GRS (geo-redundant)", hint: "Contoso needs durability across regions for their document archive", required: true, correctFeedback: "GRS replicates to a second region for disaster recovery", wrongFeedback: "LRS only replicates within a single datacenter" },
+            { id: "tier", label: "Default access tier", type: "select", options: ["Hot", "Cool", "Archive"], expected: "Cool", hint: "Documents are infrequently accessed — Cool tier optimizes cost", required: true, correctFeedback: "Cool tier is cheaper for infrequent access", wrongFeedback: "Hot is expensive for infrequently accessed data; Archive is too slow for occasional retrieval" },
+            { id: "secure", label: "Enable secure transfer required", type: "toggle", expected: true, hint: "Enforce HTTPS for all connections to the storage account", correctFeedback: "Secure transfer is a security best practice", wrongFeedback: "Secure transfer should always be enabled" },
+          ],
+        },
+      ],
+      feedback: "Storage account configured correctly! GPv2 with GRS, Cool tier, and secure transfer enforced.",
+    },
+    question: {
+      text: "You are creating an Azure Storage Account for infrequently accessed backup documents. You need geo-redundant replication for disaster recovery and want to minimize storage cost. Which configuration should you choose?",
+      options: ["StorageV2 + LRS + Hot tier", "StorageV2 + GRS + Cool tier", "BlobStorage + ZRS + Archive tier", "FileStorage + LRS + Hot tier"],
+      correctIndex: 1,
+      explanation: "StorageV2 (GPv2) with GRS (geo-redundant storage) provides replication to a second region for disaster recovery. The Cool access tier is optimized for infrequently accessed data, offering lower storage costs than Hot while still allowing reasonable retrieval latency. Archive would be cheaper but has multi-hour retrieval latency, which may not suit backups that occasionally need quick restore.",
+    },
+    nextStepDirections: "You've configured a complete storage account. You're ready for Domain 3: Azure Architecture.",
+  },
 ];
 
 const intro = {

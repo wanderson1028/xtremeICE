@@ -159,6 +159,44 @@ const steps = [
       explanation: "Azure Information Protection (now part of Microsoft Purview Information Protection) classifies and protects sensitive data by applying sensitivity labels (Public, Internal, Confidential, Secret). Labels can trigger encryption, watermarks, and access restrictions — controlling who can view, edit, print, or forward a document. It also tracks document usage and can revoke access remotely. It's about data-level protection, not VM security, network monitoring, or authentication.",
     },
   },
+  {
+    stepLabel: "Configure a Network Security Group Rule",
+    explanation: "Now let's simulate configuring a Network Security Group (NSG) rule and a Key Vault access policy — the core security configuration tasks in Azure. You'll set the rule name, priority, direction, ports, protocol, action, and configure Key Vault access for an application identity.",
+    whyItMatters: "AZ-900 tests whether you know NSG rule anatomy (priority, direction, source/destination, port, protocol, action) and Key Vault access model (access policies vs RBAC). NSGs control network traffic; Key Vault secures secrets, keys, and certificates.",
+    interaction: {
+      type: "config",
+      title: "Configure Security Controls",
+      description: "Contoso needs to allow HTTPS traffic to their web servers and secure their database connection string in Key Vault. Configure the NSG inbound rule and Key Vault access policy.",
+      sections: [
+        {
+          title: "NSG Inbound Security Rule",
+          fields: [
+            { id: "ruleName", label: "Rule name", type: "text", placeholder: "e.g. Allow-HTTPS-Inbound", expectedRegex: "^[a-zA-Z0-9_-]{3,80}$", hint: "3-80 characters, letters/numbers/hyphens/underscores", required: true, correctFeedback: "Valid rule name", wrongFeedback: "Must be 3-80 chars with letters, numbers, hyphens, or underscores" },
+            { id: "priority", label: "Priority (100-4096, lower = higher priority)", type: "number", placeholder: "e.g. 100", expected: 100, hint: "Lower number = evaluated first; 100 is a common high-priority value", required: true, correctFeedback: "Priority 100 is evaluated before lower-priority rules", wrongFeedback: "100 is the standard high-priority value for allow-HTTPS rules" },
+            { id: "direction", label: "Direction", type: "select", options: ["Inbound", "Outbound"], expected: "Inbound", hint: "We're controlling incoming traffic to the web servers", required: true, correctFeedback: "Inbound rules control traffic coming to the resource", wrongFeedback: "Outbound controls traffic leaving the resource" },
+            { id: "port", label: "Destination port", type: "number", placeholder: "e.g. 443", expected: 443, hint: "HTTPS uses port 443", required: true, correctFeedback: "Port 443 is HTTPS", wrongFeedback: "443 is the standard HTTPS port" },
+            { id: "protocol", label: "Protocol", type: "select", options: ["TCP", "UDP", "Any", "ICMP"], expected: "TCP", hint: "HTTPS runs over TCP", required: true, correctFeedback: "HTTPS uses TCP", wrongFeedback: "HTTPS requires TCP, not UDP" },
+            { id: "action", label: "Action", type: "select", options: ["Allow", "Deny"], expected: "Allow", hint: "We want to permit HTTPS traffic to the web servers", required: true, correctFeedback: "Allow permits the HTTPS traffic", wrongFeedback: "Deny would block HTTPS traffic" },
+          ],
+        },
+        {
+          title: "Key Vault Access Policy",
+          fields: [
+            { id: "kvPerms", label: "Secret permissions for app identity", type: "multiselect", options: ["Get", "List", "Set", "Delete", "Recover", "Purge"], expected: ["Get", "List"], hint: "The app needs to read secrets but not create or delete them (least privilege)", required: true, correctFeedback: "Get + List is least privilege for reading secrets", wrongFeedback: "Set/Delete/Purge are too much privilege — the app only needs to read secrets" },
+            { id: "kvRbac", label: "Use Azure RBAC for Key Vault data plane", type: "toggle", expected: false, hint: "Access policies are used here; RBAC is an alternative model", correctFeedback: "Access policy model is configured", wrongFeedback: "This vault uses access policies, not RBAC" },
+          ],
+        },
+      ],
+      feedback: "Security controls configured correctly! NSG allows HTTPS on port 443/TCP with priority 100, and Key Vault access is limited to Get+List (least privilege).",
+    },
+    question: {
+      text: "You need to allow HTTPS traffic to your web servers and secure a database connection string. Which configuration provides the correct NSG rule and least-privilege Key Vault access for the application?",
+      options: ["Inbound + Port 80 + TCP + Allow + Key Vault: Get, List, Set, Delete", "Inbound + Port 443 + TCP + Allow + Key Vault: Get, List", "Outbound + Port 443 + UDP + Allow + Key Vault: Get, List", "Inbound + Port 443 + TCP + Deny + Key Vault: Get only"],
+      correctIndex: 1,
+      explanation: "HTTPS uses port 443 over TCP. The NSG rule must be Inbound (controlling traffic to the web servers) with Allow action. For Key Vault, least privilege means the application identity should only have Get and List permissions on secrets — not Set, Delete, or Purge, which would allow modifying or removing secrets. Deny would block the traffic, and UDP is wrong for HTTPS. Port 80 is HTTP, not HTTPS.",
+    },
+    nextStepDirections: "You've configured complete security controls. You've finished all AZ-900 domains!",
+  },
 ];
 
 const intro = {

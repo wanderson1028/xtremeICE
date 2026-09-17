@@ -7,6 +7,7 @@ import AzureLabIntro from "./AzureLabIntro";
 import DashboardInteraction from "./DashboardInteraction";
 import PortalInteraction from "./PortalInteraction";
 import CanvasInteraction from "./CanvasInteraction";
+import ConfigInteraction from "./ConfigInteraction";
 
 const AZURE = "#0078D4";
 const POINTS_PER_STEP = 10;
@@ -273,6 +274,7 @@ export default function AzureLabRunner({ labTitle, chapterNum, difficulty, tags 
       case "dashboard": return <DashboardInteraction {...props} />;
       case "portal": return <PortalInteraction {...props} />;
       case "canvas": return <CanvasInteraction {...props} />;
+      case "config": return <ConfigInteraction {...props} />;
       default: return null;
     }
   };

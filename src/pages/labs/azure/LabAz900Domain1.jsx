@@ -122,6 +122,41 @@ const steps = [
     nextStepDirections: "Finally, let's explore the Azure Marketplace and third-party services.",
   },
   {
+    stepLabel: "Configure a Cloud Migration Plan",
+    explanation: "Now let's put it all together. You'll configure a complete cloud migration plan for a fictional company — selecting the deployment model, service model, pricing model, and target region. This simulates the kind of configuration decisions an Azure architect makes when planning a migration.",
+    whyItMatters: "AZ-900 tests whether you can combine multiple cloud concepts into a coherent solution. A real migration plan requires choosing the right deployment model (public/hybrid), service model (IaaS/PaaS), pricing model (reserved/pay-as-you-go), and region — all based on the workload's requirements.",
+    interaction: {
+      type: "config",
+      title: "Cloud Migration Plan Configuration",
+      description: "Configure the migration plan for Contoso Ltd. — a mid-size company migrating their e-commerce platform to Azure. They need high availability, predictable monthly costs, and compliance with EU data residency.",
+      sections: [
+        {
+          title: "Deployment & Service Model",
+          fields: [
+            { id: "deploy", label: "Deployment Model", type: "select", options: ["Public Cloud", "Private Cloud", "Hybrid Cloud"], expected: "Hybrid Cloud", hint: "Contoso must keep their legacy ERP on-premises", required: true, correctFeedback: "Hybrid is correct — they need both cloud and on-prem", wrongFeedback: "They need to keep some workloads on-prem" },
+            { id: "service", label: "Web App Service Model", type: "select", options: ["IaaS (VMs)", "PaaS (App Service)", "SaaS (Shopify)"], expected: "PaaS (App Service)", hint: "They want to focus on code, not OS management", required: true, correctFeedback: "PaaS lets them focus on app code", wrongFeedback: "IaaS means they manage the OS — not ideal here" },
+          ],
+        },
+        {
+          title: "Pricing & Region",
+          fields: [
+            { id: "pricing", label: "Pricing Model (3-year commitment)", type: "select", options: ["Pay-as-you-go", "Reserved (3-year)", "Spot VM"], expected: "Reserved (3-year)", hint: "The e-commerce platform runs 24/7 with predictable load", required: true, correctFeedback: "Reserved saves up to 72% for steady workloads", wrongFeedback: "Pay-as-you-go is more expensive for 24/7 workloads" },
+            { id: "region", label: "Target Region", type: "select", options: ["East US", "West Europe", "Southeast Asia", "East US 2"], expected: "West Europe", hint: "EU data residency requirement", required: true, correctFeedback: "West Europe satisfies EU data residency", wrongFeedback: "US regions don't meet EU data residency requirements" },
+            { id: "marketplace", label: "Use Azure Marketplace for pre-configured monitoring tool", type: "toggle", expected: true, hint: "They need a monitoring solution fast — no time to build from scratch", correctFeedback: "Marketplace speeds up deployment of validated solutions", wrongFeedback: "Building from scratch takes too long" },
+          ],
+        },
+      ],
+      feedback: "Migration plan configured correctly! Contoso will use Hybrid Cloud with PaaS App Service, 3-year reserved pricing, West Europe region, and a Marketplace monitoring solution.",
+    },
+    question: {
+      text: "A company wants to migrate their e-commerce platform to Azure. They need to keep their legacy ERP on-premises, want to focus on application code rather than OS management, and need EU data residency. What should they configure?",
+      options: ["Public Cloud + IaaS + Pay-as-you-go + East US", "Hybrid Cloud + PaaS + Reserved (3-year) + West Europe", "Private Cloud + SaaS + Spot VM + Southeast Asia", "Public Cloud + PaaS + Free Tier + East US 2"],
+      correctIndex: 1,
+      explanation: "Hybrid Cloud keeps the legacy ERP on-premises while using Azure for the web platform. PaaS (App Service) lets them focus on code. Reserved 3-year pricing is best for a 24/7 steady workload. West Europe satisfies EU data residency. This combination addresses all their requirements.",
+    },
+    nextStepDirections: "You've completed all cloud concepts including configuration. You're ready for Domain 2: Azure Core Services.",
+  },
+  {
     stepLabel: "Azure Marketplace & Third-Party Services",
     explanation: "Azure Marketplace is an online store with thousands of pre-configured solutions from Microsoft and third-party partners — including VM images, SaaS apps, managed services, and consulting services. It enables quick deployment of validated solutions without building from scratch.",
     whyItMatters: "AZ-900 tests whether you know what Azure Marketplace offers and when to use it. You can deploy pre-configured VMs (e.g., a WordPress appliance), purchase SaaS apps, or find consulting partners — all through a single marketplace.",

@@ -159,6 +159,41 @@ const steps = [
       explanation: "Azure Backup is a data protection service — it backs up files, VMs, and databases so you can restore them if data is lost or corrupted. Azure Site Recovery is a business continuity service — it continuously replicates entire VMs to a secondary region and can fail over automatically if the primary region goes down. Backup is for data recovery; Site Recovery is for keeping the entire workload running during a regional disaster.",
     },
   },
+  {
+    stepLabel: "Configure a High-Availability Architecture",
+    explanation: "Now let's simulate configuring a complete high-availability architecture for a customer-facing web application. You'll configure the availability option, zone count, load balancer, health probes, and VNet peering — the same settings you'd set in the Azure Portal when creating a resilient deployment.",
+    whyItMatters: "AZ-900 tests whether you can configure the right availability and load balancing options for a given SLA. Availability Zones protect against datacenter failures; the Application Gateway provides layer 7 load balancing with WAF; health probes remove unhealthy instances from rotation.",
+    interaction: {
+      type: "config",
+      title: "Configure High Availability",
+      description: "Configure the HA architecture for Contoso's customer portal. It needs 99.99% SLA, protection against datacenter failures, layer 7 load balancing with WAF, and connectivity to a partner VNet.",
+      sections: [
+        {
+          title: "Availability Settings",
+          fields: [
+            { id: "avail", label: "Availability option", type: "select", options: ["Availability Set", "Availability Zone", "Virtual Machine Scale Set"], expected: "Availability Zone", hint: "Protect against datacenter-level failures for 99.99% SLA", required: true, correctFeedback: "Availability Zones protect against datacenter failures", wrongFeedback: "Availability Sets only protect against rack failures, not datacenter failures" },
+            { id: "zones", label: "Number of availability zones", type: "select", options: ["1", "2", "3"], expected: "2", hint: "Minimum 2 zones for failover; 3 is ideal but 2 meets the SLA", required: true, correctFeedback: "2 zones provide failover capability", wrongFeedback: "1 zone has no failover; 3 is more than needed for this SLA" },
+          ],
+        },
+        {
+          title: "Load Balancing & Networking",
+          fields: [
+            { id: "lb", label: "Load balancer type", type: "select", options: ["Public Load Balancer (L4)", "Internal Load Balancer (L4)", "Application Gateway (L7 + WAF)"], expected: "Application Gateway (L7 + WAF)", hint: "Customer portal needs layer 7 routing and web application firewall", required: true, correctFeedback: "App Gateway provides L7 routing + WAF for web apps", wrongFeedback: "L4 load balancers don't provide WAF or URL-based routing" },
+            { id: "probe", label: "Enable health probes", type: "toggle", expected: true, hint: "Remove unhealthy instances from the load balancer rotation", correctFeedback: "Health probes are essential for HA", wrongFeedback: "Without health probes, traffic goes to dead instances" },
+            { id: "peering", label: "Enable VNet peering to partner VNet", type: "toggle", expected: true, hint: "Connect to the partner's VNet for API calls", correctFeedback: "VNet peering enables cross-VNet communication", wrongFeedback: "Peering is needed for the partner API integration" },
+          ],
+        },
+      ],
+      feedback: "HA architecture configured correctly! 2 Availability Zones + Application Gateway with WAF + health probes + VNet peering for 99.99% SLA.",
+    },
+    question: {
+      text: "A customer-facing web application requires a 99.99% SLA and protection against datacenter failures. It also needs a web application firewall (WAF). Which configuration should you choose?",
+      options: ["Availability Set + Public Load Balancer (L4)", "Availability Zone (2 zones) + Application Gateway (L7 + WAF)", "Single VM + Internal Load Balancer", "Virtual Machine Scale Set in 1 zone + Public Load Balancer"],
+      correctIndex: 1,
+      explanation: "Availability Zones across 2+ zones protect against datacenter failures and enable a 99.99% SLA. Application Gateway provides layer 7 load balancing and includes WAF (Web Application Firewall) capabilities. Availability Sets only protect against rack-level failures (99.95%). A single VM has no redundancy. One zone doesn't provide datacenter failure protection.",
+    },
+    nextStepDirections: "You've configured a complete HA architecture. You're ready for Domain 4: Management & Governance.",
+  },
 ];
 
 const intro = {
