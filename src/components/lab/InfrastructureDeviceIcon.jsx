@@ -8,6 +8,7 @@ import {
   mdiDatabase,
   mdiDevices,
   mdiLaptop,
+  mdiMonitor,
   mdiRouterNetwork,
   mdiSecurityNetwork,
   mdiServer,
@@ -30,14 +31,10 @@ const DEVICE_PATHS = {
   siem: mdiConsoleLine,
   switch: mdiSwitch,
   wireless: mdiAccessPointNetwork,
-  workstation: mdiMonitorSafe,
+  workstation: mdiMonitor,
 };
-
-function mdiMonitorSafe(){
-  return mdiDevices;
-}
 
 export default function InfrastructureDeviceIcon({ type, className = "h-5 w-5", size = 1 }) {
   const path = type === "workstation" ? mdiDevices : DEVICE_PATHS[type] || mdiDevices;
-  return <Icon path={typeof path === "function" ? path() : path} size={size} className={className} aria-hidden="true" />;
+  return <Icon path={path} size={size} className={className} aria-hidden="true" />;
 }
