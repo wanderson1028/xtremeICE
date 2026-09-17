@@ -7,6 +7,7 @@ import LabIntro from "./LabIntro";
 import LabAssistant from "./LabAssistant";
 import LabSecurityInsight from "./LabSecurityInsight";
 import LabNotepad from "./LabNotepad";
+import CertificationLabTopology from "./CertificationLabTopology";
 
 const POINTS_PER_COMMAND = 10;
 
@@ -72,6 +73,8 @@ export default function LabRunner({ labTitle, chapterNum, difficulty, tags = [],
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const outputRef = useRef(null);
   const inputRef = useRef(null);
+  const consoleRef = useRef(null);
+  const [selectedDevice, setSelectedDevice] = useState({ id: "console", name: "Analyst Console", ip: "192.168.1.50", role: "Learner access point" });
 
   const [scenarioOpen, setScenarioOpen] = useState(true);
 
@@ -162,6 +165,14 @@ export default function LabRunner({ labTitle, chapterNum, difficulty, tags = [],
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) setCurrentStep(s => s + 1);
+  };
+
+  const openDeviceConsole = (device) => {
+    setSelectedDevice(device);
+    window.requestAnimationFrame(() => {
+      consoleRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      setTimeout(() => inputRef.current?.focus(), 350);
+    });
   };
 
   const handleFinish = async () => {
@@ -438,6 +449,14 @@ export default function LabRunner({ labTitle, chapterNum, difficulty, tags = [],
             </div>
           )}
 
+          <CertificationLabTopology
+            labTitle={labTitle}
+            tags={tags}
+            step={step}
+            selectedDevice={selectedDevice}
+            onSelect={openDeviceConsole}
+          />
+
           {/* Task description */}
           <div className="bg-gray-900 border border-gray-700 rounded-xl shrink-0 overflow-hidden">
             {/* Step header */}
@@ -491,10 +510,10 @@ export default function LabRunner({ labTitle, chapterNum, difficulty, tags = [],
           )}
 
           {/* Terminal */}
-          <div className="flex-1 bg-black border border-gray-700 rounded-xl flex flex-col overflow-hidden min-h-[160px]">
-            <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-800 bg-gray-950 shrink-0">
-              <Terminal className="h-3.5 w-3.5 text-gray-500" />
-              <span className="text-[11px] font-mono text-gray-500">{terminalLabel}</span>
+          <div ref={consoleRef} className="flex-1 scroll-mt-24 bg-black border border-gray-700 rounded-xl flex flex-col overflow-hidden min-h-[160px]">
+            <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-gray-800 bg-gray-950 shrink-0">
+              <div className="flex items-center gap-2"><Terminal className="h-3.5 w-3.5 text-gray-500" /><span className="text-[11px] font-mono text-gray-500">{terminalLabel}</span></div>
+              <span className="text-[9px] font-mono text-cyan-400">Connected: {selectedDevice.name} · {selectedDevice.ip}</span>
             </div>
             <div ref={outputRef} className="flex-1 overflow-y-auto p-4 font-mono text-xs space-y-0.5">
               {terminalHistory.map((line, i) => (
