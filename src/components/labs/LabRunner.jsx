@@ -172,10 +172,10 @@ export default function LabRunner({ labTitle, chapterNum, difficulty, tags = [],
   const openDeviceConsole = (device) => {
     setSelectedDevice(device);
     setConsoleOpen(true);
-    window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => setTimeout(() => {
       consoleRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      setTimeout(() => inputRef.current?.focus(), 350);
-    });
+      inputRef.current?.focus();
+    }, 50));
   };
 
   const handleFinish = async () => {
