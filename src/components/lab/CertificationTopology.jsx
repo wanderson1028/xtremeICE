@@ -27,13 +27,13 @@ const ICONS = {
 };
 
 const POSITIONS = [
-  { x: 8, y: 48 },
+  { x: 12, y: 48 },
   { x: 25, y: 22 },
   { x: 25, y: 72 },
   { x: 48, y: 48 },
   { x: 72, y: 22 },
   { x: 72, y: 72 },
-  { x: 91, y: 48 },
+  { x: 88, y: 48 },
 ];
 
 const DEVICE_STYLES = {
