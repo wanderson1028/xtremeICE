@@ -454,7 +454,8 @@ export default function LabRunner({ labTitle, chapterNum, difficulty, tags = [],
             tags={tags}
             step={step}
             selectedDevice={selectedDevice}
-            onSelect={openDeviceConsole}
+            onInspect={setSelectedDevice}
+            onOpenConsole={openDeviceConsole}
           />
 
           {/* Task description */}
