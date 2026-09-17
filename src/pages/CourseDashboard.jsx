@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, BookOpen, Award, Tag, CheckCircle2, Circle, ChevronDown, ChevronUp, Lightbulb, Terminal, Loader2, Users, Target, Send, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import TerminalSimulator from "@/components/lab/TerminalSimulator";
+import CertificationTopology from "@/components/lab/CertificationTopology";
 import { useTranslation } from "react-i18next";
 
 const taskTypeColor = {
@@ -185,6 +186,8 @@ export default function CourseDashboard() {
 
   // Track which tasks are completed (in-memory for this session)
   const [completedTaskIds, setCompletedTaskIds] = useState(new Set());
+  const [selectedDevice, setSelectedDevice] = useState({ id: "learner", name: "Analyst Workstation", role: "Learner console", ip: "192.168.1.50" });
+  const consoleRef = useRef(null);
 
   const { data: scenario, isLoading: loadingScenario } = useQuery({
     queryKey: ["scenario", id],
@@ -242,6 +245,11 @@ export default function CourseDashboard() {
 
   const handleTaskComplete = (taskId) => {
     setCompletedTaskIds((prev) => new Set([...prev, taskId]));
+  };
+
+  const openDeviceConsole = (device) => {
+    setSelectedDevice(device);
+    window.requestAnimationFrame(() => consoleRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
 
   // All expected commands across all tasks for "quick run" buttons
@@ -328,6 +336,13 @@ export default function CourseDashboard() {
           </div>
         </div>
 
+        <CertificationTopology
+          scenario={scenario}
+          tasks={tasks}
+          completedTaskIds={completedTaskIds}
+          onOpenConsole={openDeviceConsole}
+        />
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           {/* Tasks */}
           <div className="space-y-3">
@@ -347,11 +362,16 @@ export default function CourseDashboard() {
           </div>
 
           {/* Sticky Terminal */}
-          <div className="sticky top-20 space-y-2">
-            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider flex items-center gap-2">
-              <Terminal className="h-4 w-4 text-primary" /> {t("courseDashboard.practiceTerminal")}
-            </h2>
+          <div ref={consoleRef} className="sticky top-20 scroll-mt-24 space-y-2">
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider flex items-center gap-2">
+                <Terminal className="h-4 w-4 text-primary" /> {t("courseDashboard.practiceTerminal")}
+              </h2>
+              <span className="text-[10px] text-cyan-300">Connected to {selectedDevice.name}</span>
+            </div>
             <TerminalSimulator
+              key={selectedDevice.id}
+              activeDevice={selectedDevice}
               suggestedCommands={allExpectedCommands}
               onCommandRun={handleCommandRun}
             />
