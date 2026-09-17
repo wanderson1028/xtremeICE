@@ -445,6 +445,17 @@ export const COMPTIA_LABS = [
 
 export const AZURE_LABS = [
   {
+    id: "az900-dashboard",
+    route: "/labs/az900-dashboard",
+    title: "AZ-900 Dashboard",
+    description: "Interactive Azure-blue dashboard with certification domain widgets, progress stats, and a drag-and-drop cloud concepts canvas matching deployment and service models.",
+    difficulty: "Beginner",
+    duration: 10,
+    category: "Cloud Training",
+    subCategory: "Microsoft Azure",
+    tags: ["Microsoft", "Azure", "AZ-900", "Dashboard", "Drag-and-Drop", "Cloud Concepts"],
+  },
+  {
     id: "az900-domain1",
     route: "/labs/az900-domain1",
     title: "AZ-900 D1: Cloud Concepts",
