@@ -1,30 +1,6 @@
 import React, { useMemo, useState } from "react";
-import {
-  Activity,
-  Cloud,
-  Crosshair,
-  Database,
-  Globe2,
-  Monitor,
-  Network,
-  Router,
-  Server,
-  Shield,
-  Terminal,
-} from "lucide-react";
-
-const ICONS = {
-  attacker: Crosshair,
-  internet: Globe2,
-  cloud: Cloud,
-  firewall: Shield,
-  router: Router,
-  switch: Network,
-  server: Server,
-  database: Database,
-  workstation: Monitor,
-  console: Terminal,
-};
+import { Activity, Network, Terminal } from "lucide-react";
+import InfrastructureDeviceIcon from "@/components/lab/InfrastructureDeviceIcon";
 
 const POSITIONS = [
   { x: 12, y: 48 },
@@ -131,7 +107,6 @@ export default function CertificationTopology({ scenario, tasks = [], completedT
           </svg>
 
           {devices.map((device) => {
-            const Icon = ICONS[device.type] || Server;
             const isTarget = device.id === targetId && !completed;
             const isSelected = device.id === selectedId;
             const style = completed ? DEVICE_STYLES.complete : isSelected ? DEVICE_STYLES.selected : isTarget ? DEVICE_STYLES.target : DEVICE_STYLES.normal;
@@ -146,7 +121,7 @@ export default function CertificationTopology({ scenario, tasks = [], completedT
               >
                 {isTarget && <span className="absolute -right-1 -top-1 h-3 w-3 animate-ping rounded-full bg-red-400" />}
                 <div className="flex items-center justify-between">
-                  <Icon className="h-5 w-5" />
+                  <InfrastructureDeviceIcon type={device.type} className="h-7 w-7" />
                   <span className={`h-2 w-2 rounded-full ${device.status === "attention" ? "bg-amber-400" : "bg-emerald-400"}`} />
                 </div>
                 <div className="mt-2 truncate text-[11px] font-semibold">{device.name}</div>
