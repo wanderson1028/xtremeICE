@@ -58,6 +58,11 @@ import LabSecPlusDomain2 from './pages/labs/comptia/LabSecPlusDomain2'
 import LabSecPlusDomain3 from './pages/labs/comptia/LabSecPlusDomain3'
 import LabSecPlusDomain4 from './pages/labs/comptia/LabSecPlusDomain4'
 import LabSecPlusDomain5 from './pages/labs/comptia/LabSecPlusDomain5'
+import LabNetPlusDomain1 from './pages/labs/comptia/LabNetPlusDomain1'
+import LabNetPlusDomain2 from './pages/labs/comptia/LabNetPlusDomain2'
+import LabNetPlusDomain3 from './pages/labs/comptia/LabNetPlusDomain3'
+import LabNetPlusDomain4 from './pages/labs/comptia/LabNetPlusDomain4'
+import LabNetPlusDomain5 from './pages/labs/comptia/LabNetPlusDomain5'
 import CandidateAssessments from './pages/CandidateAssessments'
 import CreateAssessment from './pages/CreateAssessment'
 import AssessmentDetail from './pages/AssessmentDetail'
@@ -217,6 +222,11 @@ const AuthenticatedApp = () => {
       <Route path="/labs/secplus-domain3" element={<LayoutWrapper currentPageName="LabSecPlusDomain3"><LabSecPlusDomain3 /></LayoutWrapper>} />
       <Route path="/labs/secplus-domain4" element={<LayoutWrapper currentPageName="LabSecPlusDomain4"><LabSecPlusDomain4 /></LayoutWrapper>} />
       <Route path="/labs/secplus-domain5" element={<LayoutWrapper currentPageName="LabSecPlusDomain5"><LabSecPlusDomain5 /></LayoutWrapper>} />
+      <Route path="/labs/netplus-domain1" element={<LayoutWrapper currentPageName="LabNetPlusDomain1"><LabNetPlusDomain1 /></LayoutWrapper>} />
+      <Route path="/labs/netplus-domain2" element={<LayoutWrapper currentPageName="LabNetPlusDomain2"><LabNetPlusDomain2 /></LayoutWrapper>} />
+      <Route path="/labs/netplus-domain3" element={<LayoutWrapper currentPageName="LabNetPlusDomain3"><LabNetPlusDomain3 /></LayoutWrapper>} />
+      <Route path="/labs/netplus-domain4" element={<LayoutWrapper currentPageName="LabNetPlusDomain4"><LabNetPlusDomain4 /></LayoutWrapper>} />
+      <Route path="/labs/netplus-domain5" element={<LayoutWrapper currentPageName="LabNetPlusDomain5"><LabNetPlusDomain5 /></LayoutWrapper>} />
       <Route path="/CandidateAssessments" element={<LayoutWrapper currentPageName="CandidateAssessments"><FeatureGate flagKey="soc_assessments"><CandidateAssessments /></FeatureGate></LayoutWrapper>} />
       <Route path="/create-assessment" element={<LayoutWrapper currentPageName="CreateAssessment"><CreateAssessment /></LayoutWrapper>} />
       <Route path="/assessment-detail" element={<LayoutWrapper currentPageName="AssessmentDetail"><AssessmentDetail /></LayoutWrapper>} />
