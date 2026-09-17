@@ -19,7 +19,9 @@ function makeDevices(labTitle,tags){
  return rows.slice(0,7).map((d,i)=>({...d,x:POSITIONS[i][0],y:POSITIONS[i][1]}));
 }
 function targetId(step,devices){
- const text=`${step?.stepLabel||""} ${step?.explanation||""} ${step?.command||""}`.toLowerCase();
+ const command=String(step?.command||"").toLowerCase();
+ const text=`${step?.stepLabel||""} ${step?.explanation||""} ${command}`.toLowerCase();
+ if(/^(netctl|aws|az|gcloud|kubectl|powershell|pwsh|python|nmap|nikto|tcpdump|curl|dig|nslookup)\b/.test(command))return"console";
  if(/siem|log|alert|incident|event/.test(text))return"data";
  if(/database|sql|storage|data/.test(text))return"data";
  if(/firewall|acl|gateway|security group/.test(text))return"edge";
@@ -29,13 +31,14 @@ function targetId(step,devices){
  return"console";
 }
 
-export default function CertificationLabTopology({labTitle,tags,step,selectedDevice,onSelect}){
+export default function CertificationLabTopology({labTitle,tags,step,selectedDevice,onInspect,onOpenConsole}){
  const devices=useMemo(()=>makeDevices(labTitle,tags),[labTitle,tags]);
- const target=targetId(step,devices);
+ const target=step?.consoleDeviceId||targetId(step,devices);
  const selected=devices.find(d=>d.id===selectedDevice?.id)||devices[0];
+ const canOpenConsole=selected.id===target;
  return <div className="shrink-0 overflow-hidden rounded-xl border border-cyan-800/40 bg-gray-950/90">
   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-800 px-4 py-2">
-   <div><div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-cyan-300"><Network className="h-3.5 w-3.5"/>Interactive topology</div><div className="mt-0.5 text-[10px] text-gray-500">Select a device to enter its console</div></div>
+   <div><div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-cyan-300"><Network className="h-3.5 w-3.5"/>Interactive topology</div><div className="mt-0.5 text-[10px] text-gray-500">Select any device for details; console access is limited to the current lab device</div></div>
    <div className="flex gap-2 text-[9px] font-mono"><span className="text-red-300">● Current task</span><span className="text-cyan-300">● Selected</span><span className="text-emerald-300">● Online</span></div>
   </div>
   <div className="grid md:grid-cols-[minmax(0,1fr)_220px]">
@@ -43,7 +46,7 @@ export default function CertificationLabTopology({labTitle,tags,step,selectedDev
     <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
      {devices.slice(1).map((d,i)=>{const from=i<2?devices[0]:devices[Math.min(i,2)];return <g key={d.id}><line x1={from.x} y1={from.y} x2={d.x} y2={d.y} stroke="#334155" strokeWidth="1"/><line x1={from.x} y1={from.y} x2={d.x} y2={d.y} stroke="#22d3ee" strokeWidth=".25" strokeDasharray="2 2" className="animate-pulse"/></g>})}
     </svg>
-    {devices.map(d=>{const Icon=ICONS[d.type]||Server,isSelected=d.id===selected.id,isTarget=d.id===target;return <button key={d.id} type="button" onClick={()=>onSelect(d)} style={{left:`${d.x}%`,top:`${d.y}%`}} className={`absolute w-24 -translate-x-1/2 -translate-y-1/2 rounded-lg border p-2 text-left shadow-lg transition hover:z-20 hover:scale-105 ${isSelected?"border-cyan-300 bg-cyan-950 text-cyan-100":isTarget?"border-red-500/70 bg-red-950/60 text-red-100":"border-gray-700 bg-black/90 text-gray-300"}`} aria-label={`Open ${d.name} console`}>
+    {devices.map(d=>{const Icon=ICONS[d.type]||Server,isSelected=d.id===selected.id,isTarget=d.id===target;return <button key={d.id} type="button" onClick={()=>onInspect(d)} style={{left:`${d.x}%`,top:`${d.y}%`}} className={`absolute w-24 -translate-x-1/2 -translate-y-1/2 rounded-lg border p-2 text-left shadow-lg transition hover:z-20 hover:scale-105 ${isSelected?"border-cyan-300 bg-cyan-950 text-cyan-100":isTarget?"border-red-500/70 bg-red-950/60 text-red-100":"border-gray-700 bg-black/90 text-gray-300"}`} aria-label={`Open ${d.name} console`}>
      {isTarget&&!isSelected&&<span className="absolute -right-1 -top-1 h-2.5 w-2.5 animate-ping rounded-full bg-red-400"/>}
      <div className="flex items-center justify-between"><Icon className="h-4 w-4"/><span className="h-1.5 w-1.5 rounded-full bg-emerald-400"/></div>
      <div className="mt-1.5 truncate text-[9px] font-bold">{d.name}</div><div className="truncate text-[8px] font-mono text-gray-500">{d.ip}</div>
@@ -53,8 +56,8 @@ export default function CertificationLabTopology({labTitle,tags,step,selectedDev
     <div className="text-[9px] font-mono uppercase tracking-wider text-gray-500">Selected device</div>
     <div className="mt-2 text-sm font-bold text-white">{selected.name}</div>
     <div className="mt-1 text-[10px] text-gray-400">{selected.role}</div>
-    <div className="mt-3 rounded-lg border border-gray-800 bg-gray-950 p-2 font-mono text-[9px] text-gray-400"><div>Address: <span className="text-cyan-300">{selected.ip}</span></div><div className="mt-1">Status: <span className="text-emerald-300">Online</span></div></div>
-    <button type="button" onClick={()=>onSelect(selected)} className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-400 px-3 py-2 text-[10px] font-bold text-gray-950 hover:bg-cyan-300"><Terminal className="h-3.5 w-3.5"/>Enter console</button>
+    <div className="mt-3 rounded-lg border border-gray-800 bg-gray-950 p-2 font-mono text-[9px] text-gray-400"><div>Address: <span className="text-cyan-300">{selected.ip}</span></div><div className="mt-1">Status: <span className="text-emerald-300">Online</span></div><div className="mt-1">Access: <span className={canOpenConsole?"text-cyan-300":"text-gray-500"}>{canOpenConsole?"Lab console":"Information only"}</span></div></div>
+    {canOpenConsole?<button type="button" onClick={()=>onOpenConsole(selected)} className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-400 px-3 py-2 text-[10px] font-bold text-gray-950 hover:bg-cyan-300"><Terminal className="h-3.5 w-3.5"/>Enter console</button>:<div className="mt-3 rounded-lg border border-gray-800 bg-gray-900/70 px-3 py-2 text-center text-[9px] leading-4 text-gray-500">This device is available for reference only. Select the red-highlighted lab device for console access.</div>}
    </div>
   </div>
  </div>;
