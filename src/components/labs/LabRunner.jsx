@@ -75,6 +75,7 @@ export default function LabRunner({ labTitle, chapterNum, difficulty, tags = [],
   const inputRef = useRef(null);
   const consoleRef = useRef(null);
   const [selectedDevice, setSelectedDevice] = useState({ id: "console", name: "Analyst Console", ip: "192.168.1.50", role: "Learner access point" });
+  const [consoleOpen, setConsoleOpen] = useState(false);
 
   const [scenarioOpen, setScenarioOpen] = useState(true);
 
@@ -101,6 +102,7 @@ export default function LabRunner({ labTitle, chapterNum, difficulty, tags = [],
     setAwaitingEnter(true);
     setStepCompleted(false);
     setWrongCommand(false);
+    setConsoleOpen(false);
     setShowIntro(!!intro);
   };
 
@@ -169,6 +171,7 @@ export default function LabRunner({ labTitle, chapterNum, difficulty, tags = [],
 
   const openDeviceConsole = (device) => {
     setSelectedDevice(device);
+    setConsoleOpen(true);
     window.requestAnimationFrame(() => {
       consoleRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       setTimeout(() => inputRef.current?.focus(), 350);
@@ -510,8 +513,8 @@ export default function LabRunner({ labTitle, chapterNum, difficulty, tags = [],
             </div>
           )}
 
-          {/* Terminal */}
-          <div ref={consoleRef} className="flex-1 scroll-mt-24 bg-black border border-gray-700 rounded-xl flex flex-col overflow-hidden min-h-[160px]">
+          {/* Terminal — intentionally hidden until the learner enters the authorized device */}
+          {consoleOpen && <div ref={consoleRef} className="flex-1 scroll-mt-24 bg-black border border-gray-700 rounded-xl flex flex-col overflow-hidden min-h-[160px]">
             <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-gray-800 bg-gray-950 shrink-0">
               <div className="flex items-center gap-2"><Terminal className="h-3.5 w-3.5 text-gray-500" /><span className="text-[11px] font-mono text-gray-500">{terminalLabel}</span></div>
               <span className="text-[9px] font-mono text-cyan-400">Connected: {selectedDevice.name} · {selectedDevice.ip}</span>
@@ -541,7 +544,7 @@ export default function LabRunner({ labTitle, chapterNum, difficulty, tags = [],
                 </div>
               )}
             </div>
-          </div>
+          </div>}
 
           {/* Next step directions */}
           {stepCompleted && step.nextStepDirections && (
@@ -554,7 +557,7 @@ export default function LabRunner({ labTitle, chapterNum, difficulty, tags = [],
           {/* Hint + Next/Finish */}
 
           <div className="flex items-center justify-between shrink-0">
-            <HintCopy command={step.command} />
+            {consoleOpen ? <HintCopy command={step.command} /> : <span />}
 
             {stepCompleted && (
               isLastStep ? (
