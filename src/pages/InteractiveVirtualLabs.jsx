@@ -56,7 +56,10 @@ export default function InteractiveVirtualLabs() {
   const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [collapsed, setCollapsed] = useState({});
+  const [subCollapsed, setSubCollapsed] = useState({});
   const [showCompleted, setShowCompleted] = useState(false);
+
+  const toggleSub = (key) => setSubCollapsed(c => ({ ...c, [key]: !c[key] }));
 
   const sectionRefs = {
     network: useRef(null),
@@ -312,32 +315,38 @@ export default function InteractiveVirtualLabs() {
                 {/* CLF-002 — AWS Cloud Practitioner */}
                 {clfLabs.length > 0 && (
                   <div className="mb-6">
-                    <div className="flex items-center gap-2 mb-3 pl-8">
-                      <span className="h-1 w-1 rounded-full bg-amber-500" />
+                    <button onClick={() => toggleSub("clf")} className="w-full flex items-center gap-2 mb-3 pl-8 group">
+                      <span className="h-1 w-1 rounded-full bg-amber-500 shrink-0" />
                       <span className="text-xs font-mono text-amber-300 font-semibold">AWS Cloud Practitioner (CLF-002)</span>
                       <span className="text-xs text-gray-500">({clfLabs.length})</span>
-                    </div>
-                    <div className="grid gap-5 sm:grid-cols-2">
-                      {clfLabs.map(lab => (
-                        <LabCard key={lab.id} lab={lab} icon={<Cloud className="h-5 w-5 text-amber-400" />} accentColor="amber" />
-                      ))}
-                    </div>
+                      <ChevronDown className={`h-3.5 w-3.5 text-gray-400 ml-auto transition-transform ${subCollapsed.clf ? "-rotate-90" : ""}`} />
+                    </button>
+                    {!subCollapsed.clf && (
+                      <div className="grid gap-5 sm:grid-cols-2">
+                        {clfLabs.map(lab => (
+                          <LabCard key={lab.id} lab={lab} icon={<Cloud className="h-5 w-5 text-amber-400" />} accentColor="amber" />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
                 {/* AIF-C01 — AWS ML Practitioner */}
                 {aifLabs.length > 0 && (
                   <div>
-                    <div className="flex items-center gap-2 mb-3 pl-8">
-                      <span className="h-1 w-1 rounded-full bg-cyan-400" />
+                    <button onClick={() => toggleSub("aif")} className="w-full flex items-center gap-2 mb-3 pl-8 group">
+                      <span className="h-1 w-1 rounded-full bg-cyan-400 shrink-0" />
                       <span className="text-xs font-mono text-cyan-300 font-semibold">AWS ML Practitioner (AIF-C01)</span>
                       <span className="text-xs text-gray-500">({aifLabs.length})</span>
-                    </div>
-                    <div className="grid gap-5 sm:grid-cols-2">
-                      {aifLabs.map(lab => (
-                        <LabCard key={lab.id} lab={lab} icon={<Cloud className="h-5 w-5 text-cyan-400" />} accentColor="amber" />
-                      ))}
-                    </div>
+                      <ChevronDown className={`h-3.5 w-3.5 text-gray-400 ml-auto transition-transform ${subCollapsed.aif ? "-rotate-90" : ""}`} />
+                    </button>
+                    {!subCollapsed.aif && (
+                      <div className="grid gap-5 sm:grid-cols-2">
+                        {aifLabs.map(lab => (
+                          <LabCard key={lab.id} lab={lab} icon={<Cloud className="h-5 w-5 text-cyan-400" />} accentColor="amber" />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -350,16 +359,19 @@ export default function InteractiveVirtualLabs() {
                 {/* AZ-900 — Azure Fundamentals */}
                 {az900Labs.length > 0 && (
                   <div>
-                    <div className="flex items-center gap-2 mb-3 pl-8">
-                      <span className="h-1 w-1 rounded-full" style={{ backgroundColor: "#0078D4" }} />
+                    <button onClick={() => toggleSub("az900")} className="w-full flex items-center gap-2 mb-3 pl-8 group">
+                      <span className="h-1 w-1 rounded-full shrink-0" style={{ backgroundColor: "#0078D4" }} />
                       <span className="text-xs font-mono font-semibold" style={{ color: "#50A0E0" }}>Azure Fundamentals (AZ-900)</span>
                       <span className="text-xs text-gray-500">({az900Labs.length})</span>
-                    </div>
-                    <div className="grid gap-5 sm:grid-cols-2">
-                      {az900Labs.map(lab => (
-                        <LabCard key={lab.id} lab={lab} icon={<Cloud className="h-5 w-5" style={{ color: "#0078D4" }} />} accentColor="amber" />
-                      ))}
-                    </div>
+                      <ChevronDown className={`h-3.5 w-3.5 text-gray-400 ml-auto transition-transform ${subCollapsed.az900 ? "-rotate-90" : ""}`} />
+                    </button>
+                    {!subCollapsed.az900 && (
+                      <div className="grid gap-5 sm:grid-cols-2">
+                        {az900Labs.map(lab => (
+                          <LabCard key={lab.id} lab={lab} icon={<Cloud className="h-5 w-5" style={{ color: "#0078D4" }} />} accentColor="amber" />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </>
@@ -387,32 +399,38 @@ export default function InteractiveVirtualLabs() {
                 {/* CompTIA Security+ (SY0-701) — 5 domains */}
                 {secPlusLabs.length > 0 && (
                   <div className="mb-6">
-                    <div className="flex items-center gap-2 mb-3 pl-8">
-                      <span className="h-1 w-1 rounded-full bg-emerald-500" />
+                    <button onClick={() => toggleSub("secplus")} className="w-full flex items-center gap-2 mb-3 pl-8 group">
+                      <span className="h-1 w-1 rounded-full bg-emerald-500 shrink-0" />
                       <span className="text-xs font-mono text-emerald-300 font-semibold">CompTIA Security+ (SY0-701)</span>
                       <span className="text-xs text-gray-500">({secPlusLabs.length})</span>
-                    </div>
-                    <div className="grid gap-5 sm:grid-cols-2">
-                      {secPlusLabs.map(lab => (
-                        <LabCard key={lab.id} lab={lab} icon={<Award className="h-5 w-5 text-emerald-400" />} accentColor="amber" />
-                      ))}
-                    </div>
+                      <ChevronDown className={`h-3.5 w-3.5 text-gray-400 ml-auto transition-transform ${subCollapsed.secplus ? "-rotate-90" : ""}`} />
+                    </button>
+                    {!subCollapsed.secplus && (
+                      <div className="grid gap-5 sm:grid-cols-2">
+                        {secPlusLabs.map(lab => (
+                          <LabCard key={lab.id} lab={lab} icon={<Award className="h-5 w-5 text-emerald-400" />} accentColor="amber" />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
                 {/* CompTIA Network+ (N10-009) — 5 domains */}
                 {netPlusLabs.length > 0 && (
                   <div>
-                    <div className="flex items-center gap-2 mb-3 pl-8">
-                      <span className="h-1 w-1 rounded-full bg-cyan-400" />
+                    <button onClick={() => toggleSub("netplus")} className="w-full flex items-center gap-2 mb-3 pl-8 group">
+                      <span className="h-1 w-1 rounded-full bg-cyan-400 shrink-0" />
                       <span className="text-xs font-mono text-cyan-300 font-semibold">CompTIA Network+ (N10-009)</span>
                       <span className="text-xs text-gray-500">({netPlusLabs.length})</span>
-                    </div>
-                    <div className="grid gap-5 sm:grid-cols-2">
-                      {netPlusLabs.map(lab => (
-                        <LabCard key={lab.id} lab={lab} icon={<Award className="h-5 w-5 text-cyan-400" />} accentColor="amber" />
-                      ))}
-                    </div>
+                      <ChevronDown className={`h-3.5 w-3.5 text-gray-400 ml-auto transition-transform ${subCollapsed.netplus ? "-rotate-90" : ""}`} />
+                    </button>
+                    {!subCollapsed.netplus && (
+                      <div className="grid gap-5 sm:grid-cols-2">
+                        {netPlusLabs.map(lab => (
+                          <LabCard key={lab.id} lab={lab} icon={<Award className="h-5 w-5 text-cyan-400" />} accentColor="amber" />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </>
