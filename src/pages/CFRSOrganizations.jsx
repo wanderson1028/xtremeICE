@@ -43,6 +43,7 @@ const organizationRollup = (history, current) => {
 
 export default function CFRSOrganizations() {
   const [history, setHistory] = useState([]);
+  const [ratings, setRatings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
@@ -51,6 +52,7 @@ export default function CFRSOrganizations() {
       try {
         const response = await base44.functions.invoke("getCCIAssessments", {});
         setHistory(response.data.assessments || []);
+        setRatings(response.data.ratings || []);
       } finally {
         setLoading(false);
       }
@@ -117,7 +119,8 @@ export default function CFRSOrganizations() {
           ) : organizations.length ? (
             <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {organizations.map((organization) => {
-                const score = organizationRollup(history, organization);
+                const officialRating = ratings.find((rating) => rating.organization_id === organization.organization_id);
+                const score = Number(officialRating?.final_score ?? organizationRollup(history, organization));
                 const count = new Set(
                   history
                     .filter((assessment) => assessment.organization_id === organization.organization_id)
