@@ -5,6 +5,7 @@ import { pagesConfig } from './pages.config'
 import EventView from './pages/EventView'
 import CyberCapitalDashboard from './pages/CyberCapitalDashboard'
 import CCI from './pages/CCI'
+import CFRSOrganizations from './pages/CFRSOrganizations'
 import VisualDesignEditor from './pages/VisualDesignEditor'
 import VirtualLabs from './pages/VirtualLabs'
 import AdminPanel from './pages/AdminPanel'
@@ -174,6 +175,7 @@ const AuthenticatedApp = () => {
       <Route path="/EventView/:id" element={<LayoutWrapper currentPageName="EventView"><EventView /></LayoutWrapper>} />
       <Route path="/CyberCapitalDashboard" element={<LayoutWrapper currentPageName="CyberCapitalDashboard"><CyberCapitalDashboard /></LayoutWrapper>} />
       <Route path="/CFRS" element={<LayoutWrapper currentPageName="CFRS"><FeatureGate flagKey="cci"><CCI /></FeatureGate></LayoutWrapper>} />
+      <Route path="/CFRS/organizations" element={<LayoutWrapper currentPageName="CFRS"><FeatureGate flagKey="cci"><CFRSOrganizations /></FeatureGate></LayoutWrapper>} />
       <Route path="/CCI" element={<LayoutWrapper currentPageName="CFRS"><FeatureGate flagKey="cci"><CCI /></FeatureGate></LayoutWrapper>} />
       <Route path="/VisualDesignEditor" element={<LayoutWrapper currentPageName="VisualDesignEditor"><FeatureGate flagKey="visual_design_editor"><VisualDesignEditor /></FeatureGate></LayoutWrapper>} />
       <Route path="/VirtualLabs" element={<LayoutWrapper currentPageName="VirtualLabs"><VirtualLabs /></LayoutWrapper>} />
