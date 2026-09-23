@@ -37,24 +37,8 @@ const organizationRollup = (history, current) => {
   const sorted = [...eligible].sort(
     (a, b) => evidenceTime(b) - evidenceTime(a) || new Date(b.analyzed_at || 0) - new Date(a.analyzed_at || 0)
   );
-  const rows = Array.from(new Map(sorted.map((assessment) => [assessment.report_fingerprint || assessment.id, assessment])).values());
-  if (!rows.length) return Number(current.final_score || CFRS_BASELINE);
-
-  const weighted = rows.map((assessment, index) => ({
-    score: assessmentScore(assessment),
-    weight: index === 0
-      ? 1
-      : Math.pow(0.65, index) * Math.exp(-Math.max(0, Date.now() - evidenceTime(assessment)) / (365 * 86400000)),
-  }));
-  const totalWeight = weighted.reduce((sum, item) => sum + item.weight, 0) || 1;
-  const base = weighted.reduce((sum, item) => sum + item.score * item.weight, 0) / totalWeight;
-  const prior = weighted.slice(1);
-  const priorWeight = prior.reduce((sum, item) => sum + item.weight, 0);
-  const priorAverage = priorWeight
-    ? prior.reduce((sum, item) => sum + item.score * item.weight, 0) / priorWeight
-    : weighted[0].score;
-  const trend = prior.length ? Math.round(Math.max(-100, Math.min(100, (weighted[0].score - priorAverage) * 0.25))) : 0;
-  return Math.round(Math.max(CFRS_MIN, Math.min(CFRS_MAX, base + trend)));
+  const latest = sorted.find((assessment) => assessment.is_current_rating) || sorted[0] || current;
+  return Number(latest?.final_score ?? current?.final_score ?? CFRS_BASELINE);
 };
 
 export default function CFRSOrganizations() {
