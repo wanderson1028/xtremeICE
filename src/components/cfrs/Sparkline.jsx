@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useId } from "react";
 
 // Inline-SVG sparkline. values = array of numbers (chronological order).
 export default function Sparkline({ values = [], width = 120, height = 32, color = "#0EA5C7" }) {
+  const gradientId = `sg-spark-${useId().replace(/:/g, "")}`;
   if (!values || values.length < 2) return null;
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -19,12 +20,12 @@ export default function Sparkline({ values = [], width = 120, height = 32, color
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="sg-tabular">
       <defs>
-        <linearGradient id="sg-spark" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.28" />
           <stop offset="100%" stopColor={color} stopOpacity="0" />
         </linearGradient>
       </defs>
-      <path d={area} fill="url(#sg-spark)" />
+      <path d={area} fill={`url(#${gradientId})`} />
       <path d={line} fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
       <circle cx={last[0]} cy={last[1]} r="2.4" fill={color} />
     </svg>

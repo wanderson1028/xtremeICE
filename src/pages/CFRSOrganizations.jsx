@@ -5,6 +5,7 @@ import SoftGraphiteStyle from "@/components/cfrs/SoftGraphiteStyle";
 import SemanticBadge from "@/components/cfrs/SemanticBadge";
 import EmptyState from "@/components/cfrs/EmptyState";
 import SkeletonGrid from "@/components/cfrs/Skeleton";
+import Sparkline from "@/components/cfrs/Sparkline";
 
 const CFRS_VERSION = "CFRS-ASSESS-2026.16";
 const CFRS_BASELINE = 600;
@@ -55,6 +56,14 @@ const organizationRollup = (history, current) => {
   );
   const latest = sorted.find((assessment) => assessment.is_current_rating) || sorted[0] || current;
   return Number(latest?.final_score ?? current?.final_score ?? CFRS_BASELINE);
+};
+
+const organizationScoreHistory = (history, current) => {
+  const orgRows = history.filter((a) => a.organization_id === current.organization_id && a.status === "completed");
+  const versioned = orgRows.filter((a) => a.calculation_version === CFRS_VERSION);
+  const eligible = versioned.length ? versioned : orgRows;
+  const sorted = [...eligible].sort((a, b) => evidenceTime(a) - evidenceTime(b) || new Date(a.analyzed_at || 0) - new Date(b.analyzed_at || 0));
+  return sorted.map(assessmentScore);
 };
 
 const organizationTrend = (history, current) => {
@@ -154,6 +163,7 @@ export default function CFRSOrganizations() {
                 const trend = organizationTrend(history, organization);
                 const TrendIcon = trend === null ? null : trend > 0 ? TrendingUp : trend < 0 ? TrendingDown : Minus;
                 const trendColor = trend === null ? "" : trend > 0 ? "#0f9d58" : trend < 0 ? "#dc2626" : "#9aa1ad";
+                const scoreHistory = organizationScoreHistory(history, organization);
                 return (
                   <button
                     key={organization.organization_id}
@@ -177,6 +187,11 @@ export default function CFRSOrganizations() {
                           {TrendIcon && <TrendIcon className="h-4 w-4 shrink-0" style={{ color: trendColor }} />}
                         </div>
                         <div className="sg-micro" style={{ color: zone.color }}>{ratingFor(score)}</div>
+                        {scoreHistory.length >= 2 && (
+                          <div className="mt-1.5 flex justify-end">
+                            <Sparkline values={scoreHistory} width={96} height={28} color={zone.color} />
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="mt-4 flex items-center justify-between border-t pt-3 text-[10px]" style={{ borderColor: "#d6dae2" }}>
