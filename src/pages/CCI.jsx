@@ -491,7 +491,7 @@ export default function CCI() {
             </div>
             <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {observedActivities.length ? observedActivities.map((a, i) => (
-                <button type="button" key={i} onClick={() => isSuccessful(a) && setSelectedSuccess(a)} className={`sg-panel p-3 text-left ${isSuccessful(a) ? "cursor-pointer sg-panel-hover" : "cursor-default"}`} style={isSuccessful(a) ? { borderColor: "#dc262640", background: "#dc26260a" } : { borderColor: "#b8860b40", background: "#b8860b0a" }}>
+                <button type="button" key={i} onClick={() => isSuccessful(a) && setSelectedSuccess(a)} className={`sg-panel p-3 text-left ${isSuccessful(a) ? "cursor-pointer sg-panel-hover" : "cursor-default"}`} style={isSuccessful(a) ? { borderColor: "#dc262640", background: "#dc262614" } : { borderColor: "#b8860b40", background: "#b8860b14" }}>
                   <div className="sg-micro mb-1" style={isSuccessful(a) ? { color: "#dc2626" } : { color: "#b8860b" }}>Attack correlation · {correlationFor(a)}</div>
                   <div className="sg-micro mb-1" style={{ color: "#6b7280" }}>Attack vector · {vectorFor(a)}</div>
                   <div className="flex items-center gap-2 text-sm font-semibold">{isSuccessful(a) ? <ShieldAlert className="h-4 w-4" style={{ color: "#dc2626" }} /> : <AlertTriangle className="h-4 w-4" style={{ color: "#b8860b" }} />}{a.name}</div>
