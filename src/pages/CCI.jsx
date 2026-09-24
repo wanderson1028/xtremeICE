@@ -261,6 +261,9 @@ export default function CCI() {
   const orgScoredRows = r ? [...history.filter(x => x.organization_id === r.organization_id && x.status === "completed" && x.calculation_version === CFRS_VERSION)].sort((a, b) => evidenceTime(b) - evidenceTime(a) || new Date(b.analyzed_at || 0) - new Date(a.analyzed_at || 0)) : [];
   const orgLatest = orgScoredRows[0] || r;
   const latestAssessmentChange = orgScoredRows.length > 1 ? assessmentScore(orgScoredRows[0]) - assessmentScore(orgScoredRows[1]) : null;
+  // Gauge trend falls back to all completed assessments when fewer than 2 versioned rows exist
+  const orgAllCompletedRows = r ? [...history.filter(x => x.organization_id === r.organization_id && x.status === "completed")].sort((a, b) => evidenceTime(b) - evidenceTime(a) || new Date(b.analyzed_at || 0) - new Date(a.analyzed_at || 0)) : [];
+  const gaugeTrend = orgScoredRows.length > 1 ? latestAssessmentChange : orgAllCompletedRows.length > 1 ? assessmentScore(orgAllCompletedRows[0]) - assessmentScore(orgAllCompletedRows[1]) : null;
   const sourceExplanation = orgLatest?.executive_score_explanation;
   const distinctAssessmentCount = r ? new Set(orgScoredRows.map(x => x.report_fingerprint || x.id)).size : 0;
   const scoreExplanation = sourceExplanation ? { ...sourceExplanation, headline: `${r.business_name} has an organizational CFRS of ${orgScore}, rated ${ratingFor(orgScore)}.`, summary: `This rating consolidates ${distinctAssessmentCount} scored assessment${distinctAssessmentCount === 1 ? "" : "s"} using recency-weighted evidence. ${latestAssessmentChange === null ? "This is the first assessment scored under the current CFRS model." : `The latest assessment ${latestAssessmentChange >= 0 ? "improved" : "reduced"} the organization's measured position by ${Math.abs(latestAssessmentChange)} points compared with the preceding assessment.`} The result reflects vulnerability exposure, demonstrated attack resilience, verified remediation, recurring issues, and historical performance.` } : null;
@@ -343,7 +346,7 @@ export default function CCI() {
                 <div className="sg-micro" style={{ color: "#0EA5C7" }}>CFRS</div>
                 <div className="mt-2 flex items-center gap-4">
                   <div className="text-5xl font-semibold sg-tabular"><CountUp target={orgScore} duration={1100} /></div>
-                  <RadialGauge score={orgScore} min={CFRS_MIN} max={CFRS_MAX} size={116} trend={latestAssessmentChange} />
+                  <RadialGauge score={orgScore} min={CFRS_MIN} max={CFRS_MAX} size={116} trend={gaugeTrend} />
                 </div>
                 <div className="mt-1 text-sm font-medium" style={{ color: "#0EA5C7" }}>{ratingFor(orgScore)} · −500 to 1,000</div>
                 <div className="mt-5"><ScoreBar score={orgScore} /></div>
