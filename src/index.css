@@ -301,3 +301,190 @@ html {
     }
   }
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   App-wide Soft Graphite theme — toggled via .theme-sg on <html>
+   Overrides hardcoded dark Tailwind classes in page content (scoped to
+   main so the header stays dark).  CFRS (.cfrs-sg) is unaffected because
+   it uses inline styles and .sg-* scoped classes, not the classes below.
+   ════════════════════════════════════════════════════════════════════ */
+
+.theme-sg {
+  --background: 222 18% 92%;
+  --foreground: 222 16% 20%;
+  --card: 225 23% 96%;
+  --card-foreground: 222 16% 20%;
+  --popover: 225 23% 96%;
+  --popover-foreground: 222 16% 20%;
+  --primary: 222 16% 20%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 220 14% 90%;
+  --secondary-foreground: 222 16% 20%;
+  --muted: 220 14% 90%;
+  --muted-foreground: 220 9% 46%;
+  --accent: 220 14% 90%;
+  --accent-foreground: 222 16% 20%;
+  --border: 220 17% 86%;
+  --input: 220 17% 86%;
+  --ring: 191 87% 42%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 98%;
+}
+
+/* Dark header fades into the light page surface */
+.theme-sg header::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 48px;
+  background: linear-gradient(to bottom, rgba(17, 24, 39, 0.88), rgba(232, 234, 239, 0));
+  pointer-events: none;
+  z-index: 49;
+}
+
+/* Page content surface */
+.theme-sg main {
+  background-color: #E8EAEF;
+  color: #2A2F3A;
+}
+
+/* ── Dark backgrounds → Soft Graphite surfaces ── */
+.theme-sg main .bg-gray-900,
+.theme-sg main .bg-gray-950,
+.theme-sg main .bg-gray-800,
+.theme-sg main .bg-slate-900,
+.theme-sg main .bg-slate-950,
+.theme-sg main .bg-slate-800,
+.theme-sg main .bg-zinc-900,
+.theme-sg main .bg-zinc-950,
+.theme-sg main .bg-zinc-800 {
+  background-color: #F4F5F8;
+}
+
+.theme-sg main .bg-gray-700,
+.theme-sg main .bg-slate-700,
+.theme-sg main .bg-zinc-700 {
+  background-color: #eceef3;
+}
+
+/* Semi-transparent dark backgrounds */
+.theme-sg main [class*="bg-gray-900/"],
+.theme-sg main [class*="bg-gray-950/"],
+.theme-sg main [class*="bg-gray-800/"],
+.theme-sg main [class*="bg-slate-900/"],
+.theme-sg main [class*="bg-slate-950/"],
+.theme-sg main [class*="bg-slate-800/"],
+.theme-sg main [class*="bg-zinc-900/"],
+.theme-sg main [class*="bg-zinc-950/"],
+.theme-sg main [class*="bg-zinc-800/"] {
+  background-color: #F4F5F8;
+}
+
+/* ── Dark text → light text ── */
+.theme-sg main .text-gray-200,
+.theme-sg main .text-gray-300,
+.theme-sg main .text-slate-200,
+.theme-sg main .text-slate-300,
+.theme-sg main .text-zinc-200,
+.theme-sg main .text-zinc-300 {
+  color: #2A2F3A;
+}
+
+.theme-sg main .text-gray-400,
+.theme-sg main .text-gray-500,
+.theme-sg main .text-slate-400,
+.theme-sg main .text-slate-500,
+.theme-sg main .text-zinc-400,
+.theme-sg main .text-zinc-500 {
+  color: #6b7280;
+}
+
+.theme-sg main .text-white {
+  color: #2A2F3A;
+}
+
+/* Keep white text on colored buttons (500/600 level) */
+.theme-sg main [class*="bg-red-5"]:not([class*="bg-red-50"]) .text-white,
+.theme-sg main [class*="bg-blue-5"]:not([class*="bg-blue-50"]) .text-white,
+.theme-sg main [class*="bg-green-5"]:not([class*="bg-green-50"]) .text-white,
+.theme-sg main [class*="bg-purple-5"]:not([class*="bg-purple-50"]) .text-white,
+.theme-sg main [class*="bg-orange-5"]:not([class*="bg-orange-50"]) .text-white,
+.theme-sg main [class*="bg-cyan-5"]:not([class*="bg-cyan-50"]) .text-white,
+.theme-sg main [class*="bg-emerald-5"]:not([class*="bg-emerald-50"]) .text-white,
+.theme-sg main [class*="bg-indigo-5"]:not([class*="bg-indigo-50"]) .text-white,
+.theme-sg main [class*="bg-rose-5"]:not([class*="bg-rose-50"]) .text-white,
+.theme-sg main [class*="bg-amber-5"]:not([class*="bg-amber-50"]) .text-white {
+  color: #fff;
+}
+
+/* ── Dark borders → light borders ── */
+.theme-sg main .border-gray-700,
+.theme-sg main .border-gray-800,
+.theme-sg main .border-slate-700,
+.theme-sg main .border-slate-800,
+.theme-sg main .border-zinc-700,
+.theme-sg main .border-zinc-800 {
+  border-color: #d6dae2;
+}
+
+.theme-sg main .border-red-900\/40,
+.theme-sg main .border-red-900\/30,
+.theme-sg main .border-red-900\/20 {
+  border-color: #d6dae2;
+}
+
+/* Divide colors */
+.theme-sg main .divide-gray-700 > :not([hidden]) ~ :not([hidden]),
+.theme-sg main .divide-gray-800 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #d6dae2;
+}
+
+/* ── Hover states ── */
+.theme-sg main .hover\:bg-red-950\/50:hover,
+.theme-sg main .hover\:bg-red-900\/50:hover,
+.theme-sg main .hover\:bg-red-900\/30:hover,
+.theme-sg main .hover\:bg-gray-800:hover,
+.theme-sg main .hover\:bg-gray-700:hover,
+.theme-sg main .hover\:bg-slate-800:hover,
+.theme-sg main .hover\:bg-slate-700:hover {
+  background-color: #e4f4f8;
+}
+
+.theme-sg main .hover\:text-white:hover {
+  color: #2A2F3A;
+}
+
+.theme-sg main .hover\:text-red-400:hover {
+  color: #0EA5C7;
+}
+
+/* Red-tinted dark backgrounds */
+.theme-sg main .bg-red-950\/50,
+.theme-sg main .bg-red-950\/30,
+.theme-sg main .bg-red-900\/50,
+.theme-sg main .bg-red-900\/30,
+.theme-sg main .bg-red-900\/20 {
+  background-color: #e4f4f8;
+}
+
+/* Ring colors */
+.theme-sg main .ring-gray-700,
+.theme-sg main .ring-gray-800 {
+  --tw-ring-color: #d6dae2;
+}
+
+/* Placeholder text */
+.theme-sg main .placeholder-gray-500::placeholder,
+.theme-sg main .placeholder-gray-400::placeholder {
+  color: #9aa1ad;
+}
+
+/* Gradient stops — dark to light */
+.theme-sg main .from-gray-900 { --tw-gradient-from: #E8EAEF var(--tw-gradient-from-position); --tw-gradient-to: transparent var(--tw-gradient-to-position); }
+.theme-sg main .to-gray-900 { --tw-gradient-to: #E8EAEF var(--tw-gradient-to-position); }
+.theme-sg main .from-gray-950 { --tw-gradient-from: #F4F5F8 var(--tw-gradient-from-position); --tw-gradient-to: transparent var(--tw-gradient-to-position); }
+.theme-sg main .to-gray-950 { --tw-gradient-to: #F4F5F8 var(--tw-gradient-to-position); }
+.theme-sg main .from-gray-800 { --tw-gradient-from: #F4F5F8 var(--tw-gradient-from-position); --tw-gradient-to: transparent var(--tw-gradient-to-position); }
+.theme-sg main .to-gray-800 { --tw-gradient-to: #F4F5F8 var(--tw-gradient-to-position); }
