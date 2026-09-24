@@ -1,6 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Building2, CalendarDays, Gauge, History, Loader2, Plus, Search } from "lucide-react";
+import { ArrowLeft, Building2, CalendarDays, Gauge, History, Loader2, Plus, Search, Inbox } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import SoftGraphiteStyle from "@/components/cfrs/SoftGraphiteStyle";
+import SemanticBadge from "@/components/cfrs/SemanticBadge";
+import EmptyState from "@/components/cfrs/EmptyState";
+import SkeletonGrid from "@/components/cfrs/Skeleton";
 
 const CFRS_VERSION = "CFRS-ASSESS-2026.16";
 const CFRS_BASELINE = 600;
@@ -73,49 +77,48 @@ export default function CFRSOrganizations() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070c18] text-slate-100">
+    <div className="cfrs-sg min-h-screen">
+      <SoftGraphiteStyle />
       <div className="mx-auto max-w-[1480px] px-4 py-7 lg:px-7">
-        <header className="mb-5 flex flex-wrap items-end justify-between gap-4 border-b border-cyan-500/20 pb-5">
+        <header className="sg-enter mb-5 flex flex-wrap items-end justify-between gap-4 border-b pb-5" style={{ borderColor: "#d6dae2" }}>
           <div>
-            <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.24em] text-cyan-300">
+            <div className="sg-micro mb-2 flex items-center gap-2" style={{ color: "#0EA5C7" }}>
               <Gauge className="h-4 w-4" /> Capital Intelligence
             </div>
             <h1 className="text-2xl font-semibold lg:text-3xl">Saved CFRS Organizations</h1>
-            <p className="mt-1 text-sm text-slate-400">Select an organization to open its dedicated score, history, profile, and evidence workspace.</p>
+            <p className="sg-body mt-1" style={{ color: "#6b7280" }}>Select an organization to open its dedicated score, history, profile, and evidence workspace.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <a href="/CFRS" className="flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-300 transition hover:bg-slate-800">
+            <a href="/CFRS" className="sg-btn flex items-center gap-2 px-3 py-2 text-xs">
               <ArrowLeft className="h-3.5 w-3.5" /> Main CFRS
             </a>
-            <a href="/CFRS?new=1" className="flex items-center gap-2 rounded-lg bg-cyan-400 px-3 py-2 text-xs font-semibold text-slate-950 transition hover:bg-cyan-300">
+            <a href="/CFRS?new=1" className="sg-btn-primary flex items-center gap-2 px-3 py-2 text-xs font-semibold">
               <Plus className="h-3.5 w-3.5" /> Add Organization
             </a>
           </div>
         </header>
 
-        <section className="rounded-2xl border border-slate-700 bg-slate-950/50 p-5">
+        <section className="sg-panel sg-panel-hover sg-enter p-5" style={{ animationDelay: ".1s" }}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-2 text-sm font-semibold">
-                <History className="h-4 w-4 text-cyan-300" /> Organizations
+                <History className="h-4 w-4" style={{ color: "#0EA5C7" }} /> Organizations
               </div>
-              <p className="mt-1 text-xs text-slate-500">One consolidated CFRS card per organization.</p>
+              <p className="sg-body mt-1" style={{ color: "#6b7280" }}>One consolidated CFRS card per organization.</p>
             </div>
             <label className="relative block w-full sm:w-72">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "#9aa1ad" }} />
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search organizations"
-                className="h-10 w-full rounded-lg border border-slate-700 bg-slate-900 pl-9 pr-3 text-sm outline-none focus:border-cyan-400"
+                className="sg-input h-10 w-full pl-9 pr-3 text-sm"
               />
             </label>
           </div>
 
           {loading ? (
-            <div className="mt-5 flex items-center gap-2 text-xs text-slate-500">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading organizations…
-            </div>
+            <div className="mt-5"><SkeletonGrid count={6} /></div>
           ) : organizations.length ? (
             <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {organizations.map((organization) => {
@@ -126,41 +129,45 @@ export default function CFRSOrganizations() {
                     .filter((assessment) => assessment.organization_id === organization.organization_id)
                     .map((assessment) => assessment.report_fingerprint || assessment.id)
                 ).size;
+                const tone = score >= 750 ? "#0f9d58" : score >= 450 ? "#b8860b" : "#dc2626";
                 return (
                   <button
                     key={organization.organization_id}
                     type="button"
                     onClick={() => openOrganization(organization.organization_id)}
-                    className="rounded-xl border border-slate-800 bg-slate-900/45 p-4 text-left transition hover:border-cyan-400/60 hover:bg-cyan-950/15"
+                    className="sg-panel sg-panel-hover p-4 text-left"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <Building2 className="h-4 w-4 shrink-0 text-cyan-300" />
+                          <Building2 className="h-4 w-4 shrink-0" style={{ color: "#0EA5C7" }} />
                           <div className="truncate text-sm font-semibold">{organization.business_name}</div>
                         </div>
-                        <div className="mt-2 flex items-center gap-1 text-[10px] text-slate-500">
+                        <div className="mt-2 flex items-center gap-1 text-[10px]" style={{ color: "#6b7280" }}>
                           <CalendarDays className="h-3 w-3" /> {new Date(evidenceTime(organization)).toLocaleDateString()}
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-2xl font-semibold text-cyan-300">{score}</div>
-                        <div className="text-[9px] uppercase text-slate-500">{ratingFor(score)}</div>
+                        <div className="text-2xl font-semibold sg-tabular" style={{ color: "#0EA5C7" }}>{score}</div>
+                        <div className="sg-micro">{ratingFor(score)}</div>
                       </div>
                     </div>
-                    <div className="mt-4 flex items-center justify-between border-t border-slate-800 pt-3 text-[10px]">
-                      <span className="text-emerald-300">{count} assessment{count === 1 ? "" : "s"}</span>
-                      <span className="text-cyan-300">Open organization →</span>
+                    <div className="mt-4 flex items-center justify-between border-t pt-3 text-[10px]" style={{ borderColor: "#d6dae2" }}>
+                      <SemanticBadge tone="success">{count} assessment{count === 1 ? "" : "s"}</SemanticBadge>
+                      <span style={{ color: "#0EA5C7" }}>Open organization →</span>
                     </div>
                   </button>
                 );
               })}
             </div>
           ) : (
-            <div className="mt-5 rounded-xl border border-dashed border-slate-800 p-8 text-center">
-              <Building2 className="mx-auto h-8 w-8 text-slate-600" />
-              <div className="mt-3 text-sm font-semibold">No organizations found</div>
-              <p className="mt-1 text-xs text-slate-500">Add an organization and complete its first assessment to create its saved CFRS record.</p>
+            <div className="mt-5">
+              <EmptyState
+                icon={Inbox}
+                title="No organizations found"
+                message="Add an organization and complete its first assessment to create its saved CFRS record."
+                action={<a href="/CFRS?new=1" className="sg-btn-primary inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold"><Plus className="h-3.5 w-3.5" /> Add Organization</a>}
+              />
             </div>
           )}
         </section>
