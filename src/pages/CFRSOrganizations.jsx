@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Building2, CalendarDays, Gauge, History, Loader2, Plus, Search, Inbox, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import SoftGraphiteStyle from "@/components/cfrs/SoftGraphiteStyle";
 import SemanticBadge from "@/components/cfrs/SemanticBadge";
 import EmptyState from "@/components/cfrs/EmptyState";
 import SkeletonGrid from "@/components/cfrs/Skeleton";
@@ -108,7 +107,6 @@ export default function CFRSOrganizations() {
 
   return (
     <div className="cfrs-sg min-h-screen">
-      <SoftGraphiteStyle />
       <div className="mx-auto max-w-[1480px] px-4 py-7 lg:px-7">
         <header className="sg-enter mb-5 flex flex-wrap items-end justify-between gap-4 border-b pb-5" style={{ borderColor: "#d6dae2" }}>
           <div>

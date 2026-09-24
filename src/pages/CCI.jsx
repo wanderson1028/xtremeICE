@@ -5,7 +5,6 @@ import {
   History, Loader2, MapPin, ExternalLink, Plug, RefreshCw, ShieldAlert, ShieldCheck,
   Trash2, Upload, UserRound, X, Inbox,
 } from "lucide-react";
-import SoftGraphiteStyle from "@/components/cfrs/SoftGraphiteStyle";
 import SemanticBadge from "@/components/cfrs/SemanticBadge";
 import RadialGauge from "@/components/cfrs/RadialGauge";
 import Sparkline from "@/components/cfrs/Sparkline";
@@ -274,7 +273,6 @@ export default function CCI() {
 
   return (
     <div className="cfrs-sg min-h-screen">
-      <SoftGraphiteStyle />
       <div className="mx-auto max-w-[1480px] px-4 py-7 lg:px-7">
         <header className="sg-enter mb-5 flex flex-wrap items-end justify-between gap-4 border-b pb-5" style={{ borderColor: "#d6dae2" }}>
           <div>
