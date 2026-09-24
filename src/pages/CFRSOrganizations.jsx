@@ -32,6 +32,18 @@ const ratingFor = (score) =>
   score >= 1 ? "Critical" :
   score >= -249 ? "Distressed" : "Extreme Risk";
 
+// Zone color palette — extends the ScoreBar gradient hues across all 8 rating zones.
+const zoneColor = (score) => {
+  if (score >= 900) return { color: "#0f9d58", wash: "#0f9d5812" };       // Exceptional — emerald
+  if (score >= 750) return { color: "#22c55e", wash: "#22c55e12" };       // Strong — green
+  if (score >= 600) return { color: "#84cc16", wash: "#84cc1612" };       // Good — lime
+  if (score >= 450) return { color: "#facc15", wash: "#facc1512" };       // Fair — amber
+  if (score >= 250) return { color: "#f97316", wash: "#f9731612" };       // Poor — orange
+  if (score >= 1)   return { color: "#ef4444", wash: "#ef444412" };       // Critical — red
+  if (score >= -249) return { color: "#b91c1c", wash: "#b91c1c12" };      // Distressed — deep red
+  return { color: "#7f1d1d", wash: "#7f1d1d12" };                        // Extreme Risk — burgundy
+};
+
 const organizationRollup = (history, current) => {
   const organizationRows = history.filter(
     (assessment) => assessment.organization_id === current.organization_id && assessment.status === "completed"
@@ -129,7 +141,7 @@ export default function CFRSOrganizations() {
                     .filter((assessment) => assessment.organization_id === organization.organization_id)
                     .map((assessment) => assessment.report_fingerprint || assessment.id)
                 ).size;
-                const tone = score >= 750 ? "#0f9d58" : score >= 450 ? "#b8860b" : "#dc2626";
+                const zone = zoneColor(score);
                 return (
                   <button
                     key={organization.organization_id}
@@ -147,9 +159,9 @@ export default function CFRSOrganizations() {
                           <CalendarDays className="h-3 w-3" /> {new Date(evidenceTime(organization)).toLocaleDateString()}
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-semibold sg-tabular" style={{ color: "#0EA5C7" }}>{score}</div>
-                        <div className="sg-micro">{ratingFor(score)}</div>
+                      <div className="text-right rounded-lg px-3 py-2 -m-1" style={{ background: zone.wash }}>
+                        <div className="text-2xl font-semibold sg-tabular" style={{ color: zone.color }}>{score}</div>
+                        <div className="sg-micro" style={{ color: zone.color }}>{ratingFor(score)}</div>
                       </div>
                     </div>
                     <div className="mt-4 flex items-center justify-between border-t pt-3 text-[10px]" style={{ borderColor: "#d6dae2" }}>
