@@ -405,8 +405,10 @@ export default function Layout({ children, currentPageName }) {
   const showCollabSep = access.hasCollaboration;
   const showTrainingSep = access.hasTraining;
 
+  const isCFRS = currentPageName === "CFRS";
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" style={isCFRS ? { background: "#E8EAEF" } : undefined}>
       <header className={`fixed top-0 left-0 right-0 z-50 border-b border-red-900/40 bg-gray-900/90 backdrop-blur-sm shadow-lg ${isEmbedded ? "hidden" : ""}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
@@ -474,7 +476,7 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </div>
       </header>
-      <main className={isEmbedded ? "pt-0" : "pt-20"}>
+      <main className={isEmbedded ? "pt-0" : "pt-20"} style={isCFRS ? { background: "#E8EAEF", minHeight: "calc(100vh - 5rem)" } : undefined}>
         {children}
       </main>
     </div>
