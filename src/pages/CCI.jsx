@@ -343,7 +343,7 @@ export default function CCI() {
                 <div className="sg-micro" style={{ color: "#0EA5C7" }}>CFRS</div>
                 <div className="mt-2 flex items-center gap-4">
                   <div className="text-5xl font-semibold sg-tabular"><CountUp target={orgScore} duration={1100} /></div>
-                  <RadialGauge score={orgScore} min={CFRS_MIN} max={CFRS_MAX} size={116} />
+                  <RadialGauge score={orgScore} min={CFRS_MIN} max={CFRS_MAX} size={116} trend={latestAssessmentChange} />
                 </div>
                 <div className="mt-1 text-sm font-medium" style={{ color: "#0EA5C7" }}>{ratingFor(orgScore)} · −500 to 1,000</div>
                 <div className="mt-5"><ScoreBar score={orgScore} /></div>

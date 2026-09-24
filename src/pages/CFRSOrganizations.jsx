@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Building2, CalendarDays, Gauge, History, Loader2, Plus, Search, Inbox } from "lucide-react";
+import { ArrowLeft, Building2, CalendarDays, Gauge, History, Loader2, Plus, Search, Inbox, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import SoftGraphiteStyle from "@/components/cfrs/SoftGraphiteStyle";
 import SemanticBadge from "@/components/cfrs/SemanticBadge";
@@ -55,6 +55,15 @@ const organizationRollup = (history, current) => {
   );
   const latest = sorted.find((assessment) => assessment.is_current_rating) || sorted[0] || current;
   return Number(latest?.final_score ?? current?.final_score ?? CFRS_BASELINE);
+};
+
+const organizationTrend = (history, current) => {
+  const orgRows = history.filter((a) => a.organization_id === current.organization_id && a.status === "completed");
+  const versioned = orgRows.filter((a) => a.calculation_version === CFRS_VERSION);
+  const eligible = versioned.length ? versioned : orgRows;
+  const sorted = [...eligible].sort((a, b) => evidenceTime(b) - evidenceTime(a) || new Date(b.analyzed_at || 0) - new Date(a.analyzed_at || 0));
+  if (sorted.length < 2) return null;
+  return assessmentScore(sorted[0]) - assessmentScore(sorted[1]);
 };
 
 export default function CFRSOrganizations() {
@@ -142,6 +151,9 @@ export default function CFRSOrganizations() {
                     .map((assessment) => assessment.report_fingerprint || assessment.id)
                 ).size;
                 const zone = zoneColor(score);
+                const trend = organizationTrend(history, organization);
+                const TrendIcon = trend === null ? null : trend > 0 ? TrendingUp : trend < 0 ? TrendingDown : Minus;
+                const trendColor = trend === null ? "" : trend > 0 ? "#0f9d58" : trend < 0 ? "#dc2626" : "#9aa1ad";
                 return (
                   <button
                     key={organization.organization_id}
@@ -160,7 +172,10 @@ export default function CFRSOrganizations() {
                         </div>
                       </div>
                       <div className="text-right rounded-lg px-3 py-2 -m-1" style={{ background: zone.wash }}>
-                        <div className="text-2xl font-semibold sg-tabular" style={{ color: zone.color }}>{score}</div>
+                        <div className="flex items-center justify-end gap-1">
+                          <div className="text-2xl font-semibold sg-tabular" style={{ color: zone.color }}>{score}</div>
+                          {TrendIcon && <TrendIcon className="h-4 w-4 shrink-0" style={{ color: trendColor }} />}
+                        </div>
                         <div className="sg-micro" style={{ color: zone.color }}>{ratingFor(score)}</div>
                       </div>
                     </div>

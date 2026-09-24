@@ -1,8 +1,11 @@
 import React from "react";
 
 // Compact semicircular arc gauge. score in [min,max]; fills proportionally with accent.
-export default function RadialGauge({ score, min = -500, max = 1000, size = 120 }) {
+export default function RadialGauge({ score, min = -500, max = 1000, size = 120, trend = null }) {
   const clamped = Math.max(min, Math.min(max, Number(score) || min));
+  const trendColor = trend == null ? "#9aa1ad" : trend > 0 ? "#0f9d58" : trend < 0 ? "#dc2626" : "#9aa1ad";
+  const trendArrow = trend == null ? "" : trend > 0 ? "▲" : trend < 0 ? "▼" : "▬";
+  const trendLabel = trend == null ? "" : `${trend > 0 ? "+" : ""}${Math.round(trend)}`;
   const pct = (clamped - min) / (max - min);
   const r = 52;
   const cx = 60;
@@ -33,6 +36,11 @@ export default function RadialGauge({ score, min = -500, max = 1000, size = 120 
       <text x="60" y="50" textAnchor="middle" fontSize="22" fontWeight="700" fill="#2A2F3A">
         {Math.round(clamped)}
       </text>
+      {trend !== null && (
+        <text x="60" y="67" textAnchor="middle" fontSize="9" fontWeight="700" fill={trendColor}>
+          {trendArrow} {trendLabel}
+        </text>
+      )}
     </svg>
   );
 }
