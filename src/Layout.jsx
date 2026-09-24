@@ -8,8 +8,6 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { getAccessFromKeys, ADMIN_ACCESS } from "@/lib/featureConfig";
 import { useFeatureFlags, isFlagOn } from "@/hooks/useFeatureFlags";
-import ThemeToggle from "@/components/ThemeToggle";
-import { useTheme } from "@/lib/ThemeContext";
 
 const NAV_ACTIVE = "text-red-500 border-b-2 border-red-500 rounded-none";
 const NAV_IDLE = "text-gray-200 hover:text-white hover:text-red-400";
@@ -407,12 +405,10 @@ export default function Layout({ children, currentPageName }) {
   const showCollabSep = access.hasCollaboration;
   const showTrainingSep = access.hasTraining;
 
-  const { theme } = useTheme();
   const isCFRS = currentPageName === "CFRS";
-  const useLightSurface = isCFRS || theme === "soft-graphite";
 
   return (
-    <div className="min-h-screen bg-background" style={useLightSurface ? { background: "#E8EAEF" } : undefined}>
+    <div className="min-h-screen bg-background" style={isCFRS ? { background: "#E8EAEF" } : undefined}>
       <header className={`fixed top-0 left-0 right-0 z-50 border-b border-red-900/40 bg-gray-900/90 backdrop-blur-sm shadow-lg ${isEmbedded ? "hidden" : ""}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
@@ -468,7 +464,6 @@ export default function Layout({ children, currentPageName }) {
                 </>
               )}
 
-              <ThemeToggle />
               <LanguageSwitcher />
 
               <button
@@ -481,7 +476,7 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </div>
       </header>
-      <main className={isEmbedded ? "pt-0" : "pt-20"} style={useLightSurface ? { background: "#E8EAEF", minHeight: "calc(100vh - 5rem)" } : undefined}>
+      <main className={isEmbedded ? "pt-0" : "pt-20"} style={isCFRS ? { background: "#E8EAEF", minHeight: "calc(100vh - 5rem)" } : undefined}>
         {children}
       </main>
     </div>
