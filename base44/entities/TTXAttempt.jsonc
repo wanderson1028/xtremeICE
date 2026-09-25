@@ -1,0 +1,165 @@
+{
+  "name": "TTXAttempt",
+  "type": "object",
+  "properties": {
+    "owner_email": {
+      "type": "string"
+    },
+    "organization_id": {
+      "type": "string"
+    },
+    "profile_id": {
+      "type": "string"
+    },
+    "profile_version": {
+      "type": "number"
+    },
+    "company_name": {
+      "type": "string"
+    },
+    "exercise_title": {
+      "type": "string"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "cyber",
+        "disaster",
+        "combined"
+      ]
+    },
+    "attack_category": {
+      "type": "string"
+    },
+    "attack_scenario": {
+      "type": "string"
+    },
+    "disaster_type": {
+      "type": "string"
+    },
+    "geography": {
+      "type": "string"
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": [
+        "standard",
+        "advanced",
+        "executive"
+      ]
+    },
+    "scenario_seed": {
+      "type": "string"
+    },
+    "threat_sources": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "scoring_version": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "in_progress",
+        "completed",
+        "abandoned"
+      ],
+      "default": "in_progress"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "overall_score": {
+      "type": "number"
+    },
+    "category_scores": {
+      "type": "object"
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "exercise_snapshot": {
+      "type": "object"
+    },
+    "strengths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "gaps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "corrective_actions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "owner_email",
+    "profile_id",
+    "exercise_title",
+    "scenario_seed",
+    "scoring_version",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "email": "{{data.owner_email}}"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
