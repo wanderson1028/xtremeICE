@@ -84,6 +84,14 @@ export const FEATURES = [
     path: "/CFRS",
     nav_group: "special",
   },
+  {
+    key: "demo_mode",
+    labelKey: "home.feature_demo_mode",
+    icon: "cyberRange",
+    bg: "bg-cyan-400/10 border-cyan-400/20",
+    path: "/demo",
+    nav_group: "demo",
+  },
 ];
 
 /**
@@ -102,6 +110,7 @@ export function getAccessFromKeys(keys) {
     hasRealAttackDrills: has("real_attack_drills"),
     hasLabBuilder:    has("course_lab_builder"),
     hasCCI:           has("cci"),
+    hasDemo:          has("demo_mode"),
   };
 }
 
@@ -116,4 +125,5 @@ export const ADMIN_ACCESS = {
   hasRealAttackDrills: true,
   hasLabBuilder: true,
   hasCCI: true,
+  hasDemo: true,
 };
