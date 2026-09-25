@@ -82,6 +82,10 @@
     "source_url": {
       "type": "string"
     },
+    "is_demo": {
+      "type": "boolean",
+      "default": false
+    },
     "confidence_notes": {
       "type": "array",
       "items": {
