@@ -138,7 +138,8 @@ const AuthenticatedApp = () => {
     const isLabExperience = [
       "/labs/", "/linux-labs/", "/windows-labs/", "/soc-training",
       "/socsimulation", "/real-attack-drills", "/interactivevirtuallabs",
-      "/coursedashboard", "/eigrplab", "/firewalllab", "/training-catalog",
+      "/coursedashboard", "/virtuallabs", "/ospflab", "/eigrplab", "/firewalllab",
+      "/training-catalog", "/labcourses", "/lab-leaderboard-detail", "/studentdashboard",
       "/livefire", "/live-lab-topology", "/candidate-assessment"
     ].some((prefix) => path.startsWith(prefix));
     document.documentElement.classList.toggle("dark", isLabExperience);
