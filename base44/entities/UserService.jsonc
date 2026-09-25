@@ -17,7 +17,8 @@
         "real_attack_drills",
         "lab_scenarios",
         "course_lab_builder",
-        "cci"
+        "cci",
+        "demo_mode"
       ],
       "description": "The service/feature assigned to the user"
     }
