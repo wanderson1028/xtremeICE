@@ -2,6 +2,18 @@
   "name": "TTXAttempt",
   "type": "object",
   "properties": {
+    "role_scores": {
+      "type": "object"
+    },
+    "category_narratives": {
+      "type": "object"
+    },
+    "simulation_state": {
+      "type": "object"
+    },
+    "profile_snapshot": {
+      "type": "object"
+    },
     "owner_email": {
       "type": "string"
     },
