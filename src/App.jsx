@@ -186,6 +186,7 @@ const AuthenticatedApp = () => {
       <Route path="/real-attack-drills" element={<LayoutWrapper currentPageName="RealAttackDrills"><FeatureGate flagKey="real_attack_drills"><RealAttackDrills /></FeatureGate></LayoutWrapper>} />
       <Route path="/EnvironmentHub" element={<LayoutWrapper currentPageName="EnvironmentHub"><EnvironmentHub /></LayoutWrapper>} />
       <Route path="/demo" element={<LayoutWrapper currentPageName="DemoMode"><DemoMode /></LayoutWrapper>} />
+      <Route path="/Demo" element={<LayoutWrapper currentPageName="DemoMode"><DemoMode /></LayoutWrapper>} />
       <Route path="/LiveFire" element={<LayoutWrapper currentPageName="LiveFire"><LiveFire /></LayoutWrapper>} />
       <Route path="/OspfLab" element={<LayoutWrapper currentPageName="OspfLab"><OspfLab /></LayoutWrapper>} />
       <Route path="/LabBuilderDashboard" element={<LayoutWrapper currentPageName="LabBuilderDashboard"><FeatureGate flagKey="course_lab_builder"><LabBuilderDashboard /></FeatureGate></LayoutWrapper>} />
