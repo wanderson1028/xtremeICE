@@ -2,6 +2,9 @@
   "name": "TTXCompanyProfile",
   "type": "object",
   "properties": {
+    "ir_plan": {
+      "type": "object"
+    },
     "business_size": {
       "type": "string",
       "enum": [
