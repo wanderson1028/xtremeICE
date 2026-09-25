@@ -337,7 +337,7 @@ function TrainingDropdown({ currentPageName, access }) {
 function SpecialFeaturesDropdown({ currentPageName, access }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
-  const isActive = ["LabBuilderDashboard", "LabTemplates", "LabBuilder", "LabInstances", "LabEnvironments", "LabExports", "NiceMapping", "QuickBuild", "NetworkLabDesigner"].includes(currentPageName);
+  const isActive = ["LabBuilderDashboard", "LabTemplates", "LabBuilder", "LabInstances", "LabEnvironments", "LabExports", "NiceMapping", "QuickBuild", "NetworkLabDesigner", "DemoMode"].includes(currentPageName);
 
   useEffect(() => {
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -345,7 +345,7 @@ function SpecialFeaturesDropdown({ currentPageName, access }) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  if (!access.hasLabBuilder) return null;
+  if (!access.hasLabBuilder && !access.hasDemo) return null;
 
   return (
     <div className="relative" ref={ref}>
@@ -369,6 +369,14 @@ function SpecialFeaturesDropdown({ currentPageName, access }) {
             <UserCheck className="h-4 w-4 shrink-0 icon-glow icon-glow-rose" />
             Candidate Assessments
           </Link>
+          {access.hasDemo && <div className="border-t border-red-900/30" />}
+          {access.hasDemo && (
+            <Link to="/DemoMode" onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors">
+              <FlaskConical className="h-4 w-4 shrink-0 icon-glow icon-glow-cyan" />
+              Demo
+            </Link>
+          )}
         </div>
       )}
     </div>
@@ -444,18 +452,6 @@ export default function Layout({ children, currentPageName }) {
                 <span>{t("nav.dashboard")}</span>
               </Link>
 
-              {access.hasDemo && <div className="h-5 w-px bg-red-800/50 mx-1" />}
-              {access.hasDemo && (
-                <Link
-                  to="/DemoMode"
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${currentPageName === "DemoMode" ? NAV_ACTIVE : NAV_IDLE}`}
-                  title="Launch the controlled Xtreme I.C.E. demonstration"
-                >
-                  <FlaskConical className="h-4 w-4 text-cyan-300" />
-                  <span>Demo</span>
-                </Link>
-              )}
-
               {access.hasCCI && <div className="h-5 w-px bg-red-800/50 mx-1" />}
               <CapitalIntelligenceDropdown currentPageName={currentPageName} access={access} />
 
@@ -468,7 +464,7 @@ export default function Layout({ children, currentPageName }) {
               {showDesignSep && <div className="h-5 w-px bg-red-800/50 mx-1" />}
               <DesignDropdown currentPageName={currentPageName} access={access} />
 
-              {access.hasLabBuilder && <div className="h-5 w-px bg-red-800/50 mx-1" />}
+              {(access.hasLabBuilder || access.hasDemo) && <div className="h-5 w-px bg-red-800/50 mx-1" />}
               <SpecialFeaturesDropdown currentPageName={currentPageName} access={access} />
 
               {/* Admin link */}
