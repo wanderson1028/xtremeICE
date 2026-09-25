@@ -89,7 +89,7 @@ export const FEATURES = [
     labelKey: "home.feature_demo_mode",
     icon: "cyberRange",
     bg: "bg-cyan-400/10 border-cyan-400/20",
-    path: "/demo",
+    path: "/DemoMode",
     nav_group: "demo",
   },
 ];
