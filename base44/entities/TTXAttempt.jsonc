@@ -2,6 +2,9 @@
   "name": "TTXAttempt",
   "type": "object",
   "properties": {
+    "end_state_overview": {
+      "type": "string"
+    },
     "role_scores": {
       "type": "object"
     },
