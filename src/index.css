@@ -301,3 +301,45 @@ html {
     }
   }
 }
+
+/* Lab experience accessibility: force consistent dark surfaces and readable type. */
+body.lab-readable {
+  min-width: 320px;
+  background: #05070d;
+  color: #f8fafc;
+}
+body.lab-readable #root {
+  min-height: 100vh;
+  background: #05070d;
+}
+body.lab-readable .text-muted-foreground {
+  color: hsl(215 20% 72%) !important;
+}
+body.lab-readable .text-foreground {
+  color: hsl(210 40% 98%) !important;
+}
+body.lab-readable .text-\[9px\] {
+  font-size: 11px !important;
+  line-height: 1.4 !important;
+}
+body.lab-readable .text-\[10px\] {
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+}
+body.lab-readable .text-\[11px\] {
+  font-size: 12.5px !important;
+  line-height: 1.45 !important;
+}
+body.lab-readable .text-xs {
+  font-size: 13px;
+  line-height: 1.45;
+}
+body.lab-readable input,
+body.lab-readable select,
+body.lab-readable textarea {
+  color: #f8fafc;
+}
+body.lab-readable input::placeholder,
+body.lab-readable textarea::placeholder {
+  color: #94a3b8;
+}
