@@ -54,7 +54,8 @@ export function advance(n,previous,inject,choice) {
  const unavailable=new Set(Object.keys(s.statuses).filter(k=>["compromised","isolated","recovering","disrupted"].includes(s.statuses[k])));
  let changed=true;
  while(changed){changed=false;for(const node of n.nodes){if(!unavailable.has(node.id)&&node.dependencies.some(d=>unavailable.has(d))){unavailable.add(node.id);changed=true;}}}
- const duration=Math.max(.25,Math.min(8,num(inject.duration_hours,1)));
+ const authorityDelay=choice.authorized===false?0.5:0;
+ const duration=Math.max(.25,Math.min(8,num(inject.duration_hours,1)))+authorityDelay;
  const share=Math.min(1,n.nodes.filter(x=>unavailable.has(x.id)).reduce((a,x)=>a+x.impact_share,0));
  const downtime=Math.round(duration*share*num(n.assumptions.downtime_per_hour));
  const labor={investigate:2,isolate:2,remediate:6,restore_verified:4,restore_unverified:1,coordinate:2,defer:0}[action]??0;
@@ -63,7 +64,7 @@ export function advance(n,previous,inject,choice) {
  const active=Object.values(s.statuses).filter(v=>["compromised","recovering","isolated"].includes(v)).length;
  s.projected_remaining=Math.round(active*duration*num(n.assumptions.downtime_per_hour)*.25);
  s.unavailable=[...unavailable];
- s.timeline.push({sequence:inject.sequence,target:id,action,hours:s.hours,increment:downtime+response,downtime,response,total:s.total,transitions,summary:transitions.length?transitions.join("; "):"No device status changed; response and outage time advanced."});
+ s.timeline.push({sequence:inject.sequence,target:id,action,hours:s.hours,increment:downtime+response,downtime,response,total:s.total,transitions,authority_delay:authorityDelay,summary:(transitions.length?transitions.join("; "):"No device status changed; response and outage time advanced.")+(authorityDelay?" An additional 30 minutes elapsed resolving decision ownership.":"")});
  return s;
 }
 export function roleResults(decisions){
@@ -73,3 +74,41 @@ export function roleResults(decisions){
  return [role,{score,count:ds.length,narrative:ds.length?ds.map(d=>"Decision "+d.sequence+": "+d.choice_label+" ("+d.points+"/100). "+d.rationale+(d.authorized?" The designated decision authority was engaged.":" The designated decision authority was not engaged; a 20-point responsibility deduction applied.")).join(" "):"Not assessed: no decisions were assigned to this role."}];
  }));
 }
+export function followupFor(inject,decision,state) {
+ const f=inject.followup;
+ if(!f||inject.is_followup)return null;
+ const trigger=f.trigger||"needs_improvement";
+ const warranted=trigger==="always"||trigger==="needs_improvement"&&decision.points<75||trigger==="authority_missing"&&!decision.authorized||trigger==="ongoing_compromise"&&Object.values(state.statuses).includes("compromised");
+ if(!warranted)return null;
+ return {...f,id:inject.id+"-followup",phase:inject.phase,sequence:decision.sequence+1,is_followup:true,parent_id:inject.id,disruption_target:null,
+ situation:"Following your decision to "+decision.choice_label+": "+f.situation,
+ choices:f.choices.map((c,i)=>({...c,id:inject.id+"-followup-choice-"+i}))};
+}
+export function decisionExplanation(inject,choice,decision,network) {
+ const best=[...inject.choices].sort((a,b)=>b.points-a.points)[0];
+ const event=decision.simulation_event;
+ const target=network.nodes.find(n=>n.id===inject.target_id)?.name||inject.target_id;
+ return "Because you chose “"+choice.label+"”, the team applied that decision to "+target+". "+event.summary+
+ " This added "+money(event.downtime)+" in simulated outage cost and "+money(event.response)+" in response labor. "+
+ (decision.authorized?"The responsible authority was engaged; no responsibility deduction applied.":"The responsible authority was not engaged: 20 points were deducted and 30 minutes of simulated coordination delay were added.")+
+ " Decision score: "+decision.points+"/100. "+choice.rationale+" "+
+ (best.id===choice.id?"Your selection was the strongest available response for this decision. ":"The strongest available response would have been “"+best.label+"”. "+best.rationale);
+}
+export function endStateOverview(network,state,decisions,company) {
+ const names=status=>network.nodes.filter(n=>state.statuses[n.id]===status).map(n=>n.name);
+ const compromised=names("compromised"),isolated=names("isolated"),recovering=names("recovering"),disrupted=names("disrupted");
+ const missed=decisions.filter(d=>!d.authorized).length;
+ const positives=decisions.filter(d=>d.points>=75).map(d=>d.choice_label);
+ const gaps=decisions.filter(d=>d.points<75).map(d=>d.choice_label);
+ return company+" completed "+decisions.length+" decisions over "+state.hours+" simulated hours. "+
+ (compromised.length?"The attack remained active in "+compromised.join(", ")+". ":"No active compromise remained in the modeled devices at the end of this exercise. This is a simulation outcome, not proof of a secure environment. ")+
+ (isolated.length?"Systems still isolated: "+isolated.join(", ")+". ":"")+
+ (recovering.length?"Recovery remained in progress for "+recovering.join(", ")+". ":"")+
+ (disrupted.length?"Disaster-related disruption remained on "+disrupted.join(", ")+". ":"")+
+ "Simulated incident cost reached "+money(state.total)+": "+money(state.downtime)+" from service interruption and "+money(state.response)+" from response labor. Additional estimated exposure of "+money(state.projected_remaining)+" is separate from that total. "+
+ (positives.length?"Stronger decisions included: "+positives.slice(0,3).join("; ")+". ":"No decision met the strong-response threshold. ")+
+ (gaps.length?"Decisions needing improvement included: "+gaps.slice(0,3).join("; ")+". ":"All assessed decisions met the strong-response threshold. ")+
+ (missed?missed+" decisions bypassed the designated authority, adding "+(missed*.5)+" hours of coordination delay and responsibility deductions. ":"The designated decision authority was engaged for every decision. ")+
+ (compromised.length||recovering.length||disrupted.length||isolated.length?"The next priority is to contain remaining exposure, validate restoration, and confirm that dependent business services work before closing the incident.":"The next priority is to validate the recovery evidence, document lessons, and assign owners to follow-up improvements.");
+}
+
