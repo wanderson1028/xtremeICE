@@ -33,7 +33,7 @@ function Field({label, children}) { return <label className="block"><span classN
 const inputClass="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-cyan-400";
 
 export default function TabletopExercises() {
-  const [user,setUser]=useState(null), [profile,setProfile]=useState(blankProfile), [profileId,setProfileId]=useState(null);
+  const [user,setUser]=useState(null), [profile,setProfile]=useState(blankProfile), [profileId,setProfileId]=useState(null), [denied,setDenied]=useState(false);
   const [attempts,setAttempts]=useState([]), [tab,setTab]=useState("dashboard"), [loading,setLoading]=useState(true), [message,setMessage]=useState("");
   const [setup,setSetup]=useState({mode:"combined",attack_category:"Ransomware",attack_scenario:"Data encryption and extortion",disaster_type:"Hurricane / severe storm",geography:"",difficulty:"standard"});
   const [run,setRun]=useState(null), [index,setIndex]=useState(0), [decisions,setDecisions]=useState([]), [feedback,setFeedback]=useState(null), [generating,setGenerating]=useState(false);
@@ -42,6 +42,10 @@ export default function TabletopExercises() {
     setLoading(true);
     try {
       const me=await base44.auth.me(); setUser(me);
+      if(me.role!=="admin"){
+        const access=await base44.entities.UserService.filter({user_email:me.email,service_key:"tabletop_exercises"});
+        if(!access?.length){setDenied(true);setLoading(false);return;}
+      }
       const [profiles,history]=await Promise.all([base44.entities.TTXCompanyProfile.filter({owner_email:me.email}),base44.entities.TTXAttempt.filter({owner_email:me.email})]);
       const p=(profiles||[]).sort((a,b)=>new Date(b.updated_at||b.created_date)-new Date(a.updated_at||a.created_date))[0];
       if(p){ setProfileId(p.id); setProfile({...blankProfile,...p,operating_locations:toText(p.operating_locations),critical_services:toText(p.critical_services),technology_stack:toText(p.technology_stack),regulated_data:toText(p.regulated_data),response_team:toText(p.response_team),third_parties:toText(p.third_parties)}); setSetup(s=>({...s,geography:p.primary_geography||""})); }
@@ -95,6 +99,7 @@ export default function TabletopExercises() {
   const next=()=>{if(index>=run.exercise.injects.length-1)finish();else{setIndex(i=>i+1);setFeedback(null);}};
 
   if(loading)return <div className="min-h-screen bg-slate-950 p-10 text-slate-200">Loading Tabletop Exercises…</div>;
+  if(denied)return <div className="min-h-screen bg-slate-950 p-10 text-slate-100"><Card className="mx-auto max-w-xl p-8 text-center"><ShieldAlert className="mx-auto h-10 w-10 text-purple-300"/><h1 className="mt-4 text-2xl font-bold">Tabletop Exercises access required</h1><p className="mt-2 text-slate-400">Ask an administrator to assign the Tabletop Exercises feature to your account.</p></Card></div>;
   return <div className="min-h-screen bg-slate-950 text-slate-100">
     <div className="border-b border-slate-800 bg-[radial-gradient(circle_at_top_right,rgba(8,145,178,.18),transparent_35%)] px-5 py-6 lg:px-10">
       <div className="mx-auto max-w-7xl">
