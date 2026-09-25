@@ -112,3 +112,40 @@ export function endStateOverview(network,state,decisions,company) {
  (compromised.length||recovering.length||disrupted.length||isolated.length?"The next priority is to contain remaining exposure, validate restoration, and confirm that dependent business services work before closing the incident.":"The next priority is to validate the recovery evidence, document lessons, and assign owners to follow-up improvements.");
 }
 
+export function archivedOverview(attempt={}) {
+ if(typeof attempt.end_state_overview==="string"&&attempt.end_state_overview.trim())return attempt.end_state_overview;
+ const ds=Array.isArray(attempt.decisions)?attempt.decisions:[];
+ const state=attempt.simulation_state;
+ const nodes=attempt.exercise_snapshot?.network_model?.nodes||[];
+ const paragraphs=[];
+ paragraphs.push((attempt.company_name||"The team")+" completed "+(attempt.exercise_title||"this exercise")+
+ (Number.isFinite(attempt.overall_score)?", with a saved readiness score of "+attempt.overall_score+"/100.":".")+
+ " This overview uses the recorded results; the original score has not been recalculated.");
+ if(state?.statuses&&Object.keys(state.statuses).length){
+ const name=id=>nodes.find(n=>n.id===id)?.name||id;
+ const groups=[["compromised","The attack remained active on"],["isolated","These systems remained disconnected to limit exposure:"],["recovering","Recovery was still underway for"],["disrupted","Disaster-related disruption remained on"]];
+ const outcomes=groups.map(([status,label])=>{const ids=Object.keys(state.statuses).filter(id=>state.statuses[id]===status);return ids.length?label+" "+ids.map(name).join(", ")+".":""}).filter(Boolean);
+ if(!Object.values(state.statuses).includes("compromised"))outcomes.unshift("No devices were recorded as actively compromised at the end of the simulation.");
+ paragraphs.push(outcomes.join(" ")||"No unresolved device states were recorded.");
+ }else paragraphs.push("This older assessment did not retain a final network state, so its final containment and recovery status cannot be confirmed.");
+ if(state&&Number.isFinite(state.total)){
+ let cost="The recorded simulated incident cost was "+money(state.total)+".";
+ if(Number.isFinite(state.downtime))cost+=" Service interruption accounted for "+money(state.downtime)+".";
+ if(Number.isFinite(state.response))cost+=" Response labor accounted for "+money(state.response)+".";
+ if(Number.isFinite(state.hours))cost+=" The exercise covered "+state.hours+" simulated hours.";
+ paragraphs.push(cost);
+ }
+ const explain=list=>list.slice(0,3).map(d=>"“"+d.choice_label+"”"+(d.rationale?" — "+d.rationale:"")).join(" ");
+ const strong=ds.filter(d=>Number.isFinite(d.points)&&d.points>=75&&d.choice_label);
+ const weak=ds.filter(d=>Number.isFinite(d.points)&&d.points<75&&d.choice_label).sort((a,b)=>a.points-b.points);
+ if(strong.length)paragraphs.push("Decisions that supported the response included: "+explain(strong));
+ if(weak.length)paragraphs.push("Decisions that weakened the response or left gaps included: "+explain(weak));
+ if(!ds.length)paragraphs.push("Detailed decision records were not retained for this attempt.");
+ const missing=ds.filter(d=>d.authorized===false).length;
+ if(missing)paragraphs.push("The designated decision authority was not engaged for "+missing+" recorded decision(s). Any original score deductions remain as recorded.");
+ const delay=(state?.timeline||[]).reduce((sum,t)=>sum+(Number.isFinite(t.authority_delay)?t.authority_delay:0),0);
+ if(delay)paragraphs.push("Recorded coordination delay totaled "+delay+" simulated hours.");
+ if(attempt.corrective_actions?.length)paragraphs.push("Recommended follow-up: "+attempt.corrective_actions.join(" "));
+ return paragraphs.join("\n\n");
+}
+
