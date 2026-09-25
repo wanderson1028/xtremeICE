@@ -18,6 +18,7 @@ const ALL_SERVICES = [
   { key: "course_lab_builder",     label: "Course Lab Builder",          short: "CLB",  granular: false },
   { key: "cci",                    label: "Capital Intelligence — CFRS", short: "CFRS", granular: false },
   { key: "demo_mode",              label: "Xtreme I.C.E. Demo",           short: "Demo", granular: false },
+  { key: "tabletop_exercises",     label: "Tabletop Exercises (TTX)",      short: "TTX",  granular: false },
 ];
 
 export default function ServiceManager() {
@@ -171,7 +172,7 @@ export default function ServiceManager() {
 
                     {ALL_SERVICES.map((svc) => {
                       const assignment = getAssignment(user.email, svc.key);
-                      const isAdminAuto = svc.key === "demo_mode" && user.role === "admin";
+                      const isAdminAuto = ["demo_mode", "tabletop_exercises"].includes(svc.key) && user.role === "admin";
                       const isOn = isAdminAuto || !!assignment;
                       const isPend = !!pending[`${user.email}__${svc.key}`];
                       return (
