@@ -37,15 +37,16 @@ export function advance(n,previous,inject,choice) {
  if(!n.nodes.some(x=>x.id===id))throw new Error("Unknown network target");
  const transitions=[];
  const set=(key,status)=>{if(s.statuses[key]!==status){transitions.push(n.nodes.find(x=>x.id===key).name+": "+s.statuses[key]+" → "+status);s.statuses[key]=status;}};
+ if(inject.disruption_target&&n.nodes.some(x=>x.id===inject.disruption_target))set(inject.disruption_target,"disrupted");
  const action=choice.action;
- if(action==="isolate"&&s.statuses[id]!=="healthy")set(id,"isolated");
+ if(action==="isolate")set(id,"isolated");
  if(action==="remediate"&&["compromised","isolated","suspicious"].includes(s.statuses[id]))set(id,"recovering");
- if(action==="restore_verified"&&s.statuses[id]==="recovering")set(id,"healthy");
+ if(action==="restore_verified"&&["recovering","disrupted"].includes(s.statuses[id]))set(id,"healthy");
  if(action==="restore_unverified"&&["isolated","recovering"].includes(s.statuses[id]))set(id,"compromised");
  if(action==="investigate"&&s.statuses[id]==="healthy")set(id,"suspicious");
  // One connected hop per decision. Isolation removes both ingress and egress paths.
  const infected=Object.keys(s.statuses).filter(k=>s.statuses[k]==="compromised");
- if(!["isolate","remediate","restore_verified"].includes(action)){
+ {
  const candidates=n.edges.flatMap(e=>infected.includes(e.source)?[e.target]:infected.includes(e.target)?[e.source]:[]);
  const next=[...new Set(candidates)].find(k=>s.statuses[k]==="healthy"||s.statuses[k]==="suspicious");
  if(next)set(next,"compromised");
