@@ -239,7 +239,7 @@ function TrainingDropdown({ currentPageName, access }) {
   const [simOpen, setSimOpen] = useState(false);
   const [socOpen, setSocOpen] = useState(false);
   const ref = useRef(null);
-  const isActive = ["Labs", "VirtualLabs", "SOCSimulation", "SOCTraining", "RealAttackDrills", "SOCAssessments", "InteractiveVirtualLabs", "LabCourses"].includes(currentPageName);
+  const isActive = ["Labs", "VirtualLabs", "SOCSimulation", "SOCTraining", "RealAttackDrills", "SOCAssessments", "InteractiveVirtualLabs", "LabCourses", "TabletopExercises"].includes(currentPageName);
 
   useEffect(() => {
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -247,7 +247,7 @@ function TrainingDropdown({ currentPageName, access }) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  if (!access.hasTraining) return null;
+  if (!access.hasTraining && !access.hasTTX) return null;
 
   const showSocSub = access.hasSocTraining || access.hasRealAttackDrills;
 
@@ -262,6 +262,15 @@ function TrainingDropdown({ currentPageName, access }) {
       </button>
       {open && (
         <div className="absolute right-0 top-full mt-1 w-56 bg-gray-950 border border-red-900/40 rounded-xl shadow-xl z-50 py-1 overflow-hidden">
+          {access.hasTTX && (
+            <Link to="/TabletopExercises" onClick={() => setOpen(false)}
+              aria-current={currentPageName === "TabletopExercises" ? "page" : undefined}
+              className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:text-white hover:bg-red-950/50 ${currentPageName === "TabletopExercises" ? "text-red-400 bg-red-950/30" : "text-gray-200"}`}>
+              <ClipboardCheck className="h-4 w-4 shrink-0 text-purple-300" />
+              TTX · Tabletop Exercises
+            </Link>
+          )}
+          {access.hasTTX && access.hasTraining && <div className="border-t border-red-900/30" />}
           {access.hasLabScenarios && (
             <>
               <button
@@ -403,7 +412,7 @@ export default function Layout({ children, currentPageName }) {
 
   const showDesignSep = access.hasDesign;
   const showCollabSep = access.hasCollaboration;
-  const showTrainingSep = access.hasTraining;
+  const showTrainingSep = access.hasTraining || access.hasTTX;
 
   const isCFRS = currentPageName === "CFRS";
 
@@ -444,18 +453,6 @@ export default function Layout({ children, currentPageName }) {
                 >
                   <FlaskConical className="h-4 w-4 text-cyan-300" />
                   <span>Demo</span>
-                </Link>
-              )}
-
-              {access.hasTTX && <div className="h-5 w-px bg-red-800/50 mx-1" />}
-              {access.hasTTX && (
-                <Link
-                  to="/TabletopExercises"
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${currentPageName === "TabletopExercises" ? NAV_ACTIVE : NAV_IDLE}`}
-                  title="Interactive cyber and disaster-recovery tabletop exercises"
-                >
-                  <ClipboardCheck className="h-4 w-4 text-purple-300" />
-                  <span>TTX</span>
                 </Link>
               )}
 
