@@ -18,7 +18,8 @@
         "lab_scenarios",
         "course_lab_builder",
         "cci",
-        "demo_mode"
+        "demo_mode",
+        "tabletop_exercises"
       ],
       "description": "The service/feature assigned to the user"
     }
