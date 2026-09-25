@@ -92,6 +92,14 @@ export const FEATURES = [
     path: "/DemoMode",
     nav_group: "demo",
   },
+  {
+    key: "tabletop_exercises",
+    labelKey: "home.feature_tabletop_exercises",
+    icon: "socAssessments",
+    bg: "bg-purple-400/10 border-purple-400/20",
+    path: "/TabletopExercises",
+    nav_group: "ttx",
+  },
 ];
 
 /**
@@ -111,6 +119,7 @@ export function getAccessFromKeys(keys) {
     hasLabBuilder:    has("course_lab_builder"),
     hasCCI:           has("cci"),
     hasDemo:          has("demo_mode"),
+    hasTTX:           has("tabletop_exercises"),
   };
 }
 
@@ -126,4 +135,5 @@ export const ADMIN_ACCESS = {
   hasLabBuilder: true,
   hasCCI: true,
   hasDemo: true,
+  hasTTX: true,
 };
