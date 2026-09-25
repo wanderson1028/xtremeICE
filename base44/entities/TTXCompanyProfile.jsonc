@@ -78,6 +78,15 @@
     "updated_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "source_url": {
+      "type": "string"
+    },
+    "confidence_notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     }
   },
   "required": [
