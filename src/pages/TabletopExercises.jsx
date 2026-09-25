@@ -50,8 +50,9 @@ export default function TabletopExercises() {
       const [profiles,history]=await Promise.all([base44.entities.TTXCompanyProfile.filter({owner_email:me.email}),base44.entities.TTXAttempt.filter({owner_email:me.email})]);
       const savedProfiles=(profiles||[]).sort((a,b)=>new Date(b.updated_at||b.created_date)-new Date(a.updated_at||a.created_date));
       setProfiles(savedProfiles);
-      const p=savedProfiles[0];
-      if(p){ setProfileId(p.id); setProfile(hydrateProfile(p)); setSetup(s=>({...s,geography:p.primary_geography||""})); }
+      setProfileId(null);
+      setProfile(blankProfile);
+      if(!savedProfiles.length){setTab("profile");setMessage("A company profile is required before an exercise can be started.");}
       setAttempts((history||[]).sort((a,b)=>new Date(b.started_at||b.created_date)-new Date(a.started_at||a.created_date)));
     } catch(e){ setMessage(e.message||"Unable to load TTX workspace."); }
     setLoading(false);
