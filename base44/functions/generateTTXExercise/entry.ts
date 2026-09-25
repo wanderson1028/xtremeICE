@@ -1,14 +1,19 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 
-const SCORING_VERSION = 'TTX-2026.1';
+const SCORING_VERSION = 'TTX-2026.2';
 const CATEGORIES = [
   'preparation_governance','detection_analysis','escalation_command','containment',
   'eradication_remediation','recovery_restoration','communications','legal_evidence','lessons_improvement'
 ];
 
+const ROLES = ['CEO','CISO','CIO','CFO','COO','Legal','Communications'];
+const ACTIONS = ['investigate','isolate','remediate','restore_verified','restore_unverified','coordinate','defer'];
 const SCHEMA = {
   type: 'object',
   properties: {
+    entry_node: {type:'string'},
+    disaster_target: {type:'string'},
+    disaster_sequence: {type:'number'},
     title: { type: 'string' },
     executive_brief: { type: 'string' },
     objectives: { type: 'array', items: { type: 'string' } },
@@ -18,6 +23,11 @@ const SCHEMA = {
       items: {
         type: 'object',
         properties: {
+          decision_owner: {type:'string',enum:ROLES},
+          supporting_roles: {type:'array',items:{type:'string',enum:ROLES}},
+          execution_owner: {type:'string'},
+          target_id: {type:'string'},
+          duration_hours: {type:'number'},
           id: { type: 'string' },
           sequence: { type: 'number' },
           phase: { type: 'string', enum: CATEGORIES },
@@ -30,6 +40,7 @@ const SCHEMA = {
             items: {
               type: 'object',
               properties: {
+                action: {type:'string',enum:ACTIONS},
                 id: { type: 'string' },
                 label: { type: 'string' },
                 points: { type: 'number' },
@@ -37,18 +48,18 @@ const SCHEMA = {
                 consequence: { type: 'string' },
                 tags: { type: 'array', items: { type: 'string' } }
               },
-              required: ['id','label','points','rationale','consequence']
+              required: ['action','id','label','points','rationale','consequence']
             }
           },
           facilitator_note: { type: 'string' }
         },
-        required: ['id','sequence','phase','delivery_channel','time_label','situation','question','choices']
+        required: ['decision_owner','supporting_roles','execution_owner','target_id','duration_hours','id','sequence','phase','delivery_channel','time_label','situation','question','choices']
       }
     },
     recovery_complications: { type: 'array', items: { type: 'string' } },
     closing_summary: { type: 'string' }
   },
-  required: ['title','executive_brief','objectives','assumptions','injects','recovery_complications','closing_summary']
+  required: ['entry_node','disaster_target','disaster_sequence','title','executive_brief','objectives','assumptions','injects','recovery_complications','closing_summary']
 };
 
 function shuffle<T>(items: T[]) {
@@ -75,7 +86,11 @@ export default async function(req: Request) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { profile, attack_category, attack_scenario, disaster_type, geography, difficulty } = body;
+    const { profile_id, attack_category, attack_scenario, disaster_type, geography, difficulty } = body;
+    if (!profile_id) return Response.json({error:'Select a saved company profile.'},{status:400});
+    const profile = await base44.entities.TTXCompanyProfile.get(profile_id);
+    if (!profile || (user.role !== 'admin' && profile.owner_email !== user.email)) return Response.json({error:'Profile unavailable.'},{status:403});
+    if (!profile.network_model?.nodes?.length || !profile.business_size) return Response.json({error:'Review and save the company network model first.'},{status:400});
     if (!profile?.company_name || !attack_category || !attack_scenario) {
       return Response.json({ error: 'A saved company profile, attack category, and attack scenario are required.' }, { status: 400 });
     }
@@ -94,6 +109,8 @@ export default async function(req: Request) {
     const profileText = JSON.stringify({
       company_name: profile.company_name,
       industry: profile.industry,
+      business_size: profile.business_size,
+      network_model: profile.network_model,
       employee_count: profile.employee_count,
       headquarters: profile.headquarters,
       operating_locations: profile.operating_locations,
@@ -126,7 +143,7 @@ RECENT THREAT INTELLIGENCE:
 ${JSON.stringify(threatContext)}
 
 Requirements:
-1. Return exactly 8 sequential injects. Cover at least 6 different incident-response categories from: ${CATEGORIES.join(', ')}.
+1. Return exactly 9 sequential injects. Cover each of the 9 incident-response categories exactly once from: ${CATEGORIES.join(', ')}.
 2. The selected cyberattack is always the primary event. Weave the disaster-recovery factor into the same incident as a realistic complication affecting staffing, facilities, communications, utilities, vendors, backups, recovery capacity, or restoration timing. Do not create a separate disaster storyline.
 3. Personalize affected services, stakeholders, locations, vendors, time objectives, and decisions to this company profile.
 4. Every inject must have exactly 3 plausible choices. Avoid obviously correct wording. One choice scores 75-100, one 35-70, and one 0-30; randomize their order for every inject.
@@ -137,6 +154,12 @@ Requirements:
 9. Use plain business language, not unexplained technical jargon. Keep each situation under 110 words and each choice under 35 words.
 10. The exercise must be safe and defensive. Do not provide exploit instructions.
 
+11. Assign every inject a decision_owner from the role enum, supporting_roles, and a plain-language execution_owner. Cover CEO, CISO, CIO, CFO, COO, Legal, and Communications at least once. Adapt delegates to the company.
+12. This uses an explicit state simulation. entry_node, disaster_target, and every target_id MUST be an existing network_model node ID. Choose an entry appropriate to the attack. Set disaster_sequence between 2 and 5; that decision disrupts disaster_target, representing the selected regional factor. Mention this complication in that inject.
+13. Set duration_hours between 0.25 and 8 for each decision. Assign every choice exactly one action: investigate, isolate, remediate, restore_verified, restore_unverified, coordinate, defer. The choice wording must match the action. isolate isolates the target; remediate moves it into recovery; restore_verified restores a recovering or disaster-disrupted target; restore_unverified risks renewed compromise. Coordinate handles governance, budget, legal, and communications.
+14. The simulation state is authoritative. Frame later situations as decision checkpoints that remain valid whether containment succeeded or failed. Do not assume earlier choices or claim fixed successful recovery. Consequence text describes possible business implications, not invented device status or dollar amounts.
+15. Scoring rubric: 75-100 preserves evidence, uses accountable decisions and validated recovery; 35-70 partially addresses the risk with a named tradeoff; 0-30 leaves a specific material risk unmanaged. Explain each score using the chosen action, company context, and the response objective. Do not reward merely optimistic wording.
+
 Return only JSON matching the schema.`;
 
     const result = await base44.integrations.Core.InvokeLLM({
@@ -145,18 +168,32 @@ Return only JSON matching the schema.`;
       model: 'claude_sonnet_4_6'
     });
     const exercise = typeof result === 'string' ? JSON.parse(result) : result;
-    exercise.injects = (exercise.injects || []).slice(0, 8).map((inject: any, i: number) => ({
-      ...inject,
-      id: inject.id || `inject-${i + 1}`,
-      sequence: i + 1,
-      choices: shuffle((inject.choices || []).slice(0, 3)).map((choice: any, j: number) => ({
-        ...choice,
-        id: choice.id || `choice-${i + 1}-${j + 1}`,
-        points: Math.max(0, Math.min(100, Number(choice.points) || 0))
-      }))
+    const nodeIds = new Set(profile.network_model.nodes.map((n:any)=>n.id));
+    if (!Array.isArray(exercise.injects) || exercise.injects.length !== 9 ||
+        new Set(exercise.injects.map((x:any)=>x.phase)).size !== 9 ||
+        !CATEGORIES.every(k=>exercise.injects.some((x:any)=>x.phase===k)) ||
+        !ROLES.every(r=>exercise.injects.some((x:any)=>x.decision_owner===r)) ||
+        !nodeIds.has(exercise.entry_node) || !nodeIds.has(exercise.disaster_target) ||
+        !Number.isInteger(exercise.disaster_sequence) || exercise.disaster_sequence<2 || exercise.disaster_sequence>5) {
+      return Response.json({error:'Generated exercise did not meet coverage requirements. Please generate again.'},{status:422});
+    }
+    for (const x of exercise.injects) {
+      if (!ROLES.includes(x.decision_owner) || !nodeIds.has(x.target_id) ||
+          !Number.isFinite(x.duration_hours) || x.duration_hours<0.25 || x.duration_hours>8 ||
+          !Array.isArray(x.choices) || x.choices.length!==3 ||
+          !x.choices.every((c:any)=>ACTIONS.includes(c.action)&&Number.isFinite(c.points)&&c.points>=0&&c.points<=100)) {
+        return Response.json({error:'Generated exercise contained an invalid decision. Please generate again.'},{status:422});
+      }
+    }
+    exercise.injects = exercise.injects.map((inject:any,i:number)=>({
+      ...inject,id:`inject-${i+1}`,sequence:i+1,
+      disruption_target:i+1===exercise.disaster_sequence?exercise.disaster_target:null,
+      choices:shuffle(inject.choices).map((c:any,j:number)=>({...c,id:`choice-${i+1}-${j+1}`}))
     }));
+    exercise.network_model = profile.network_model;
 
     return Response.json({
+      profile_snapshot: profile,
       scenario_seed: seed,
       scoring_version: SCORING_VERSION,
       threat_sources: threatContext.map((x: any) => `${x.source}: ${x.id || x.title}`),
