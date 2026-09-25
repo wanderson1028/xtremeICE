@@ -50,6 +50,7 @@
 import CourseDashboard from './pages/CourseDashboard';
 import CyberEventBuilder from './pages/CyberEventBuilder';
 import DeviceInventory from './pages/DeviceInventory';
+import DemoMode from './pages/DemoMode';
 import Labs from './pages/Labs';
 import DiagramPreview from './pages/DiagramPreview';
 import FeatureGuide from './pages/FeatureGuide';
@@ -68,6 +69,7 @@ export const PAGES = {
     "CourseDashboard": CourseDashboard,
     "CyberEventBuilder": CyberEventBuilder,
     "DeviceInventory": DeviceInventory,
+    "DemoMode": DemoMode,
     "Labs": Labs,
     "DiagramPreview": DiagramPreview,
     "FeatureGuide": FeatureGuide,
