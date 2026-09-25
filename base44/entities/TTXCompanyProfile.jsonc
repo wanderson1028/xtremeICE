@@ -2,6 +2,18 @@
   "name": "TTXCompanyProfile",
   "type": "object",
   "properties": {
+    "business_size": {
+      "type": "string",
+      "enum": [
+        "small",
+        "medium",
+        "large",
+        "enterprise"
+      ]
+    },
+    "network_model": {
+      "type": "object"
+    },
     "owner_email": {
       "type": "string"
     },
