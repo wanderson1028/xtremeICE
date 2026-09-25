@@ -13,6 +13,7 @@ import SOCSimulation from './pages/SOCSimulation'
 import SOCTraining from './pages/SOCTraining'
 import RealAttackDrills from './pages/RealAttackDrills'
 import EnvironmentHub from './pages/EnvironmentHub'
+import DemoMode from './pages/DemoMode'
 import LiveFire from './pages/LiveFire'
 import OspfLab from './pages/OspfLab'
 import LabBuilderDashboard from './pages/LabBuilderDashboard'
@@ -184,6 +185,7 @@ const AuthenticatedApp = () => {
       <Route path="/soc-training" element={<LayoutWrapper currentPageName="SOCTraining"><FeatureGate flagKey="soc_training"><SOCTraining /></FeatureGate></LayoutWrapper>} />
       <Route path="/real-attack-drills" element={<LayoutWrapper currentPageName="RealAttackDrills"><FeatureGate flagKey="real_attack_drills"><RealAttackDrills /></FeatureGate></LayoutWrapper>} />
       <Route path="/EnvironmentHub" element={<LayoutWrapper currentPageName="EnvironmentHub"><EnvironmentHub /></LayoutWrapper>} />
+      <Route path="/demo" element={<LayoutWrapper currentPageName="DemoMode"><DemoMode /></LayoutWrapper>} />
       <Route path="/LiveFire" element={<LayoutWrapper currentPageName="LiveFire"><LiveFire /></LayoutWrapper>} />
       <Route path="/OspfLab" element={<LayoutWrapper currentPageName="OspfLab"><OspfLab /></LayoutWrapper>} />
       <Route path="/LabBuilderDashboard" element={<LayoutWrapper currentPageName="LabBuilderDashboard"><FeatureGate flagKey="course_lab_builder"><LabBuilderDashboard /></FeatureGate></LayoutWrapper>} />
