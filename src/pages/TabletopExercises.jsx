@@ -39,7 +39,7 @@ function Field({label, children}) { return <label className="block"><span classN
 const inputClass="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-cyan-400";
 
 export default function TabletopExercises() {
-  const [user,setUser]=useState(null), [profiles,setProfiles]=useState([]), [profile,setProfile]=useState(blankProfile), [profileId,setProfileId]=useState(null), [denied,setDenied]=useState(false);
+  const [user,setUser]=useState(null), [profiles,setProfiles]=useState([]), [profile,setProfile]=useState(blankProfile), [profileId,setProfileId]=useState(null), [profileChoice,setProfileChoice]=useState(""), [denied,setDenied]=useState(false);
   const [attempts,setAttempts]=useState([]), [tab,setTab]=useState("dashboard"), [loading,setLoading]=useState(true), [message,setMessage]=useState("");
   const [setup,setSetup]=useState({mode:"cyber",attack_category:"Ransomware",attack_scenario:"Data encryption and extortion",disaster_type:"Hurricane / severe storm",geography:"",difficulty:"standard"});
   const [run,setRun]=useState(null), [index,setIndex]=useState(0), [decisions,setDecisions]=useState([]), [feedback,setFeedback]=useState(null), [generating,setGenerating]=useState(false);
@@ -57,6 +57,7 @@ export default function TabletopExercises() {
       const savedProfiles=(loadedProfiles||[]).sort((a,b)=>new Date(b.updated_at||b.created_date)-new Date(a.updated_at||a.created_date));
       setProfiles(savedProfiles);
       setProfileId(null);
+      setProfileChoice("");
       setProfile(blankProfile);
       if(!savedProfiles.length){setTab("profile");setMessage("A company profile is required before an exercise can be started.");}
       setAttempts((history||[]).sort((a,b)=>new Date(b.started_at||b.created_date)-new Date(a.started_at||a.created_date)));
@@ -75,7 +76,7 @@ export default function TabletopExercises() {
     const payload={...profile,owner_email:user.email,employee_count:Number(profile.employee_count)||0,rto_hours:Number(profile.rto_hours)||0,rpo_hours:Number(profile.rpo_hours)||0,operating_locations:toArray(profile.operating_locations),critical_services:toArray(profile.critical_services),technology_stack:toArray(profile.technology_stack),regulated_data:toArray(profile.regulated_data),response_team:toArray(profile.response_team),third_parties:toArray(profile.third_parties),profile_version:Number(profile.profile_version||0)+1,updated_at:new Date().toISOString()};
     const saved=profileId?await base44.entities.TTXCompanyProfile.update(profileId,payload):await base44.entities.TTXCompanyProfile.create(payload);
     const savedRecord={...payload,id:saved.id||profileId};
-    setProfileId(savedRecord.id); setProfiles(list=>[savedRecord,...list.filter(x=>x.id!==savedRecord.id)]); setMessage("Company profile saved and selected. Exercises are now available."); setSetup(s=>({...s,geography:payload.primary_geography}));
+    setProfileId(savedRecord.id); setProfileChoice(`saved:${savedRecord.id}`); setProfiles(list=>[savedRecord,...list.filter(x=>x.id!==savedRecord.id)]); setMessage("Company profile saved and selected. Exercises are now available."); setSetup(s=>({...s,geography:payload.primary_geography}));
   };
 
   const generateFromUrl=async()=>{
@@ -85,13 +86,13 @@ export default function TabletopExercises() {
       const res=await base44.functions.invoke("generateTTXCompanyProfile",{url:websiteUrl.trim()});
       const data=res.data||res;
       if(data.error)throw new Error(data.error);
-      setProfileId(null);setProfile(hydrateProfile(data.profile));setMessage("Draft created from public information. Review every field, complete anything marked for confirmation, then save the profile.");
+      setProfileId(null);setProfileChoice("");setProfile(hydrateProfile(data.profile));setMessage("Draft created from public information. Review every field, complete anything marked for confirmation, then save the profile.");
     }catch(e){setMessage(e.message||"Unable to create a profile from that URL.");}
     setUrlLoading(false);
   };
 
-  const useDemoProfile=(demo)=>{
-    setProfileId(null);setProfile(hydrateProfile(demo));setSetup(s=>({...s,geography:demo.primary_geography||""}));setMessage("Demo profile loaded. Review it and save to select it for an exercise.");
+  const useDemoProfile=(demo,index)=>{
+    setProfileId(null);setProfileChoice(`demo:${index}`);setProfile(hydrateProfile(demo));setSetup(s=>({...s,geography:demo.primary_geography||""}));setMessage("Demo profile loaded. Review it and save to select it for an exercise.");
   };
 
   const generate=async()=>{
