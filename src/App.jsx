@@ -115,7 +115,8 @@ import LFAdministration from './pages/LFAdministration'
 import LabCreationWizard from './pages/LabCreationWizard'
 import LiveLabTopology from './pages/LiveLabTopology'
 import About from './pages/About'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { useEffect } from "react";
+import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
@@ -130,6 +131,23 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout ?
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  const location = useLocation();
+
+  useEffect(() => {
+    const path = location.pathname.toLowerCase();
+    const isLabExperience = [
+      "/labs/", "/linux-labs/", "/windows-labs/", "/soc-training",
+      "/socsimulation", "/real-attack-drills", "/interactivevirtuallabs",
+      "/coursedashboard", "/eigrplab", "/firewalllab", "/training-catalog",
+      "/livefire", "/live-lab-topology", "/candidate-assessment"
+    ].some((prefix) => path.startsWith(prefix));
+    document.documentElement.classList.toggle("dark", isLabExperience);
+    document.body.classList.toggle("lab-readable", isLabExperience);
+    return () => {
+      document.documentElement.classList.remove("dark");
+      document.body.classList.remove("lab-readable");
+    };
+  }, [location.pathname]);
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
