@@ -438,7 +438,7 @@ export default function Layout({ children, currentPageName }) {
               {access.hasDemo && <div className="h-5 w-px bg-red-800/50 mx-1" />}
               {access.hasDemo && (
                 <Link
-                  to="/demo"
+                  to="/DemoMode"
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${currentPageName === "DemoMode" ? NAV_ACTIVE : NAV_IDLE}`}
                   title="Launch the controlled Xtreme I.C.E. demonstration"
                 >
