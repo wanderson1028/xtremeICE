@@ -435,6 +435,18 @@ export default function Layout({ children, currentPageName }) {
                 <span>{t("nav.dashboard")}</span>
               </Link>
 
+              {access.hasDemo && <div className="h-5 w-px bg-red-800/50 mx-1" />}
+              {access.hasDemo && (
+                <Link
+                  to="/demo"
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${currentPageName === "DemoMode" ? NAV_ACTIVE : NAV_IDLE}`}
+                  title="Launch the controlled Xtreme I.C.E. demonstration"
+                >
+                  <FlaskConical className="h-4 w-4 text-cyan-300" />
+                  <span>Demo</span>
+                </Link>
+              )}
+
               {access.hasCCI && <div className="h-5 w-px bg-red-800/50 mx-1" />}
               <CapitalIntelligenceDropdown currentPageName={currentPageName} access={access} />
 
