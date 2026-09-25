@@ -2,6 +2,9 @@
   "name": "TTXAttempt",
   "type": "object",
   "properties": {
+    "ir_plan_result": {
+      "type": "object"
+    },
     "end_state_overview": {
       "type": "string"
     },
