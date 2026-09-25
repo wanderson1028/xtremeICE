@@ -1,0 +1,132 @@
+{
+  "name": "TTXCompanyProfile",
+  "type": "object",
+  "properties": {
+    "owner_email": {
+      "type": "string"
+    },
+    "organization_id": {
+      "type": "string"
+    },
+    "company_name": {
+      "type": "string"
+    },
+    "industry": {
+      "type": "string"
+    },
+    "employee_count": {
+      "type": "number"
+    },
+    "annual_revenue_range": {
+      "type": "string"
+    },
+    "headquarters": {
+      "type": "string"
+    },
+    "operating_locations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "critical_services": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "technology_stack": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "regulated_data": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "response_team": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "third_parties": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "backup_strategy": {
+      "type": "string"
+    },
+    "rto_hours": {
+      "type": "number"
+    },
+    "rpo_hours": {
+      "type": "number"
+    },
+    "primary_geography": {
+      "type": "string"
+    },
+    "profile_version": {
+      "type": "number",
+      "default": 1
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "owner_email",
+    "company_name",
+    "industry",
+    "primary_geography"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "email": "{{data.owner_email}}"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
