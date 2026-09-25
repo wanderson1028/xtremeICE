@@ -447,6 +447,18 @@ export default function Layout({ children, currentPageName }) {
                 </Link>
               )}
 
+              {access.hasTTX && <div className="h-5 w-px bg-red-800/50 mx-1" />}
+              {access.hasTTX && (
+                <Link
+                  to="/TabletopExercises"
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${currentPageName === "TabletopExercises" ? NAV_ACTIVE : NAV_IDLE}`}
+                  title="Interactive cyber and disaster-recovery tabletop exercises"
+                >
+                  <ClipboardCheck className="h-4 w-4 text-purple-300" />
+                  <span>TTX</span>
+                </Link>
+              )}
+
               {access.hasCCI && <div className="h-5 w-px bg-red-800/50 mx-1" />}
               <CapitalIntelligenceDropdown currentPageName={currentPageName} access={access} />
 
