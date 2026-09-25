@@ -75,9 +75,9 @@ export default async function(req: Request) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { profile, mode, attack_category, attack_scenario, disaster_type, geography, difficulty } = body;
-    if (!profile?.company_name || !mode) {
-      return Response.json({ error: 'A saved company profile and exercise mode are required.' }, { status: 400 });
+    const { profile, attack_category, attack_scenario, disaster_type, geography, difficulty } = body;
+    if (!profile?.company_name || !attack_category || !attack_scenario) {
+      return Response.json({ error: 'A saved company profile, attack category, and attack scenario are required.' }, { status: 400 });
     }
 
     const seed = crypto.randomUUID();
@@ -108,16 +108,16 @@ export default async function(req: Request) {
       primary_geography: profile.primary_geography
     });
 
-    const prompt = `You are an expert cyber crisis and disaster-recovery exercise designer. Create a realistic, executive-friendly tabletop exercise for the company profile below.
+    const prompt = `You are an expert cyber incident and business-resilience exercise designer. Create a realistic, executive-friendly CYBER tabletop exercise for the company profile below. Disaster recovery is a complicating factor inside the cyber incident, never a separate scenario.
 
 COMPANY PROFILE:
 ${profileText}
 
 EXERCISE REQUEST:
-- Mode: ${mode}
+- Exercise type: Cyber tabletop exercise with an integrated disaster-recovery factor
 - Attack category: ${attack_category || 'not applicable'}
 - Attack scenario: ${attack_scenario || 'not applicable'}
-- Disaster selected by user: ${disaster_type || 'not applicable'}
+- Disaster-recovery factor selected by user: ${disaster_type || 'regional operational disruption'}
 - Geographic area: ${geography || profile.primary_geography}
 - Difficulty: ${difficulty || 'standard'}
 - Unique scenario seed: ${seed}
@@ -127,7 +127,7 @@ ${JSON.stringify(threatContext)}
 
 Requirements:
 1. Return exactly 8 sequential injects. Cover at least 6 different incident-response categories from: ${CATEGORIES.join(', ')}.
-2. If mode is cyber, focus on the selected attack but include business continuity and recovery pressure. If disaster, focus on the selected hazard and operational/technology recovery. If combined, make the cyberattack and disaster interact causally.
+2. The selected cyberattack is always the primary event. Weave the disaster-recovery factor into the same incident as a realistic complication affecting staffing, facilities, communications, utilities, vendors, backups, recovery capacity, or restoration timing. Do not create a separate disaster storyline.
 3. Personalize affected services, stakeholders, locations, vendors, time objectives, and decisions to this company profile.
 4. Every inject must have exactly 3 plausible choices. Avoid obviously correct wording. One choice scores 75-100, one 35-70, and one 0-30; randomize their order for every inject.
 5. Consequences must change the apparent business situation and explain operational impact in plain language. Do not expose points before selection.
