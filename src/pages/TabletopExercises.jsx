@@ -25,6 +25,7 @@ const DISASTERS = ["Hurricane / severe storm", "Flood", "Wildfire", "Earthquake"
 const blankProfile = { company_name:"", industry:"", employee_count:"", headquarters:"", operating_locations:"", critical_services:"", technology_stack:"", regulated_data:"", response_team:"", third_parties:"", backup_strategy:"", rto_hours:"", rpo_hours:"", primary_geography:"" };
 const toArray = v => Array.isArray(v) ? v : String(v || "").split(",").map(x=>x.trim()).filter(Boolean);
 const toText = v => Array.isArray(v) ? v.join(", ") : (v || "");
+const hydrateProfile = p => ({...blankProfile,...p,operating_locations:toText(p.operating_locations),critical_services:toText(p.critical_services),technology_stack:toText(p.technology_stack),regulated_data:toText(p.regulated_data),response_team:toText(p.response_team),third_parties:toText(p.third_parties)});
 const scoreLabel = n => n >= 90 ? "Exceptional" : n >= 80 ? "Strong" : n >= 70 ? "Good" : n >= 60 ? "Developing" : n >= 40 ? "At Risk" : "Critical";
 const tone = n => n >= 80 ? "text-emerald-300" : n >= 60 ? "text-amber-300" : "text-rose-300";
 
@@ -33,7 +34,7 @@ function Field({label, children}) { return <label className="block"><span classN
 const inputClass="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-cyan-400";
 
 export default function TabletopExercises() {
-  const [user,setUser]=useState(null), [profile,setProfile]=useState(blankProfile), [profileId,setProfileId]=useState(null), [denied,setDenied]=useState(false);
+  const [user,setUser]=useState(null), [profiles,setProfiles]=useState([]), [profile,setProfile]=useState(blankProfile), [profileId,setProfileId]=useState(null), [denied,setDenied]=useState(false);
   const [attempts,setAttempts]=useState([]), [tab,setTab]=useState("dashboard"), [loading,setLoading]=useState(true), [message,setMessage]=useState("");
   const [setup,setSetup]=useState({mode:"cyber",attack_category:"Ransomware",attack_scenario:"Data encryption and extortion",disaster_type:"Hurricane / severe storm",geography:"",difficulty:"standard"});
   const [run,setRun]=useState(null), [index,setIndex]=useState(0), [decisions,setDecisions]=useState([]), [feedback,setFeedback]=useState(null), [generating,setGenerating]=useState(false);
@@ -47,13 +48,16 @@ export default function TabletopExercises() {
         if(!access?.length){setDenied(true);setLoading(false);return;}
       }
       const [profiles,history]=await Promise.all([base44.entities.TTXCompanyProfile.filter({owner_email:me.email}),base44.entities.TTXAttempt.filter({owner_email:me.email})]);
-      const p=(profiles||[]).sort((a,b)=>new Date(b.updated_at||b.created_date)-new Date(a.updated_at||a.created_date))[0];
-      if(p){ setProfileId(p.id); setProfile({...blankProfile,...p,operating_locations:toText(p.operating_locations),critical_services:toText(p.critical_services),technology_stack:toText(p.technology_stack),regulated_data:toText(p.regulated_data),response_team:toText(p.response_team),third_parties:toText(p.third_parties)}); setSetup(s=>({...s,geography:p.primary_geography||""})); }
+      const savedProfiles=(profiles||[]).sort((a,b)=>new Date(b.updated_at||b.created_date)-new Date(a.updated_at||a.created_date));
+      setProfiles(savedProfiles);
+      const p=savedProfiles[0];
+      if(p){ setProfileId(p.id); setProfile(hydrateProfile(p)); setSetup(s=>({...s,geography:p.primary_geography||""})); }
       setAttempts((history||[]).sort((a,b)=>new Date(b.started_at||b.created_date)-new Date(a.started_at||a.created_date)));
     } catch(e){ setMessage(e.message||"Unable to load TTX workspace."); }
     setLoading(false);
   };
   useEffect(()=>{load();},[]);
+  useEffect(()=>{if(!loading&&!profileId&&(tab==="setup"||tab==="exercise")){setMessage("Build or select a company profile before starting an exercise.");setTab("profile");}},[loading,profileId,tab]);
 
   const completed=attempts.filter(a=>a.status==="completed");
   const avg=completed.length?Math.round(completed.reduce((s,a)=>s+(a.overall_score||0),0)/completed.length):0;
@@ -63,7 +67,8 @@ export default function TabletopExercises() {
     if(!profile.company_name||!profile.industry||!profile.primary_geography){setMessage("Company name, industry, and primary geography are required.");return;}
     const payload={...profile,owner_email:user.email,employee_count:Number(profile.employee_count)||0,rto_hours:Number(profile.rto_hours)||0,rpo_hours:Number(profile.rpo_hours)||0,operating_locations:toArray(profile.operating_locations),critical_services:toArray(profile.critical_services),technology_stack:toArray(profile.technology_stack),regulated_data:toArray(profile.regulated_data),response_team:toArray(profile.response_team),third_parties:toArray(profile.third_parties),profile_version:Number(profile.profile_version||0)+1,updated_at:new Date().toISOString()};
     const saved=profileId?await base44.entities.TTXCompanyProfile.update(profileId,payload):await base44.entities.TTXCompanyProfile.create(payload);
-    setProfileId(saved.id||profileId); setMessage("Company profile saved. Future exercises will use this context."); setSetup(s=>({...s,geography:payload.primary_geography}));
+    const savedRecord={...payload,id:saved.id||profileId};
+    setProfileId(savedRecord.id); setProfiles(list=>[savedRecord,...list.filter(x=>x.id!==savedRecord.id)]); setMessage("Company profile saved and selected. Exercises are now available."); setSetup(s=>({...s,geography:payload.primary_geography}));
   };
 
   const generate=async()=>{
@@ -105,9 +110,9 @@ export default function TabletopExercises() {
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div><div className="flex items-center gap-2 text-cyan-300"><ShieldAlert className="h-5 w-5"/><span className="text-xs font-bold uppercase tracking-[.22em]">Xtreme I.C.E. Tabletop Exercises</span></div><h1 className="mt-2 text-3xl font-bold">Crisis decisions, tested before they matter.</h1><p className="mt-2 max-w-3xl text-slate-400">Threat-informed cyber and disaster-recovery simulations tailored to your company. TTX scores are independent from CFRS.</p></div>
-          <button onClick={()=>setTab("setup")} className="rounded-xl bg-cyan-400 px-5 py-3 font-bold text-slate-950 hover:bg-cyan-300"><Play className="mr-2 inline h-4 w-4"/>Start an exercise</button>
+          <button onClick={()=>{if(profileId){setTab("setup");setMessage("");}else{setTab("profile");setMessage("Build or select a company profile before starting an exercise.");}}} className={`rounded-xl px-5 py-3 font-bold ${profileId?"bg-cyan-400 text-slate-950 hover:bg-cyan-300":"border border-amber-400/40 bg-amber-400/10 text-amber-200"}`}><Play className="mr-2 inline h-4 w-4"/>{profileId?"Start an exercise":"Complete profile to start"}</button>
         </div>
-        <div className="mt-6 flex flex-wrap gap-2">{[["dashboard",BarChart3,"Dashboard"],["profile",Building2,"Company profile"],["setup",Settings2,"New exercise"],["history",History,"History"]].map(([id,Icon,label])=><button key={id} onClick={()=>setTab(id)} className={`rounded-lg px-4 py-2 text-sm ${tab===id?"bg-slate-700 text-white":"text-slate-400 hover:bg-slate-900"}`}><Icon className="mr-2 inline h-4 w-4"/>{label}</button>)}</div>
+        <div className="mt-6 flex flex-wrap gap-2">{[["dashboard",BarChart3,"Dashboard"],["profile",Building2,"Company profile"],["setup",Settings2,"New exercise"],["history",History,"History"]].map(([id,Icon,label])=><button key={id} onClick={()=>{if(id==="setup"&&!profileId){setTab("profile");setMessage("Build or select a company profile before starting an exercise.");}else{setTab(id);setMessage("");}}} className={`rounded-lg px-4 py-2 text-sm ${tab===id?"bg-slate-700 text-white":id==="setup"&&!profileId?"cursor-not-allowed text-slate-600":"text-slate-400 hover:bg-slate-900"}`} title={id==="setup"&&!profileId?"Company profile required":undefined}><Icon className="mr-2 inline h-4 w-4"/>{label}{id==="setup"&&!profileId?" · Locked":""}</button>)}</div>
         {message&&<div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">{message}</div>}
       </div>
     </div>
@@ -123,7 +128,7 @@ export default function TabletopExercises() {
         </div>
       </div>}
 
-      {tab==="profile"&&<Card className="p-6"><div className="mb-6"><h2 className="text-2xl font-bold">Reusable company profile</h2><p className="text-slate-400">This context personalizes every future scenario. Separate list items with commas.</p></div><div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+      {tab==="profile"&&<Card className="p-6"><div className="mb-6"><h2 className="text-2xl font-bold">Required company profile</h2><p className="text-slate-400">Build a profile or select an existing one before starting an exercise. This context personalizes every scenario.</p></div>{profiles.length>0&&<div className="mb-6 grid gap-3 rounded-xl border border-slate-700 bg-slate-950 p-4 md:grid-cols-[1fr_auto]"><Field label="Select an existing company profile"><select className={inputClass} value={profileId||""} onChange={e=>{const p=profiles.find(x=>x.id===e.target.value);if(p){setProfileId(p.id);setProfile(hydrateProfile(p));setSetup(s=>({...s,geography:p.primary_geography||""}));setMessage(`${p.company_name} selected. You may now start an exercise.`);}}}><option value="">Select a profile</option>{profiles.map(p=><option key={p.id} value={p.id}>{p.company_name}</option>)}</select></Field><button onClick={()=>{setProfileId(null);setProfile(blankProfile);setMessage("Enter the new company profile and save it to unlock exercises.");}} className="self-end rounded-xl border border-slate-600 px-4 py-2.5 text-sm font-semibold hover:bg-slate-800">Build new profile</button></div>}<div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
         {[["company_name","Company name"],["industry","Industry"],["employee_count","Employee count"],["headquarters","Headquarters"],["primary_geography","Primary geography"],["operating_locations","Operating locations"],["critical_services","Critical services"],["technology_stack","Technology stack"],["regulated_data","Regulated data"],["response_team","Response team roles"],["third_parties","Critical third parties"],["backup_strategy","Backup strategy"],["rto_hours","Recovery time objective (hours)"],["rpo_hours","Recovery point objective (hours)"]].map(([k,l])=><Field key={k} label={l}><input className={inputClass} value={profile[k]??""} onChange={e=>setProfile(p=>({...p,[k]:e.target.value}))}/></Field>)}
       </div><button onClick={saveProfile} className="mt-7 rounded-xl bg-cyan-400 px-5 py-3 font-bold text-slate-950"><Save className="mr-2 inline h-4 w-4"/>Save company profile</button></Card>}
 
