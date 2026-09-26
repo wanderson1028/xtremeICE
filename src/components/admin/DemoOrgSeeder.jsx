@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Building2, Users, UserPlus, Loader2, CheckCircle2, AlertTriangle, Sparkles } from "lucide-react";
+import { demoUserByEmail } from "@/components/ttx/demoUsers";
 
 /**
  * Demo organizations & users derived from the TTX DEMO_PROFILES.
@@ -226,7 +227,10 @@ export default function DemoOrgSeeder() {
                     return (
                       <div key={key} className="flex flex-wrap items-center gap-3 px-4 py-3">
                         <div className="flex-1 min-w-40">
-                          <p className="text-sm font-medium text-gray-800">{u.full_name}</p>
+                          <div className="flex items-center gap-2">
+                            <img src={demoUserByEmail(u.email)?.avatar_url} alt={u.full_name} className="h-8 w-8 rounded-full object-cover ring-2 ring-gray-200 shrink-0"/>
+                            <p className="text-sm font-medium text-gray-800">{u.full_name}</p>
+                          </div>
                           <Badge variant="outline" className={roleBadge[u.org_role] + " mt-1 text-[10px]"}>
                             {u.org_role === "org_admin" ? "Org Admin" : "Member"}
                           </Badge>
