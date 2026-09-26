@@ -172,17 +172,16 @@ export default function ServiceManager() {
 
                     {ALL_SERVICES.map((svc) => {
                       const assignment = getAssignment(user.email, svc.key);
-                      const isAdminAuto = ["demo_mode", "tabletop_exercises"].includes(svc.key) && user.role === "admin";
-                      const isOn = isAdminAuto || !!assignment;
+                      const isOn = !!assignment;
                       const isPend = !!pending[`${user.email}__${svc.key}`];
                       return (
                         <td key={svc.key} className="text-center px-2 py-3">
                           <div className="flex justify-center">
                             <Switch
                               checked={isOn}
-                              disabled={isPend || isAdminAuto}
+                              disabled={isPend}
                               onCheckedChange={(val) => handleToggle(user, svc.key, val)}
-                              title={isAdminAuto ? "Automatically enabled for administrators" : `Assign ${svc.label}`}
+                              title={`Assign ${svc.label}`}
                               className={isPend ? "opacity-50" : ""}
                             />
                           </div>
