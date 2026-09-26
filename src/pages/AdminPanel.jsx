@@ -12,6 +12,7 @@ import { Plus, Building2, Users, ShieldCheck, Crown, KeyRound, Flag, Database, F
 import FeatureFlagManager from "@/components/admin/FeatureFlagManager";
 import NiceDatasetManager from "@/components/admin/NiceDatasetManager";
 import DemoDataManager from "@/components/admin/DemoDataManager";
+import DemoOrgSeeder from "@/components/admin/DemoOrgSeeder";
 
 export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState("users");
@@ -184,8 +185,9 @@ export default function AdminPanel() {
           )}
 
           {isPlatformAdmin && (
-            <TabsContent value="demo-data" className="mt-4">
+            <TabsContent value="demo-data" className="mt-4 space-y-4">
               <DemoDataManager />
+              <DemoOrgSeeder />
             </TabsContent>
           )}
 
