@@ -51,7 +51,9 @@ export function report(session,r){
  const describe=rows=>rows.map(d=>"Decision "+d.sequence+": "+d.choice_label+" — "+d.points+"/100. "+d.rationale+" "+(!d.authorized?"Designated approval was missing; 20 points were deducted. ":"")+"Handoff: "+d.handoff.action+" Business impact: "+d.handoff.impact+" Unresolved: "+d.handoff.unresolved).join("\n\n");
  const department_scores=Object.fromEntries(session.snapshot.departments.map(dep=>{
   const rows=ds.filter(d=>d.department_id===dep.id);
-  return [dep.id,{name:dep.name,score:average(rows.map(d=>d.points)),count:rows.length,handoff:average(rows.map(d=>d.handoff_score)),coordination:average(rows.map(d=>d.coordination_score)),timeliness:average(rows.map(d=>d.timeliness_score)),narrative:rows.length?describe(rows):"Not assessed: no decisions assigned."}];
+  const assessed=Object.keys(CATEGORIES).filter(k=>rows.some(d=>d.phase===k));
+  const departmentScore=assessed.length?Math.round(assessed.reduce((sum,k)=>sum+average(rows.filter(d=>d.phase===k).map(d=>d.points))*CATEGORIES[k][1],0)/assessed.reduce((sum,k)=>sum+CATEGORIES[k][1],0)):null;
+  return [dep.id,{name:dep.name,score:departmentScore,count:rows.length,handoff:average(rows.map(d=>d.handoff_score)),coordination:average(rows.map(d=>d.coordination_score)),timeliness:average(rows.map(d=>d.timeliness_score)),narrative:rows.length?describe(rows):"Not assessed: no decisions assigned."}];
  }));
  const plan=session.snapshot.profile.ir_plan;
  const pd=ds.filter(d=>d.plan_requirement_ids.length&&Number.isFinite(d.plan_points));
