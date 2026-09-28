@@ -272,6 +272,7 @@ export default function UserManager({ selectedOrgId, onOrgChange, isPlatformAdmi
 
   return (
     <div className="space-y-4">
+      <div className="rounded-xl border border-cyan-700 bg-slate-950 p-4 text-slate-100"><b>Distributed Command TTX assignments</b><p className="mt-1 text-sm text-slate-300">Use these existing accounts for department workspaces. Grant Tabletop Exercises under Features, then assign departments and exercise responsibilities.</p><a className="mt-2 inline-block font-semibold text-cyan-300 underline" href={"/TabletopExercises?mode=distributed"+(selectedOrgId?"&organization="+encodeURIComponent(selectedOrgId):"")}>Manage TTX people & departments →</a></div>
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
         {isPlatformAdmin && onOrgChange && (
