@@ -45,7 +45,7 @@ export async function handler(req){
  if(!admin&&u.organization_id!==org)fail("Only platform administrators can assign users from outside this organization.",403);
  if(!["org_admin","facilitator","participant","observer"].includes(m.access)||!["decision_maker","approver","contributor","backup","observer"].includes(m.responsibility))fail("Invalid participant role.");
  if(!departments.some(d=>d.id===m.department_id))fail("Assign every participant to a department.");
- members.push({user_id:u.id,account_organization_id:u.organization_id||"",email:u.email,name:u.full_name||u.email,department_id:m.department_id,access:m.access,responsibility:m.responsibility,active:m.active!==false});
+ members.push({user_id:u.id,account_organization_id:u.organization_id||"",email:u.email,name:u.full_name||u.email,department_id:m.department_id,department_ids:[...new Set([m.department_id,...(m.department_ids||[])])].filter(id=>departments.some(d=>d.id===id)),access:m.access,responsibility:m.responsibility,active:m.active!==false});
  }
  if(new Set(members.map(m=>m.user_id)).size!==members.length)fail("Each user can appear once in the organization roster. Facilitators can represent additional departments through an audited reassignment.");
  const technical=body.technical_context||{},network=structuredClone(profile.network_model);
@@ -90,7 +90,7 @@ export async function handler(req){
  const p=await db.TTXCompanyProfile.get(c.profile_id);
  if(!p?.network_model?.nodes?.length)fail("Save a company profile with a topology first.");
  if(p.ir_plan&&(!p.ir_plan.approved||!p.ir_plan.requirements?.length))fail("Approve or detach the draft IR plan first.");
- const selected=new Set(body.member_ids||[]),members=c.members.filter(m=>m.active!==false&&selected.has(m.user_id));
+ const selected=new Set(body.member_ids||[]),members=c.members.filter(m=>m.active!==false&&selected.has(m.user_id)).flatMap(m=>(m.department_ids||[m.department_id]).map(department_id=>({...m,department_id})));
  const departments=c.departments.filter(d=>(body.department_ids||[]).includes(d.id));
  if(!departments.length)fail("Select participating departments.");
  if(ROLES.some(role=>!departments.some(d=>d.roles.includes(role))))fail("Selected departments must cover CEO, CISO, CIO, CFO, COO, Legal, and Communications responsibilities. A department may cover multiple roles.");
@@ -111,14 +111,16 @@ export async function handler(req){
  return Response.json({session_id:s.id});
  }
  const s=await db.TTXCommandSession.get(body.session_id);if(!s||s.config_id!==c.id)fail("Exercise unavailable.",403);
- const roster=s.snapshot.members.find(m=>m.user_id===user.id);
+ const rosters=s.snapshot.members.filter(m=>m.user_id===user.id);
+ const roster=rosters[0];
  if(!facilitator(c)&&!roster)fail("You are not on this exercise roster.",403);
  const es=await all(db.TTXCommandEvent,{session_id:s.id}),r=replay(s,es);
  const facilitatorAccess=facilitator(c),q=r.current?.payload.question;
  const override=r.events.filter(e=>e.kind==="reassign"&&e.payload.question_id===r.current?.id).at(-1);
  const department=override?.payload.department_id||q?.department_id;
- const assigned=roster&&roster.department_id===department&&roster.access!=="observer"&&(admin||member(c)?.access!=="observer");
- const canDecide=assigned&&["decision_maker","backup"].includes(roster.responsibility);
+ const assignedMember=rosters.find(m=>m.department_id===department);
+ const assigned=assignedMember&&assignedMember.access!=="observer"&&(admin||member(c)?.access!=="observer");
+ const canDecide=assigned&&["decision_maker","backup"].includes(assignedMember.responsibility);
  const represented=facilitatorAccess&&override?.payload.user_id===user.id;
  if(action==="view"){
  let result=r.complete&&(facilitatorAccess||r.released)?(r.complete.payload.result||report(s,r)):null;
@@ -127,7 +129,7 @@ export async function handler(req){
  if(current){delete current.plan_requirement_ids;delete current.guidance_basis;}
  const proposals=r.events.filter(e=>e.kind==="proposal"&&e.payload.question_id===r.current?.id);
  const timeline=r.decisions.map(d=>({sequence:d.sequence,phase:d.phase,department_id:d.department_id,choice_label:d.choice_label,actor:d.actor,approved_by:d.approved_by,handoff:d.handoff,selected_at:d.selected_at}));
- return Response.json({session:{id:s.id,title:s.title,settings:s.settings,scoring_version:s.scoring_version,company:s.snapshot.profile.company_name,departments:s.snapshot.departments},network:s.snapshot.profile.network_model,state:r.state,current,pending_department:department,paused:r.paused,completed:!!r.complete,released:r.released,result,timeline,can_facilitate:facilitatorAccess,can_decide:!!(canDecide||represented),can_approve:!!(assigned&&roster.responsibility==="approver"),can_contribute:!!assigned,can_participate:!!(facilitatorAccess||roster?.access!=="observer"&&member(c)?.access!=="observer"),needs_generation:!r.current&&!r.complete&&!!nextPhase(r.decisions),ready_to_complete:!r.current&&!nextPhase(r.decisions),proposal:assigned||facilitatorAccess?proposals.at(-1)||null:null,requests:r.requests.filter(e=>facilitatorAccess||[e.payload.from_department,e.payload.to_department].includes(roster?.department_id)),activity:r.events.filter(e=>["pause","resume","reassign","comment"].includes(e.kind)).filter(e=>facilitatorAccess||e.kind!=="comment"||e.payload.department_id===roster?.department_id),my_department:roster?.department_id,ir_plan:facilitatorAccess&&r.complete?s.snapshot.profile.ir_plan:null});
+ return Response.json({session:{id:s.id,title:s.title,settings:s.settings,scoring_version:s.scoring_version,company:s.snapshot.profile.company_name,departments:s.snapshot.departments},network:s.snapshot.profile.network_model,state:r.state,current,pending_department:department,paused:r.paused,completed:!!r.complete,released:r.released,result,timeline,can_facilitate:facilitatorAccess,can_decide:!!(canDecide||represented),can_approve:!!(assigned&&assignedMember.responsibility==="approver"),can_contribute:!!assigned,can_participate:!!(facilitatorAccess||roster?.access!=="observer"&&member(c)?.access!=="observer"),needs_generation:!r.current&&!r.complete&&!!nextPhase(r.decisions),ready_to_complete:!r.current&&!nextPhase(r.decisions),proposal:assigned||facilitatorAccess?proposals.at(-1)||null:null,requests:r.requests.filter(e=>facilitatorAccess||rosters.some(m=>[e.payload.from_department,e.payload.to_department].includes(m.department_id))),activity:r.events.filter(e=>["pause","resume","reassign","comment"].includes(e.kind)).filter(e=>facilitatorAccess||e.kind!=="comment"||e.payload.department_id===roster?.department_id),my_department:assignedMember?.department_id||roster?.department_id,my_departments:rosters.map(m=>m.department_id),ir_plan:facilitatorAccess&&r.complete?s.snapshot.profile.ir_plan:null});
  }
  if(r.complete){
  if(action==="release"&&facilitatorAccess){await append(s,"release",{complete_id:r.complete.id});return Response.json({ok:true});}
@@ -153,11 +155,11 @@ export async function handler(req){
  if(!facilitatorAccess&&(!roster||roster.access==="observer"))fail("Observer access is read-only.",403);
  if(!s.snapshot.departments.some(d=>d.id===body.to_department))fail("Select a participating department.");
  if(!text(body.message))fail("Enter the information or action requested.");
- await append(s,"request",{from_department:roster?.department_id||"facilitator",to_department:body.to_department,message:text(body.message)});return Response.json({ok:true});
+ await append(s,"request",{from_department:assignedMember?.department_id||roster?.department_id||"facilitator",to_department:body.to_department,message:text(body.message)});return Response.json({ok:true});
  }
  if(["reply","waive"].includes(action)){
  const request=r.requests.find(e=>e.id===body.request_id&&!e.reply);if(!request)fail("Request is already resolved.",409);
- if(action==="waive"?!facilitatorAccess:!facilitatorAccess&&(roster?.department_id!==request.payload.to_department||roster.access==="observer"))fail("This request is not assigned to you.",403);
+ if(action==="waive"?!facilitatorAccess:!facilitatorAccess&&(!rosters.some(m=>m.department_id===request.payload.to_department&&m.access!=="observer")))fail("This request is not assigned to you.",403);
  if(!text(body.message))fail("Enter a response or waiver reason.");
  await append(s,action,{request_id:request.id,message:text(body.message)});return Response.json({ok:true});
  }
@@ -175,7 +177,7 @@ export async function handler(req){
  if(action==="answer"||action==="approve"){
  let payload;
  if(action==="approve"){
- if(!(assigned&&roster.responsibility==="approver"))fail("Only the assigned approver can authorize this decision.",403);
+ if(!(assigned&&assignedMember.responsibility==="approver"))fail("Only the assigned approver can authorize this decision.",403);
  const proposal=r.events.find(e=>e.kind==="proposal"&&e.id===body.proposal_id&&e.payload.question_id===r.current.id);
  if(!proposal||r.events.filter(e=>e.kind==="proposal"&&e.payload.question_id===r.current.id).at(-1)?.id!==proposal.id)fail("Proposal changed. Review the latest submission before approving.",409);
  payload={...proposal.payload,authorized:true,approved_by:user.email};
