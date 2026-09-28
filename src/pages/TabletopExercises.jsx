@@ -120,7 +120,7 @@ export default function TabletopExercises() {
       const data=res.data||res;
       if(data.error)throw new Error(data.error);
       setProfileId(null);setProfileChoice("");setProfile(hydrateProfile(data.profile));setMessage("Draft created from public information. Review every field, complete anything marked for confirmation, then save the profile.");
-    }catch(e){setMessage(e.message||"Unable to create a profile from that URL.");}
+    }catch(e){const detail=e.response?.data;setMessage((detail?.error||e.message||"Unable to create a profile from that URL.")+(detail?.request_id?` Reference: ${detail.request_id}`:""));}
     setUrlLoading(false);
   };
 
