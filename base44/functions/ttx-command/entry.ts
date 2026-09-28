@@ -17,7 +17,7 @@ export async function handler(req){
  const db=client.asServiceRole.entities, body=await req.json(),action=body.action;
  const admin=user.role==="admin";
  if(!admin&&!(await db.UserService.filter({user_email:user.email,service_key:"tabletop_exercises"})).length)fail("TTX access must be assigned in User Management → Features.",403);
- const orgAdmin=org=>admin||(user.organization_id===org&&user.org_role==="org_admin");
+ const orgAdmin=org=>admin||(!!org&&user.organization_id===org&&user.org_role==="org_admin");
  const member=c=>(c.members||[]).find(m=>m.user_id===user.id&&m.active!==false&&m.account_organization_id===(user.organization_id||""));
  const manager=c=>orgAdmin(c.organization_id)||member(c)?.access==="org_admin";
  const facilitator=c=>manager(c)||member(c)?.access==="facilitator";
@@ -50,12 +50,17 @@ export async function handler(req){
  if(new Set(members.map(m=>m.user_id)).size!==members.length)fail("Each user can appear once in the organization roster. Facilitators can represent additional departments through an audited reassignment.");
  const technical=body.technical_context||{},network=structuredClone(profile.network_model);
  if(!network?.nodes?.length)fail("Save the company profile and simulated topology first.");
- // Only known network nodes are enriched; simulation costs and dependency model remain authoritative.
+
+ const custom_nodes=(technical.custom_nodes||[]).slice(0,20).map(n=>({id:text(n.id,100),name:text(n.name,150),type:"server",quantity:Math.max(1,Math.min(100000,Number(n.quantity)||1)),unit_cost:Math.max(0,Math.min(1e9,Number(n.unit_cost)||0)),monthly_unit_cost:Math.max(0,Math.min(1e9,Number(n.monthly_unit_cost)||0)),impact_share:Math.max(0,Math.min(1,Number(n.impact_share)||0)),dependencies:Array.isArray(n.dependencies)?n.dependencies.map(x=>text(x,100)):[]}));
+ const nodeIds=new Set([...(network?.nodes||[]),...custom_nodes].map(n=>n.id));
+ if(nodeIds.size!==(network?.nodes||[]).length+custom_nodes.length||custom_nodes.some(n=>!n.id||!n.name||n.dependencies.some(id=>id===n.id||!nodeIds.has(id))))fail("Custom system IDs and dependencies must be valid and unique.");
+ network?.nodes?.push(...custom_nodes);
+ // Company-specific nodes are included only in the distributed snapshot.
  for(const n of network.nodes){
  const d=(technical.assets||[]).find(a=>a.node_id===n.id);
  if(d){if(d.department_id&&!departments.some(x=>x.id===d.department_id))fail("A system owner references a missing department.");}
  }
- const technical_context={notes:text(technical.notes,12000),assets:network.nodes.map(n=>{const a=(technical.assets||[]).find(x=>x.node_id===n.id)||{};return {node_id:n.id,department_id:text(a.department_id,80),product:text(a.product,200),business_service:text(a.business_service,300),data_classification:text(a.data_classification,300),recovery_notes:text(a.recovery_notes,1000)};})};
+ const technical_context={custom_nodes,notes:text(technical.notes,12000),assets:network.nodes.map(n=>{const a=(technical.assets||[]).find(x=>x.node_id===n.id)||{};return {node_id:n.id,department_id:text(a.department_id,80),product:text(a.product,200),business_service:text(a.business_service,300),data_classification:text(a.data_classification,300),recovery_notes:text(a.recovery_notes,1000)};})};
  const payload={organization_id:org,profile_id:profile.id,departments,members,technical_context};
  const saved=existing?await db.TTXCommandConfig.update(existing.id,payload):await db.TTXCommandConfig.create(payload);
  return Response.json({id:saved.id||existing.id});
@@ -97,9 +102,11 @@ export async function handler(req){
  for(const m of members){const u=users.find(u=>u.id===m.user_id);if(!u||u.role!=="admin"&&!grants.some(g=>g.user_email===u.email))fail("Assign the TTX feature to "+m.email+" in User Management before starting.");}
  const snapshot={profile:p,departments,members:members.filter(m=>departments.some(d=>d.id===m.department_id)),technical_context:c.technical_context};
  snapshot.profile.network_model=structuredClone(p.network_model);
+ snapshot.profile.network_model.nodes.push(...(c.technical_context?.custom_nodes||[]));
+ snapshot.profile.network_model.edges.push(...(c.technical_context?.custom_nodes||[]).flatMap(n=>n.dependencies.map(source=>({source,target:n.id}))));
  snapshot.profile.network_model.nodes=snapshot.profile.network_model.nodes.map(n=>({...n,...(c.technical_context?.assets||[]).find(a=>a.node_id===n.id)}));
  const settings={attack_category:text(body.attack_category,150),attack_scenario:text(body.attack_scenario,500),disaster_type:text(body.disaster_type,300),geography:p.headquarters||p.primary_geography,training_mode:body.training_mode==="assessment"?"assessment":"practice",response_minutes:Math.max(1,Math.min(240,Number(body.response_minutes)||30)),entry_node:body.entry_node,disaster_target:body.disaster_target};
- if(!settings.attack_category||!settings.attack_scenario||!p.network_model.nodes.some(n=>n.id===settings.entry_node)||!p.network_model.nodes.some(n=>n.id===settings.disaster_target))fail("Complete attack scenario, entry system, and recovery-disruption target.");
+ if(!settings.attack_category||!settings.attack_scenario||!snapshot.profile.network_model.nodes.some(n=>n.id===settings.entry_node)||!snapshot.profile.network_model.nodes.some(n=>n.id===settings.disaster_target))fail("Complete attack scenario, entry system, and recovery-disruption target.");
  const s=await db.TTXCommandSession.create({organization_id:c.organization_id,config_id:c.id,owner_email:user.email,title:p.company_name+" · "+settings.attack_scenario,snapshot,settings,seed:crypto.randomUUID(),scoring_version:"TTX-DC-2026.1"});
  return Response.json({session_id:s.id});
  }
@@ -120,7 +127,7 @@ export async function handler(req){
  if(current){delete current.plan_requirement_ids;delete current.guidance_basis;}
  const proposals=r.events.filter(e=>e.kind==="proposal"&&e.payload.question_id===r.current?.id);
  const timeline=r.decisions.map(d=>({sequence:d.sequence,phase:d.phase,department_id:d.department_id,choice_label:d.choice_label,actor:d.actor,approved_by:d.approved_by,handoff:d.handoff,selected_at:d.selected_at}));
- return Response.json({session:{id:s.id,title:s.title,settings:s.settings,scoring_version:s.scoring_version,company:s.snapshot.profile.company_name,departments:s.snapshot.departments},network:s.snapshot.profile.network_model,state:r.state,current,pending_department:department,paused:r.paused,completed:!!r.complete,released:r.released,result,timeline,can_facilitate:facilitatorAccess,can_decide:!!(canDecide||represented),can_approve:!!(assigned&&roster.responsibility==="approver"),can_contribute:!!assigned,needs_generation:!r.current&&!r.complete&&!!nextPhase(r.decisions),ready_to_complete:!r.current&&!nextPhase(r.decisions),proposal:proposals.at(-1)||null,requests:r.requests.filter(e=>facilitatorAccess||[e.payload.from_department,e.payload.to_department].includes(roster?.department_id)),activity:r.events.filter(e=>["pause","resume","reassign","comment"].includes(e.kind)).filter(e=>facilitatorAccess||e.kind!=="comment"||e.payload.department_id===roster?.department_id),my_department:roster?.department_id,ir_plan:facilitatorAccess&&r.complete?s.snapshot.profile.ir_plan:null});
+ return Response.json({session:{id:s.id,title:s.title,settings:s.settings,scoring_version:s.scoring_version,company:s.snapshot.profile.company_name,departments:s.snapshot.departments},network:s.snapshot.profile.network_model,state:r.state,current,pending_department:department,paused:r.paused,completed:!!r.complete,released:r.released,result,timeline,can_facilitate:facilitatorAccess,can_decide:!!(canDecide||represented),can_approve:!!(assigned&&roster.responsibility==="approver"),can_contribute:!!assigned,can_participate:!!(facilitatorAccess||roster?.access!=="observer"&&member(c)?.access!=="observer"),needs_generation:!r.current&&!r.complete&&!!nextPhase(r.decisions),ready_to_complete:!r.current&&!nextPhase(r.decisions),proposal:proposals.at(-1)||null,requests:r.requests.filter(e=>facilitatorAccess||[e.payload.from_department,e.payload.to_department].includes(roster?.department_id)),activity:r.events.filter(e=>["pause","resume","reassign","comment"].includes(e.kind)).filter(e=>facilitatorAccess||e.kind!=="comment"||e.payload.department_id===roster?.department_id),my_department:roster?.department_id,ir_plan:facilitatorAccess&&r.complete?s.snapshot.profile.ir_plan:null});
  }
  if(r.complete){
  if(action==="release"&&facilitatorAccess){await append(s,"release",{complete_id:r.complete.id});return Response.json({ok:true});}
@@ -186,3 +193,4 @@ export async function handler(req){
  }catch(error){const status=error.status||500;console.error(JSON.stringify({event:"ttx_command_error",request_id:requestId,status}));return Response.json({error:status===500?"Distributed Command could not complete this request. Retry; saved decisions are retained.":error.message,request_id:requestId},{status});}
 }
 Deno.serve(handler);
+
