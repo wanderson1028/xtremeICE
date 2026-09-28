@@ -99,7 +99,7 @@ export async function handler(req){
  if(!members.some(m=>m.department_id===d.id&&["decision_maker","backup"].includes(m.responsibility)&&m.access!=="observer"))fail("Assign a decision-maker or backup for "+d.name+".");
  if(d.approval_required&&!members.some(m=>m.department_id===d.id&&m.responsibility==="approver"&&m.access!=="observer"))fail("Assign an approver for "+d.name+".");
  }
- for(const m of members){const u=users.find(u=>u.id===m.user_id);if(!u||u.role!=="admin"&&!grants.some(g=>g.user_email===u.email))fail("Assign the TTX feature to "+m.email+" in User Management before starting.");}
+ for(const m of members){const u=users.find(u=>u.id===m.user_id);if(!u||m.account_organization_id!==(u.organization_id||"")||u.role!=="admin"&&!grants.some(g=>g.user_email===u.email))fail("Assign the TTX feature to "+m.email+" in User Management before starting.");}
  const snapshot={profile:p,departments,members:members.filter(m=>departments.some(d=>d.id===m.department_id)),technical_context:c.technical_context};
  snapshot.profile.network_model=structuredClone(p.network_model);
  snapshot.profile.network_model.nodes.push(...(c.technical_context?.custom_nodes||[]));
@@ -123,11 +123,11 @@ export async function handler(req){
  if(action==="view"){
  let result=r.complete&&(facilitatorAccess||r.released)?(r.complete.payload.result||report(s,r)):null;
  if(result&&!facilitatorAccess){result={...result,department_scores:Object.fromEntries(Object.entries(result.department_scores).filter(([id])=>id===roster.department_id)),decisions:result.decisions.filter(d=>d.department_id===roster.department_id),category_narratives:{},role_scores:{}};}
- const current=r.current&&(assigned||facilitatorAccess)?{id:r.current.id,created_date:r.current.created_date,...q,department_id:department,choices:q.choices.map(({id,label})=>({id,label}))}:null;
+ const current=r.current&&(assigned||facilitatorAccess)?{id:r.current.id,created_date:r.current.created_date,due_at:new Date(Date.parse(r.current.created_date)+s.settings.response_minutes*60000).toISOString(),...q,department_id:department,choices:q.choices.map(({id,label})=>({id,label}))}:null;
  if(current){delete current.plan_requirement_ids;delete current.guidance_basis;}
  const proposals=r.events.filter(e=>e.kind==="proposal"&&e.payload.question_id===r.current?.id);
  const timeline=r.decisions.map(d=>({sequence:d.sequence,phase:d.phase,department_id:d.department_id,choice_label:d.choice_label,actor:d.actor,approved_by:d.approved_by,handoff:d.handoff,selected_at:d.selected_at}));
- return Response.json({session:{id:s.id,title:s.title,settings:s.settings,scoring_version:s.scoring_version,company:s.snapshot.profile.company_name,departments:s.snapshot.departments},network:s.snapshot.profile.network_model,state:r.state,current,pending_department:department,paused:r.paused,completed:!!r.complete,released:r.released,result,timeline,can_facilitate:facilitatorAccess,can_decide:!!(canDecide||represented),can_approve:!!(assigned&&roster.responsibility==="approver"),can_contribute:!!assigned,can_participate:!!(facilitatorAccess||roster?.access!=="observer"&&member(c)?.access!=="observer"),needs_generation:!r.current&&!r.complete&&!!nextPhase(r.decisions),ready_to_complete:!r.current&&!nextPhase(r.decisions),proposal:proposals.at(-1)||null,requests:r.requests.filter(e=>facilitatorAccess||[e.payload.from_department,e.payload.to_department].includes(roster?.department_id)),activity:r.events.filter(e=>["pause","resume","reassign","comment"].includes(e.kind)).filter(e=>facilitatorAccess||e.kind!=="comment"||e.payload.department_id===roster?.department_id),my_department:roster?.department_id,ir_plan:facilitatorAccess&&r.complete?s.snapshot.profile.ir_plan:null});
+ return Response.json({session:{id:s.id,title:s.title,settings:s.settings,scoring_version:s.scoring_version,company:s.snapshot.profile.company_name,departments:s.snapshot.departments},network:s.snapshot.profile.network_model,state:r.state,current,pending_department:department,paused:r.paused,completed:!!r.complete,released:r.released,result,timeline,can_facilitate:facilitatorAccess,can_decide:!!(canDecide||represented),can_approve:!!(assigned&&roster.responsibility==="approver"),can_contribute:!!assigned,can_participate:!!(facilitatorAccess||roster?.access!=="observer"&&member(c)?.access!=="observer"),needs_generation:!r.current&&!r.complete&&!!nextPhase(r.decisions),ready_to_complete:!r.current&&!nextPhase(r.decisions),proposal:assigned||facilitatorAccess?proposals.at(-1)||null:null,requests:r.requests.filter(e=>facilitatorAccess||[e.payload.from_department,e.payload.to_department].includes(roster?.department_id)),activity:r.events.filter(e=>["pause","resume","reassign","comment"].includes(e.kind)).filter(e=>facilitatorAccess||e.kind!=="comment"||e.payload.department_id===roster?.department_id),my_department:roster?.department_id,ir_plan:facilitatorAccess&&r.complete?s.snapshot.profile.ir_plan:null});
  }
  if(r.complete){
  if(action==="release"&&facilitatorAccess){await append(s,"release",{complete_id:r.complete.id});return Response.json({ok:true});}
@@ -177,7 +177,7 @@ export async function handler(req){
  if(action==="approve"){
  if(!(assigned&&roster.responsibility==="approver"))fail("Only the assigned approver can authorize this decision.",403);
  const proposal=r.events.find(e=>e.kind==="proposal"&&e.id===body.proposal_id&&e.payload.question_id===r.current.id);
- if(!proposal)fail("Proposal unavailable.");
+ if(!proposal||r.events.filter(e=>e.kind==="proposal"&&e.payload.question_id===r.current.id).at(-1)?.id!==proposal.id)fail("Proposal changed. Review the latest submission before approving.",409);
  payload={...proposal.payload,authorized:true,approved_by:user.email};
  }else{
  if(!canDecide&&!represented)fail("Only the assigned decision-maker, backup, or explicit facilitator delegate can submit.",403);
