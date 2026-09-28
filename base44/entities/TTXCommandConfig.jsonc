@@ -1,0 +1,37 @@
+{
+  "name": "TTXCommandConfig",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string"
+    },
+    "profile_id": {
+      "type": "string"
+    },
+    "departments": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "members": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "technical_context": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "organization_id",
+    "profile_id"
+  ],
+  "rls": {
+    "create": false,
+    "read": false,
+    "update": false,
+    "delete": false
+  }
+}
