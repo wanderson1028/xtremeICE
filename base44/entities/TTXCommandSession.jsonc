@@ -1,0 +1,42 @@
+{
+  "name": "TTXCommandSession",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string"
+    },
+    "config_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "owner_email": {
+      "type": "string"
+    },
+    "snapshot": {
+      "type": "object"
+    },
+    "settings": {
+      "type": "object"
+    },
+    "seed": {
+      "type": "string"
+    },
+    "scoring_version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "organization_id",
+    "config_id",
+    "snapshot",
+    "seed"
+  ],
+  "rls": {
+    "create": false,
+    "read": false,
+    "update": false,
+    "delete": false
+  }
+}
