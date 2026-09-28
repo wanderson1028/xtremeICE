@@ -1,0 +1,30 @@
+{
+  "name": "TTXCommandEvent",
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "actor": {
+      "type": "string"
+    },
+    "payload": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "session_id",
+    "kind",
+    "actor",
+    "payload"
+  ],
+  "rls": {
+    "create": false,
+    "read": false,
+    "update": false,
+    "delete": false
+  }
+}
