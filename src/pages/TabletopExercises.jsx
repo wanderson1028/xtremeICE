@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
+import DistributedCommand from "@/components/ttx/DistributedCommand";
 import IRPlanEditor from "@/components/ttx/IRPlanEditor";
 import IRPlanReport, { planResult } from "@/components/ttx/IRPlanReport";
 import { generateInStages } from "@/components/ttx/generateInStages";
@@ -49,6 +50,10 @@ function Field({label, children}) { return <label className="block"><span classN
 const inputClass="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-cyan-400";
 
 export default function TabletopExercises() {
+ const distributed=new URLSearchParams(window.location.search).get("mode")==="distributed";
+ return <div className="bg-slate-950"><div className="flex flex-wrap gap-3 border-b border-slate-700 p-4 text-sm text-white"><a className={"rounded-lg border px-4 py-2 "+(!distributed?"border-cyan-400 bg-cyan-950":"border-slate-600")} href="/TabletopExercises">Integrated Readiness TTX</a><a className={"rounded-lg border px-4 py-2 "+(distributed?"border-cyan-400 bg-cyan-950":"border-slate-600")} href="/TabletopExercises?mode=distributed">Distributed Command TTX</a></div>{distributed?<DistributedCommand/>:<IntegratedReadiness/>}</div>;
+}
+function IntegratedReadiness() {
   const [user,setUser]=useState(null), [profiles,setProfiles]=useState([]), [profile,setProfile]=useState(blankProfile), [profileId,setProfileId]=useState(null), [profileChoice,setProfileChoice]=useState(""), [denied,setDenied]=useState(false);
   const [showIntroduction,setShowIntroduction]=useState(true);
   const [selectedScope,setSelectedScope]=useState("");
