@@ -47,7 +47,7 @@ export async function handler(req){
  if(!departments.some(d=>d.id===m.department_id))fail("Assign every participant to a department.");
  members.push({user_id:u.id,account_organization_id:u.organization_id||"",email:u.email,name:u.full_name||u.email,department_id:m.department_id,department_ids:[...new Set([m.department_id,...(m.department_ids||[])])].filter(id=>departments.some(d=>d.id===id)),access:m.access,responsibility:m.responsibility,active:m.active!==false});
  }
- if(new Set(members.map(m=>m.user_id)).size!==members.length)fail("Each user can appear once in the organization roster. Facilitators can represent additional departments through an audited reassignment.");
+ if(new Set(members.map(m=>m.user_id)).size!==members.length)fail("Each user can appear once in the organization roster. Select additional departments on that membership when a person covers multiple functions.");
  const technical=body.technical_context||{},network=structuredClone(profile.network_model);
  if(!network?.nodes?.length)fail("Save the company profile and simulated topology first.");
 
@@ -125,7 +125,7 @@ export async function handler(req){
  if(action==="view"){
  let result=r.complete&&(facilitatorAccess||r.released)?(r.complete.payload.result||report(s,r)):null;
  if(result&&!facilitatorAccess){result={...result,department_scores:Object.fromEntries(Object.entries(result.department_scores).filter(([id])=>rosters.some(m=>m.department_id===id))),decisions:result.decisions.filter(d=>rosters.some(m=>m.department_id===d.department_id)),category_narratives:{},role_scores:{}};}
- const current=r.current&&(assigned||facilitatorAccess)?{id:r.current.id,created_date:r.current.created_date,due_at:new Date(Date.parse(r.current.created_date)+s.settings.response_minutes*60000).toISOString(),...q,department_id:department,choices:q.choices.map(({id,label})=>({id,label}))}:null;
+ const current=r.current&&(assigned||facilitatorAccess)?{id:r.current.id,created_date:r.current.created_date,due_at:new Date(Date.parse(r.current.created_date)+s.settings.response_minutes*60000).toISOString(),phase:q.phase,situation:q.situation,question:q.question,decision_owner:q.decision_owner,routing_reason:q.routing_reason,target_id:q.target_id,requires_approval:q.requires_approval,department_id:department,choices:q.choices.map(({id,label})=>({id,label}))}:null;
  if(current){delete current.plan_requirement_ids;delete current.guidance_basis;}
  const proposals=r.events.filter(e=>e.kind==="proposal"&&e.payload.question_id===r.current?.id);
  const timeline=r.decisions.map(d=>({sequence:d.sequence,phase:d.phase,department_id:d.department_id,choice_label:d.choice_label,actor:d.actor,approved_by:d.approved_by,handoff:d.handoff,selected_at:d.selected_at}));
