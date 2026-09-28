@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import IRPlanEditor from "@/components/ttx/IRPlanEditor";
 import IRPlanReport, { planResult } from "@/components/ttx/IRPlanReport";
+import { generateInStages } from "@/components/ttx/generateInStages";
 import TTXIntroduction from "@/components/ttx/TTXIntroduction";
 import SimulationPanel, { NetworkEditor } from "@/components/ttx/SimulationPanel";
 import AttackSelector from "@/components/ttx/AttackSelector";
@@ -56,6 +57,8 @@ export default function TabletopExercises() {
   const [run,setRun]=useState(null), [index,setIndex]=useState(0), [decisions,setDecisions]=useState([]), [feedback,setFeedback]=useState(null), [generating,setGenerating]=useState(false);
   const questionPane=useRef(null);
   useEffect(()=>{questionPane.current?.scrollTo({top:0,behavior:"smooth"});},[index]);
+  const generationCache=useRef({key:null,batches:[]});
+  const [generationStep,setGenerationStep]=useState(0);
   const [generationStatus,setGenerationStatus]=useState("");
   const [simulation,setSimulation]=useState(null),[authority,setAuthority]=useState(""),[saving,setSaving]=useState(false);
   const [websiteUrl,setWebsiteUrl]=useState(""), [urlLoading,setUrlLoading]=useState(false);
@@ -131,11 +134,10 @@ export default function TabletopExercises() {
     setGenerating(true);setGenerationStatus("Generating the scenario, decision branches, and response guidance…"); setMessage("");
     try{
       const payload={...setup,geography:profileRegion(profile),profile_id:profileId,profile:{...profile,operating_locations:toArray(profile.operating_locations),critical_services:toArray(profile.critical_services),technology_stack:toArray(profile.technology_stack),regulated_data:toArray(profile.regulated_data),response_team:toArray(profile.response_team),third_parties:toArray(profile.third_parties)}};
-      const res=await base44.functions.invoke("generateTTXExercise",payload);
-      const data=res.data||res;
-      if(data.error) throw new Error(data.error);
+      const data=await generateInStages((name,args)=>base44.functions.invoke(name,args),payload,(step,status)=>{setGenerationStep(step);setGenerationStatus(status);},generationCache.current);
+      generationCache.current={key:null,batches:[]};
       setGenerationStatus("Scenario validated. Opening your workspace…");setRun({...data,request_snapshot:{...setup,geography:profileRegion(profile)}}); setSimulation(initialState(data.exercise.network_model,data.exercise.entry_node));setAuthority(""); setIndex(0); setDecisions([]); setFeedback(null); setTab("exercise");
-    }catch(e){setMessage(e.message||"The exercise could not be generated.");}
+    }catch(e){const detail=e.response?.data;setMessage((detail?.error||e.message||"The exercise could not be generated.")+(detail?.request_id?" Reference: "+detail.request_id:""));if(e.response?.status===409)generationCache.current={key:null,batches:[]};}
     setGenerating(false);
   };
 
@@ -226,7 +228,7 @@ export default function TabletopExercises() {
             <Field label="Disaster-recovery factor"><select className={inputClass} value={setup.disaster_type} onChange={e=>setSetup(s=>({...s,disaster_type:e.target.value}))}>{DISASTERS.map(x=><option key={x}>{x}</option>)}</select><span className="mt-1.5 block text-xs text-slate-500">This condition will affect staffing, communications, facilities, backups, vendors, or restoration during the cyber incident.</span></Field>
             <Field label="Region from company profile"><div className="relative"><MapPin className="absolute left-3 top-3 h-4 w-4 text-slate-500"/><input readOnly className={inputClass+" pl-9"} value={profileRegion(profile)} /></div><span className="mt-1 block text-xs text-slate-400">Automatically uses headquarters/address, falling back to primary geography. Update the company profile to change it.</span></Field>
             <Field label="Difficulty"><select className={inputClass} value={setup.difficulty} onChange={e=>setSetup(s=>({...s,difficulty:e.target.value}))}><option value="standard">Standard team exercise</option><option value="advanced">Advanced / time pressured</option><option value="executive">Executive decision exercise</option></select></Field>
-          </div>{generating&&<div role="status" aria-live="polite" className="mt-5 rounded-xl border border-cyan-600 p-4"><p className="text-sm text-cyan-100">{generationStatus}</p><progress aria-label="Exercise generation in progress" className="mt-3 h-3 w-full accent-cyan-400"/><p className="mt-2 text-xs text-slate-300">Generating a branched exercise can take a few minutes. This bar indicates activity; the AI service does not report a completion percentage.</p></div>}<button disabled={generating} onClick={generate} className="mt-7 w-full rounded-xl bg-cyan-400 px-5 py-3 font-bold text-slate-950 disabled:opacity-50">{generating?"Generating a unique exercise…":"Generate immersive exercise"}<ArrowRight className="ml-2 inline h-4 w-4"/></button>
+          </div>{generating&&<div role="status" aria-live="polite" className="mt-5 rounded-xl border border-cyan-600 p-4"><p className="text-sm text-cyan-100">{generationStatus}</p><progress value={generationStep} max={3} aria-label="Exercise generation stages completed" className="mt-3 h-3 w-full accent-cyan-400"/><p className="mt-2 text-xs text-slate-300">The bar advances when each stage finishes. If a stage fails, retry to continue from completed stages while this page remains open.</p></div>}<button disabled={generating} onClick={generate} className="mt-7 w-full rounded-xl bg-cyan-400 px-5 py-3 font-bold text-slate-950 disabled:opacity-50">{generating?"Generating a unique exercise…":"Generate immersive exercise"}<ArrowRight className="ml-2 inline h-4 w-4"/></button>
         </Card>
         <Card className="p-6"><SimulationPanel compact network={profile.network_model}/><Radio className="h-7 w-7 text-purple-300"/><h3 className="mt-4 text-xl font-bold">Threat context and response guidance</h3><ul className="mt-5 space-y-4 text-sm text-slate-300">{["Uses the saved company profile and recovery targets","Draws defensive context from current threat feeds","Randomizes inject details and decision order","Adds geographic disaster and continuity pressure","Scores incident-response capabilities separately","Saves the scenario seed, scoring version, decisions, and results for audit and trend analysis"].map(x=><li key={x} className="flex gap-3"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300"/>{x}</li>)}</ul><p className="mt-4 text-sm text-slate-300">Decision guidance uses NIST SP 800-61 Rev. 3 and CISA incident response playbook principles. TTX point values are our training rubric, not official NIST/CISA scores. References are saved with each new exercise.</p></Card>
       </div></>}
