@@ -77,3 +77,14 @@ await call("answer",{question_id:v.current.id,choice_id:q2.choices.find(c=>c.poi
 await call("generate");who=user1;v=await call("view");assert.equal(v.current.phase,"detection_analysis");
 rows.UserService=rows.UserService.filter(g=>g.user_email!==user1.email);await call("view",{},403);
 console.log("PASS: separate approval authority, decisions pending until approved, adaptive low-score follow-up, category progression, and feature revocation.");
+
+rows.UserService.push({user_email:user1.email,service_key:"tabletop_exercises"});
+who={id:"admin",email:"admin@test",role:"admin"};
+await call("save_config",{organization_id:"org1",profile_id:"profile",departments,members:[{...members[0],department_ids:["a","b"]}]});
+sessionId=(await call("start",{...start,member_ids:["u1"]})).session_id;
+await call("generate");who=user1;v=await call("view",{workspace_department:"a"});assert.equal(v.current.department_id,"a");
+assert.equal((await call("view",{workspace_department:"b"})).current,null);
+await call("view",{workspace_department:"missing"},404);
+who=user2;await call("view",{workspace_department:"b"},403);
+console.log("PASS: multi-department roster readiness and department URL access scoping.");
+
