@@ -150,6 +150,7 @@ export default function UserManager({ selectedOrgId, onOrgChange, isPlatformAdmi
                   <span className="flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full inline-block flex-shrink-0" style={{ background: o.primary_color || "#0ea5e9" }} />
                     {o.name}
+                    {o.slug?.endsWith("-demo") && <span className="text-[10px] text-indigo-500 font-semibold">(Demo)</span>}
                   </span>
                 </SelectItem>
               ))}
@@ -285,7 +286,9 @@ export default function UserManager({ selectedOrgId, onOrgChange, isPlatformAdmi
               <SelectItem value="__all__">All Users</SelectItem>
               <SelectItem value="__individual__">Individual (no org)</SelectItem>
               {orgs.map((o) => (
-                <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                <SelectItem key={o.id} value={o.id}>
+                  {o.name}{o.slug?.endsWith("-demo") ? " (Demo)" : ""}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>

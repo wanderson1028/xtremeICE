@@ -1,10 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Pencil, Users, Trash2, Globe, Building2, Lock } from "lucide-react";
+import { Pencil, Users, Trash2, Globe, Building2, Lock, Loader2, FlaskConical } from "lucide-react";
 
 const planColor = {
   free: "bg-secondary text-secondary-foreground",
@@ -33,11 +33,49 @@ export default function OrgList({ onEdit, onManageUsers, isPlatformAdmin, locked
 
   const deleteMutation = useMutation({
     mutationFn: (id) => base44.entities.Organization.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["organizations"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["organizations"] });
+      queryClient.invalidateQueries({ queryKey: ["all-users"] });
+    },
   });
+
+  const [deletingId, setDeletingId] = useState(null);
 
   const userCountForOrg = (orgId) =>
     allUsers.filter((u) => u.organization_id === orgId).length;
+
+  const isDemoOrg = (org) => org.slug?.endsWith("-demo");
+
+  const handleDelete = async (org) => {
+    const orgUsers = allUsers.filter((u) => u.organization_id === org.id);
+    if (isDemoOrg(org)) {
+      const msg = orgUsers.length
+        ? `Delete "${org.name}"? This is a demo organization. Its ${orgUsers.length} user(s) will be moved back to "No Organization".`
+        : `Delete "${org.name}"? This demo organization has no users.`;
+      if (!confirm(msg)) return;
+      setDeletingId(org.id);
+      try {
+        // Reassign each user to No Organization
+        for (const u of orgUsers) {
+          // eslint-disable-next-line no-await-in-loop
+          await base44.entities.User.update(u.id, {
+            organization_id: null,
+            is_individual: true,
+            org_role: null,
+          });
+        }
+        await base44.entities.Organization.delete(org.id);
+        queryClient.invalidateQueries({ queryKey: ["organizations"] });
+        queryClient.invalidateQueries({ queryKey: ["all-users"] });
+      } finally {
+        setDeletingId(null);
+      }
+    } else {
+      if (confirm(`Delete "${org.name}"? This cannot be undone.`)) {
+        deleteMutation.mutate(org.id);
+      }
+    }
+  };
 
   // Org admins only see their own org
   const visibleOrgs = lockedOrgId
@@ -115,6 +153,12 @@ export default function OrgList({ onEdit, onManageUsers, isPlatformAdmin, locked
                 <Users className="h-3 w-3" />
                 {userCountForOrg(org.id)} users
               </Badge>
+              {isDemoOrg(org) && (
+                <Badge variant="outline" className="flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 border-indigo-300">
+                  <FlaskConical className="h-3 w-3" />
+                  Demo
+                </Badge>
+              )}
             </div>
 
             {/* Description */}
@@ -155,13 +199,12 @@ export default function OrgList({ onEdit, onManageUsers, isPlatformAdmin, locked
                   size="sm"
                   variant="ghost"
                   className="gap-1 text-xs text-destructive hover:text-destructive"
-                  onClick={() => {
-                    if (confirm(`Delete "${org.name}"? This cannot be undone.`)) {
-                      deleteMutation.mutate(org.id);
-                    }
-                  }}
+                  disabled={deletingId === org.id}
+                  onClick={() => handleDelete(org)}
                 >
-                  <Trash2 className="h-3 w-3" />
+                  {deletingId === org.id
+                    ? <Loader2 className="h-3 w-3 animate-spin" />
+                    : <Trash2 className="h-3 w-3" />}
                 </Button>
               )}
             </div>
