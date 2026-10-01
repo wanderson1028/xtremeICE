@@ -211,7 +211,7 @@ const BUILT_IN_TEMPLATES = [
   },
 ];
 
-export default function TemplateSelector({ onSelect, onBlank, onVisualDesign }) {
+export default function TemplateSelector({ onSelect, onBlank, onVisualDesign, onImport }) {
   const { t } = useTranslation();
   const [selected, setSelected] = useState(null);
   const [deleting, setDeleting] = useState(null);
@@ -255,6 +255,7 @@ export default function TemplateSelector({ onSelect, onBlank, onVisualDesign }) 
           <p className="text-muted-foreground mt-2">Create a detailed network topology.</p>
         </div>
 
+        {onImport && <button onClick={onImport} className="mb-6 w-full rounded-xl border border-cyan-500 bg-cyan-950/40 p-6 text-left text-white"><p className="text-xl font-bold text-cyan-200">Import Network / Create Digital Twin</p><p className="mt-2 text-base text-slate-200">Upload configuration files to extract devices, interfaces, VLANs, routing protocols, and security settings. Review and confirm your topology before saving.</p></button>}
         {/* Quick start options */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           <button
