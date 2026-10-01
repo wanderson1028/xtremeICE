@@ -179,6 +179,18 @@
         "type": "string"
       }
     },
+    "organization_id": {
+      "type": "string"
+    },
+    "import_snapshot": {
+      "type": "string"
+    },
+    "import_version": {
+      "type": "number"
+    },
+    "parent_design_id": {
+      "type": "string"
+    },
     "diagram_data": {
       "type": "string"
     },
