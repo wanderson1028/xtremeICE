@@ -5,7 +5,7 @@ const iface=z.object({name:short,port:short.optional(),addresses:arr,vlan:short.
 const record=z.record(short).refine(v=>Object.keys(v).length<=12);
 const node=z.object({id:short,label:short.min(1),type:z.enum(["router","switch","firewall","server","wireless","workstation","loadbalancer","cloud","internet","plc","scada","hmi","iot"]),vendor:short,model:short,site:short,provenance:z.enum(["extracted","user-confirmed"]),role_provenance:z.enum(["inferred","extracted","user-confirmed"]),interfaces:z.array(iface).max(300),protocols:arr,vlans:z.array(record).max(500),routes:z.array(record).max(1000),policies:z.array(record).max(2000),services:arr,tunnels:z.array(record).max(300),source_file:short,ip:short,x:z.number().finite(),y:z.number().finite(),reviewed:z.literal(true)});
 const snapshot=z.object({nodes:z.array(node).min(1).max(200),links:z.array(z.object({id:short,from:short,to:short,label:short,provenance:z.enum(["extracted","inferred","user-confirmed"]),confirmed:z.literal(true)})).max(1000),warnings:arr,parser_version:z.literal("network-import-1"),status:z.literal("configuration_snapshot")});
-const request=z.object({action:z.enum(["save","organizations"]),name:short.optional(),organization_id:short.optional(),parent_id:short.optional(),snapshot:snapshot.optional()});
+const request=z.object({action:z.enum(["save","organizations","designs"]),name:short.optional(),organization_id:short.optional(),parent_id:short.optional(),snapshot:snapshot.optional()});
 export async function handler(req){
  try{
  const c=createClientFromRequest(req),u=await c.auth.me();if(!u)return Response.json({error:"Sign in to import a network."},{status:401});
@@ -17,6 +17,12 @@ export async function handler(req){
  if(admin){for(let skip=0;;skip+=200){const p=await db.Organization.list("name",200,skip);orgs.push(...p);if(p.length<200)break;}}
  else if(u.organization_id){const o=await db.Organization.get(u.organization_id);if(o)orgs=[o];}
  return Response.json({organizations:orgs.filter(o=>o.status!=="suspended").map(o=>({id:o.id,name:o.name}))});
+ }
+ if(body.action==="designs"){
+ if(!body.organization_id||(!admin&&u.organization_id!==body.organization_id))return Response.json({error:"Organization access denied."},{status:403});
+ const found=[];
+ for(let skip=0;;skip+=100){const p=await c.entities.NetworkDesign.filter({organization_id:body.organization_id},"-created_date",100,skip);found.push(...p.filter(d=>d.import_snapshot));if(p.length<100)break;}
+ return Response.json({designs:found.map(d=>({id:d.id,name:d.name,version:d.import_version,snapshot:JSON.parse(d.import_snapshot)}))});
  }
  if(!body.name?.trim()||!body.organization_id||!body.snapshot)throw Error("Select an organization, enter a design name, and review every device and connection.");
  if(!admin&&u.organization_id!==body.organization_id)return Response.json({error:"This organization is not assigned to you."},{status:403});
