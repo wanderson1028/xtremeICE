@@ -1,7 +1,7 @@
 import {createClientFromRequest} from "npm:@base44/sdk";
 import {z} from "npm:zod@3.24.2";
 const short=z.string().max(250),arr=z.array(short).max(300);
-const iface=z.object({name:short,port:short.optional(),addresses:arr,vlan:short.optional(),parent:short.optional(),mode:short.optional(),admin_status:short.optional(),acl:short.optional(),provenance:z.literal("extracted")});
+const iface=z.object({name:short,port:short.optional(),addresses:arr,vlan:short.optional(),parent:short.optional(),mode:short.optional(),admin_status:short.optional(),acl:short.optional(),provenance:z.enum(["extracted","user-confirmed"])});
 const record=z.record(short).refine(v=>Object.keys(v).length<=12);
 const node=z.object({id:short,label:short.min(1),type:z.enum(["router","switch","firewall","server","wireless","workstation","loadbalancer","cloud","internet","plc","scada","hmi","iot"]),vendor:short,model:short,site:short,provenance:z.enum(["extracted","user-confirmed"]),role_provenance:z.enum(["inferred","extracted","user-confirmed"]),interfaces:z.array(iface).max(300),protocols:arr,vlans:z.array(record).max(500),routes:z.array(record).max(1000),policies:z.array(record).max(2000),services:arr,tunnels:z.array(record).max(300),source_file:short,ip:short,x:z.number().finite(),y:z.number().finite(),reviewed:z.literal(true)});
 const snapshot=z.object({nodes:z.array(node).min(1).max(200),links:z.array(z.object({id:short,from:short,to:short,label:short,provenance:z.enum(["extracted","inferred","user-confirmed"]),confirmed:z.literal(true)})).max(1000),warnings:arr,parser_version:z.literal("network-import-1"),status:z.literal("configuration_snapshot")});
@@ -28,6 +28,7 @@ export async function handler(req){
  if(!admin&&u.organization_id!==body.organization_id)return Response.json({error:"This organization is not assigned to you."},{status:403});
  const org=await db.Organization.get(body.organization_id);if(!org||org.status==="suspended")throw Error("Select an active organization.");
  const s=body.snapshot,ids=new Set(s.nodes.map(n=>n.id));
+ if(new Set(s.nodes.map(n=>n.label.toLowerCase().trim())).size!==s.nodes.length)throw Error("Each device needs a unique name.");
  if(ids.size!==s.nodes.length||s.links.some(l=>!ids.has(l.from)||!ids.has(l.to)||l.from===l.to))throw Error("Topology has invalid or duplicate device references.");
  let parent=null;
  if(body.parent_id){
