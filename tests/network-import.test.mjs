@@ -69,7 +69,7 @@ const inv=buildSnapshot(csv);assert.equal(inv.links.length,1);assert.equal(inv.l
 const snap=buildSnapshot([a,f,pf]);assert.equal(snap.links.length,0,"same subnet must not imply physical adjacency");
 assert.throws(()=>buildSnapshot([a,a]));
 globalThis.Deno={serve(){}};
-const compiled=await build({entryPoints:["base44/functions/import-network-design/entry.ts"],bundle:true,write:false,platform:"node",format:"esm",plugins:[{name:"sdk",setup(b){b.onResolve({filter:/^npm:@base44/},()=>({path:"mock",namespace:"mock"}));b.onLoad({filter:/.*/,namespace:"mock"},()=>({contents:"export const createClientFromRequest=()=>globalThis.client;"}));b.onResolve({filter:/^npm:zod/},()=>({path:process.cwd()+"/node_modules/zod/lib/index.mjs"}));}}]});
+const compiled=await build({entryPoints:["base44/functions/import-network-design/entry.ts"],bundle:true,write:false,platform:"node",format:"esm",plugins:[{name:"sdk",setup(b){b.onResolve({filter:/^npm:@base44/},()=>({path:"mock",namespace:"mock"}));b.onLoad({filter:/.*/,namespace:"mock"},()=>({contents:"export const createClientFromRequest=()=>globalThis.client;"}));b.onResolve({filter:/^npm:zod/},()=>({path:new URL(import.meta.resolve("zod")).pathname}));}}]});
 const {handler}=await import("data:text/javascript;base64,"+Buffer.from(compiled.outputFiles[0].text).toString("base64"));
 let who={id:"u1",organization_id:"org1",role:"user"},saved=[],parent;
 globalThis.client={auth:{me:async()=>who},asServiceRole:{entities:{Organization:{get:async id=>({id,name:"Company",status:"active"})}}},entities:{NetworkDesign:{create:async v=>{saved.push(v);return {id:"saved"};},get:async()=>parent,filter:async()=>[]}}};
