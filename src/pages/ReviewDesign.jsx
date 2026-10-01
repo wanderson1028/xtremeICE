@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
@@ -127,6 +127,7 @@ export default function ReviewDesign() {
   const [validationResult, setValidationResult] = useState(null);
   const [showValidation, setShowValidation] = useState(false);
   const [reviseImport, setReviseImport] = useState(false);
+  useEffect(() => setReviseImport(false), [id]);
 
   const { data: design, isLoading, refetch } = useQuery({
     queryKey: ["design", id],
