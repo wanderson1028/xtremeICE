@@ -8,6 +8,7 @@ import { ArrowLeft, Eye, Loader2, Plus, Network, ChevronRight, Trash2, Terminal 
 import { useTranslation } from "react-i18next";
 import { AnimatePresence } from "framer-motion";
 import NetworkConsole from "@/components/console/NetworkConsole";
+import NetworkImport, { SavedNetworkSnapshot } from "@/components/network-import/NetworkImport";
 import DesignSummary from "@/components/review/DesignSummary";
 import NetworkValidationPanel from "@/components/review/NetworkValidationPanel";
 import NetworkValidationReport from "@/components/review/NetworkValidationReport";
@@ -125,6 +126,7 @@ export default function ReviewDesign() {
   const id = params.get("id");
   const [validationResult, setValidationResult] = useState(null);
   const [showValidation, setShowValidation] = useState(false);
+  const [reviseImport, setReviseImport] = useState(false);
 
   const { data: design, isLoading, refetch } = useQuery({
     queryKey: ["design", id],
@@ -169,6 +171,11 @@ export default function ReviewDesign() {
         </div>
       </div>
     );
+  }
+
+  if (design.import_snapshot) {
+    if (reviseImport) return <NetworkImport key={design.id} existing={design} onBack={() => setReviseImport(false)} />;
+    return <div className="min-h-screen bg-slate-950 p-6 text-white"><div className="mx-auto max-w-7xl space-y-5"><Button onClick={() => navigate("/ReviewDesign")}>← Saved designs</Button><h1 className="text-3xl font-bold">{design.name}</h1><p>{design.company_name}</p><SavedNetworkSnapshot design={design} onRevise={() => setReviseImport(true)} /></div></div>;
   }
 
   return (
