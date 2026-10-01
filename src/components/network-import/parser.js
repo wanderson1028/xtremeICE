@@ -100,8 +100,9 @@ export function parseConfiguration(text,filename) {
  else if(/^hostname\s+\S+/m.test(text)&&/^interface\s+\S+/m.test(text))nodes=[cisco(text)];
  else throw Error("Unrecognized format. Use Cisco IOS text, FortiGate single-VDOM text, pfSense XML, or the CSV inventory template.");
  if(!nodes.length||nodes.length>200)throw Error("Import 1–200 devices at a time.");
+ if(nodes.some(n=>n.interfaces.length>300||n.policies.length>2000||n.routes.length>1000))throw Error("Configuration exceeds the supported interface, policy, or route limits. Split the inventory before importing.");
  if(/^config vdom/m.test(text))throw Error("Export each FortiGate VDOM separately; combined VDOM files are not supported.");
- return nodes.map(n=>({...n,label:safe(n.label)||"Unnamed device",protocols:[...new Set(n.protocols)],services:[...new Set(n.services)],source_file:safe(filename),interfaces:n.interfaces.slice(0,300)}));
+ return nodes.map(n=>({...n,label:safe(n.label)||"Unnamed device",protocols:[...new Set(n.protocols)],services:[...new Set(n.services)],source_file:safe(filename),interfaces:n.interfaces}));
 }
 export function buildSnapshot(devices) {
  if(devices.length>200)throw Error("A snapshot is limited to 200 devices.");
