@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight, Save, Loader2, Network, Lock, Zap } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
+import NetworkImport from "@/components/network-import/NetworkImport";
 import StepIndicator from "@/components/wizard/StepIndicator";
 import StepBasics from "@/components/wizard/StepBasics";
 import StepTopology from "@/components/wizard/StepTopology";
@@ -32,6 +33,7 @@ export default function NetworkWizard() {
 
   const [showTemplates, setShowTemplates] = useState(!prefill);
   const [showVisualDesign, setShowVisualDesign] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
@@ -117,6 +119,8 @@ export default function NetworkWizard() {
     return true;
   };
 
+  if (showImport) return <NetworkImport onBack={() => setShowImport(false)} />;
+
   if (showVisualDesign) {
     return (
       <VisualDesignBuilder
@@ -136,6 +140,7 @@ export default function NetworkWizard() {
         onSelect={handleTemplateSelect}
         onBlank={() => setShowTemplates(false)}
         onVisualDesign={() => setShowVisualDesign(true)}
+        onImport={() => setShowImport(true)}
       />
     );
   }
