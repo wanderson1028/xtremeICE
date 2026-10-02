@@ -267,7 +267,7 @@ html {
   .cfrs-sg :is(h1,h2,h3,h4,h5,h6,a,summary,.sg-micro),
   .cfrs-sg [class*="text-red-"],
   .cfrs-sg [class*="text-rose-"]{
-    color:#b91c1c !important;
+    color:#000000 !important;
   }
   .cfrs-sg :is(h1,h2,h3,h4,h5,h6,a,summary,.sg-micro) :is(span,strong,b){
     color:inherit !important;

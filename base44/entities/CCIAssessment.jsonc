@@ -8,6 +8,10 @@
     "business_name": {
       "type": "string"
     },
+    "logo_url": {
+      "type": "string",
+      "description": "Public URL of the company logo uploaded for this assessment profile"
+    },
     "source_assessment_date": {
       "type": "string",
       "format": "date-time",

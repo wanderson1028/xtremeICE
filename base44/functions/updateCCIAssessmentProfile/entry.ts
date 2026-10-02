@@ -17,6 +17,7 @@ Deno.serve(async(req)=>{
   if(user.role!=="admin"&&!ownsRecord&&!sharesOrganization)return Response.json({error:"You do not have permission to update this assessment"},{status:403});
   const profile={
    business_name:clean(body.business_name,200),
+   logo_url:clean(body.logo_url,1000),
    business_address:clean(body.business_address,500),
    poc_name:clean(body.poc_name,200),
    poc_email:clean(body.poc_email,320),
