@@ -121,9 +121,6 @@ export default function CFRSOrganizations() {
         <CFRSBreadcrumb crumbs={[{ label: "CFRS", href: "/CFRS" }, { label: "Saved Organizations" }]} />
         <header className="sg-enter mb-5 flex flex-wrap items-end justify-between gap-4 border-b pb-5" style={{ borderColor: "#d4d4d4" }}>
           <div>
-            <div className="sg-micro mb-2 flex items-center gap-2" style={{ color: "#b91c1c" }}>
-              <Gauge className="h-4 w-4" /> Capital Intelligence
-            </div>
             <h1 className="text-2xl font-semibold lg:text-3xl">Saved CFRS Organizations</h1>
             <p className="sg-body mt-1" style={{ color: "#404040" }}>Select an organization to open its dedicated score, history, profile, and evidence workspace.</p>
           </div>

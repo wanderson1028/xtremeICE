@@ -281,7 +281,6 @@ export default function CCI() {
         <CFRSBreadcrumb crumbs={selectedOrganizationId ? [{ label: "CFRS", href: "/CFRS" }, { label: r?.business_name || "Organization" }] : [{ label: "CFRS" }]} />
         <header className="sg-enter mb-5 flex flex-wrap items-end justify-between gap-4 border-b pb-5" style={{ borderColor: "#d4d4d4" }}>
           <div>
-            <div className="sg-micro mb-2 flex items-center gap-2" style={{ color: "#b91c1c" }}><Gauge className="h-4 w-4" />Capital Intelligence</div>
             <h1 className="text-2xl font-semibold lg:text-3xl">Cyber Financial Risk Score (CFRS)</h1>
             <p className="sg-body mt-1" style={{ color: "#404040" }}>Evidence-based scoring from Vulnerability Assessment and Penetration Test reports.</p>
           </div>
