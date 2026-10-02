@@ -306,7 +306,17 @@ export default function CCI() {
           </section>
         )}
 
-        <section className="sg-panel sg-panel-hover sg-enter sg-profile mb-5 p-5" style={{ animationDelay: ".1s" }}>
+        {selectedOrganizationId && (
+          <div className="sg-panel sg-enter mb-5 flex items-center justify-between px-4 py-3" style={{ animationDelay: ".15s" }}>
+            <div>
+              <div className="sg-micro" style={{ color: "#b91c1c" }}>Organization workspace</div>
+              <div className="mt-1 text-sm font-semibold">{r?.business_name || "Loading organization…"}</div>
+            </div>
+            <a href="/CFRS" className="sg-btn px-3 py-2 text-xs">← Back to main CFRS</a>
+          </div>
+        )}
+        <div className={selectedOrganizationId ? "grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.7fr)]" : ""}>
+        <section className={`sg-panel sg-panel-hover sg-enter sg-profile p-5 ${selectedOrganizationId ? "lg:mb-0" : "mb-5"}`} style={{ animationDelay: ".1s" }}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="flex items-center gap-2 text-sm font-semibold"><Building2 className="h-4 w-4" style={{ color: "#000000" }} />Customer profile</h2>
@@ -345,20 +355,10 @@ export default function CCI() {
           {profileStatus && <div className="sg-panel mt-3 p-2.5 text-xs" style={profileStatus === "Company profile saved." ? { color: "#0f9d58", background: "#0f9d5814", borderColor: "#0f9d5840" } : { color: "#dc2626", background: "#dc262614", borderColor: "#dc262640" }}>{profileStatus}</div>}
         </section>
 
-        {selectedOrganizationId && (
-          <div className="sg-panel sg-enter mb-5 flex items-center justify-between px-4 py-3" style={{ animationDelay: ".15s" }}>
-            <div>
-              <div className="sg-micro" style={{ color: "#b91c1c" }}>Organization workspace</div>
-              <div className="mt-1 text-sm font-semibold">{r?.business_name || "Loading organization…"}</div>
-            </div>
-            <a href="/CFRS" className="sg-btn px-3 py-2 text-xs">← Back to main CFRS</a>
-          </div>
-        )}
-
         {historyLoading && !r ? (
-          <div className="sg-enter mb-5" style={{ animationDelay: ".2s" }}><SkeletonGrid count={4} /></div>
+          <div className={`sg-enter ${selectedOrganizationId ? "lg:mb-0" : "mb-5"}`} style={{ animationDelay: ".2s" }}><SkeletonGrid count={4} /></div>
         ) : r && (
-          <section className="sg-score-card sg-enter mb-5 overflow-hidden" style={{ animationDelay: ".2s" }}>
+          <section className={`sg-score-card sg-enter overflow-hidden ${selectedOrganizationId ? "lg:mb-0" : "mb-5"}`} style={{ animationDelay: ".2s" }}>
             <div className="grid lg:grid-cols-[.42fr_1.58fr]">
               <div className="border-b p-5 lg:border-b-0 lg:border-r" style={{ borderColor: "#d4d4d4" }}>
                 <div className="sg-micro" style={{ color: "#b91c1c" }}>CFRS</div>
@@ -398,6 +398,7 @@ export default function CCI() {
             </div>
           </section>
         )}
+        </div>
 
         {r && scoreExplanation && (
           <section className="sg-panel sg-enter mb-5 overflow-hidden" style={{ animationDelay: ".25s" }}>
