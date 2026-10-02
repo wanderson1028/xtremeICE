@@ -275,6 +275,8 @@ html {
   .cfrs-sg :is(input,textarea)::placeholder{color:#000000 !important;opacity:1;}
   .cfrs-sg svg text{fill:#000000 !important;}
   .cfrs-sg .sg-badge{display:inline-flex;align-items:center;gap:5px;border-radius:9999px;padding:3px 10px;font-size:10px;font-weight:600;letter-spacing:.04em;border:1px solid;line-height:1.4;}
+  /* Customer profile card: keep label/heading ink black instead of the red sg-micro/h2 default */
+  .cfrs-sg .sg-profile :is(h2,.sg-micro,.sg-micro span){color:#000000 !important;}
   /* Xtreme I.C.E. brand finish: red, charcoal and neutral surfaces. */
   .cfrs-sg .sg-panel,.cfrs-sg .sg-score-card{border-top:3px solid #b91c1c;}
   .cfrs-sg .sg-panel-hover:hover{border-color:#b91c1c;}

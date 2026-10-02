@@ -302,10 +302,10 @@ export default function CCI() {
           </section>
         )}
 
-        <section className="sg-panel sg-panel-hover sg-enter mb-5 p-5" style={{ animationDelay: ".1s" }}>
+        <section className="sg-panel sg-panel-hover sg-enter sg-profile mb-5 p-5" style={{ animationDelay: ".1s" }}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="flex items-center gap-2 text-sm font-semibold"><Building2 className="h-4 w-4" style={{ color: "#b91c1c" }} />Customer profile</h2>
+              <h2 className="flex items-center gap-2 text-sm font-semibold"><Building2 className="h-4 w-4" style={{ color: "#000000" }} />Customer profile</h2>
               <p className="sg-body mt-1" style={{ color: "#404040" }}>Logistical changes save without rerunning or changing the CFRS score.</p>
             </div>
             {revisionBase && (
