@@ -5,6 +5,7 @@ import SemanticBadge from "@/components/cfrs/SemanticBadge";
 import EmptyState from "@/components/cfrs/EmptyState";
 import SkeletonGrid from "@/components/cfrs/Skeleton";
 import Sparkline from "@/components/cfrs/Sparkline";
+import CFRSBreadcrumb from "@/components/cfrs/CFRSBreadcrumb";
 
 const CFRS_VERSION = "CFRS-ASSESS-2026.16";
 const CFRS_BASELINE = 600;
@@ -97,8 +98,17 @@ export default function CFRSOrganizations() {
       (a, b) => evidenceTime(b) - evidenceTime(a) || new Date(b.analyzed_at || 0) - new Date(a.analyzed_at || 0)
     );
     const cards = Array.from(new Map(sorted.map((assessment) => [assessment.organization_id, assessment])).values());
+    // Logos are stored per-assessment; resolve the most recent logo across the org's history
+    // so a card shows the logo even when the newest assessment revision lacks one.
+    const logoByOrg = new Map();
+    for (const assessment of sorted) {
+      if (assessment.logo_url && !logoByOrg.has(assessment.organization_id)) {
+        logoByOrg.set(assessment.organization_id, assessment.logo_url);
+      }
+    }
+    const enriched = cards.map((card) => ({ ...card, logo_url: card.logo_url || logoByOrg.get(card.organization_id) || "" }));
     const query = search.trim().toLowerCase();
-    return query ? cards.filter((assessment) => assessment.business_name?.toLowerCase().includes(query)) : cards;
+    return query ? enriched.filter((assessment) => assessment.business_name?.toLowerCase().includes(query)) : enriched;
   }, [history, search]);
 
   const openOrganization = (organizationId) => {
@@ -108,6 +118,7 @@ export default function CFRSOrganizations() {
   return (
     <div className="cfrs-sg min-h-screen">
       <div className="mx-auto max-w-[1480px] px-4 py-7 lg:px-7">
+        <CFRSBreadcrumb crumbs={[{ label: "CFRS", href: "/CFRS" }, { label: "Saved Organizations" }]} />
         <header className="sg-enter mb-5 flex flex-wrap items-end justify-between gap-4 border-b pb-5" style={{ borderColor: "#d4d4d4" }}>
           <div>
             <div className="sg-micro mb-2 flex items-center gap-2" style={{ color: "#b91c1c" }}>
@@ -172,7 +183,11 @@ export default function CFRSOrganizations() {
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <Building2 className="h-4 w-4 shrink-0" style={{ color: "#b91c1c" }} />
+                          {organization.logo_url ? (
+                            <img src={organization.logo_url} alt={organization.business_name} className="h-8 w-8 shrink-0 rounded-md border object-contain" style={{ borderColor: "#d4d4d4", background: "#fff" }} />
+                          ) : (
+                            <Building2 className="h-4 w-4 shrink-0" style={{ color: "#b91c1c" }} />
+                          )}
                           <div className="truncate text-sm font-semibold">{organization.business_name}</div>
                         </div>
                         <div className="mt-2 flex items-center gap-1 text-[10px]" style={{ color: "#404040" }}>

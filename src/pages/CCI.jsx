@@ -12,6 +12,7 @@ import CountUp from "@/components/cfrs/CountUp";
 import ScoreBar from "@/components/cfrs/ScoreBar";
 import EmptyState from "@/components/cfrs/EmptyState";
 import SkeletonGrid from "@/components/cfrs/Skeleton";
+import CFRSBreadcrumb from "@/components/cfrs/CFRSBreadcrumb";
 
 const TYPES = [
   ["vulnerability_report", "Vulnerability Assessment", "Scanner report and findings"],
@@ -268,6 +269,7 @@ export default function CCI() {
   const sourceExplanation = orgLatest?.executive_score_explanation;
   const distinctAssessmentCount = r ? new Set(orgScoredRows.map(x => x.report_fingerprint || x.id)).size : 0;
   const scoreExplanation = sourceExplanation ? { ...sourceExplanation, headline: `${r.business_name} has an organizational CFRS of ${orgScore}, rated ${ratingFor(orgScore)}.`, summary: `This rating consolidates ${distinctAssessmentCount} scored assessment${distinctAssessmentCount === 1 ? "" : "s"} using recency-weighted evidence. ${latestAssessmentChange === null ? "This is the first assessment scored under the current CFRS model." : `The latest assessment ${latestAssessmentChange >= 0 ? "improved" : "reduced"} the organization's measured position by ${Math.abs(latestAssessmentChange)} points compared with the preceding assessment.`} The result reflects vulnerability exposure, demonstrated attack resilience, verified remediation, recurring issues, and historical performance.` } : null;
+  const orgLogo = r ? (r.logo_url || [...history].sort((a, b) => evidenceTime(b) - evidenceTime(a)).find(x => x.organization_id === r.organization_id && x.logo_url)?.logo_url || "") : "";
   const visibleHistory = history.filter(x => orgFilter === "all" || x.organization_id === orgFilter).sort((a, b) => evidenceTime(b) - evidenceTime(a) || new Date(b.analyzed_at || 0) - new Date(a.analyzed_at || 0));
   const organizationCards = Array.from(new Map(visibleHistory.map(x => [x.organization_id, x])).values());
   const validatedFindingActivities = (r?.pentest_findings || []).filter(f => ["critical", "high", "medium"].includes(String(f.severity || "").toLowerCase()) && /spoof|poison|relay|credential|anonymous\s+ftp|null session|remote code execution|\brce\b|shell|injection|authentication bypass|privilege|lateral movement|exfiltrat|code execution/i.test(f.title || "")).map(f => ({ name: f.title, status: "successful", outcome: "Validated penetration-test finding", evidence: f.evidence || `Validated ${f.severity || ""} penetration-test finding`, affected_asset: f.asset || "", source_report: f.source_report || "vPenTest technical findings" }));
@@ -276,6 +278,7 @@ export default function CCI() {
   return (
     <div className="cfrs-sg min-h-screen">
       <div className="mx-auto max-w-[1480px] px-4 py-7 lg:px-7">
+        <CFRSBreadcrumb crumbs={selectedOrganizationId ? [{ label: "CFRS", href: "/CFRS" }, { label: r?.business_name || "Organization" }] : [{ label: "CFRS" }]} />
         <header className="sg-enter mb-5 flex flex-wrap items-end justify-between gap-4 border-b pb-5" style={{ borderColor: "#d4d4d4" }}>
           <div>
             <div className="sg-micro mb-2 flex items-center gap-2" style={{ color: "#b91c1c" }}><Gauge className="h-4 w-4" />Capital Intelligence</div>
@@ -370,7 +373,7 @@ export default function CCI() {
               <div className="p-5">
                 <div className="flex flex-wrap justify-between gap-3">
                   <div>
-                    <h2 className="flex items-center gap-3 text-lg font-semibold">{r.logo_url && <img src={r.logo_url} alt={r.business_name} className="h-10 w-10 rounded-lg object-contain" />}{r.business_name}</h2>
+                    <h2 className="flex items-center gap-3 text-lg font-semibold">{orgLogo && <img src={orgLogo} alt={r.business_name} className="h-10 w-10 rounded-lg object-contain" />}{r.business_name}</h2>
                     {(r.business_address || r.poc_name) && <p className="text-xs" style={{ color: "#404040" }}>{[r.business_address, r.poc_name && `POC: ${r.poc_name}`].filter(Boolean).join(" · ")}</p>}</div>
                   <SemanticBadge tone={stale ? "critical" : "success"}>Evidence status: {r.data_confidence === "expired" || r.data_confidence === "expiring" ? "historical" : r.data_confidence}</SemanticBadge>
                 </div>
