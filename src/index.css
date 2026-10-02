@@ -213,8 +213,8 @@ html {
     --sg-card:#F4F5F8;
     --sg-card-grad:linear-gradient(145deg,#f8f9fb,#f0f2f6);
     --sg-border:#d6dae2;
-    --sg-text:#2A2F3A;
-    --sg-muted:#6b7280;
+    --sg-text:#000000;
+    --sg-muted:#000000;
     --sg-accent:#0EA5C7;
     --sg-accent-soft:#0ea5c714;
     --sg-radius:15px;
@@ -259,6 +259,21 @@ html {
   .cfrs-sg .sg-table tbody tr:nth-child(even){background:#eceef3;}
   .cfrs-sg .sg-table tbody tr:hover{background:#e4f4f8;}
   .cfrs-sg .sg-table tbody tr{transition:background .15s ease;}
+  /* CFRS typography: black reading text and red headings/actions.
+     Scoped to CFRS; chart strokes, score gradients and status backgrounds retain their meaning. */
+  .cfrs-sg :is(div,p,span,label,input,textarea,select,option,button,td,th,li,strong,b,small,time,code,pre,summary,a,h1,h2,h3,h4,h5,h6){
+    color:#000000 !important;
+  }
+  .cfrs-sg :is(h1,h2,h3,h4,h5,h6,a,summary,.sg-micro),
+  .cfrs-sg [class*="text-red-"],
+  .cfrs-sg [class*="text-rose-"]{
+    color:#b91c1c !important;
+  }
+  .cfrs-sg :is(h1,h2,h3,h4,h5,h6,a,summary,.sg-micro) :is(span,strong,b){
+    color:inherit !important;
+  }
+  .cfrs-sg :is(input,textarea)::placeholder{color:#000000 !important;opacity:1;}
+  .cfrs-sg svg text{fill:#000000 !important;}
   .cfrs-sg .sg-badge{display:inline-flex;align-items:center;gap:5px;border-radius:9999px;padding:3px 10px;font-size:10px;font-weight:600;letter-spacing:.04em;border:1px solid;line-height:1.4;}
   @media print{
     .cfrs-sg{background:#fff;}
