@@ -108,13 +108,13 @@ export default function CFRSOrganizations() {
   return (
     <div className="cfrs-sg min-h-screen">
       <div className="mx-auto max-w-[1480px] px-4 py-7 lg:px-7">
-        <header className="sg-enter mb-5 flex flex-wrap items-end justify-between gap-4 border-b pb-5" style={{ borderColor: "#d6dae2" }}>
+        <header className="sg-enter mb-5 flex flex-wrap items-end justify-between gap-4 border-b pb-5" style={{ borderColor: "#d4d4d4" }}>
           <div>
-            <div className="sg-micro mb-2 flex items-center gap-2" style={{ color: "#0EA5C7" }}>
+            <div className="sg-micro mb-2 flex items-center gap-2" style={{ color: "#b91c1c" }}>
               <Gauge className="h-4 w-4" /> Capital Intelligence
             </div>
             <h1 className="text-2xl font-semibold lg:text-3xl">Saved CFRS Organizations</h1>
-            <p className="sg-body mt-1" style={{ color: "#6b7280" }}>Select an organization to open its dedicated score, history, profile, and evidence workspace.</p>
+            <p className="sg-body mt-1" style={{ color: "#404040" }}>Select an organization to open its dedicated score, history, profile, and evidence workspace.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <a href="/CFRS" className="sg-btn flex items-center gap-2 px-3 py-2 text-xs">
@@ -130,12 +130,12 @@ export default function CFRSOrganizations() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-2 text-sm font-semibold">
-                <History className="h-4 w-4" style={{ color: "#0EA5C7" }} /> Organizations
+                <History className="h-4 w-4" style={{ color: "#b91c1c" }} /> Organizations
               </div>
-              <p className="sg-body mt-1" style={{ color: "#6b7280" }}>One consolidated CFRS card per organization.</p>
+              <p className="sg-body mt-1" style={{ color: "#404040" }}>One consolidated CFRS card per organization.</p>
             </div>
             <label className="relative block w-full sm:w-72">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "#9aa1ad" }} />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "#737373" }} />
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
@@ -160,7 +160,7 @@ export default function CFRSOrganizations() {
                 const zone = zoneColor(score);
                 const trend = organizationTrend(history, organization);
                 const TrendIcon = trend === null ? null : trend > 0 ? TrendingUp : trend < 0 ? TrendingDown : Minus;
-                const trendColor = trend === null ? "" : trend > 0 ? "#0f9d58" : trend < 0 ? "#dc2626" : "#9aa1ad";
+                const trendColor = trend === null ? "" : trend > 0 ? "#0f9d58" : trend < 0 ? "#dc2626" : "#737373";
                 const scoreHistory = organizationScoreHistory(history, organization);
                 return (
                   <button
@@ -172,10 +172,10 @@ export default function CFRSOrganizations() {
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <Building2 className="h-4 w-4 shrink-0" style={{ color: "#0EA5C7" }} />
+                          <Building2 className="h-4 w-4 shrink-0" style={{ color: "#b91c1c" }} />
                           <div className="truncate text-sm font-semibold">{organization.business_name}</div>
                         </div>
-                        <div className="mt-2 flex items-center gap-1 text-[10px]" style={{ color: "#6b7280" }}>
+                        <div className="mt-2 flex items-center gap-1 text-[10px]" style={{ color: "#404040" }}>
                           <CalendarDays className="h-3 w-3" /> {new Date(evidenceTime(organization)).toLocaleDateString()}
                         </div>
                       </div>
@@ -192,9 +192,9 @@ export default function CFRSOrganizations() {
                         )}
                       </div>
                     </div>
-                    <div className="mt-4 flex items-center justify-between border-t pt-3 text-[10px]" style={{ borderColor: "#d6dae2" }}>
+                    <div className="mt-4 flex items-center justify-between border-t pt-3 text-[10px]" style={{ borderColor: "#d4d4d4" }}>
                       <SemanticBadge tone="success">{count} assessment{count === 1 ? "" : "s"}</SemanticBadge>
-                      <span style={{ color: "#0EA5C7" }}>Open organization →</span>
+                      <span style={{ color: "#b91c1c" }}>Open organization →</span>
                     </div>
                   </button>
                 );

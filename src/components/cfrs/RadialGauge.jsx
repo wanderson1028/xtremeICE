@@ -3,7 +3,7 @@ import React from "react";
 // Compact semicircular arc gauge. score in [min,max]; fills proportionally with accent.
 export default function RadialGauge({ score, min = -500, max = 1000, size = 120, trend = null }) {
   const clamped = Math.max(min, Math.min(max, Number(score) || min));
-  const trendColor = trend == null ? "#9aa1ad" : trend > 0 ? "#0f9d58" : trend < 0 ? "#dc2626" : "#9aa1ad";
+  const trendColor = trend == null ? "#737373" : trend > 0 ? "#0f9d58" : trend < 0 ? "#dc2626" : "#737373";
   const trendArrow = trend == null ? "" : trend > 0 ? "▲" : trend < 0 ? "▼" : "▬";
   const trendLabel = trend == null ? "" : `${trend > 0 ? "+" : ""}${Math.round(trend)}`;
   const pct = (clamped - min) / (max - min);
@@ -30,10 +30,10 @@ export default function RadialGauge({ score, min = -500, max = 1000, size = 120,
           <stop offset="100%" stopColor="#34d399" />
         </linearGradient>
       </defs>
-      <path d={trackPath} fill="none" stroke="#d6dae2" strokeWidth="9" strokeLinecap="round" />
+      <path d={trackPath} fill="none" stroke="#d4d4d4" strokeWidth="9" strokeLinecap="round" />
       <path d={valuePath} fill="none" stroke="url(#sg-gauge)" strokeWidth="9" strokeLinecap="round" />
-      <circle cx={vx} cy={vy} r="4.5" fill="#fff" stroke="#0EA5C7" strokeWidth="2" />
-      <text x="60" y="50" textAnchor="middle" fontSize="22" fontWeight="700" fill="#2A2F3A">
+      <circle cx={vx} cy={vy} r="4.5" fill="#fff" stroke="#b91c1c" strokeWidth="2" />
+      <text x="60" y="50" textAnchor="middle" fontSize="22" fontWeight="700" fill="#171717">
         {Math.round(clamped)}
       </text>
       {trend !== null && (

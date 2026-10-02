@@ -1,7 +1,7 @@
 import React, { useId } from "react";
 
 // Inline-SVG sparkline. values = array of numbers (chronological order).
-export default function Sparkline({ values = [], width = 120, height = 32, color = "#0EA5C7" }) {
+export default function Sparkline({ values = [], width = 120, height = 32, color = "#b91c1c" }) {
   const gradientId = `sg-spark-${useId().replace(/:/g, "")}`;
   if (!values || values.length < 2) return null;
   const min = Math.min(...values);

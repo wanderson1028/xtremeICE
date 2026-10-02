@@ -33,7 +33,7 @@ const Tile = ({ label, value, sub, tone = "" }) => (
   <div className="sg-tile p-4">
     <div className="sg-micro">{label}</div>
     <div className={"mt-2 text-3xl font-semibold sg-tabular " + tone}>{value}</div>
-    <div className="mt-1 text-[11px]" style={{ color: "#6b7280" }}>{sub}</div>
+    <div className="mt-1 text-[11px]" style={{ color: "#404040" }}>{sub}</div>
   </div>
 );
 
@@ -92,18 +92,18 @@ const HistoryReport = ({ history, current }) => {
     <section className="sg-panel sg-panel-hover sg-enter mb-5 p-5" style={{ animationDelay: ".25s" }}>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2 text-sm font-semibold"><History className="h-4 w-4" style={{ color: "#0EA5C7" }} />CFRS history report</div>
-          <p className="sg-body mt-1" style={{ color: "#6b7280" }}>{current.business_name} performance by rolling assessment window. Duplicate versions of the same scan are counted once.</p>
+          <div className="flex items-center gap-2 text-sm font-semibold"><History className="h-4 w-4" style={{ color: "#b91c1c" }} />CFRS history report</div>
+          <p className="sg-body mt-1" style={{ color: "#404040" }}>{current.business_name} performance by rolling assessment window. Duplicate versions of the same scan are counted once.</p>
         </div>
         <div className="text-right">
           <div className="sg-micro">{rows.length} distinct assessment{rows.length === 1 ? "" : "s"}</div>
-          <div className="mt-1 text-[9px]" style={{ color: "#0EA5C7" }}>Newest evidence first · select a row for details</div>
+          <div className="mt-1 text-[9px]" style={{ color: "#b91c1c" }}>Newest evidence first · select a row for details</div>
         </div>
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {windows.map(w => (
           <div key={w.days} className="sg-tile p-4">
-            <div className="sg-micro" style={{ color: "#0EA5C7" }}>Last {w.days} days</div>
+            <div className="sg-micro" style={{ color: "#b91c1c" }}>Last {w.days} days</div>
             {w.count ? (
               <>
                 <div className="mt-3 flex items-end justify-between gap-3">
@@ -114,11 +114,11 @@ const HistoryReport = ({ history, current }) => {
                   <div className={`text-sm font-semibold sg-tabular ${w.change === null ? "" : w.change >= 0 ? "text-emerald-600" : "text-red-500"}`}>{w.change === null ? "New" : `${w.change >= 0 ? "+" : ""}${w.change} pts`}</div>
                 </div>
                 <div className="mt-2"><Sparkline values={w.trendValues} width={150} height={30} /></div>
-                <div className="mt-2 grid grid-cols-2 gap-2 border-t pt-3 text-[10px]" style={{ borderColor: "#d6dae2" }}>
-                  <div><span style={{ color: "#6b7280" }}>Average</span><div className="mt-1 sg-tabular" style={{ color: "#2A2F3A" }}>{w.average}</div></div>
-                  <div><span style={{ color: "#6b7280" }}>Assessments</span><div className="mt-1 sg-tabular" style={{ color: "#2A2F3A" }}>{w.count}</div></div>
-                  <div><span style={{ color: "#6b7280" }}>Vulnerability</span><div className="mt-1 sg-tabular" style={{ color: "#0EA5C7" }}>{w.vulnerability}/100</div></div>
-                  <div><span style={{ color: "#6b7280" }}>Penetration</span><div className="mt-1 sg-tabular" style={{ color: "#7c3aed" }}>{w.pentest}/100</div></div>
+                <div className="mt-2 grid grid-cols-2 gap-2 border-t pt-3 text-[10px]" style={{ borderColor: "#d4d4d4" }}>
+                  <div><span style={{ color: "#404040" }}>Average</span><div className="mt-1 sg-tabular" style={{ color: "#171717" }}>{w.average}</div></div>
+                  <div><span style={{ color: "#404040" }}>Assessments</span><div className="mt-1 sg-tabular" style={{ color: "#171717" }}>{w.count}</div></div>
+                  <div><span style={{ color: "#404040" }}>Vulnerability</span><div className="mt-1 sg-tabular" style={{ color: "#b91c1c" }}>{w.vulnerability}/100</div></div>
+                  <div><span style={{ color: "#404040" }}>Penetration</span><div className="mt-1 sg-tabular" style={{ color: "#991b1b" }}>{w.pentest}/100</div></div>
                 </div>
               </>
             ) : (
@@ -128,7 +128,7 @@ const HistoryReport = ({ history, current }) => {
         ))}
       </div>
       {rows.length > 0 && (
-        <div className="mt-4 overflow-x-auto rounded-xl border" style={{ borderColor: "#d6dae2" }}>
+        <div className="mt-4 overflow-x-auto rounded-xl border" style={{ borderColor: "#d4d4d4" }}>
           <table className="sg-table w-full min-w-[650px] text-left text-xs">
             <thead className="sg-micro">
               <tr>
@@ -141,12 +141,12 @@ const HistoryReport = ({ history, current }) => {
             </thead>
             <tbody>
               {rows.slice(0, 12).map(x => (
-                <tr key={x.id} onClick={() => openAssessment(x)} className="cursor-pointer border-t" style={{ borderColor: "#d6dae2" }} title="Open executive assessment view">
-                  <td className="p-3" style={{ color: "#6b7280" }}>{new Date(dateFor(x)).toLocaleDateString()}</td>
-                  <td className="p-3 font-semibold sg-tabular" style={{ color: "#0EA5C7" }}>{scoreFor(x)}</td>
+                <tr key={x.id} onClick={() => openAssessment(x)} className="cursor-pointer border-t" style={{ borderColor: "#d4d4d4" }} title="Open executive assessment view">
+                  <td className="p-3" style={{ color: "#404040" }}>{new Date(dateFor(x)).toLocaleDateString()}</td>
+                  <td className="p-3 font-semibold sg-tabular" style={{ color: "#b91c1c" }}>{scoreFor(x)}</td>
                   <td className="p-3 sg-tabular">{x.vulnerability_score}/100</td>
                   <td className="p-3 sg-tabular">{x.penetration_test_score}/100</td>
-                  <td className="p-3" style={{ color: "#6b7280" }}>{ratingFor(scoreFor(x))} <span className="ml-2 text-[9px]" style={{ color: "#0EA5C7" }}>View →</span></td>
+                  <td className="p-3" style={{ color: "#404040" }}>{ratingFor(scoreFor(x))} <span className="ml-2 text-[9px]" style={{ color: "#b91c1c" }}>View →</span></td>
                 </tr>
               ))}
             </tbody>
@@ -156,23 +156,23 @@ const HistoryReport = ({ history, current }) => {
       {selected && (
         <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onMouseDown={e => e.target === e.currentTarget && setSelected(null)}>
           <div className="sg-score-card max-h-[88vh] w-full max-w-3xl overflow-y-auto">
-            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b p-5" style={{ borderColor: "#d6dae2", background: "linear-gradient(145deg,#f8f9fb,#f0f2f6)" }}>
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b p-5" style={{ borderColor: "#d4d4d4", background: "linear-gradient(145deg,#ffffff,#f5f5f5)" }}>
               <div>
-                <div className="sg-micro" style={{ color: "#0EA5C7" }}>Executive assessment view</div>
+                <div className="sg-micro" style={{ color: "#b91c1c" }}>Executive assessment view</div>
                 <h2 className="mt-1 text-xl font-semibold">{selected.business_name}</h2>
-                <p className="mt-1 text-xs" style={{ color: "#6b7280" }}>Evidence date: {new Date(dateFor(selected)).toLocaleDateString()}</p>
+                <p className="mt-1 text-xs" style={{ color: "#404040" }}>Evidence date: {new Date(dateFor(selected)).toLocaleDateString()}</p>
               </div>
               <button type="button" onClick={() => setSelected(null)} className="sg-btn p-2"><X className="h-4 w-4" /></button>
             </div>
             <div className="space-y-4 p-5">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <Tile label="Assessment rating" value={ratingFor(scoreFor(selected))} sub={`${scoreFor(selected)} / 1,000`} tone={scoreFor(selected) >= 750 ? "text-emerald-600" : scoreFor(selected) >= 450 ? "text-amber-600" : "text-red-500"} />
-                <Tile label="Vulnerability posture" value={vulnerabilityAssessed(selected) ? componentRating(Number(selected.vulnerability_score)) : "Not assessed"} sub={vulnerabilityAssessed(selected) ? `${selected.vulnerability_score}/100` : "No VulScan evidence"} tone={vulnerabilityAssessed(selected) ? "text-cyan-600" : ""} />
+                <Tile label="Vulnerability posture" value={vulnerabilityAssessed(selected) ? componentRating(Number(selected.vulnerability_score)) : "Not assessed"} sub={vulnerabilityAssessed(selected) ? `${selected.vulnerability_score}/100` : "No VulScan evidence"} tone={vulnerabilityAssessed(selected) ? "text-red-700" : ""} />
                 <Tile label="Penetration resilience" value={componentRating(Number(selected.penetration_test_score))} sub={`${selected.penetration_test_score}/100`} tone="text-violet-600" />
                 <Tile label="Historical trend" value={`${Number(selected.scoring_breakdown?.rating?.trend_adjustment || 0) >= 0 ? "+" : ""}${Number(selected.scoring_breakdown?.rating?.trend_adjustment || 0)}`} sub="Trend contribution to this result" tone={Number(selected.scoring_breakdown?.rating?.trend_adjustment || 0) >= 0 ? "text-emerald-600" : "text-red-500"} />
               </div>
-              <div className="sg-panel p-4" style={{ background: "#0ea5c70a" }}>
-                <div className="sg-micro" style={{ color: "#0EA5C7" }}>What this score means</div>
+              <div className="sg-panel p-4" style={{ background: "#b91c1c0a" }}>
+                <div className="sg-micro" style={{ color: "#b91c1c" }}>What this score means</div>
                 <p className="sg-body mt-2">{selected.business_name} received a CFRS of <b>{scoreFor(selected)}</b>, rated <b>{ratingFor(scoreFor(selected))}</b>. This score reflects the business impact of the weaknesses found, whether testing successfully bypassed safeguards, evidence of remediation, and the organization's recent assessment history.</p>
               </div>
               {(() => {
@@ -180,11 +180,11 @@ const HistoryReport = ({ history, current }) => {
                 const FactorList = ({ items, empty, tone }) => (
                   <ul className="mt-3 space-y-2">
                     {items.length ? items.map((item, index) => (
-                      <li key={`${item.label}-${index}`} className="flex items-start justify-between gap-4 border-t pt-2 text-sm" style={{ borderColor: "#d6dae2" }}>
+                      <li key={`${item.label}-${index}`} className="flex items-start justify-between gap-4 border-t pt-2 text-sm" style={{ borderColor: "#d4d4d4" }}>
                         <span>{item.label}</span>
                         <b className={`shrink-0 sg-tabular ${tone}`}>{item.points > 0 ? "+" : ""}{item.points} pts</b>
                       </li>
-                    )) : <li className="text-sm" style={{ color: "#6b7280" }}>{empty}</li>}
+                    )) : <li className="text-sm" style={{ color: "#404040" }}>{empty}</li>}
                   </ul>
                 );
                 return (
@@ -202,11 +202,11 @@ const HistoryReport = ({ history, current }) => {
               })()}
               <div className="sg-panel p-4">
                 <div className="sg-micro">Source reports</div>
-                <p className="mt-1 text-xs" style={{ color: "#6b7280" }}>Open the original documents when you need the full technical evidence.</p>
+                <p className="mt-1 text-xs" style={{ color: "#404040" }}>Open the original documents when you need the full technical evidence.</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {selected.report_files?.filter(f => f.file_url).length ? selected.report_files.filter(f => f.file_url).map((file, index) => (
-                    <a key={`${file.category}-${index}`} href={file.file_url} target="_blank" rel="noreferrer" className="sg-btn px-3 py-2 text-xs font-semibold" style={{ color: "#0EA5C7" }}>View {file.name || String(file.category || "report").replaceAll("_", " ")} ↗</a>
-                  )) : <span className="text-sm" style={{ color: "#6b7280" }}>{selected._documentStatus || "No source reports are available for this archived assessment."}</span>}
+                    <a key={`${file.category}-${index}`} href={file.file_url} target="_blank" rel="noreferrer" className="sg-btn px-3 py-2 text-xs font-semibold" style={{ color: "#b91c1c" }}>View {file.name || String(file.category || "report").replaceAll("_", " ")} ↗</a>
+                  )) : <span className="text-sm" style={{ color: "#404040" }}>{selected._documentStatus || "No source reports are available for this archived assessment."}</span>}
                 </div>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -274,14 +274,14 @@ export default function CCI() {
   return (
     <div className="cfrs-sg min-h-screen">
       <div className="mx-auto max-w-[1480px] px-4 py-7 lg:px-7">
-        <header className="sg-enter mb-5 flex flex-wrap items-end justify-between gap-4 border-b pb-5" style={{ borderColor: "#d6dae2" }}>
+        <header className="sg-enter mb-5 flex flex-wrap items-end justify-between gap-4 border-b pb-5" style={{ borderColor: "#d4d4d4" }}>
           <div>
-            <div className="sg-micro mb-2 flex items-center gap-2" style={{ color: "#0EA5C7" }}><Gauge className="h-4 w-4" />Capital Intelligence</div>
+            <div className="sg-micro mb-2 flex items-center gap-2" style={{ color: "#b91c1c" }}><Gauge className="h-4 w-4" />Capital Intelligence</div>
             <h1 className="text-2xl font-semibold lg:text-3xl">Cyber Financial Risk Score (CFRS)</h1>
-            <p className="sg-body mt-1" style={{ color: "#6b7280" }}>Evidence-based scoring from Vulnerability Assessment and Penetration Test reports.</p>
+            <p className="sg-body mt-1" style={{ color: "#404040" }}>Evidence-based scoring from Vulnerability Assessment and Penetration Test reports.</p>
           </div>
           {user?.role === "admin" && !selectedOrganizationId && (
-            <button type="button" onClick={() => checkConnection(true)} className="sg-btn flex items-center gap-2 px-3 py-2 text-xs" style={connection.status === "connected" ? { color: "#0f9d58", borderColor: "#0f9d5840", background: "#0f9d5814" } : connection.status === "checking" ? { color: "#6b7280" } : { color: "#b8860b", borderColor: "#b8860b40", background: "#b8860b14" }}>
+            <button type="button" onClick={() => checkConnection(true)} className="sg-btn flex items-center gap-2 px-3 py-2 text-xs" style={connection.status === "connected" ? { color: "#0f9d58", borderColor: "#0f9d5840", background: "#0f9d5814" } : connection.status === "checking" ? { color: "#404040" } : { color: "#b8860b", borderColor: "#b8860b40", background: "#b8860b14" }}>
               <Plug className="h-3.5 w-3.5" />Assessment Intelligence · {connection.status === "connected" ? "vPenTest connected" : connection.status === "checking" ? "Checking connection…" : "vPenTest disconnected"}
             </button>
           )}
@@ -291,11 +291,11 @@ export default function CCI() {
           <section className="sg-panel sg-panel-hover sg-enter mb-5 p-5" style={{ animationDelay: ".05s" }}>
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <div className="flex items-center gap-2 text-sm font-semibold"><History className="h-4 w-4" style={{ color: "#0EA5C7" }} />Saved CFRS Organizations</div>
-                <p className="sg-body mt-1" style={{ color: "#6b7280" }}>Organization cards and organization selection are managed on a dedicated page.</p>
+                <div className="flex items-center gap-2 text-sm font-semibold"><History className="h-4 w-4" style={{ color: "#b91c1c" }} />Saved CFRS Organizations</div>
+                <p className="sg-body mt-1" style={{ color: "#404040" }}>Organization cards and organization selection are managed on a dedicated page.</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <a href="/CFRS/organizations" className="sg-btn px-4 py-2 text-xs font-semibold" style={{ color: "#0EA5C7" }}>View saved organizations</a>
+                <a href="/CFRS/organizations" className="sg-btn px-4 py-2 text-xs font-semibold" style={{ color: "#b91c1c" }}>View saved organizations</a>
                 <a href="/CFRS?new=1" className="sg-btn-primary px-4 py-2 text-xs font-semibold">Add organization</a>
               </div>
             </div>
@@ -305,8 +305,8 @@ export default function CCI() {
         <section className="sg-panel sg-panel-hover sg-enter mb-5 p-5" style={{ animationDelay: ".1s" }}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="flex items-center gap-2 text-sm font-semibold"><Building2 className="h-4 w-4" style={{ color: "#0EA5C7" }} />Customer profile</h2>
-              <p className="sg-body mt-1" style={{ color: "#6b7280" }}>Logistical changes save without rerunning or changing the CFRS score.</p>
+              <h2 className="flex items-center gap-2 text-sm font-semibold"><Building2 className="h-4 w-4" style={{ color: "#b91c1c" }} />Customer profile</h2>
+              <p className="sg-body mt-1" style={{ color: "#404040" }}>Logistical changes save without rerunning or changing the CFRS score.</p>
             </div>
             {revisionBase && (
               <div className="flex gap-2">
@@ -328,7 +328,7 @@ export default function CCI() {
         {selectedOrganizationId && (
           <div className="sg-panel sg-enter mb-5 flex items-center justify-between px-4 py-3" style={{ animationDelay: ".15s" }}>
             <div>
-              <div className="sg-micro" style={{ color: "#0EA5C7" }}>Organization workspace</div>
+              <div className="sg-micro" style={{ color: "#b91c1c" }}>Organization workspace</div>
               <div className="mt-1 text-sm font-semibold">{r?.business_name || "Loading organization…"}</div>
             </div>
             <a href="/CFRS" className="sg-btn px-3 py-2 text-xs">← Back to main CFRS</a>
@@ -340,41 +340,41 @@ export default function CCI() {
         ) : r && (
           <section className="sg-score-card sg-enter mb-5 overflow-hidden" style={{ animationDelay: ".2s" }}>
             <div className="grid lg:grid-cols-[.42fr_1.58fr]">
-              <div className="border-b p-5 lg:border-b-0 lg:border-r" style={{ borderColor: "#d6dae2" }}>
-                <div className="sg-micro" style={{ color: "#0EA5C7" }}>CFRS</div>
+              <div className="border-b p-5 lg:border-b-0 lg:border-r" style={{ borderColor: "#d4d4d4" }}>
+                <div className="sg-micro" style={{ color: "#b91c1c" }}>CFRS</div>
                 <div className="mt-2 flex items-center gap-4">
                   <div className="text-5xl font-semibold sg-tabular"><CountUp target={orgScore} duration={1100} /></div>
                   <RadialGauge score={orgScore} min={CFRS_MIN} max={CFRS_MAX} size={116} trend={gaugeTrend} />
                 </div>
-                <div className="mt-1 text-sm font-medium" style={{ color: "#0EA5C7" }}>{ratingFor(orgScore)} · −500 to 1,000</div>
+                <div className="mt-1 text-sm font-medium" style={{ color: "#b91c1c" }}>{ratingFor(orgScore)} · −500 to 1,000</div>
                 <div className="mt-5"><ScoreBar score={orgScore} /></div>
               </div>
               <div className="p-5">
                 <div className="flex flex-wrap justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-semibold">{r.business_name}</h2>
-                    {(r.business_address || r.poc_name) && <p className="text-xs" style={{ color: "#6b7280" }}>{[r.business_address, r.poc_name && `POC: ${r.poc_name}`].filter(Boolean).join(" · ")}</p>}</div>
+                    {(r.business_address || r.poc_name) && <p className="text-xs" style={{ color: "#404040" }}>{[r.business_address, r.poc_name && `POC: ${r.poc_name}`].filter(Boolean).join(" · ")}</p>}</div>
                   <SemanticBadge tone={stale ? "critical" : "success"}>Evidence status: {r.data_confidence === "expired" || r.data_confidence === "expiring" ? "historical" : r.data_confidence}</SemanticBadge>
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  <Tile label="Latest vulnerability posture" value={vulnerabilityAssessed(orgLatest) ? componentRating(Number(orgLatest.vulnerability_score)) : "Not assessed"} sub={vulnerabilityAssessed(orgLatest) ? `${orgLatest.vulnerability_score}/100 · latest assessment` : "No VulScan evidence was returned"} tone={vulnerabilityAssessed(orgLatest) ? "text-cyan-600" : ""} />
+                  <Tile label="Latest vulnerability posture" value={vulnerabilityAssessed(orgLatest) ? componentRating(Number(orgLatest.vulnerability_score)) : "Not assessed"} sub={vulnerabilityAssessed(orgLatest) ? `${orgLatest.vulnerability_score}/100 · latest assessment` : "No VulScan evidence was returned"} tone={vulnerabilityAssessed(orgLatest) ? "text-red-700" : ""} />
                   <Tile label="Latest penetration resilience" value={componentRating(Number(orgLatest?.penetration_test_score || 0))} sub={`${orgLatest?.penetration_test_score || 0}/100 · latest assessment`} tone="text-violet-600" />
-                  <Tile label="Latest assessment change" value={latestAssessmentChange === null ? "New" : `${latestAssessmentChange >= 0 ? "+" : ""}${latestAssessmentChange}`} sub={latestAssessmentChange === null ? "First score under current model" : "Compared with preceding assessment"} tone={latestAssessmentChange === null ? "text-cyan-600" : latestAssessmentChange >= 0 ? "text-emerald-600" : "text-red-500"} />
+                  <Tile label="Latest assessment change" value={latestAssessmentChange === null ? "New" : `${latestAssessmentChange >= 0 ? "+" : ""}${latestAssessmentChange}`} sub={latestAssessmentChange === null ? "First score under current model" : "Compared with preceding assessment"} tone={latestAssessmentChange === null ? "text-red-700" : latestAssessmentChange >= 0 ? "text-emerald-600" : "text-red-500"} />
                   <Tile label="Security rating" value={ratingFor(orgScore)} sub="Recency-weighted organization rating" tone={orgScore >= 750 ? "text-emerald-600" : orgScore >= 450 ? "text-amber-600" : "text-red-500"} />
                 </div>
                 {r.evidence_analysis_status && r.evidence_analysis_status !== "not_required" && (
-                  <div className="sg-panel mt-4 p-3 text-xs" style={r.evidence_analysis_status === "failed" ? { color: "#dc2626", background: "#dc262614", borderColor: "#dc262640" } : r.evidence_analysis_status === "completed" ? { color: "#0f9d58", background: "#0f9d5814", borderColor: "#0f9d5840" } : { color: "#0EA5C7", background: "#0ea5c714", borderColor: "#0ea5c740" }}>
+                  <div className="sg-panel mt-4 p-3 text-xs" style={r.evidence_analysis_status === "failed" ? { color: "#dc2626", background: "#dc262614", borderColor: "#dc262640" } : r.evidence_analysis_status === "completed" ? { color: "#0f9d58", background: "#0f9d5814", borderColor: "#0f9d5840" } : { color: "#b91c1c", background: "#b91c1c14", borderColor: "#b91c1c40" }}>
                     <div className="flex items-center justify-between gap-3"><strong className="sg-micro">Evidence analysis: {r.evidence_analysis_status}</strong><span className="sg-tabular">{Number(r.evidence_analysis_progress || 0)}%</span></div>
-                    <div className="mt-1" style={{ color: "#2A2F3A" }}>{r.evidence_analysis_message}</div>
-                    {(r.evidence_analysis_status === "queued" || r.evidence_analysis_status === "processing") && <div className="mt-2 h-1.5 overflow-hidden rounded-full" style={{ background: "#d6dae2" }}><div className="h-full transition-all" style={{ width: `${Math.max(3, Number(r.evidence_analysis_progress || 0))}%`, background: "#0EA5C7" }} /></div>}
+                    <div className="mt-1" style={{ color: "#171717" }}>{r.evidence_analysis_message}</div>
+                    {(r.evidence_analysis_status === "queued" || r.evidence_analysis_status === "processing") && <div className="mt-2 h-1.5 overflow-hidden rounded-full" style={{ background: "#d4d4d4" }}><div className="h-full transition-all" style={{ width: `${Math.max(3, Number(r.evidence_analysis_progress || 0))}%`, background: "#b91c1c" }} /></div>}
                   </div>
                 )}
                 <div className="sg-panel mt-4 p-3 text-xs" style={stale ? { color: "#dc2626", background: "#dc262614", borderColor: "#dc262640" } : { color: "#0f9d58", background: "#0f9d5814", borderColor: "#0f9d5840" }}>{r.data_confidence === "expired" || r.data_confidence === "expiring" ? `Historical evidence retained. This result remains part of ${r.business_name}'s recency-weighted CFRS history.` : r.confidence_message}</div>
               </div>
             </div>
-            <div className="border-t p-5" style={{ borderColor: "#d6dae2" }}>
+            <div className="border-t p-5" style={{ borderColor: "#d4d4d4" }}>
               <p className="sg-body">{r.executive_summary}</p>
-              <p className="mt-2 text-xs" style={{ color: "#6b7280" }}>{r.coverage_summary}</p>
+              <p className="mt-2 text-xs" style={{ color: "#404040" }}>{r.coverage_summary}</p>
             </div>
           </section>
         )}
@@ -383,30 +383,30 @@ export default function CCI() {
           <section className="sg-panel sg-enter mb-5 overflow-hidden" style={{ animationDelay: ".25s" }}>
             <button type="button" onClick={() => setScoreExplanationOpen(v => !v)} className="flex w-full items-center justify-between gap-4 p-5 text-left">
               <div>
-                <div className="sg-micro" style={{ color: "#0EA5C7" }}>Executive score explanation</div>
+                <div className="sg-micro" style={{ color: "#b91c1c" }}>Executive score explanation</div>
                 <h2 className="mt-1 text-base font-semibold">{scoreExplanation.headline}</h2>
-                <p className="mt-1 text-xs" style={{ color: "#6b7280" }}>Business interpretation of the verified assessment results</p>
+                <p className="mt-1 text-xs" style={{ color: "#404040" }}>Business interpretation of the verified assessment results</p>
               </div>
-              {scoreExplanationOpen ? <ChevronUp className="h-5 w-5 shrink-0" style={{ color: "#6b7280" }} /> : <ChevronDown className="h-5 w-5 shrink-0" style={{ color: "#6b7280" }} />}
+              {scoreExplanationOpen ? <ChevronUp className="h-5 w-5 shrink-0" style={{ color: "#404040" }} /> : <ChevronDown className="h-5 w-5 shrink-0" style={{ color: "#404040" }} />}
             </button>
             {scoreExplanationOpen && (
-              <div className="border-t p-5" style={{ borderColor: "#d6dae2" }}>
+              <div className="border-t p-5" style={{ borderColor: "#d4d4d4" }}>
                 <p className="sg-body">{scoreExplanation.summary}</p>
                 <div className="mt-5 grid gap-4 lg:grid-cols-2">
                   <div className="sg-panel p-4" style={{ background: "#dc26260a" }}>
                     <div className="sg-micro" style={{ color: "#dc2626" }}>Factors increasing exposure</div>
-                    {scoreExplanation.key_pressures?.length ? <ul className="mt-3 space-y-2 text-xs leading-5">{scoreExplanation.key_pressures.map((item, i) => <li key={i} className="flex gap-2"><span style={{ color: "#dc2626" }}>•</span><span>{item}</span></li>)}</ul> : <p className="mt-3 text-xs" style={{ color: "#6b7280" }}>No material downward drivers were identified in the scored evidence.</p>}
+                    {scoreExplanation.key_pressures?.length ? <ul className="mt-3 space-y-2 text-xs leading-5">{scoreExplanation.key_pressures.map((item, i) => <li key={i} className="flex gap-2"><span style={{ color: "#dc2626" }}>•</span><span>{item}</span></li>)}</ul> : <p className="mt-3 text-xs" style={{ color: "#404040" }}>No material downward drivers were identified in the scored evidence.</p>}
                   </div>
                   <div className="sg-panel p-4" style={{ background: "#0f9d580a" }}>
                     <div className="sg-micro" style={{ color: "#0f9d58" }}>Factors supporting resilience</div>
-                    {scoreExplanation.key_strengths?.length ? <ul className="mt-3 space-y-2 text-xs leading-5">{scoreExplanation.key_strengths.map((item, i) => <li key={i} className="flex gap-2"><span style={{ color: "#0f9d58" }}>•</span><span>{item}</span></li>)}</ul> : <p className="mt-3 text-xs" style={{ color: "#6b7280" }}>The scored evidence did not produce a material positive resilience adjustment.</p>}
+                    {scoreExplanation.key_strengths?.length ? <ul className="mt-3 space-y-2 text-xs leading-5">{scoreExplanation.key_strengths.map((item, i) => <li key={i} className="flex gap-2"><span style={{ color: "#0f9d58" }}>•</span><span>{item}</span></li>)}</ul> : <p className="mt-3 text-xs" style={{ color: "#404040" }}>The scored evidence did not produce a material positive resilience adjustment.</p>}
                   </div>
                 </div>
                 <div className="sg-panel mt-4 p-4" style={{ background: "#b8860b0a" }}>
                   <div className="sg-micro" style={{ color: "#b8860b" }}>Leadership priorities</div>
                   <ol className="mt-3 space-y-2 text-xs leading-5">{scoreExplanation.executive_priorities?.map((item, i) => <li key={i} className="flex gap-3"><span className="font-semibold sg-tabular" style={{ color: "#b8860b" }}>{i + 1}.</span><span>{item}</span></li>)}</ol>
                 </div>
-                <p className="mt-4 text-[10px] leading-4" style={{ color: "#9aa1ad" }}>{scoreExplanation.method_note}</p>
+                <p className="mt-4 text-[10px] leading-4" style={{ color: "#737373" }}>{scoreExplanation.method_note}</p>
               </div>
             )}
           </section>
@@ -417,11 +417,11 @@ export default function CCI() {
         <div className="sg-enter mt-5" style={{ animationDelay: ".3s" }}>
           <section className="sg-panel sg-panel-hover p-5">
             {revisionBase && (
-              <div className="sg-panel mb-4 p-3" style={{ background: "#7c3aed0a", borderColor: "#7c3aed40" }}>
+              <div className="sg-panel mb-4 p-3" style={{ background: "#991b1b0a", borderColor: "#991b1b40" }}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="text-xs font-semibold" style={{ color: "#7c3aed" }}>Revising saved output · Version {revisionBase.revision_number || 1}</div>
-                    <p className="mt-1 text-[10px] leading-4" style={{ color: "#6b7280" }}>Existing reports and evidence are carried forward. The original score remains unchanged for audit history.</p>
+                    <div className="text-xs font-semibold" style={{ color: "#991b1b" }}>Revising saved output · Version {revisionBase.revision_number || 1}</div>
+                    <p className="mt-1 text-[10px] leading-4" style={{ color: "#404040" }}>Existing reports and evidence are carried forward. The original score remains unchanged for audit history.</p>
                   </div>
                   <button type="button" onClick={() => { setRevisionBase(null); setFiles({}); setEvidenceFiles([]); setForm({ business_name: "", business_address: "", poc_name: "", poc_email: "", poc_phone: "" }); setError("") }} className="sg-btn shrink-0 px-2.5 py-1.5 text-[10px]">Start new</button>
                 </div>
@@ -429,42 +429,42 @@ export default function CCI() {
             )}
             <div className="flex justify-between">
               <div>
-                <h2 className="flex items-center gap-2 text-sm font-semibold"><Upload className="h-4 w-4" style={{ color: "#0EA5C7" }} />Assessment reports</h2>
-                <p className="sg-body mt-1" style={{ color: "#6b7280" }}>{revisionBase ? "Upload only reports you want to replace." : "PDF, Word, Excel, or CSV."}</p>
+                <h2 className="flex items-center gap-2 text-sm font-semibold"><Upload className="h-4 w-4" style={{ color: "#b91c1c" }} />Assessment reports</h2>
+                <p className="sg-body mt-1" style={{ color: "#404040" }}>{revisionBase ? "Upload only reports you want to replace." : "PDF, Word, Excel, or CSV."}</p>
               </div>
-              <span className="text-xs" style={{ color: "#6b7280" }}>{revisionBase ? (revisionBase.report_files?.length || 0) + " saved" : Object.values(files).filter(Boolean).length + "/4"}</span>
+              <span className="text-xs" style={{ color: "#404040" }}>{revisionBase ? (revisionBase.report_files?.length || 0) + " saved" : Object.values(files).filter(Boolean).length + "/4"}</span>
             </div>
             <div className="mt-4 grid gap-2 md:grid-cols-2">
               {TYPES.map(([k, l, h]) => (
-                <label key={k} className={`sg-tile cursor-pointer p-3 ${files[k] ? "" : ""}`} style={files[k] ? { borderColor: "#0EA5C7", background: "#0ea5c714" } : {}}>
+                <label key={k} className={`sg-tile cursor-pointer p-3 ${files[k] ? "" : ""}`} style={files[k] ? { borderColor: "#b91c1c", background: "#b91c1c14" } : {}}>
                   <input className="hidden" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv" onChange={e => setFiles(s => ({ ...s, [k]: e.target.files?.[0] || null }))} />
                   <div className="flex gap-3">
-                    <FileText className="h-4 w-4 shrink-0" style={{ color: "#0EA5C7" }} />
+                    <FileText className="h-4 w-4 shrink-0" style={{ color: "#b91c1c" }} />
                     <div className="min-w-0">
                       <div className="text-xs font-semibold">{l}</div>
-                      <div className="mt-1 text-[10px]" style={{ color: "#6b7280" }}>{h}</div>
-                      <div className="mt-2 truncate text-[10px]" style={{ color: "#0EA5C7" }}>{files[k]?.name || (revisionBase?.report_files?.some(f => f.category === k) ? "Saved report · choose to replace" : "Choose file")}</div>
+                      <div className="mt-1 text-[10px]" style={{ color: "#404040" }}>{h}</div>
+                      <div className="mt-2 truncate text-[10px]" style={{ color: "#b91c1c" }}>{files[k]?.name || (revisionBase?.report_files?.some(f => f.category === k) ? "Saved report · choose to replace" : "Choose file")}</div>
                     </div>
                   </div>
                 </label>
               ))}
             </div>
-            <div className="sg-panel mt-4 p-3" style={{ background: "#0ea5c70a", borderColor: "#0ea5c740" }}>
+            <div className="sg-panel mt-4 p-3" style={{ background: "#b91c1c0a", borderColor: "#b91c1c40" }}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <div className="text-xs font-semibold" style={{ color: "#0EA5C7" }}>Supporting evidence attachments</div>
-                  <p className="mt-1 text-[10px]" style={{ color: "#6b7280" }}>Narratives, exported findings, logs, and structured evidence. Multiple files allowed.</p>
+                  <div className="text-xs font-semibold" style={{ color: "#b91c1c" }}>Supporting evidence attachments</div>
+                  <p className="mt-1 text-[10px]" style={{ color: "#404040" }}>Narratives, exported findings, logs, and structured evidence. Multiple files allowed.</p>
                 </div>
-                <label className="sg-btn cursor-pointer px-3 py-2 text-[10px] font-semibold" style={{ color: "#0EA5C7" }}>
+                <label className="sg-btn cursor-pointer px-3 py-2 text-[10px] font-semibold" style={{ color: "#b91c1c" }}>
                   <input className="hidden" multiple type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.json,.log,.xml" onChange={e => { const next = Array.from(e.target.files || []); setEvidenceFiles(s => [...s, ...next]); e.target.value = "" }} />Add evidence
                 </label>
               </div>
-              {(revisionBase?.evidence_files?.length || 0) > 0 && <div className="mt-3 text-[10px]" style={{ color: "#6b7280" }}>{revisionBase.evidence_files.length} saved evidence file(s) will be carried forward.</div>}
+              {(revisionBase?.evidence_files?.length || 0) > 0 && <div className="mt-3 text-[10px]" style={{ color: "#404040" }}>{revisionBase.evidence_files.length} saved evidence file(s) will be carried forward.</div>}
               {evidenceFiles.length > 0 && (
                 <div className="mt-3 space-y-1">{evidenceFiles.map((f, i) => (
                   <div key={f.name + i} className="sg-panel flex items-center justify-between gap-2 px-2.5 py-2 text-[10px]">
                     <span className="truncate">{f.name}</span>
-                    <button type="button" onClick={() => setEvidenceFiles(s => s.filter((_, n) => n !== i))} style={{ color: "#6b7280" }} aria-label={`Remove ${f.name}`}><X className="h-3.5 w-3.5" /></button>
+                    <button type="button" onClick={() => setEvidenceFiles(s => s.filter((_, n) => n !== i))} style={{ color: "#404040" }} aria-label={`Remove ${f.name}`}><X className="h-3.5 w-3.5" /></button>
                   </div>
                 ))}</div>
               )}
@@ -483,7 +483,7 @@ export default function CCI() {
               <div>
                 <div className="sg-micro" style={{ color: "#b8860b" }}>Attack evidence</div>
                 <h2 className="mt-1 text-lg font-semibold">Activities observed in the reports</h2>
-                <p className="sg-body" style={{ color: "#6b7280" }}>Yellow = attempted. Red = explicitly verified successful.</p>
+                <p className="sg-body" style={{ color: "#404040" }}>Yellow = attempted. Red = explicitly verified successful.</p>
               </div>
               <div className="flex gap-2"><SemanticBadge tone="attempted">Attempted</SemanticBadge><SemanticBadge tone="successful">Successful</SemanticBadge></div>
             </div>
@@ -491,17 +491,17 @@ export default function CCI() {
               {observedActivities.length ? observedActivities.map((a, i) => (
                 <button type="button" key={i} onClick={() => isSuccessful(a) && setSelectedSuccess(a)} className={`sg-panel p-3 text-left ${isSuccessful(a) ? "cursor-pointer sg-panel-hover" : "cursor-default"}`} style={isSuccessful(a) ? { borderColor: "#dc262640", background: "#dc262614" } : { borderColor: "#b8860b40", background: "#b8860b14" }}>
                   <div className="sg-micro mb-1" style={isSuccessful(a) ? { color: "#dc2626" } : { color: "#b8860b" }}>Attack correlation · {correlationFor(a)}</div>
-                  <div className="sg-micro mb-1" style={{ color: "#6b7280" }}>Attack vector · {vectorFor(a)}</div>
+                  <div className="sg-micro mb-1" style={{ color: "#404040" }}>Attack vector · {vectorFor(a)}</div>
                   <div className="flex items-center gap-2 text-sm font-semibold">{isSuccessful(a) ? <ShieldAlert className="h-4 w-4" style={{ color: "#dc2626" }} /> : <AlertTriangle className="h-4 w-4" style={{ color: "#b8860b" }} />}{a.name}</div>
                   {(a.mitre_technique_id || a.mitre_tactic) && (
                     <div className="mt-2 flex flex-wrap gap-1">
-                      <span className="sg-badge" style={{ color: "#0EA5C7", background: "#0ea5c714", borderColor: "#0ea5c740" }}>{a.mitre_technique_id || "MITRE"}</span>
-                      {a.mitre_technique_name && <span className="sg-badge" style={{ color: "#6b7280", background: "#6b728014", borderColor: "#6b728040" }}>{a.mitre_technique_name}</span>}
-                      {a.mitre_tactic && a.mitre_technique_name && <span className="sg-badge" style={{ color: "#9aa1ad", background: "#6b728014", borderColor: "#6b728040" }}>{a.mitre_tactic}</span>}
+                      <span className="sg-badge" style={{ color: "#b91c1c", background: "#b91c1c14", borderColor: "#b91c1c40" }}>{a.mitre_technique_id || "MITRE"}</span>
+                      {a.mitre_technique_name && <span className="sg-badge" style={{ color: "#404040", background: "#40404014", borderColor: "#40404040" }}>{a.mitre_technique_name}</span>}
+                      {a.mitre_tactic && a.mitre_technique_name && <span className="sg-badge" style={{ color: "#737373", background: "#40404014", borderColor: "#40404040" }}>{a.mitre_tactic}</span>}
                     </div>
                   )}
-                  <p className="mt-2 text-[11px]" style={{ color: "#6b7280" }}>{plainText(a.evidence)}</p>
-                  <div className="mt-2 flex items-center justify-between gap-2 text-[9px] uppercase" style={{ color: "#9aa1ad" }}><span>{a.source_report}</span>{isSuccessful(a) && <span style={{ color: "#dc2626" }}>View event details →</span>}</div>
+                  <p className="mt-2 text-[11px]" style={{ color: "#404040" }}>{plainText(a.evidence)}</p>
+                  <div className="mt-2 flex items-center justify-between gap-2 text-[9px] uppercase" style={{ color: "#737373" }}><span>{a.source_report}</span>{isSuccessful(a) && <span style={{ color: "#dc2626" }}>View event details →</span>}</div>
                 </button>
               )) : (
                 <div className="col-span-full"><EmptyState icon={Inbox} title="No attack activity" message="No attack activity was documented in the submitted reports." /></div>
@@ -513,9 +513,9 @@ export default function CCI() {
         {connectionOpen && user?.role === "admin" && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onMouseDown={e => e.target === e.currentTarget && setConnectionOpen(false)}>
             <div className="sg-score-card max-h-[88vh] w-full max-w-2xl overflow-y-auto">
-              <div className="sticky top-0 flex items-start justify-between gap-4 border-b p-5" style={{ borderColor: "#d6dae2", background: "linear-gradient(145deg,#f8f9fb,#f0f2f6)" }}>
+              <div className="sticky top-0 flex items-start justify-between gap-4 border-b p-5" style={{ borderColor: "#d4d4d4", background: "linear-gradient(145deg,#ffffff,#f5f5f5)" }}>
                 <div>
-                  <div className="sg-micro" style={{ color: "#0EA5C7" }}>Administrator connection settings</div>
+                  <div className="sg-micro" style={{ color: "#b91c1c" }}>Administrator connection settings</div>
                   <h2 className="mt-1 text-xl font-semibold">vPenTest API</h2>
                 </div>
                 <button onClick={() => setConnectionOpen(false)} className="sg-btn p-2"><X className="h-4 w-4" /></button>
@@ -526,51 +526,51 @@ export default function CCI() {
                     <div>
                       <div className="sg-micro">Live connection status</div>
                       <div className="mt-1 text-lg font-semibold" style={connection.status === "connected" ? { color: "#0f9d58" } : { color: "#b8860b" }}>{connectionLoading ? "Testing…" : String(connection.status || "unknown").replaceAll("_", " ")}</div>
-                      <p className="mt-1 text-xs" style={{ color: "#6b7280" }}>{connection.message || "The vPenTest API has not been verified."}</p>
+                      <p className="mt-1 text-xs" style={{ color: "#404040" }}>{connection.message || "The vPenTest API has not been verified."}</p>
                     </div>
                     <button type="button" disabled={connectionLoading} onClick={() => checkConnection(false)} className="sg-btn flex items-center gap-2 px-3 py-2 text-xs"><RefreshCw className={`h-3.5 w-3.5 ${connectionLoading ? "animate-spin" : ""}`} />Test connection</button>
                   </div>
-                  {connection.checked_at && <div className="mt-3 text-[10px]" style={{ color: "#9aa1ad" }}>Last checked: {new Date(connection.checked_at).toLocaleString()}</div>}
+                  {connection.checked_at && <div className="mt-3 text-[10px]" style={{ color: "#737373" }}>Last checked: {new Date(connection.checked_at).toLocaleString()}</div>}
                 </div>
                 <div className="sg-panel p-4">
                   <div className="text-xs font-semibold">Secure configuration required</div>
-                  <ol className="mt-3 list-decimal space-y-2 pl-4 text-xs leading-5" style={{ color: "#6b7280" }}>
+                  <ol className="mt-3 list-decimal space-y-2 pl-4 text-xs leading-5" style={{ color: "#404040" }}>
                     <li>In vPenTest, open <strong>My Account → My Settings → API Key</strong>.</li>
                     <li>Generate and immediately copy the API key; vPenTest displays it only once.</li>
-                    <li>Add it to Xtreme I.C.E. Base44 secrets as <code className="sg-panel px-1.5 py-0.5" style={{ color: "#0EA5C7" }}>VPENTEST_API_KEY</code>.</li>
+                    <li>Add it to Xtreme I.C.E. Base44 secrets as <code className="sg-panel px-1.5 py-0.5" style={{ color: "#b91c1c" }}>VPENTEST_API_KEY</code>.</li>
                     <li>Return here and select <strong>Test connection</strong>.</li>
                   </ol>
-                  <a href="https://help.vonahi.kaseya.com/help/Content/5-Integrations/vpentest-api.htm" target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-xs" style={{ color: "#0EA5C7" }}>Official vPenTest API instructions <ExternalLink className="h-3 w-3" /></a>
+                  <a href="https://help.vonahi.kaseya.com/help/Content/5-Integrations/vpentest-api.htm" target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-xs" style={{ color: "#b91c1c" }}>Official vPenTest API instructions <ExternalLink className="h-3 w-3" /></a>
                 </div>
                 {connection.status === "connected" && (
                   <div className="sg-panel p-4" style={{ borderColor: "#0f9d5840", background: "#0f9d5814" }}>
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <div className="text-xs font-semibold" style={{ color: "#0f9d58" }}>Organizations available for import</div>
-                        <p className="mt-1 text-[10px]" style={{ color: "#6b7280" }}>These are returned live by vPenTest and will be used to map assessments and reports to CFRS organizations.</p>
+                        <p className="mt-1 text-[10px]" style={{ color: "#404040" }}>These are returned live by vPenTest and will be used to map assessments and reports to CFRS organizations.</p>
                       </div>
                       <span className="text-2xl font-semibold sg-tabular" style={{ color: "#0f9d58" }}>{connection.total_count ?? connection.companies?.length ?? 0}</span>
                     </div>
                     <div className={`${selectedVPOrg ? "hidden" : "grid"} mt-3 max-h-48 gap-2 overflow-y-auto sm:grid-cols-2`}>
                       {connection.companies?.map(c => (
-                        <button type="button" key={c.id} onClick={() => loadVPAssessments(c)} className="sg-panel sg-panel-hover px-3 py-2 text-left" style={selectedVPOrg?.id === c.id ? { borderColor: "#0EA5C7", background: "#0ea5c714" } : {}}>
+                        <button type="button" key={c.id} onClick={() => loadVPAssessments(c)} className="sg-panel sg-panel-hover px-3 py-2 text-left" style={selectedVPOrg?.id === c.id ? { borderColor: "#b91c1c", background: "#b91c1c14" } : {}}>
                           <div className="truncate text-xs">{c.name}</div>
-                          <div className="mt-1 flex items-center justify-between gap-2"><span className="truncate text-[9px]" style={{ color: "#9aa1ad" }}>{c.id}</span><span className="shrink-0 text-[9px]" style={{ color: "#0EA5C7" }}>View assessments →</span></div>
+                          <div className="mt-1 flex items-center justify-between gap-2"><span className="truncate text-[9px]" style={{ color: "#737373" }}>{c.id}</span><span className="shrink-0 text-[9px]" style={{ color: "#b91c1c" }}>View assessments →</span></div>
                         </button>
                       ))}
                     </div>
                     {selectedVPOrg && (
-                      <div className="mt-4 border-t pt-4" style={{ borderColor: "#d6dae2" }}>
+                      <div className="mt-4 border-t pt-4" style={{ borderColor: "#d4d4d4" }}>
                         <div className="flex items-center justify-between">
                           <div>
-                            <div className="text-xs font-semibold" style={{ color: "#0EA5C7" }}>{selectedVPOrg.name} assessments</div>
-                            <p className="mt-1 text-[10px]" style={{ color: "#6b7280" }}>Import one assessment, or import every new assessment for this organization.</p>
+                            <div className="text-xs font-semibold" style={{ color: "#b91c1c" }}>{selectedVPOrg.name} assessments</div>
+                            <p className="mt-1 text-[10px]" style={{ color: "#404040" }}>Import one assessment, or import every new assessment for this organization.</p>
                           </div>
                           <div className="flex items-center gap-2">
                             <button type="button" disabled={Boolean(vpImporting) || !vpAssessments.length} onClick={importAllVPAssessments} className="sg-btn-primary flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-semibold">{String(vpImporting).startsWith("all") ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}{String(vpImporting).startsWith("all:") ? `Importing ${vpImporting.slice(4)}` : "Import All"}</button>
                             <button type="button" onClick={() => { setSelectedVPOrg(null); setVPAssessments([]); setVPError("") }} className="sg-btn px-2.5 py-1.5 text-[9px]">← Organizations</button>
                           </div>
-                          {vpLoading && <Loader2 className="h-4 w-4 animate-spin" style={{ color: "#0EA5C7" }} />}
+                          {vpLoading && <Loader2 className="h-4 w-4 animate-spin" style={{ color: "#b91c1c" }} />}
                         </div>
                         <div className="mt-3 grid gap-2 sm:grid-cols-2">
                           <Field label="Business address" icon={MapPin} value={form.business_address} onChange={e => set("business_address", e.target.value)} />
@@ -582,7 +582,7 @@ export default function CCI() {
                             <div key={a.id} className="sg-panel flex items-center justify-between gap-3 p-3">
                               <div className="min-w-0">
                                 <div className="truncate text-xs font-semibold">{a.name}</div>
-                                <div className="mt-1 flex flex-wrap gap-2 text-[9px] uppercase" style={{ color: "#6b7280" }}>{a.created_at && <span>{new Date(a.created_at).toLocaleDateString()}</span>}{a.status && <span>{a.status}</span>}{a.severity && <span>{a.severity}</span>}</div>
+                                <div className="mt-1 flex flex-wrap gap-2 text-[9px] uppercase" style={{ color: "#404040" }}>{a.created_at && <span>{new Date(a.created_at).toLocaleDateString()}</span>}{a.status && <span>{a.status}</span>}{a.severity && <span>{a.severity}</span>}</div>
                               </div>
                               <button type="button" disabled={Boolean(vpImporting)} onClick={() => importVPAssessment(a)} className="sg-btn-primary flex shrink-0 items-center gap-1.5 px-3 py-2 text-[10px] font-semibold">{vpImporting === a.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}{vpImporting === a.id ? "Importing…" : "Import & Score"}</button>
                             </div>
@@ -592,7 +592,7 @@ export default function CCI() {
                     )}
                   </div>
                 )}
-                <div className="sg-panel p-4 text-xs leading-5" style={{ color: "#6b7280", borderColor: "#7c3aed40", background: "#7c3aed0a" }}><strong style={{ color: "#7c3aed" }}>Automatic import:</strong> after the first organization import establishes its CFRS profile, CFRS checks vPenTest every six hours for newly completed penetration tests and linked VulScan assessments. New results are imported, scored, and added to the organization's rating history automatically.</div>
+                <div className="sg-panel p-4 text-xs leading-5" style={{ color: "#404040", borderColor: "#991b1b40", background: "#991b1b0a" }}><strong style={{ color: "#991b1b" }}>Automatic import:</strong> after the first organization import establishes its CFRS profile, CFRS checks vPenTest every six hours for newly completed penetration tests and linked VulScan assessments. New results are imported, scored, and added to the organization's rating history automatically.</div>
               </div>
             </div>
           </div>
@@ -603,7 +603,7 @@ export default function CCI() {
             <div className="sg-score-card w-full max-w-md p-5">
               <div className="flex h-11 w-11 items-center justify-center rounded-full" style={{ border: "1px solid #dc262640", background: "#dc262614", color: "#dc2626" }}><Trash2 className="h-5 w-5" /></div>
               <h2 className="mt-4 text-xl font-semibold">Delete this CFRS result?</h2>
-              <p className="sg-body mt-2" style={{ color: "#6b7280" }}>This permanently deletes the saved result for <strong style={{ color: "#2A2F3A" }}>{deleteTarget.business_name}</strong>, including its score of <strong className="sg-tabular" style={{ color: "#2A2F3A" }}>{deleteTarget.final_score}</strong> and version {deleteTarget.revision_number || 1}. Uploaded source files are not modified.</p>
+              <p className="sg-body mt-2" style={{ color: "#404040" }}>This permanently deletes the saved result for <strong style={{ color: "#171717" }}>{deleteTarget.business_name}</strong>, including its score of <strong className="sg-tabular" style={{ color: "#171717" }}>{deleteTarget.final_score}</strong> and version {deleteTarget.revision_number || 1}. Uploaded source files are not modified.</p>
               {deleteTarget.is_current_rating && <div className="sg-panel mt-3 p-3 text-xs" style={{ color: "#b8860b", background: "#b8860b14", borderColor: "#b8860b40" }}>This is a current rating. The organization will fall back to its newest remaining valid result, if available.</div>}
               {deleteError && <div className="sg-panel mt-3 p-3 text-xs" style={{ color: "#dc2626", background: "#dc262614", borderColor: "#dc262640" }}>{deleteError}</div>}
               <div className="mt-5 flex justify-end gap-2">
@@ -617,7 +617,7 @@ export default function CCI() {
         {selectedSuccess && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onMouseDown={e => e.target === e.currentTarget && setSelectedSuccess(null)}>
             <div className="sg-score-card max-h-[88vh] w-full max-w-2xl overflow-y-auto">
-              <div className="sticky top-0 flex items-start justify-between gap-4 border-b p-5" style={{ borderColor: "#d6dae2", background: "linear-gradient(145deg,#f8f9fb,#f0f2f6)" }}>
+              <div className="sticky top-0 flex items-start justify-between gap-4 border-b p-5" style={{ borderColor: "#d4d4d4", background: "linear-gradient(145deg,#ffffff,#f5f5f5)" }}>
                 <div>
                   <div className="sg-micro" style={{ color: "#dc2626" }}>Successful activity · {correlationFor(selectedSuccess)} · {vectorFor(selectedSuccess)} vector</div>
                   <h2 className="mt-1 text-xl font-semibold">{selectedSuccess.name}</h2>
@@ -635,7 +635,7 @@ export default function CCI() {
                 </div>
                 <div><div className="sg-micro">Evidence of success</div><p className="sg-body mt-2">{executiveEvidence(selectedSuccess, r?.business_name || "the organization").evidence}</p></div>
                 <div><div className="sg-micro">Why it matters to {r?.business_name}</div><p className="sg-body mt-2">{executiveEvidence(selectedSuccess, r?.business_name || "the organization").impact}</p></div>
-                <div className="text-[10px]" style={{ color: "#9aa1ad" }}>Source: {selectedSuccess.source_report}</div>
+                <div className="text-[10px]" style={{ color: "#737373" }}>Source: {selectedSuccess.source_report}</div>
               </div>
             </div>
           </div>
@@ -645,28 +645,28 @@ export default function CCI() {
           <section className="sg-panel sg-enter mt-5 overflow-hidden" style={{ animationDelay: ".4s" }}>
             <button onClick={() => setOpen(!open)} className="flex w-full items-center justify-between p-5 text-left">
               <div>
-                <div className="sg-micro" style={{ color: "#7c3aed" }}>Administrator detail</div>
+                <div className="sg-micro" style={{ color: "#991b1b" }}>Administrator detail</div>
                 <div className="mt-1 text-sm font-semibold">Expanded score calculations</div>
               </div>
               {open ? <ChevronUp /> : <ChevronDown />}
             </button>
             {open && (
-              <div className="grid gap-4 border-t p-5 lg:grid-cols-2" style={{ borderColor: "#d6dae2" }}>
+              <div className="grid gap-4 border-t p-5 lg:grid-cols-2" style={{ borderColor: "#d4d4d4" }}>
                 {["vulnerability", "penetration_test"].map(k => {
                   const b = r.scoring_breakdown?.[k] || {};
                   return (
                     <div key={k} className="sg-panel p-4">
-                      <div className="flex justify-between"><h3 className="text-sm font-semibold">{k === "vulnerability" ? "Vulnerability Assessment" : "Penetration Test"}</h3><b className="sg-tabular" style={{ color: "#0EA5C7" }}>{k === "vulnerability" && b.assessed === false ? "Not assessed" : `${b.final_score}/100`}</b></div>
+                      <div className="flex justify-between"><h3 className="text-sm font-semibold">{k === "vulnerability" ? "Vulnerability Assessment" : "Penetration Test"}</h3><b className="sg-tabular" style={{ color: "#b91c1c" }}>{k === "vulnerability" && b.assessed === false ? "Not assessed" : `${b.final_score}/100`}</b></div>
                       <div className="mt-3">
-                        {k === "vulnerability" && b.assessed === false ? <div className="text-xs" style={{ color: "#6b7280" }}>No vulnerability findings were returned or verified, so this component contributes neither credit nor a penalty.</div> : <div className="flex justify-between text-xs" style={{ color: "#6b7280" }}><span>Starting score</span><span className="sg-tabular">100</span></div>}
-                        {b.items?.map((i, n) => <div key={n} className="mt-2 flex justify-between gap-4 border-t pt-2 text-xs" style={{ borderColor: "#d6dae2" }}><span style={{ color: "#6b7280" }}>{i.label}</span><span className="shrink-0 sg-tabular" style={{ color: "#dc2626" }}>{i.points} pts</span></div>)}
+                        {k === "vulnerability" && b.assessed === false ? <div className="text-xs" style={{ color: "#404040" }}>No vulnerability findings were returned or verified, so this component contributes neither credit nor a penalty.</div> : <div className="flex justify-between text-xs" style={{ color: "#404040" }}><span>Starting score</span><span className="sg-tabular">100</span></div>}
+                        {b.items?.map((i, n) => <div key={n} className="mt-2 flex justify-between gap-4 border-t pt-2 text-xs" style={{ borderColor: "#d4d4d4" }}><span style={{ color: "#404040" }}>{i.label}</span><span className="shrink-0 sg-tabular" style={{ color: "#dc2626" }}>{i.points} pts</span></div>)}
                       </div>
                     </div>
                   );
                 })}
-                <div className="sg-panel lg:col-span-2 space-y-2 p-4 text-xs" style={{ background: "#0ea5c70a", borderColor: "#0ea5c740" }}>
+                <div className="sg-panel lg:col-span-2 space-y-2 p-4 text-xs" style={{ background: "#b91c1c0a", borderColor: "#b91c1c40" }}>
                   <div>Current assessment result: <b className="sg-tabular">{r.scoring_breakdown.rating.current_assessment_score}</b></div>
-                  <div style={{ color: "#6b7280" }}>Posture adjustments: {r.scoring_breakdown.rating.vulnerability_adjustment >= 0 ? "+" : ""}{r.scoring_breakdown.rating.vulnerability_adjustment} vulnerability · {r.scoring_breakdown.rating.penetration_test_adjustment >= 0 ? "+" : ""}{r.scoring_breakdown.rating.penetration_test_adjustment} penetration · {Number(r.scoring_breakdown.rating.remediation_adjustment || 0) >= 0 ? "+" : ""}{Number(r.scoring_breakdown.rating.remediation_adjustment || 0)} remediation · −{Number(r.scoring_breakdown.rating.validated_attack_penalty || 0)} attacks · −{Number(r.scoring_breakdown.rating.repeat_finding_penalty || 0)} repeats · −{Number(r.scoring_breakdown.rating.exposure_concentration_penalty || 0)} concentration</div>
+                  <div style={{ color: "#404040" }}>Posture adjustments: {r.scoring_breakdown.rating.vulnerability_adjustment >= 0 ? "+" : ""}{r.scoring_breakdown.rating.vulnerability_adjustment} vulnerability · {r.scoring_breakdown.rating.penetration_test_adjustment >= 0 ? "+" : ""}{r.scoring_breakdown.rating.penetration_test_adjustment} penetration · {Number(r.scoring_breakdown.rating.remediation_adjustment || 0) >= 0 ? "+" : ""}{Number(r.scoring_breakdown.rating.remediation_adjustment || 0)} remediation · −{Number(r.scoring_breakdown.rating.validated_attack_penalty || 0)} attacks · −{Number(r.scoring_breakdown.rating.repeat_finding_penalty || 0)} repeats · −{Number(r.scoring_breakdown.rating.exposure_concentration_penalty || 0)} concentration</div>
                   <div>Historical rating: <span className="sg-tabular">{r.scoring_breakdown.rating.history_weighted_base}</span> {r.scoring_breakdown.rating.trend_adjustment >= 0 ? "+" : ""}{r.scoring_breakdown.rating.trend_adjustment} trend = <b className="sg-tabular">{r.final_score}</b> · {r.scoring_breakdown.rating.assessment_count} assessment(s)</div>
                 </div>
               </div>

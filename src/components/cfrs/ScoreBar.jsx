@@ -25,7 +25,7 @@ export default function ScoreBar({ score }) {
         className="absolute -top-1 z-10 flex -translate-x-1/2 flex-col items-center"
         style={{ left: markerPct }}
       >
-        <span className="sg-micro rounded-full bg-[#0EA5C7] px-1.5 py-px text-white shadow-sm" style={{ fontSize: 8 }}>
+        <span className="sg-micro rounded-full bg-[#b91c1c] px-1.5 py-px text-white shadow-sm" style={{ fontSize: 8 }}>
           {score}
         </span>
       </div>
@@ -44,7 +44,7 @@ export default function ScoreBar({ score }) {
       <div className="relative mt-1 h-14">
         {/* Dashed marker guide line through the label zone */}
         <span
-          className="absolute top-0 z-0 h-full w-px -translate-x-1/2 border-l border-dashed border-[#0EA5C7]/60"
+          className="absolute top-0 z-0 h-full w-px -translate-x-1/2 border-l border-dashed border-[#b91c1c]/60"
           style={{ left: markerPct }}
         />
 
@@ -56,7 +56,7 @@ export default function ScoreBar({ score }) {
               className="absolute top-0 z-[1]"
               style={{ left: pct(center), transform: "translateX(-50%)" }}
             >
-              <div className="mx-auto h-2 w-px bg-[#b6bcc7]" />
+              <div className="mx-auto h-2 w-px bg-[#a3a3a3]" />
               <div
                 className="sg-micro mt-1 whitespace-nowrap"
                 style={{ fontSize: 8, letterSpacing: ".06em", transform: "rotate(-40deg)", transformOrigin: "top center" }}
