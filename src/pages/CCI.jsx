@@ -13,6 +13,7 @@ import ScoreBar from "@/components/cfrs/ScoreBar";
 import EmptyState from "@/components/cfrs/EmptyState";
 import SkeletonGrid from "@/components/cfrs/Skeleton";
 import CFRSBreadcrumb from "@/components/cfrs/CFRSBreadcrumb";
+import CFRSSplash from "./CFRSSplash";
 
 const TYPES = [
   ["vulnerability_report", "Vulnerability Assessment", "Scanner report and findings"],
@@ -275,6 +276,12 @@ export default function CCI() {
   const validatedFindingActivities = (r?.pentest_findings || []).filter(f => ["critical", "high", "medium"].includes(String(f.severity || "").toLowerCase()) && /spoof|poison|relay|credential|anonymous\s+ftp|null session|remote code execution|\brce\b|shell|injection|authentication bypass|privilege|lateral movement|exfiltrat|code execution/i.test(f.title || "")).map(f => ({ name: f.title, status: "successful", outcome: "Validated penetration-test finding", evidence: f.evidence || `Validated ${f.severity || ""} penetration-test finding`, affected_asset: f.asset || "", source_report: f.source_report || "vPenTest technical findings" }));
   const observedActivities = Array.from(new Map([...(r?.attack_evidence || []), ...validatedFindingActivities].map(a => [String(a.name || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(), a])).values());
 
+  if (!selectedOrganizationId) {
+    const isNew = new URLSearchParams(window.location.search).get("new");
+    if (isNew) { window.location.href = "/CFRS/new"; return null; }
+    return <CFRSSplash />;
+  }
+
   return (
     <div className="cfrs-sg min-h-screen">
       <div className="mx-auto max-w-[1480px] px-4 py-7 lg:px-7">
@@ -290,21 +297,6 @@ export default function CCI() {
             </button>
           )}
         </header>
-
-        {!selectedOrganizationId && (
-          <section className="sg-panel sg-panel-hover sg-enter mb-5 p-5" style={{ animationDelay: ".05s" }}>
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 text-sm font-semibold"><History className="h-4 w-4" style={{ color: "#b91c1c" }} />Saved CFRS Organizations</div>
-                <p className="sg-body mt-1" style={{ color: "#404040" }}>Organization cards and organization selection are managed on a dedicated page.</p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <a href="/CFRS/organizations" className="sg-btn px-4 py-2 text-xs font-semibold" style={{ color: "#b91c1c" }}>View saved organizations</a>
-                <a href="/CFRS?new=1" className="sg-btn-primary px-4 py-2 text-xs font-semibold">Add organization</a>
-              </div>
-            </div>
-          </section>
-        )}
 
         {selectedOrganizationId && (
           <div className="sg-panel sg-enter mb-5 flex items-center justify-between px-4 py-3" style={{ animationDelay: ".15s" }}>
