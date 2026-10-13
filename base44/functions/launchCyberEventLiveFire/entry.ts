@@ -40,15 +40,23 @@ Deno.serve(async (req) => {
     const { cyber_event_id, cloud_provider = 'aws', region = 'us-east-1', visibility = 'private', auto_shutdown_minutes = 120 } = await req.json();
     if (!cyber_event_id) return Response.json({ error: 'cyber_event_id is required' }, { status: 400 });
 
-    const svc = base44.asServiceRole;
-    const event = await svc.entities.CyberEvent.get(cyber_event_id);
+    // Read the event with the user-scoped client so RLS applies — the caller can only
+    // see events they own (or published ones).
+    const event = await base44.entities.CyberEvent.get(cyber_event_id);
     if (!event) return Response.json({ error: 'Saved Red vs Blue scenario not found' }, { status: 404 });
+    // Only the event owner (or an admin) may launch a Live Fire lab from it and write back to it
+    if (event.created_by_id !== user.id && user.role !== 'admin') {
+      return Response.json({ error: 'You can only launch Live Fire from scenarios you own.' }, { status: 403 });
+    }
     if (!event.network_design_id) {
       return Response.json({ error: 'Link a Network Design to this scenario before launching it in Live Fire.' }, { status: 400 });
     }
 
-    const design = await svc.entities.NetworkDesign.get(event.network_design_id);
+    // Read the linked design with the user-scoped client so RLS applies
+    const design = await base44.entities.NetworkDesign.get(event.network_design_id);
     if (!design) return Response.json({ error: 'The linked Network Design could not be found.' }, { status: 404 });
+
+    const svc = base44.asServiceRole;
 
     const source = parseDiagram(design.diagram_data);
     if (!source.nodes.length) {

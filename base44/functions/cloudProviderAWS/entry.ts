@@ -71,6 +71,50 @@ async function checkInstanceAllowed(base44, labId, cpu, ram, userId) {
   };
 }
 
+// ── Ownership verification — callers can only operate on their own labs' AWS resources ──
+
+async function verifyLabOwnership(base44, labId, user) {
+  if (user?.role === "admin") return { allowed: true };
+  if (!labId) return { allowed: false, error: "lab_id is required." };
+  const lab = await base44.asServiceRole.entities.LiveFireLab.filter({ id: labId }).then(r => r[0]);
+  if (!lab) return { allowed: false, error: "Lab not found." };
+  if (lab.created_by_id !== user.id) return { allowed: false, error: "You do not own this lab." };
+  return { allowed: true, lab };
+}
+
+async function verifyInstanceAccess(base44, instanceId, region, user) {
+  if (user?.role === "admin") return { allowed: true };
+  if (!instanceId) return { allowed: false, error: "instance_id is required." };
+  try {
+    const xml = await ec2Call("DescribeInstances", { InstanceId: [instanceId] }, region);
+    const labId = extractTag(xml, "LabId");
+    if (!labId) return { allowed: false, error: "This instance is not managed by Live Fire. Only admins can operate on unmanaged instances." };
+    return verifyLabOwnership(base44, labId, user);
+  } catch (err) {
+    return { allowed: false, error: `Failed to verify instance ownership: ${err.message}` };
+  }
+}
+
+async function verifyVpcAccess(base44, vpcId, region, user) {
+  if (user?.role === "admin") return { allowed: true };
+  if (!vpcId) return { allowed: false, error: "vpc_id is required." };
+  try {
+    const xml = await ec2Call("DescribeVpcs", { VpcId: [vpcId] }, region);
+    const labId = extractTag(xml, "LabId");
+    if (!labId) return { allowed: false, error: "This VPC is not managed by Live Fire. Only admins can operate on unmanaged VPCs." };
+    return verifyLabOwnership(base44, labId, user);
+  } catch (err) {
+    return { allowed: false, error: `Failed to verify VPC ownership: ${err.message}` };
+  }
+}
+
+function requireAdmin(user) {
+  if (user?.role !== "admin") {
+    return { allowed: false, error: "Admin role required for this operation." };
+  }
+  return { allowed: true };
+}
+
 // ── AWS Signature V4 implementation (lightweight, no SDK needed) ──
 
 // AWS Signature V4 requires percent-encoding of ALL characters except A-Z a-z 0-9 - _ . ~
@@ -273,6 +317,12 @@ Deno.serve(async (req) => {
       case "createVM": {
         const { lab_id, device_name, device_type, cpu_cores = 2, ram_mb = 4096, storage_gb = 20, subnet_id, security_group_ids = [], ami_image_id, key_name } = params;
 
+        // Verify the caller owns the lab they're provisioning into
+        const labAccess = await verifyLabOwnership(base44, lab_id, user);
+        if (!labAccess.allowed) {
+          return Response.json({ error: "LAB_ACCESS_DENIED", message: labAccess.error }, { status: 403 });
+        }
+
         // Enforce cost tier limits — skip admin check when no user context (called from orchestrator)
         const tierCheck = await checkInstanceAllowed(base44, lab_id, cpu_cores, ram_mb, user?.id || null);
         if (!tierCheck.allowed) {
@@ -369,12 +419,22 @@ Deno.serve(async (req) => {
 
       case "deleteVM": {
         const { instance_id } = params;
+        const instAccess = await verifyInstanceAccess(base44, instance_id, region, user);
+        if (!instAccess.allowed) {
+          return Response.json({ error: "INSTANCE_ACCESS_DENIED", message: instAccess.error }, { status: 403 });
+        }
         await ec2Call("TerminateInstances", { InstanceId: [instance_id] }, region);
         return Response.json({ success: true, instanceId: instance_id, currentState: "shutting-down" });
       }
 
       case "createNetwork": {
         const { lab_id, vpc_cidr = "10.0.0.0/16", subnet_configs = [], resource_tag_name = "" } = params;
+
+        // Verify the caller owns the lab they're creating a network for
+        const labAccess = await verifyLabOwnership(base44, lab_id, user);
+        if (!labAccess.allowed) {
+          return Response.json({ error: "LAB_ACCESS_DENIED", message: labAccess.error }, { status: 403 });
+        }
 
         // Use custom tag name if provided, otherwise fall back to lab-based default
         const tagName = resource_tag_name || `livefire-${lab_id}`;
@@ -485,6 +545,11 @@ Deno.serve(async (req) => {
 
       case "deleteNetwork": {
         const { vpc_id } = params;
+        // Verify the caller owns the VPC's lab
+        const vpcAccess = await verifyVpcAccess(base44, vpc_id, region, user);
+        if (!vpcAccess.allowed) {
+          return Response.json({ error: "VPC_ACCESS_DENIED", message: vpcAccess.error }, { status: 403 });
+        }
         // Check 1: Protected VPC list
         const protCheck = await checkVpcProtection(vpc_id, region, params, user);
         if (protCheck.protected) {
@@ -526,6 +591,10 @@ Deno.serve(async (req) => {
 
       case "getInstanceStatus": {
         const { instance_id } = params;
+        const instAccess = await verifyInstanceAccess(base44, instance_id, region, user);
+        if (!instAccess.allowed) {
+          return Response.json({ error: "INSTANCE_ACCESS_DENIED", message: instAccess.error }, { status: 403 });
+        }
         const xml = await ec2Call("DescribeInstances", { InstanceId: [instance_id] }, region);
 
         // Extract the <instancesSet>/<item> block for accurate parsing
@@ -613,6 +682,11 @@ Deno.serve(async (req) => {
       }
 
       case "listAllVpcs": {
+        // Admin only — enumerates all VPCs across all users' labs
+        const adminCheck = requireAdmin(user);
+        if (!adminCheck.allowed) {
+          return Response.json({ error: "ADMIN_REQUIRED", message: adminCheck.error }, { status: 403 });
+        }
         // List all VPCs in region with full details: subnets, instances, lab linkage
         const vpcXml = await ec2Call("DescribeVpcs", {}, region);
 
@@ -833,6 +907,12 @@ Deno.serve(async (req) => {
         if (!vpc_id) return Response.json({ error: "vpc_id required" }, { status: 400 });
         if (!cidr) return Response.json({ error: "cidr required" }, { status: 400 });
 
+        // Verify the caller owns the VPC's lab
+        const vpcAccess = await verifyVpcAccess(base44, vpc_id, region, user);
+        if (!vpcAccess.allowed) {
+          return Response.json({ error: "VPC_ACCESS_DENIED", message: vpcAccess.error }, { status: 403 });
+        }
+
         const subnetParams = { VpcId: vpc_id, CidrBlock: cidr };
         if (availability_zone) subnetParams.AvailabilityZone = availability_zone;
 
@@ -882,6 +962,12 @@ Deno.serve(async (req) => {
         // Force-delete a VPC — cleans up dependent resources first
         const { vpc_id, force = false } = params;
         if (!vpc_id) return Response.json({ error: "vpc_id required" }, { status: 400 });
+
+        // Verify the caller owns the VPC's lab
+        const vpcAccess = await verifyVpcAccess(base44, vpc_id, region, user);
+        if (!vpcAccess.allowed) {
+          return Response.json({ error: "VPC_ACCESS_DENIED", message: vpcAccess.error }, { status: 403 });
+        }
 
         // Check: Protected VPC list
         const protCheck = await checkVpcProtection(vpc_id, region, params, user);
@@ -1224,6 +1310,18 @@ Deno.serve(async (req) => {
 
       case "listInstances": {
         const { lab_id } = params;
+        // If lab_id provided, verify the caller owns that lab; without lab_id, admin only
+        if (lab_id) {
+          const labAccess = await verifyLabOwnership(base44, lab_id, user);
+          if (!labAccess.allowed) {
+            return Response.json({ error: "LAB_ACCESS_DENIED", message: labAccess.error }, { status: 403 });
+          }
+        } else {
+          const adminCheck = requireAdmin(user);
+          if (!adminCheck.allowed) {
+            return Response.json({ error: "ADMIN_REQUIRED", message: "Admin role required to list all instances." }, { status: 403 });
+          }
+        }
         const filters = lab_id
           ? [{ Name: "tag:LabId", Value: [lab_id] }]
           : [{ Name: "tag:ManagedBy", Value: ["XtremeICE-LiveFire"] }];
@@ -1255,6 +1353,11 @@ Deno.serve(async (req) => {
       }
 
       case "listAllRegionInstances": {
+        // Admin only — enumerates instances across all regions and all users' labs
+        const adminCheck = requireAdmin(user);
+        if (!adminCheck.allowed) {
+          return Response.json({ error: "ADMIN_REQUIRED", message: adminCheck.error }, { status: 403 });
+        }
         // Query all major AWS regions for XtremeICE-managed instances
         const ALL_REGIONS = [
           "us-east-1", "us-east-2", "us-west-1", "us-west-2",
@@ -1312,6 +1415,11 @@ Deno.serve(async (req) => {
       }
 
       case "listAllRegionVpcs": {
+        // Admin only — enumerates VPCs across all regions and all users' labs
+        const adminCheck = requireAdmin(user);
+        if (!adminCheck.allowed) {
+          return Response.json({ error: "ADMIN_REQUIRED", message: adminCheck.error }, { status: 403 });
+        }
         // Query all major AWS regions for VPCs with subnets and instances
         const ALL_REGIONS = [
           "us-east-1", "us-east-2", "us-west-1", "us-west-2",
@@ -1453,6 +1561,10 @@ Deno.serve(async (req) => {
 
       case "startVM": {
         const { instance_id } = params;
+        const instAccess = await verifyInstanceAccess(base44, instance_id, region, user);
+        if (!instAccess.allowed) {
+          return Response.json({ error: "INSTANCE_ACCESS_DENIED", message: instAccess.error }, { status: 403 });
+        }
         const xml = await ec2Call("StartInstances", { InstanceId: [instance_id] }, region);
         const currentState = xml.match(/<currentState>[\s\S]*?<name>([^<]+)<\/name>/)?.[1] || "pending";
         const prevState = xml.match(/<previousState>[\s\S]*?<name>([^<]+)<\/name>/)?.[1] || "stopped";
@@ -1461,6 +1573,10 @@ Deno.serve(async (req) => {
 
       case "stopVM": {
         const { instance_id } = params;
+        const instAccess = await verifyInstanceAccess(base44, instance_id, region, user);
+        if (!instAccess.allowed) {
+          return Response.json({ error: "INSTANCE_ACCESS_DENIED", message: instAccess.error }, { status: 403 });
+        }
         const xml = await ec2Call("StopInstances", { InstanceId: [instance_id] }, region);
         const currentState = xml.match(/<currentState>[\s\S]*?<name>([^<]+)<\/name>/)?.[1] || "stopping";
         const prevState = xml.match(/<previousState>[\s\S]*?<name>([^<]+)<\/name>/)?.[1] || "running";
@@ -1471,6 +1587,12 @@ Deno.serve(async (req) => {
         // Server-side decrypt of Windows admin password using the lab's PEM key
         // This replicates what AWS console does when you upload a .pem key for RDP
         const { instance_id, private_key_pem, lab_id } = params;
+
+        // Verify the caller owns the instance they're decrypting a password for
+        const instAccess = await verifyInstanceAccess(base44, instance_id, region, user);
+        if (!instAccess.allowed) {
+          return Response.json({ error: "INSTANCE_ACCESS_DENIED", message: instAccess.error }, { status: 403 });
+        }
 
         // 1. Get encrypted password from AWS
         const xml = await ec2Call("GetPasswordData", { InstanceId: instance_id }, region);
@@ -1619,6 +1741,10 @@ Deno.serve(async (req) => {
       case "getPasswordData": {
         // Retrieve Windows Administrator password from AWS (encrypted with key pair)
         const { instance_id } = params;
+        const instAccess = await verifyInstanceAccess(base44, instance_id, region, user);
+        if (!instAccess.allowed) {
+          return Response.json({ error: "INSTANCE_ACCESS_DENIED", message: instAccess.error }, { status: 403 });
+        }
         const xml = await ec2Call("GetPasswordData", { InstanceId: instance_id }, region);
 
         const passwordData = xml.match(/<passwordData>([^<]*)<\/passwordData>/)?.[1] || "";
@@ -1637,6 +1763,10 @@ Deno.serve(async (req) => {
 
       case "getConsoleOutput": {
         const { instance_id } = params;
+        const instAccess = await verifyInstanceAccess(base44, instance_id, region, user);
+        if (!instAccess.allowed) {
+          return Response.json({ error: "INSTANCE_ACCESS_DENIED", message: instAccess.error }, { status: 403 });
+        }
         const xml = await ec2Call("GetConsoleOutput", { InstanceId: instance_id }, region);
 
         const output = xml.match(/<output>([^<]*)<\/output>/)?.[1] || "";
@@ -1669,6 +1799,12 @@ Deno.serve(async (req) => {
         // Diagnostic: check if a given PEM private key matches the key pair on an EC2 instance.
         // Returns fingerprints and whether they match.
         const { instance_id, private_key_pem } = params;
+
+        // Verify the caller owns the instance
+        const instAccess = await verifyInstanceAccess(base44, instance_id, region, user);
+        if (!instAccess.allowed) {
+          return Response.json({ error: "INSTANCE_ACCESS_DENIED", message: instAccess.error }, { status: 403 });
+        }
 
         // 1. Get the instance's key name
         const instXml = await ec2Call("DescribeInstances", { InstanceId: [instance_id] }, region);
@@ -1753,6 +1889,10 @@ Deno.serve(async (req) => {
 
       case "deleteKeyPair": {
         const { key_name } = params;
+        const adminCheck = requireAdmin(user);
+        if (!adminCheck.allowed) {
+          return Response.json({ error: "ADMIN_REQUIRED", message: adminCheck.error }, { status: 403 });
+        }
         await ec2Call("DeleteKeyPair", { KeyName: key_name }, region);
         return Response.json({ success: true, keyName: key_name });
       }
