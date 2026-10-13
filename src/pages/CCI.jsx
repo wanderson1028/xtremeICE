@@ -32,10 +32,10 @@ const Field = ({ label, icon: Icon, ...x }) => (
 );
 
 const Tile = ({ label, value, sub, tone = "" }) => (
-  <div className="sg-tile p-4">
+  <div className="sg-tile min-w-0 p-4">
     <div className="sg-micro">{label}</div>
-    <div className={"mt-2 text-3xl font-semibold sg-tabular " + tone}>{value}</div>
-    <div className="mt-1 text-[11px]" style={{ color: "#404040" }}>{sub}</div>
+    <div className={"mt-2 text-base font-semibold sg-tabular leading-tight break-words " + tone}>{value}</div>
+    <div className="mt-1 text-[11px] leading-tight" style={{ color: "#404040" }}>{sub}</div>
   </div>
 );
 
