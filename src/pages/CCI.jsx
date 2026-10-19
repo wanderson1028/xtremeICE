@@ -110,14 +110,14 @@ const HistoryReport = ({ history, current }) => {
               <>
                 <div className="mt-3 flex items-end justify-between gap-3">
                   <div>
-                    <div className="text-3xl font-semibold sg-tabular">{w.current}</div>
-                    <div className="sg-micro">Latest CFRS</div>
+                    <div className="text-3xl font-semibold sg-tabular">{w.average}</div>
+                    <div className="sg-micro">Average CFRS</div>
                   </div>
                   <div className={`text-sm font-semibold sg-tabular ${w.change === null ? "" : w.change >= 0 ? "text-emerald-600" : "text-red-500"}`}>{w.change === null ? "New" : `${w.change >= 0 ? "+" : ""}${w.change} pts`}</div>
                 </div>
                 <div className="mt-2"><Sparkline values={w.trendValues} width={150} height={30} /></div>
                 <div className="mt-2 grid grid-cols-2 gap-2 border-t pt-3 text-[10px]" style={{ borderColor: "#d4d4d4" }}>
-                  <div><span style={{ color: "#404040" }}>Average</span><div className="mt-1 sg-tabular" style={{ color: "#171717" }}>{w.average}</div></div>
+                  <div><span style={{ color: "#404040" }}>Latest</span><div className="mt-1 sg-tabular" style={{ color: "#171717" }}>{w.current}</div></div>
                   <div><span style={{ color: "#404040" }}>Assessments</span><div className="mt-1 sg-tabular" style={{ color: "#171717" }}>{w.count}</div></div>
                   <div><span style={{ color: "#404040" }}>Vulnerability</span><div className="mt-1 sg-tabular" style={{ color: "#b91c1c" }}>{w.vulnerability}/100</div></div>
                   <div><span style={{ color: "#404040" }}>Penetration</span><div className="mt-1 sg-tabular" style={{ color: "#991b1b" }}>{w.pentest}/100</div></div>
@@ -146,8 +146,8 @@ const HistoryReport = ({ history, current }) => {
                 <tr key={x.id} onClick={() => openAssessment(x)} className="cursor-pointer border-t" style={{ borderColor: "#d4d4d4" }} title="Open executive assessment view">
                   <td className="p-3" style={{ color: "#404040" }}>{new Date(dateFor(x)).toLocaleDateString()}</td>
                   <td className="p-3 font-semibold sg-tabular" style={{ color: "#b91c1c" }}>{scoreFor(x)}</td>
-                  <td className="p-3 sg-tabular">{x.vulnerability_score}/100</td>
-                  <td className="p-3 sg-tabular">{x.penetration_test_score}/100</td>
+                  <td className="p-3 sg-tabular">{Number(x.vulnerability_score ?? 0)}/100</td>
+                  <td className="p-3 sg-tabular">{Number(x.penetration_test_score ?? 0)}/100</td>
                   <td className="p-3" style={{ color: "#404040" }}>{ratingFor(scoreFor(x))} <span className="ml-2 text-[9px]" style={{ color: "#b91c1c" }}>View →</span></td>
                 </tr>
               ))}
