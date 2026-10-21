@@ -58,6 +58,9 @@ const NODE_COLORS = {
   server: "#10b981", wireless: "#f59e0b", workstation: "#64748b",
   loadbalancer: "#0ea5e9", cloud: "#6366f1", internet: "#06b6d4",
   plc: "#dc2626", scada: "#b45309", hmi: "#7c3aed", iot: "#059669",
+  edge_gateway: "#0891b2", pqc_gateway: "#7c3aed", crypto_inventory: "#0d9488",
+  key_hsm: "#b45309", edge_ot_hub: "#059669", qpu_node: "#6366f1",
+  qkd_endpoint: "#06b6d4", qrng_appliance: "#f59e0b", quantum_vault: "#8b5cf6",
 };
 
 // ── SVG Topology Diagram ─────────────────────────────────────────────────────

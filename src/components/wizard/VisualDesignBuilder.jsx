@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Trash2, Link as LinkIcon, Router, Network, Shield, Server, Wifi, Cloud, Monitor, Scale, Globe, ZoomIn, ZoomOut, Sparkles, Cpu, Activity, Terminal, Gauge, Download } from "lucide-react";
+import { ArrowLeft, Trash2, Link as LinkIcon, Router, Network, Shield, Server, Wifi, Cloud, Monitor, Scale, Globe, ZoomIn, ZoomOut, Sparkles, Cpu, Activity, Terminal, Gauge, Download, Atom, Radio, Lock, Radar, KeyRound, Boxes, Waves, Database, CircuitBoard } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import CanvasConfigPanel from "./CanvasConfigPanel";
@@ -27,12 +27,25 @@ const DEVICE_TYPES = [
   // WAN
   { type: "cloud",        label: "Cloud",       Icon: Cloud,    color: "#6366f1", category: "wan" },
   { type: "internet",     label: "Internet",    Icon: Globe,    color: "#06b6d4", category: "wan" },
+  // Quantum-Ready Edge — appliances and edge systems
+  { type: "edge_gateway",     label: "Edge Gateway",        Icon: Radio,        color: "#0891b2", category: "edge" },
+  { type: "pqc_gateway",      label: "PQC Gateway",         Icon: Lock,         color: "#7c3aed", category: "edge" },
+  { type: "crypto_inventory", label: "Crypto Sensor",       Icon: Radar,        color: "#0d9488", category: "edge" },
+  { type: "key_hsm",          label: "HSM / Key Mgmt",      Icon: KeyRound,     color: "#b45309", category: "edge" },
+  { type: "edge_ot_hub",      label: "Edge OT Hub",         Icon: Boxes,        color: "#059669", category: "edge" },
+  // Quantum (simulated systems — modeled only, no physical quantum hardware)
+  { type: "qpu_node",         label: "QPU Node (Sim.)",     Icon: Atom,         color: "#6366f1", category: "quantum" },
+  { type: "qkd_endpoint",     label: "QKD Link (Sim.)",     Icon: Waves,        color: "#06b6d4", category: "quantum" },
+  { type: "qrng_appliance",   label: "QRNG (Sim.)",         Icon: CircuitBoard, color: "#f59e0b", category: "quantum" },
+  { type: "quantum_vault",    label: "Quantum Vault (Sim.)", Icon: Database,    color: "#8b5cf6", category: "quantum" },
 ];
 
 const NETWORK_DEVICES  = DEVICE_TYPES.filter(d => d.category === "network");
 const ENDPOINT_DEVICES = DEVICE_TYPES.filter(d => d.category === "endpoint");
 const OT_DEVICES       = DEVICE_TYPES.filter(d => d.category === "ot");
 const WAN_DEVICES      = DEVICE_TYPES.filter(d => d.category === "wan");
+const EDGE_DEVICES     = DEVICE_TYPES.filter(d => d.category === "edge");
+const QUANTUM_DEVICES  = DEVICE_TYPES.filter(d => d.category === "quantum");
 // Legacy alias
 const LAN_DEVICES = [...NETWORK_DEVICES, ...ENDPOINT_DEVICES];
 
@@ -53,6 +66,15 @@ const VENDOR_OPTIONS = {
   scada:        ["Wonderware", "Ignition", "Siemens WinCC", "GE iFIX", "Generic SCADA"],
   hmi:          ["Siemens HMI", "Allen-Bradley PanelView", "Weintek", "Generic HMI"],
   iot:          ["Raspberry Pi", "Arduino", "Generic IoT Sensor", "Smart Camera", "Environmental Sensor"],
+  edge_gateway:     ["Cisco Edge Gateway", "HPE Aruba EdgeConnect", "Fortinet FortiGate Rugged", "Advantech Edge Gateway", "Generic Edge Gateway"],
+  pqc_gateway:      ["Palo Alto PQC Gateway", "Cisco PQC-Ready IPsec GW", "Fortinet PQC Gateway", "Generic PQC Gateway"],
+  crypto_inventory: ["SandboxAQ AQtive Guard", "IBM Quantum Safe Explorer", "Keyfactor Crypto Discovery", "Generic Crypto Inventory Sensor"],
+  key_hsm:          ["Thales Luna HSM", "Entrust nShield HSM", "AWS CloudHSM", "Generic HSM / KMS"],
+  edge_ot_hub:      ["Cisco IR1101 Edge Hub", "Siemens Edge Hub", "Moxa Edge Gateway", "Generic OT Edge Hub"],
+  qpu_node:         ["Simulated Superconducting QPU", "Simulated Trapped-Ion QPU", "Simulated Photonic QPU", "Simulated Quantum Annealer"],
+  qkd_endpoint:     ["Simulated QKD Endpoint", "Simulated QKD Trusted Node", "Simulated QKD Link Pair"],
+  qrng_appliance:   ["Simulated QRNG Appliance", "Simulated Entropy Source", "Simulated QRNG Card"],
+  quantum_vault:    ["Simulated Quantum-Safe Vault", "Simulated PQ Key Vault", "Simulated Quantum-Ready Token Vault"],
 };
 
 const DEVICE_INTERFACES = {
@@ -69,6 +91,15 @@ const DEVICE_INTERFACES = {
   scada:        ["eth0", "eth1"],
   hmi:          ["eth0"],
   iot:          ["eth0"],
+  edge_gateway:     ["ge0/0", "ge0/1", "ge0/2", "ge0/3"],
+  pqc_gateway:      ["outside", "inside", "crypto-mesh"],
+  crypto_inventory: ["mgmt0", "span0", "eth0"],
+  key_hsm:          ["mgmt0", "eth0", "eth1"],
+  edge_ot_hub:      ["uplink0", "ot0", "ot1", "ot2"],
+  qpu_node:         ["qc0", "ctl0", "cryo0"],
+  qkd_endpoint:     ["quantum-ch0", "classical0"],
+  qrng_appliance:   ["entropy0", "eth0"],
+  quantum_vault:    ["mgmt0", "eth0", "eth1"],
 };
 
 const WAN_TYPES = new Set(["cloud", "internet"]);
@@ -890,9 +921,17 @@ export default function VisualDesignBuilder({ onDone, onBack, initialNodes = [],
         <div className="flex gap-4 relative" style={{ height: "calc(100vh - 180px)", minHeight: 520 }}>
           {/* Palette */}
            <div className="w-36 shrink-0 bg-card/70 border border-blue-400/20 rounded-xl p-3 overflow-y-auto flex flex-col gap-1 backdrop-blur-sm shadow-lg hover:border-blue-400/40 transition-colors">
-            {[{ label: "Network", items: NETWORK_DEVICES }, { label: "Endpoints", items: ENDPOINT_DEVICES }, { label: "OT / ICS", items: OT_DEVICES }, { label: "WAN", items: WAN_DEVICES }].map(group => (
+            {[
+              { label: "Network", items: NETWORK_DEVICES },
+              { label: "Endpoints", items: ENDPOINT_DEVICES },
+              { label: "OT / ICS", items: OT_DEVICES },
+              { label: "WAN", items: WAN_DEVICES },
+              { label: "Quantum-Ready Edge", items: EDGE_DEVICES },
+              { label: "Quantum (Simulated)", items: QUANTUM_DEVICES, hint: "Simulated systems — no physical quantum hardware." },
+            ].map(group => (
               <div key={group.label} className="pt-1">
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">{group.label}</p>
+                {group.hint && <p className="text-[9px] text-muted-foreground/80 leading-snug mb-1">{group.hint}</p>}
                 <div className="space-y-1">
                   {group.items.map(d => (
                     <div key={d.type} draggable onDragStart={e => handleDragStart(d.type, e)}

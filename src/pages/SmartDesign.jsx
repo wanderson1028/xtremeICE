@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { Factory, Cpu, Building2, Server, Activity, Landmark, Loader2, Zap, ArrowRight, Layers, Globe, Shield } from "lucide-react";
+import { Factory, Cpu, Building2, Server, Activity, Landmark, Loader2, Zap, ArrowRight, Layers, Globe, Shield, Atom } from "lucide-react";
 import { motion } from "framer-motion";
 
 const NETWORK_PRESETS = [
@@ -222,6 +222,47 @@ const NETWORK_PRESETS = [
       status: "draft",
     },
   },
+  {
+    id: "quantum-ready-edge",
+    name: "Quantum-Ready Edge Infrastructure",
+    icon: Atom,
+    color: "#7c3aed",
+    badge: "Quantum-Ready",
+    description: "Edge-first architecture built explicitly around post-quantum readiness: PQC gateways, cryptographic asset inventory, HSM-backed key management, and OT/IoT edge aggregation behind zero-trust segmentation — plus simulated quantum-compute nodes for hybrid classical/quantum workloads. Simulated QPU, QKD, and QRNG systems are modeled only; no physical quantum hardware is implied.",
+    layers: ["Edge Compute & Inference", "OT / IoT Edge VLAN", "PQC Gateway + Crypto Inventory", "HSM / Key Management Zone", "Quantum Fabric (Simulated)"],
+    preset: {
+      name: "Quantum-Ready Edge Infrastructure",
+      company_name: "Quantum Edge Operations",
+      num_sites: 3,
+      site_names: ["Edge HQ", "Regional Edge Site", "Remote OT Edge"],
+      topology_type: "hub-and-spoke",
+      routing_protocol: "BGP",
+      wan_technology: "SD-WAN",
+      firewall_enabled: true,
+      firewall_vendor: "Palo Alto",
+      dmz_required: true,
+      redundancy_enabled: true,
+      load_balancer: true,
+      wireless_enabled: true,
+      server_farm: true,
+      num_servers: 4,
+      cloud_server_farm: true,
+      cloud_provider: "AWS",
+      num_cloud_instances: 3,
+      cloud_connectivity: "SD-WAN",
+      router_model: "Cisco ISR",
+      switch_model: "Cisco Catalyst",
+      ip_scheme: "10.0.0.0/8",
+      num_vlans_per_site: 5,
+      vlan_names: ["Management", "Edge-Compute", "OT-IoT", "Crypto-Services", "Quantum-Fabric"],
+      num_user_devices: 10,
+      user_device_types: ["PQC Gateway", "Crypto Sensor", "HSM/KMS", "Edge Gateway", "QPU Node (Sim.)"],
+      domain_name: "quantum-edge.local",
+      ntp_server: "10.0.0.1",
+      dns_servers: ["10.0.0.2", "10.0.0.3"],
+      status: "draft",
+    },
+  },
 ];
 
 export default function SmartDesign() {
@@ -302,6 +343,11 @@ export default function SmartDesign() {
                       <Icon className="h-5 w-5" style={{ color: preset.color }} />
                     </div>
                     <h3 className="font-semibold text-white text-base">{preset.name}</h3>
+                    {preset.badge && (
+                      <span className="ml-auto shrink-0 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-violet-400/50 bg-violet-500/15 text-violet-300">
+                        {preset.badge}
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-gray-400 leading-relaxed mb-4 flex-1">{preset.description}</p>
                   <div className="space-y-1.5 mb-4">
