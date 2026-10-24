@@ -270,7 +270,7 @@ export default function CloudResources() {
           </Link>
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-white">Cloud Resources</h1>
-            <p className="text-sm text-gray-400 font-mono">Manage instances, VPCs, and infrastructure</p>
+            <p className="text-sm text-gray-400 font-mono">Live Fire-tagged instances and account VPCs; other AWS instances may not appear in the instance count.</p>
           </div>
           <Button
             onClick={() => { refetchInstances(); refetchVpcs(); }}
@@ -284,7 +284,7 @@ export default function CloudResources() {
         {/* Stats Bar */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
           <div className="bg-gray-900/80 border border-gray-800 rounded-xl p-3.5">
-            <p className="text-[10px] font-mono text-gray-500 uppercase mb-1">Instances</p>
+            <p className="text-[10px] font-mono text-gray-500 uppercase mb-1">Managed instances</p>
             <p className="text-xl font-bold text-white">{enrichedInstances.length}</p>
           </div>
           <div className="bg-gray-900/80 border border-green-800/30 rounded-xl p-3.5">
