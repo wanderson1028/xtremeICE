@@ -130,7 +130,15 @@ export default function LabBuilder() {
 
           {/* Main Canvas */}
           <div className="space-y-4 min-w-0">
-            <GeneratorPanel updateForm={updateForm} />
+            <GeneratorPanel updateForm={(updates) => updateForm({
+              ...updates,
+              ...(updates.lab_content ? {
+                lab_content: {
+                  ...updates.lab_content,
+                  tasks: normalizeTasks(updates.lab_content.tasks),
+                },
+              } : {}),
+            })} />
 
             <SectionCard
               id="basics"
