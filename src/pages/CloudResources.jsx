@@ -3,11 +3,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
 import {
-  Cloud, Search, Plus, ArrowLeft, CheckCircle2, XCircle,
-  Settings, BarChart3, HardDrive, Cpu, Globe, Trash2,
+  Cloud, Search, Plus, ArrowLeft,
+  Settings, Trash2,
   Network, AlertTriangle, ChevronDown, ChevronRight,
-  Wifi, Shield, ExternalLink, RefreshCw, Filter,
-  Server, Play, Square, StopCircle, Power, Terminal, Check, Lock
+  Wifi, ExternalLink, RefreshCw,
+  Server, Play, Square, Terminal, Check, Lock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
