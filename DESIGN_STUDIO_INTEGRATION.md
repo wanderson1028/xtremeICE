@@ -7,6 +7,13 @@ Status: experimental branch `design-studio-integration` (2026-10-23). Do not mer
 - Course lab authoring: `LabTemplate` and `LabInstance`. This is the target for Design Studio's provider-neutral task, snapshot, scoring, and validation model.
 - Live Fire cloud construction: `LiveFireLab`, `LiveFireDevice`, and `LiveFireDeployment`, backed by `cloudProviderAWS` and `cloudOrchestrator`. Keep this AWS system intact; do not replace its data model with `LabTemplate` or blindly import Design Studio's older AWS functions.
 - A bridge between a course lab and a Live Fire deployment must be explicit, ownership-checked, and idempotent. `LiveFireLab.template_id` is not by itself a proven lifecycle bridge.
+
+| Course-lab source | Live Fire target | Contract |
+| --- | --- | --- |
+| `LabTemplate.id` | `LiveFireLab.template_id` | Link only after an explicit draft creation; keep authoring and deployment records separate. |
+| `LabTemplate.environment_definition` | `LiveFireLab.topology_data` | Translate supported resources and networks into a reviewable draft; do not silently apply Live Fire's current internet-facing security-group defaults. |
+| `LabInstance.template_snapshot` | `LiveFireDeployment` and `LiveFireDevice` | Freeze learner requirements first, then bind to server-owned deployment handles. Do not trust user-editable session or instance IDs for privileged actions. |
+| `LabInstance.provider` | AWS/Kasm/Proxmox adapter | Provider selection is explicit; a Kasm callback cannot validate an AWS or Proxmox session. |
 - Kasm and Proxmox are separate providers. Proxmox pilot work is not learner-ready and is not ported here.
 
 ## Implemented in this branch
