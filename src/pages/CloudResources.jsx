@@ -97,7 +97,7 @@ export default function CloudResources() {
     queryFn: () => base44.entities.LiveFireCloudAccount.list("-updated_date", 50),
   });
 
-  const { data: deployments = [] } = useQuery({
+  const { data: deployments = [], isLoading: deploymentsLoading } = useQuery({
     queryKey: ["livefire-deployments"],
     queryFn: () => base44.entities.LiveFireDeployment.list("-updated_date", 50),
   });
@@ -230,6 +230,11 @@ export default function CloudResources() {
   );
   const orphanCount = vpcs.filter(v => v.isOrphaned).length;
   const inUseCount = vpcs.filter(v => !v.isOrphaned && !v.isDefault).length;
+  const vpcScanComplete = !vpcsLoading && !vpcsError && vpcRegions.length > 0 && vpcScanFailures === 0;
+  const currentVpcIds = new Set(vpcs.map(v => v.vpcId));
+  const deploymentRecordsToReview = vpcScanComplete && !deploymentsLoading
+    ? deployments.filter(d => d.provider === "aws" && ["running", "provisioning"].includes(d.status) && d.vpc_id && !currentVpcIds.has(d.vpc_id))
+    : [];
 
   const filteredVpcs = vpcs.filter(v => {
     if (!search) return true;
@@ -317,6 +322,13 @@ export default function CloudResources() {
               {" "}VPC scan: {vpcRegions.length - vpcScanFailures}/{vpcRegions.length || "?"} regions succeeded.
               Recheck provider access before reconciling or deleting lab records.
             </p>
+          </div>
+        )}
+
+        {deploymentRecordsToReview.length > 0 && (
+          <div role="status" className="mb-6 rounded-xl border border-blue-700/40 bg-blue-950/30 p-4 text-sm text-blue-100">
+            <p className="font-semibold">{deploymentRecordsToReview.length} active-labeled deployment record{deploymentRecordsToReview.length === 1 ? "" : "s"} need reconciliation.</p>
+            <p className="mt-1 text-xs text-blue-100/80">Their stored VPC IDs were not found in this account scan. No records or AWS resources were changed; verify the historical account and exact EC2 IDs before cleanup.</p>
           </div>
         )}
 
