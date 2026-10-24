@@ -50,7 +50,7 @@ export default function CloudResources() {
   const [copiedRdp, setCopiedRdp] = useState(null);
 
   // ── Instances query ──
-  const { data: instancesData, isLoading: instLoading, refetch: refetchInstances } = useQuery({
+  const { data: instancesData, isLoading: instLoading, isError: instError, refetch: refetchInstances } = useQuery({
     queryKey: ["all-region-instances"],
     queryFn: async () => {
       const res = await base44.functions.invoke("cloudProviderAWS", {
@@ -78,7 +78,7 @@ export default function CloudResources() {
   });
 
   // ── VPCs query ──
-  const { data: vpcData, isLoading: vpcsLoading, refetch: refetchVpcs } = useQuery({
+  const { data: vpcData, isLoading: vpcsLoading, isError: vpcsError, refetch: refetchVpcs } = useQuery({
     queryKey: ["all-region-vpcs"],
     queryFn: async () => {
       const res = await base44.functions.invoke("cloudProviderAWS", {
@@ -217,9 +217,17 @@ export default function CloudResources() {
 
   // ── VPC data ──
   const vpcs = vpcData?.vpcs || [];
-  const vpcRegions = instancesData?.regions || vpcData?.regions || [];
-  const activeRegions = vpcRegions.filter(r => r.count > 0 || r.vpcCount > 0).length;
-  const totalRegions = vpcRegions.length;
+  const instanceRegions = instancesData?.regions || [];
+  const vpcRegions = vpcData?.regions || [];
+  const activeRegions = instanceRegions.filter(r => r.count > 0).length;
+  const totalRegions = instanceRegions.length;
+  const instanceScanFailures = instanceRegions.filter(r => r.error).length;
+  const vpcScanFailures = vpcRegions.filter(r => r.error).length;
+  const scansFinished = !instLoading && !vpcsLoading;
+  const inventoryIncomplete = scansFinished && (
+    instError || vpcsError || !instanceRegions.length || !vpcRegions.length ||
+    instanceScanFailures > 0 || vpcScanFailures > 0
+  );
   const orphanCount = vpcs.filter(v => v.isOrphaned).length;
   const inUseCount = vpcs.filter(v => !v.isOrphaned && !v.isDefault).length;
 
@@ -296,10 +304,21 @@ export default function CloudResources() {
             <p className="text-xl font-bold text-amber-400">{orphanCount}</p>
           </div>
           <div className="bg-gray-900/80 border border-blue-800/30 rounded-xl p-3.5">
-            <p className="text-[10px] font-mono text-gray-500 uppercase mb-1">Regions</p>
+            <p className="text-[10px] font-mono text-gray-500 uppercase mb-1">Regions with instances</p>
             <p className="text-lg font-bold text-blue-400 font-mono">{activeRegions}<span className="text-sm text-gray-600">/{totalRegions}</span></p>
           </div>
         </div>
+
+        {inventoryIncomplete && (
+          <div role="alert" className="mb-6 rounded-xl border border-amber-700/50 bg-amber-950/40 p-4 text-sm text-amber-200">
+            <p className="font-semibold">AWS inventory is incomplete — zero counts are not proof that resources are gone.</p>
+            <p className="mt-1 text-xs text-amber-100/80">
+              Instance scan: {instanceRegions.length - instanceScanFailures}/{instanceRegions.length || "?"} regions succeeded.
+              {" "}VPC scan: {vpcRegions.length - vpcScanFailures}/{vpcRegions.length || "?"} regions succeeded.
+              Recheck provider access before reconciling or deleting lab records.
+            </p>
+          </div>
+        )}
 
         {/* Search */}
         <div className="flex items-center gap-3 mb-4">
