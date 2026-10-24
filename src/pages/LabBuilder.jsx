@@ -14,6 +14,7 @@ import StepExportConfig from "@/components/labs/builder/StepExportConfig";
 import GeneratorPanel from "@/components/labs/builder/GeneratorPanel";
 import SectionCard from "@/components/labs/builder/SectionCard";
 import BuilderSidebar from "@/components/labs/builder/BuilderSidebar";
+import { normalizeTasks, validateLabContent } from "@/lib/taskModel";
 
 const DEFAULT_FORM = {
   title: "", description: "", difficulty: "Beginner",
@@ -49,7 +50,14 @@ export default function LabBuilder() {
   });
 
   useEffect(() => {
-    if (existing) setForm({ ...DEFAULT_FORM, ...existing });
+    if (existing) {
+      const content = existing.lab_content || {};
+      setForm({
+        ...DEFAULT_FORM,
+        ...existing,
+        lab_content: { ...content, tasks: normalizeTasks(content.tasks) },
+      });
+    }
   }, [existing]);
 
   const updateForm = (updates) => setForm((prev) => ({ ...prev, ...updates }));
@@ -61,15 +69,26 @@ export default function LabBuilder() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      let templateId = editId;
-      if (editId) {
-        await base44.entities.LabTemplate.update(editId, form);
-      } else {
-        const created = await base44.entities.LabTemplate.create(form);
-        templateId = created.id;
+      const labContent = {
+        ...(form.lab_content || {}),
+        tasks: normalizeTasks(form.lab_content?.tasks),
+      };
+      const validation = validateLabContent(labContent);
+      if (validation.errors.length) {
+        toast({ title: "Fix task dependencies before saving", description: validation.errors.join(" "), variant: "destructive" });
+        return;
       }
+      const payload = { ...form, lab_content: labContent };
+      if (editId) {
+        await base44.entities.LabTemplate.update(editId, payload);
+      } else {
+        await base44.entities.LabTemplate.create(payload);
+      }
+      setForm(payload);
       queryClient.invalidateQueries({ queryKey: ["lab-templates"] });
       toast({ title: "Lab saved", description: "Your lab template has been saved successfully." });
+    } catch (error) {
+      toast({ title: "Lab could not be saved", description: error?.message || "Please try again.", variant: "destructive" });
     } finally {
       setSaving(false);
     }
