@@ -88,6 +88,162 @@
               "instructions": {
                 "type": "string",
                 "description": "Step-by-step instructions (markdown)"
+              },
+              "id": {
+                "type": "string",
+                "description": "Stable task identity (survives reordering); used by runtime results, dependencies, branching, analytics, and validation"
+              },
+              "order": {
+                "type": "number",
+                "description": "1-based display order"
+              },
+              "task_type": {
+                "type": "string",
+                "enum": [
+                  "Configuration",
+                  "Verification",
+                  "Troubleshooting",
+                  "Analysis",
+                  "Documentation",
+                  "Security Assessment"
+                ],
+                "default": "Configuration",
+                "description": "Cognitive-load proxy / category of work"
+              },
+              "points": {
+                "type": "number",
+                "default": 10,
+                "description": "Point weighting for scoring"
+              },
+              "is_required": {
+                "type": "boolean",
+                "default": true,
+                "description": "Core vs optional task"
+              },
+              "hints": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Progressive hints revealed one at a time at runtime"
+              },
+              "validation_criteria": {
+                "type": "array",
+                "description": "Structured success criteria for scoring, rubrics, and lab QA",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "check": {
+                      "type": "string",
+                      "description": "Short identifier for the check"
+                    },
+                    "description": {
+                      "type": "string",
+                      "description": "What to verify"
+                    },
+                    "points": {
+                      "type": "number",
+                      "default": 1,
+                      "description": "Point value awarded when this criterion passes. Defaults to 1 to match the task editor's non-zero criterion default."
+                    },
+                    "runtime_validator": {
+                      "type": "object",
+                      "description": "Optional provider-neutral automated runtime validator. The validator describes what to verify; provider adapters decide how to observe it.",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "path_exists",
+                            "command_result"
+                          ],
+                          "description": "Runtime validation supports path existence and an allowlisted file-mode command result. Future types remain provider-neutral."
+                        },
+                        "path": {
+                          "type": "string",
+                          "description": "Absolute path to verify inside the learner resource."
+                        },
+                        "path_kind": {
+                          "type": "string",
+                          "enum": [
+                            "any",
+                            "file",
+                            "directory"
+                          ],
+                          "default": "any",
+                          "description": "Whether the path must be any filesystem entry, specifically a file, or specifically a directory."
+                        },
+                        "command_key": {
+                          "type": "string",
+                          "enum": [
+                            "file_mode"
+                          ],
+                          "description": "Allowlisted read-only command profile for command_result."
+                        },
+                        "expected_output": {
+                          "type": "string",
+                          "description": "Expected octal file mode, such as 600, for command_result/file_mode."
+                        },
+                        "resource_id": {
+                          "type": "string",
+                          "description": "Optional stable environment resource ID. Runtime Validation v1 defaults to the single provisioned resource."
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "path"
+                      ]
+                    }
+                  }
+                }
+              },
+              "expected_commands": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "Authored execution/reference commands a learner is expected to run for this task. NOT authoritative automated validation rules on their own \u2014 this is reference data a future terminal/provider validator may consume. Entering commands here does not by itself enable automated validation."
+              },
+              "reference_config": {
+                "type": "string",
+                "description": "Authoritative target configuration (router config, firewall ruleset, script, etc.) as a single multiline string. Raw config the instructor or a future runtime validator may diff against the learner's submission or live device state. Optional: a task may have validation_criteria without a reference_config, or vice versa."
+              },
+              "branch_type": {
+                "type": "string",
+                "enum": [
+                  "standard",
+                  "advanced",
+                  "remediation"
+                ],
+                "default": "standard",
+                "description": "standard = always unlocked, shown in authored order. advanced = stretch task unlocked only when the prerequisite is met. remediation = fallback task unlocked only when the prerequisite is failed. Non-standard requires depends_on_task_id + unlock_condition."
+              },
+              "depends_on_task_id": {
+                "type": "string",
+                "description": "Stable task.id of the prerequisite task this task's unlock depends on. Must reference a task in the same lab_content.tasks[] array. Must not equal this task's own id. Required when branch_type is non-standard; ignored when standard. This is the primary dependency source read by the runtime; unlock_condition.depends_on_task_id is a legacy fallback only."
+              },
+              "unlock_condition": {
+                "type": "object",
+                "description": "Trigger and threshold that unlock this task based on the prerequisite task's runtime result. Required when branch_type is non-standard. Note: depends_on_task_id is read from the task-level field (primary), not from inside unlock_condition (legacy fallback only).",
+                "properties": {
+                  "trigger": {
+                    "type": "string",
+                    "enum": [
+                      "passed",
+                      "failed",
+                      "score_above",
+                      "score_below"
+                    ],
+                    "description": "passed = prerequisite task status === 'passed'. failed = status === 'failed'. score_above = passed AND points_earned >= score_threshold. score_below = failed OR (passed AND points_earned < score_threshold)."
+                  },
+                  "score_threshold": {
+                    "type": "number",
+                    "description": "Point threshold for score_above / score_below triggers. Ignored for passed/failed. Should be within [0, prerequisite task's points]."
+                  }
+                },
+                "required": [
+                  "trigger"
+                ]
               }
             }
           }
@@ -147,6 +303,312 @@
     "nice_version_id": {
       "type": "string",
       "description": "ID of the NiceFrameworkVersion this lab was last mapped against"
+    },
+    "lab_guidance": {
+      "type": "string",
+      "description": "Instructional-design metadata: guidance level"
+    },
+    "passing_score": {
+      "type": "number",
+      "default": 70,
+      "description": "Minimum percentage score required to pass this lab. Used by the runtime to determine pass/fail on LabInstance.score vs this threshold."
+    },
+    "environment_definition": {
+      "type": "object",
+      "description": "Canonical platform-independent technical environment required by this lab. Describes what must exist; provider bindings determine how a platform such as Kasm, Proxmox, VMware, or cloud instantiates it.",
+      "properties": {
+        "resources": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Stable resource identity used by networks/connections and provider bindings"
+              },
+              "name": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string",
+                "description": "Human/functional role, e.g. attacker, domain_controller, victim, firewall, analyst_workstation"
+              },
+              "resource_type": {
+                "type": "string",
+                "enum": [
+                  "workstation",
+                  "server",
+                  "router",
+                  "switch",
+                  "firewall",
+                  "container",
+                  "security_appliance",
+                  "cloud_resource",
+                  "other"
+                ],
+                "default": "workstation"
+              },
+              "os_type": {
+                "type": "string",
+                "description": "Platform-independent OS/family requirement, e.g. Kali Linux, Windows Server, Ubuntu"
+              },
+              "cpu_cores": {
+                "type": "number",
+                "default": 2
+              },
+              "memory_mb": {
+                "type": "number",
+                "default": 4096
+              },
+              "storage_gb": {
+                "type": "number",
+                "default": 20
+              },
+              "tools": {
+                "type": "array",
+                "default": [],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "services": {
+                "type": "array",
+                "default": [],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "access_method": {
+                "type": "string",
+                "enum": [
+                  "web_terminal",
+                  "ssh",
+                  "rdp",
+                  "vnc",
+                  "browser",
+                  "serial_console",
+                  "none"
+                ],
+                "default": "web_terminal"
+              },
+              "network_ids": {
+                "type": "array",
+                "default": [],
+                "items": {
+                  "type": "string"
+                },
+                "description": "Stable environment network IDs this resource must attach to"
+              },
+              "startup_scripts": {
+                "type": "array",
+                "default": [],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "initial_files": {
+                "type": "array",
+                "default": [],
+                "items": {
+                  "type": "string"
+                },
+                "description": "Files/artifacts that must exist at lab start; content/package mechanism is provider-specific later"
+              },
+              "initial_state_notes": {
+                "type": "string",
+                "description": "Human-readable starting-state requirements such as vulnerable configuration, seeded logs, or pre-created accounts"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "resource_type"
+            ]
+          }
+        },
+        "networks": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Stable network identity"
+              },
+              "name": {
+                "type": "string"
+              },
+              "purpose": {
+                "type": "string",
+                "description": "e.g. internal, dmz, management, attack, internet-facing"
+              },
+              "cidr": {
+                "type": "string",
+                "description": "Optional desired CIDR; provider may allocate when absent"
+              },
+              "isolated": {
+                "type": "boolean",
+                "default": true
+              },
+              "internet_access": {
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ]
+          }
+        },
+        "connections": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Stable connection identity"
+              },
+              "source_resource_id": {
+                "type": "string"
+              },
+              "target_resource_id": {
+                "type": "string"
+              },
+              "connection_type": {
+                "type": "string",
+                "enum": [
+                  "ethernet",
+                  "virtual_network",
+                  "vpn",
+                  "wan",
+                  "internet",
+                  "logical"
+                ],
+                "default": "virtual_network"
+              },
+              "network_id": {
+                "type": "string",
+                "description": "Optional network carrying this connection"
+              },
+              "notes": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "source_resource_id",
+              "target_resource_id"
+            ]
+          }
+        },
+        "connectivity_policy": {
+          "type": "object",
+          "properties": {
+            "internet_access": {
+              "type": "string",
+              "enum": [
+                "none",
+                "restricted",
+                "full"
+              ],
+              "default": "none"
+            },
+            "isolation_required": {
+              "type": "boolean",
+              "default": true
+            },
+            "allow_inbound_external": {
+              "type": "boolean",
+              "default": false
+            },
+            "allow_outbound_external": {
+              "type": "boolean",
+              "default": false
+            },
+            "notes": {
+              "type": "string"
+            }
+          }
+        },
+        "identity_requirements": {
+          "type": "object",
+          "properties": {
+            "accounts_needed": {
+              "type": "array",
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "description": "Authored account/role requirements only; secrets must not be stored here"
+            },
+            "directory_required": {
+              "type": "boolean",
+              "default": false
+            },
+            "mfa_required": {
+              "type": "boolean",
+              "default": false
+            },
+            "notes": {
+              "type": "string",
+              "description": "Identity/credential requirements without secret values"
+            }
+          }
+        },
+        "initialization": {
+          "type": "object",
+          "properties": {
+            "startup_scripts": {
+              "type": "array",
+              "default": [],
+              "items": {
+                "type": "string"
+              }
+            },
+            "configuration_notes": {
+              "type": "string"
+            },
+            "seed_data_notes": {
+              "type": "string"
+            },
+            "snapshot_required": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        },
+        "reset_policy": {
+          "type": "object",
+          "properties": {
+            "reset_required": {
+              "type": "boolean",
+              "default": true
+            },
+            "reset_mode": {
+              "type": "string",
+              "enum": [
+                "recreate",
+                "snapshot_restore",
+                "provider_default",
+                "manual"
+              ],
+              "default": "provider_default"
+            },
+            "preserve_learner_artifacts": {
+              "type": "boolean",
+              "default": false
+            },
+            "notes": {
+              "type": "string"
+            }
+          }
+        }
+      }
     }
   },
   "required": [
