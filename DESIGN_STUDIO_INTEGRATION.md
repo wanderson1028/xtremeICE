@@ -19,7 +19,7 @@ Status: experimental branch `design-studio-integration` (2026-10-23). Do not mer
 ## Implemented in this branch
 
 - Ported the pure Design Studio task/environment/snapshot/scoring/branching/Kasm-binding modules and their 151 focused tests. The current code has no provider side effects.
-- Extended `LabTemplate` with runtime-relevant optional fields and structured task/criterion fields; extended `LabInstance` with optional frozen snapshot and provider handles. Existing required fields and Extreme ICE RLS were preserved. No records were migrated.
+- Extended `LabTemplate` with runtime-relevant optional fields and structured task/criterion fields; extended `LabInstance` with optional frozen snapshot and provider handles. Added the admin-only `RuntimeValidationAttempt` schema, but no execution function or attempts. Existing required fields and Extreme ICE RLS were preserved. No records were migrated.
 - Ported the advanced lab-task editor. It can author criteria, a path-existence or allowlisted file-mode validation definition, hints, and adaptive task flow. The editor explicitly says this does not execute a Kasm check in Extreme ICE.
 - Normalize legacy task rows when opened and before saving; reject cyclic/invalid task dependencies at save time. No existing template was saved by this integration work.
 
@@ -27,7 +27,7 @@ Status: experimental branch `design-studio-integration` (2026-10-23). Do not mer
 
 1. Confirm Kasm credentials and callback reachability for this Extreme ICE app without exposing secret values. The Design Studio callback URL embeds its own app ID and cannot be copied unchanged.
 2. Harden the Kasm backend interface. Design Studio's general `execCommand` action accepts a caller-provided command from any authenticated user; do not expose that surface in Extreme ICE. The runtime validator should dispatch only server-built, allowlisted probes from a frozen template snapshot.
-3. Add a server-owned `RuntimeValidationAttempt` with admin-only entity access, hashed one-time callback tokens, expiry, ownership-checked sanitized inspection, and separate dispatch/probe/callback outcomes. Keep tokens and provider credentials out of browser responses, logs, and workspace traces.
+3. Implement a server-owned validator using the new admin-only `RuntimeValidationAttempt` entity: hashed one-time callback tokens, expiry, ownership-checked sanitized inspection, and separate dispatch/probe/callback outcomes. Keep tokens and provider credentials out of browser responses, logs, and workspace traces. The schema alone is not an execution path.
 4. Provision a disposable Kasm learner instance through a controlled branch-only flow, prove the frozen snapshot and owner checks, then prove pass, fail, callback timeout, and replay rejection end to end. Only then expose a learner runner.
 5. Map course labs to Live Fire AWS deliberately, then test read-only AWS inventory and a cost-bounded disposable deployment. Reconcile actual AWS resources with records before any cleanup. Do not alter Capital Intelligence.
 6. Treat Proxmox as a later provider gate; VM100 is the sole worker pilot, not proof of concurrent learner provisioning.
