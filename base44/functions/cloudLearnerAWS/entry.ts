@@ -65,6 +65,7 @@ Deno.serve(async(req)=>{
  if(action==="provision"){
    if(user.role!=="admin")return reply({error:"Admin pilot provisioning required"},403);
    if(input.ack!=="LAUNCH_PRIVATE_SSM_LEARNER_PILOT")return reply({error:"Explicit scope acknowledgment required"},400);
+   stackTemplate(input.ami_id,input.zone,"0123456789abcdef01234567");
    if(!await schemaReady(b))return reply({error:"Shared learner schemas are required"},409);
    const active=await b.asServiceRole.entities.CloudLearnerRun.filter({status:{$in:ACTIVE}});if(active.length)return reply({error:"An existing learner pilot needs inspection or cleanup"},409);
    const old=await b.asServiceRole.entities.CloudPocRun.filter({status:{$in:["preparing","provisioning","running","cleanup_pending"]}});if(old.length)return reply({error:"A previous AWS proof is active"},409);
@@ -127,6 +128,7 @@ Deno.serve(async(req)=>{
  }
  if(action==="pollOperation"){
    if(!owns(run,user))return reply({error:"Guest operation access denied"},403);
+   if(typeof input.operation_id!=="string"||!/^[a-f0-9]{16,32}$/i.test(input.operation_id))return reply({error:"Invalid operation"},400);
    const op=(await b.asServiceRole.entities.CloudGuestOperation.filter({id:input.operation_id,run_id:run.id,owner_user_id:user.id}))[0];if(!op)return reply({error:"Operation not found"},404);
    if(op.status!=="pending")return reply({status:op.status,result:op.result||null,error_code:op.error_code||null});
    if(Date.now()>Date.parse(op.expires_at)){await b.asServiceRole.entities.CloudGuestOperation.update(op.id,{status:"expired"});return reply({status:"expired"});}
