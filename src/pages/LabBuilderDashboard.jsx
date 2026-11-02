@@ -1,12 +1,13 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, Layers, Settings, FileText, Globe, Download, Network, Zap } from "lucide-react";
+import { BookOpen, Layers, Settings, FileText, Globe, Download, Network, Zap, Cloud } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 const modules = [
   { name: "Lab Templates", icon: BookOpen, path: "/LabTemplates", desc: "Browse and manage reusable lab templates" },
   { name: "Lab Builder", icon: Layers, path: "/LabBuilder", desc: "Create new lab courses with a 4-step wizard + smart generator" },
   { name: "Lab Instances", icon: Settings, path: "/LabInstances", desc: "Monitor and manage deployed lab sessions" },
+  { name: "AWS Course Proof", icon: Cloud, path: "/CloudCoursePoc", desc: "Admin-only isolated cloud boot proof on this experimental branch" },
   { name: "Environments", icon: Globe, path: "/LabEnvironments", desc: "Configure Kasm workspace environments" },
   { name: "Exports", icon: Download, path: "/LabExports", desc: "Export lab configurations and bundles" },
   { name: "NICE Mapping", icon: FileText, path: "/NiceMapping", desc: "Map labs to NICE Framework work roles" },
