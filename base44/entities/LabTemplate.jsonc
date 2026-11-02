@@ -147,6 +147,312 @@
     "nice_version_id": {
       "type": "string",
       "description": "ID of the NiceFrameworkVersion this lab was last mapped against"
+    },
+    "lab_guidance": {
+      "type": "string",
+      "description": "Instructional-design metadata: guidance level"
+    },
+    "passing_score": {
+      "type": "number",
+      "default": 70,
+      "description": "Minimum percentage score required to pass this lab. Used by the runtime to determine pass/fail on LabInstance.score vs this threshold."
+    },
+    "environment_definition": {
+      "type": "object",
+      "description": "Canonical platform-independent technical environment required by this lab. Describes what must exist; provider bindings determine how a platform such as Kasm, Proxmox, VMware, or cloud instantiates it.",
+      "properties": {
+        "resources": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Stable resource identity used by networks/connections and provider bindings"
+              },
+              "name": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string",
+                "description": "Human/functional role, e.g. attacker, domain_controller, victim, firewall, analyst_workstation"
+              },
+              "resource_type": {
+                "type": "string",
+                "enum": [
+                  "workstation",
+                  "server",
+                  "router",
+                  "switch",
+                  "firewall",
+                  "container",
+                  "security_appliance",
+                  "cloud_resource",
+                  "other"
+                ],
+                "default": "workstation"
+              },
+              "os_type": {
+                "type": "string",
+                "description": "Platform-independent OS/family requirement, e.g. Kali Linux, Windows Server, Ubuntu"
+              },
+              "cpu_cores": {
+                "type": "number",
+                "default": 2
+              },
+              "memory_mb": {
+                "type": "number",
+                "default": 4096
+              },
+              "storage_gb": {
+                "type": "number",
+                "default": 20
+              },
+              "tools": {
+                "type": "array",
+                "default": [],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "services": {
+                "type": "array",
+                "default": [],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "access_method": {
+                "type": "string",
+                "enum": [
+                  "web_terminal",
+                  "ssh",
+                  "rdp",
+                  "vnc",
+                  "browser",
+                  "serial_console",
+                  "none"
+                ],
+                "default": "web_terminal"
+              },
+              "network_ids": {
+                "type": "array",
+                "default": [],
+                "items": {
+                  "type": "string"
+                },
+                "description": "Stable environment network IDs this resource must attach to"
+              },
+              "startup_scripts": {
+                "type": "array",
+                "default": [],
+                "items": {
+                  "type": "string"
+                }
+              },
+              "initial_files": {
+                "type": "array",
+                "default": [],
+                "items": {
+                  "type": "string"
+                },
+                "description": "Files/artifacts that must exist at lab start; content/package mechanism is provider-specific later"
+              },
+              "initial_state_notes": {
+                "type": "string",
+                "description": "Human-readable starting-state requirements such as vulnerable configuration, seeded logs, or pre-created accounts"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "resource_type"
+            ]
+          }
+        },
+        "networks": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Stable network identity"
+              },
+              "name": {
+                "type": "string"
+              },
+              "purpose": {
+                "type": "string",
+                "description": "e.g. internal, dmz, management, attack, internet-facing"
+              },
+              "cidr": {
+                "type": "string",
+                "description": "Optional desired CIDR; provider may allocate when absent"
+              },
+              "isolated": {
+                "type": "boolean",
+                "default": true
+              },
+              "internet_access": {
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ]
+          }
+        },
+        "connections": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Stable connection identity"
+              },
+              "source_resource_id": {
+                "type": "string"
+              },
+              "target_resource_id": {
+                "type": "string"
+              },
+              "connection_type": {
+                "type": "string",
+                "enum": [
+                  "ethernet",
+                  "virtual_network",
+                  "vpn",
+                  "wan",
+                  "internet",
+                  "logical"
+                ],
+                "default": "virtual_network"
+              },
+              "network_id": {
+                "type": "string",
+                "description": "Optional network carrying this connection"
+              },
+              "notes": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "source_resource_id",
+              "target_resource_id"
+            ]
+          }
+        },
+        "connectivity_policy": {
+          "type": "object",
+          "properties": {
+            "internet_access": {
+              "type": "string",
+              "enum": [
+                "none",
+                "restricted",
+                "full"
+              ],
+              "default": "none"
+            },
+            "isolation_required": {
+              "type": "boolean",
+              "default": true
+            },
+            "allow_inbound_external": {
+              "type": "boolean",
+              "default": false
+            },
+            "allow_outbound_external": {
+              "type": "boolean",
+              "default": false
+            },
+            "notes": {
+              "type": "string"
+            }
+          }
+        },
+        "identity_requirements": {
+          "type": "object",
+          "properties": {
+            "accounts_needed": {
+              "type": "array",
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "description": "Authored account/role requirements only; secrets must not be stored here"
+            },
+            "directory_required": {
+              "type": "boolean",
+              "default": false
+            },
+            "mfa_required": {
+              "type": "boolean",
+              "default": false
+            },
+            "notes": {
+              "type": "string",
+              "description": "Identity/credential requirements without secret values"
+            }
+          }
+        },
+        "initialization": {
+          "type": "object",
+          "properties": {
+            "startup_scripts": {
+              "type": "array",
+              "default": [],
+              "items": {
+                "type": "string"
+              }
+            },
+            "configuration_notes": {
+              "type": "string"
+            },
+            "seed_data_notes": {
+              "type": "string"
+            },
+            "snapshot_required": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        },
+        "reset_policy": {
+          "type": "object",
+          "properties": {
+            "reset_required": {
+              "type": "boolean",
+              "default": true
+            },
+            "reset_mode": {
+              "type": "string",
+              "enum": [
+                "recreate",
+                "snapshot_restore",
+                "provider_default",
+                "manual"
+              ],
+              "default": "provider_default"
+            },
+            "preserve_learner_artifacts": {
+              "type": "boolean",
+              "default": false
+            },
+            "notes": {
+              "type": "string"
+            }
+          }
+        }
+      }
     }
   },
   "required": [
