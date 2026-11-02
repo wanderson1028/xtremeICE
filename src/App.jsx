@@ -23,6 +23,8 @@ import LabBuilder from './pages/LabBuilder'
 import LabInstances from './pages/LabInstances'
 import CloudCoursePoc from './pages/CloudCoursePoc'
 import CloudLearnerPoc from './pages/CloudLearnerPoc'
+import LabAssignments from './pages/LabAssignments'
+import LearnerWorkspace from './pages/LearnerWorkspace'
 import LabEnvironments from './pages/LabEnvironments'
 import LabExports from './pages/LabExports'
 import NiceMapping from './pages/NiceMapping'
@@ -218,6 +220,8 @@ const AuthenticatedApp = () => {
       <Route path="/LabInstances" element={<LayoutWrapper currentPageName="LabInstances"><LabInstances /></LayoutWrapper>} />
       <Route path="/CloudCoursePoc" element={<LayoutWrapper currentPageName="CloudCoursePoc"><CloudCoursePoc /></LayoutWrapper>} />
       <Route path="/CloudLearnerPoc" element={<LayoutWrapper currentPageName="CloudLearnerPoc"><CloudLearnerPoc /></LayoutWrapper>} />
+      <Route path="/LabAssignments" element={<LayoutWrapper currentPageName="LabAssignments"><LabAssignments /></LayoutWrapper>} />
+      <Route path="/LearnerWorkspace" element={<LayoutWrapper currentPageName="LearnerWorkspace"><LearnerWorkspace /></LayoutWrapper>} />
       <Route path="/LabEnvironments" element={<LayoutWrapper currentPageName="LabEnvironments"><LabEnvironments /></LayoutWrapper>} />
       <Route path="/LabExports" element={<LayoutWrapper currentPageName="LabExports"><LabExports /></LayoutWrapper>} />
       <Route path="/NiceMapping" element={<LayoutWrapper currentPageName="NiceMapping"><NiceMapping /></LayoutWrapper>} />
