@@ -273,7 +273,7 @@ Deno.serve(async (req) => {
           MetadataOptions: { HttpTokens: "required", HttpEndpoint: "enabled" },
           NetworkInterfaces: [{ DeviceIndex: 0, SubnetId: subnet.Subnet.SubnetId, Groups: [sg.GroupId], AssociatePublicIpAddress: false }],
           BlockDeviceMappings: [{ DeviceName: "/dev/xvda", Ebs: { VolumeSize: 8, VolumeType: "gp3", DeleteOnTermination: true, Encrypted: true } }],
-          UserData: btoa(userData), TagSpecifications: [{ ResourceType: "instance", Tags: tags }],
+          UserData: btoa(userData), TagSpecifications: [{ ResourceType: "instance", Tags: tags }, { ResourceType: "volume", Tags: tags }],
         }));
         const instanceId = launched.Instances?.[0]?.InstanceId;
         if (!instanceId) throw new Error("RUN_INSTANCE_INCOMPLETE");
