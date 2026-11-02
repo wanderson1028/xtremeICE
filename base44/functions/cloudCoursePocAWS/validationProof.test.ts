@@ -17,6 +17,19 @@ Deno.test("rejects conflicting, truncated, unknown, and oversized evidence", asy
  eq(await readProbe(line,run,hash,"other"),null);
  eq(await readProbe("x".repeat(2_000_001),run,hash,"present_file"),null);
 });
+Deno.test("generated bash produces real passing and failing file evidence", async () => {
+ const folder = await Deno.makeTempDir({dir:"/tmp",prefix:"aws-validation-test-"});
+ try {
+   const output = folder+"/console.log";
+   const script = validationUserData(run,nonce).replaceAll("/var/tmp/design-studio-poc",folder+"/fixture")
+     .replace("shutdown -h +105",":").replaceAll("> /dev/console",">> "+output);
+   const result = await new Deno.Command("bash",{args:["-c",script],stdout:"piped",stderr:"piped"}).output();
+   eq(result.code,0);
+   const text = await Deno.readTextFile(output), hash = await digest(nonce);
+   eq(await readProbe(text,run,hash,"present_file"),true);
+   eq(await readProbe(text,run,hash,"missing_file"),false);
+ } finally { await Deno.remove(folder,{recursive:true}); }
+});
 Deno.test("only the exact fixed task set can compile", () => {
  const template: any = {lab_content:{tasks:validationTasks()}};
  eq(validValidationTasks(template),true);
