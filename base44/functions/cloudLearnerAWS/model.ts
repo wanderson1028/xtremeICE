@@ -1,3 +1,4 @@
+import { GUEST_PROFILE_NAME } from "./accessConfig.ts";
 export const REGION = "us-east-1";
 export const ACCOUNT = "699121763776";
 export const MANAGED_BY = "ExtremeICE-DesignStudio-Learner";
@@ -64,11 +65,9 @@ export function stackTemplate(ami:string,zone:string,runId:string) {
     EndpointGroup:resource("AWS::EC2::SecurityGroup",{VpcId:ref("Vpc"),GroupDescription:"SSM endpoint access from task guest only",SecurityGroupEgress:[{IpProtocol:"-1",CidrIp:"127.0.0.1/32"}],Tags:tags}),
     GuestGroup:resource("AWS::EC2::SecurityGroup",{VpcId:ref("Vpc"),GroupDescription:"Task guest: HTTPS to private SSM endpoints only",SecurityGroupEgress:[{IpProtocol:"tcp",FromPort:443,ToPort:443,DestinationSecurityGroupId:ref("EndpointGroup")}],Tags:tags}),
     EndpointIngress:resource("AWS::EC2::SecurityGroupIngress",{GroupId:ref("EndpointGroup"),IpProtocol:"tcp",FromPort:443,ToPort:443,SourceSecurityGroupId:ref("GuestGroup")}),
-    SsmEndpoint:resource("AWS::EC2::VPCEndpoint",{VpcId:ref("Vpc"),VpcEndpointType:"Interface",ServiceName:"com.amazonaws."+REGION+".ssm",PrivateDnsEnabled:true,SubnetIds:[ref("Subnet")],SecurityGroupIds:[ref("EndpointGroup")]}),
-    MessagesEndpoint:resource("AWS::EC2::VPCEndpoint",{VpcId:ref("Vpc"),VpcEndpointType:"Interface",ServiceName:"com.amazonaws."+REGION+".ssmmessages",PrivateDnsEnabled:true,SubnetIds:[ref("Subnet")],SecurityGroupIds:[ref("EndpointGroup")]}),
-    GuestRole:resource("AWS::IAM::Role",{AssumeRolePolicyDocument:{Version:"2012-10-17",Statement:[{Effect:"Allow",Principal:{Service:"ec2.amazonaws.com"},Action:"sts:AssumeRole"}]},ManagedPolicyArns:["arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"],Tags:tags}),
-    GuestProfile:resource("AWS::IAM::InstanceProfile",{Roles:[ref("GuestRole")]}),
-    Guest:resource("AWS::EC2::Instance",{ImageId:ami,InstanceType:"t3.micro",SubnetId:ref("Subnet"),SecurityGroupIds:[ref("GuestGroup")],IamInstanceProfile:ref("GuestProfile"),InstanceInitiatedShutdownBehavior:"terminate",
+    SsmEndpoint:resource("AWS::EC2::VPCEndpoint",{VpcId:ref("Vpc"),VpcEndpointType:"Interface",ServiceName:"com.amazonaws."+REGION+".ssm",PrivateDnsEnabled:true,SubnetIds:[ref("Subnet")],SecurityGroupIds:[ref("EndpointGroup")],Tags:tags}),
+    MessagesEndpoint:resource("AWS::EC2::VPCEndpoint",{VpcId:ref("Vpc"),VpcEndpointType:"Interface",ServiceName:"com.amazonaws."+REGION+".ssmmessages",PrivateDnsEnabled:true,SubnetIds:[ref("Subnet")],SecurityGroupIds:[ref("EndpointGroup")],Tags:tags}),
+    Guest:resource("AWS::EC2::Instance",{ImageId:ami,InstanceType:"t3.micro",SubnetId:ref("Subnet"),SecurityGroupIds:[ref("GuestGroup")],IamInstanceProfile:GUEST_PROFILE_NAME,InstanceInitiatedShutdownBehavior:"terminate",
       CreditSpecification:{CPUCredits:"standard"},MetadataOptions:{HttpTokens:"required",HttpEndpoint:"enabled"},
       BlockDeviceMappings:[{DeviceName:"/dev/xvda",Ebs:{VolumeSize:8,VolumeType:"gp3",Encrypted:true,DeleteOnTermination:true}}],
       UserData:{"Fn::Base64":userData},Tags:tags,PropagateTagsToVolumeOnCreation:true},{DependsOn:["SsmEndpoint","MessagesEndpoint","EndpointIngress"]})
