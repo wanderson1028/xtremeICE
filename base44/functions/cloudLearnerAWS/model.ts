@@ -5,8 +5,8 @@ export function requireAccount(observed: string) {
   if(observed!==ACCOUNT)throw Object.assign(new Error("Learner AWS credentials identify account "+observed+"; expected "+ACCOUNT+"."),{name:"AWS_ACCOUNT_MISMATCH"});
 }
 export const MANAGED_BY = "ExtremeICE-DesignStudio-Learner";
-export const TASK_PATH = "/var/tmp/design-studio-learner/proof.txt";
-export const TASK = Object.freeze({ title: "Protect the task file", path: TASK_PATH, expected_mode: "600", initial_mode: "644", task_id: "protect_file", check_id: "file_mode" });
+import { TASK, TASK_PATH } from "./templateContract.ts";
+export { TASK, TASK_PATH };
 export type Operation = "read" | "write" | "validate";
 export function owns(run: any, user: any) { return !!user?.id && run?.owner_user_id === user.id; }
 export function canOperate(run: any, user: any, time = Date.now()) {
