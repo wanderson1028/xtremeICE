@@ -12,6 +12,35 @@ The run and LabInstance were queried and both are terminated. Run stack_status i
 
 The requested simple demo is now proven through guest modification, persistence, passing validation and cleanup. Keep the IAM setup for reuse; no new runtime launch is needed. Actual billing, live cross-user denial and automatic stack-expiry cleanup are not verified/implemented by this proof. The existing $10/two-hour scope remains an operator-managed limit. Branch only; no merge/publish. Kasm/Proxmox and unrelated Live Fire resource reconciliation remain separate later work.
 
+## Lab assignments and learner workspace — November 2, 2026
+
+Implemented on design-studio-integration; the new non-admin workflow is tested with mocked AWS and real temporary guest files, but has not yet been exercised through the live app with a separate learner login. The earlier admin-led AWS proof remains completed evidence.
+
+### What changed
+
+- Instructor route /LabAssignments reviews eligible AWS guided labs, assigns them to existing app users, detects a changed source during review, avoids sequential duplicate assignments and revokes access. It does not send invitations or messages.
+- Learner route /LearnerWorkspace is available through Assigned Labs in navigation. It lists only that learner's assignments and sessions, starts or resumes a session, displays frozen objectives/scenario/task instructions, shows provisioning and remaining time, and supports file load/edit/save, independent validation and recorded history.
+- Assignment authorization is enforced in cloudLearnerAWS before learner preflight or provisioning. The old direct provision action remains admin-only. New command dispatch also checks assignment ownership and revocation. Revoked owners retain history and the ability to finish/clean up their session.
+- Existing UserLabAssignment is reused with lab_type=lab_course, service_key=lab_scenarios and lab_id=LabTemplate.id. No shared schema, RLS, IAM or secret changes. Assignments follow the current compatible source until launch; the run freezes the exact source fingerprint checked at preflight. This does not introduce immutable assignment-version approval.
+- One active guest remains the scope. Global active-run admission checks and the fixed CloudFormation stack name protect the slot. A repeated start for the same owner/assignment resumes its active run. Capacity responses reveal no other learner's identity or guest handles. Distributed database admission is not atomic; AWS's fixed stack name is the final uniqueness boundary, and a losing concurrent request may require record cleanup.
+- The run ID stays in the workspace URL. Opening a session recovers its pending operation and polls the stored command instead of resubmitting it. Backend errors remain visible and Refresh status can retry lifecycle inspection.
+- A first successful validation records learning.completed_at in the server-owned run contract and projects progress/score/task results to LabInstance. Later failed validations remain in history; the earned passing milestone is retained. Finish stores learning.finished_at and requests stack deletion. Resource termination no longer writes or overwrites learning completion time. The admin-only run contract and validation attempts are authoritative; learner-editable LabInstance fields are only a projection.
+- Finish lab polls deletion and verifies AWS removal. A guard prevents cleanup from racing an unsettled initial start request. Automatic expiry cleanup independent of the browser is still later work; the operator must remain present under the existing $10/two-hour pilot scope. The guest's shutdown timer does not delete chargeable endpoints.
+
+### Verification and next live acceptance
+
+15 focused backend tests passed, including the new full assignment rehearsal. Backend type check, frontend build, focused ESLint and whitespace checks passed. The rehearsal covers anonymous/unassigned denial before AWS calls, instructor-only assignment, stale review rejection, non-admin start, duplicate-start resume, global occupied capacity, owner denial, revocation, pending-operation recovery, actual file fail-pass-fail, retained completion and cleanup. The final timing guard was rechecked with the assignment rehearsal and frontend build/lint.
+
+No live assignment was created and no AWS launch was performed during this implementation. A read-only run inventory found no active learner run.
+
+1. Reload the branch preview. Open Course Lab Builder → Lab Assignments as an admin.
+2. Select the existing Securing Sensitive Configuration Files on Linux draft, review its instructions, and choose an existing non-admin user. Click Assign reviewed lab.
+3. Sign in as that user and open Assigned Labs. Confirm only their assignments/sessions appear.
+4. Click Start lab once, confirm, and wait for Ready. Check that an unassigned second user cannot open its run URL, read its file, or start it.
+5. Validate initial 644 failure; load/edit/save 600; reload and verify the text; validate pass. Confirm the completion banner and recorded checks.
+6. Reload during a pending action or ready session and resume the same run. A second assigned learner should receive the occupied-capacity response.
+7. Finish lab; wait for Released and AWS removal verified. Reload and confirm results/completion remain. Instructor revocation must block new file commands while preserving cleanup access.
+
 ## Ownership and boundaries
 
 - Course lab authoring: `LabTemplate` and `LabInstance`. This is the target for Design Studio's provider-neutral task, snapshot, scoring, and validation model.
