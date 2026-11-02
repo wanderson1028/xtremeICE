@@ -1,7 +1,7 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 import { aws, list, hash } from "./awsControl.ts";
 import { EXECUTION_ROLE_ARN } from "./accessConfig.ts";
-import { REGION, ACCOUNT, MANAGED_BY, TASK, canOperate, owns, compileOperation, parseOutput, stackTemplate, type Operation } from "./model.ts";
+import { REGION, ACCOUNT, MANAGED_BY, TASK, requireAccount, canOperate, owns, compileOperation, parseOutput, stackTemplate, type Operation } from "./model.ts";
 import { EC2Client, STSClient, GetCallerIdentityCommand, DescribeImagesCommand, DescribeInstanceTypeOfferingsCommand, DescribeInstancesCommand, DescribeVolumesCommand, DescribeVpcsCommand } from "./awsQuery.ts";
 const ec2=new EC2Client(),sts=new STSClient();
 const STACK_NAME="ExtremeICE-DesignStudio-Learner-Pilot";
@@ -10,6 +10,7 @@ const reply=(body:any,status=200)=>Response.json(body,{status});
 const now=()=>new Date().toISOString();
 const safe=(e:any)=>String(e?.name||"OPERATION_FAILED").slice(0,80);
 const fail=(message:string)=>{throw new Error(message);};
+async function assertAccount(){const identity=await sts.send(new GetCallerIdentityCommand({}));requireAccount(identity.Account);return identity;}
 async function schemaReady(b:any){
  try{await b.asServiceRole.entities.CloudLearnerRun.list("-created_date",1);await b.asServiceRole.entities.CloudGuestOperation.list("-created_date",1);return true;}catch{return false;}
 }
@@ -53,7 +54,7 @@ Deno.serve(async(req)=>{
  const action=input.action;
  if(action==="preflight"){
    if(user.role!=="admin")return reply({error:"Admin pilot provisioning required"},403);
-   const identity=await sts.send(new GetCallerIdentityCommand({}));if(identity.Account!==ACCOUNT)fail("AWS_ACCOUNT_MISMATCH");
+   const identity=await assertAccount();
    const images=await ec2.send(new DescribeImagesCommand({Owners:["137112412989"],Filters:[{Name:"name",Values:["al2023-ami-2023.*-x86_64"]},{Name:"state",Values:["available"]},{Name:"architecture",Values:["x86_64"]}]}));
    const ami=(images.Images||[]).sort((a:any,b:any)=>String(b.CreationDate).localeCompare(String(a.CreationDate)))[0]?.ImageId;if(!ami)fail("NO_AMI");
    const offerings=await ec2.send(new DescribeInstanceTypeOfferingsCommand({LocationType:"availability-zone",Filters:[{Name:"instance-type",Values:["t3.micro"]}]}));
@@ -76,7 +77,7 @@ Deno.serve(async(req)=>{
    if(!await schemaReady(b))return reply({error:"Shared learner schemas are required"},409);
    const active=await b.asServiceRole.entities.CloudLearnerRun.filter({status:{$in:ACTIVE}});if(active.length)return reply({error:"An existing learner pilot needs inspection or cleanup"},409);
    const old=await b.asServiceRole.entities.CloudPocRun.filter({status:{$in:["preparing","provisioning","running","cleanup_pending"]}});if(old.length)return reply({error:"A previous AWS proof is active"},409);
-   const identity=await sts.send(new GetCallerIdentityCommand({}));if(identity.Account!==ACCOUNT)fail("AWS_ACCOUNT_MISMATCH");
+   const identity=await assertAccount();
    const images=await ec2.send(new DescribeImagesCommand({Owners:["137112412989"],Filters:[{Name:"image-id",Values:[input.ami_id]},{Name:"state",Values:["available"]},{Name:"name",Values:["al2023-ami-2023.*-x86_64"]}]}));
    if(!images.Images?.some((x:any)=>x.ImageId===input.ami_id))fail("AMI_PREFLIGHT_CHANGED");
    const zones=await ec2.send(new DescribeInstanceTypeOfferingsCommand({LocationType:"availability-zone",Filters:[{Name:"instance-type",Values:["t3.micro"]},{Name:"location",Values:[input.zone]}]}));if(!zones.Offerings?.some((x:any)=>x.Location===input.zone))fail("ZONE_PREFLIGHT_CHANGED");
@@ -86,7 +87,7 @@ Deno.serve(async(req)=>{
    let template=(await b.asServiceRole.entities.LabTemplate.filter({title}))[0];
    if(!template)template=await b.asServiceRole.entities.LabTemplate.create(spec);
    const expires=new Date(Date.now()+110*60000).toISOString();
-   const run=await b.asServiceRole.entities.CloudLearnerRun.create({owner_user_id:user.id,owner_email:user.email,status:"preparing",region:REGION,stack_name:STACK_NAME,contract:{...TASK},template_id:template.id,started_at:now(),expires_at:expires});
+   const run=await b.asServiceRole.entities.CloudLearnerRun.create({owner_user_id:user.id,owner_email:user.email,status:"preparing",region:REGION,stack_name:STACK_NAME,contract:{...TASK,account_id:ACCOUNT},template_id:template.id,started_at:now(),expires_at:expires});
    try{
      const lab=await b.asServiceRole.entities.LabInstance.create({template_id:template.id,user_email:user.email,status:"provisioning",provider:"aws",template_snapshot:{...spec,lab_content:{...spec.lab_content,tasks:[task]}},started_at:now(),expires_at:expires,provider_status_message:"Creating private SSM learner stack."});
      await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{lab_instance_id:lab.id});
@@ -99,6 +100,8 @@ Deno.serve(async(req)=>{
  let run=(await b.asServiceRole.entities.CloudLearnerRun.filter({id:input.run_id}))[0];
  if(!run)return reply({error:"Run not found"},404);
  if(!owns(run,user)&&user.role!=="admin")return reply({error:"Run access denied"},403);
+ if(run.contract?.account_id!==ACCOUNT)fail("RUN_ACCOUNT_BINDING_MISMATCH");
+ await assertAccount();
  if(action==="refresh"){run=await refresh(b,run);return reply({run:publicRun(run)});}
  if(action==="cleanup"){
    if(input.ack!=="DELETE_LEARNER_STACK")return reply({error:"Cleanup acknowledgment required"},400);
