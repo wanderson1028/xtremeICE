@@ -93,14 +93,14 @@ async function findAmi() {
       { Name: "virtualization-type", Values: ["hvm"] },
     ],
   }));
-  const image = (result.Images || []).sort((a, b) => String(b.CreationDate).localeCompare(String(a.CreationDate)))[0];
+  const image = (result.Images || []).sort((a: any, b: any) => String(b.CreationDate).localeCompare(String(a.CreationDate)))[0];
   if (!image?.ImageId) throw new Error("NO_AMI");
   return image.ImageId;
 }
 async function observeInstance(instanceId: string) {
   try {
     const result = await ec2.send(new DescribeInstancesCommand({ InstanceIds: [instanceId] }));
-    const instance = result.Reservations?.flatMap((reservation) => reservation.Instances || [])[0];
+    const instance = result.Reservations?.flatMap((reservation: any) => reservation.Instances || [])[0];
     return instance?.State?.Name || "unknown";
   } catch (error) {
     if (code(error) === "InvalidInstanceID.NotFound") return "not_found";
@@ -138,7 +138,7 @@ async function assertOwned(run: any, kind: "instance" | "security_group" | "subn
     let tags;
     if (kind === "instance") {
       const result = await ec2.send(new DescribeInstancesCommand({ InstanceIds: [id] }));
-      tags = result.Reservations?.flatMap((reservation) => reservation.Instances || [])[0]?.Tags;
+      tags = result.Reservations?.flatMap((reservation: any) => reservation.Instances || [])[0]?.Tags;
     } else if (kind === "security_group") {
       tags = (await ec2.send(new DescribeSecurityGroupsCommand({ GroupIds: [id] }))).SecurityGroups?.[0]?.Tags;
     } else if (kind === "subnet") {
