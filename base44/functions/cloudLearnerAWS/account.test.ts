@@ -1,9 +1,11 @@
 import bootstrap from "../../../docs/aws-learner-access-bootstrap.json" with {type:"json"};
-import { ACCOUNT } from "./model.ts";
+import { ACCOUNT, requireAccount } from "./model.ts";
 import { EXECUTION_ROLE_ARN } from "./accessConfig.ts";
 function check(value:unknown){if(!value)throw new Error("Learner account isolation assertion failed");}
 Deno.test("bootstrap and runtime target the user-owned account and a separate app identity",()=>{
  check(ACCOUNT==="935838375949");
+ requireAccount(ACCOUNT);
+ let mismatch=false;try{requireAccount("699121763776");}catch(e:any){mismatch=e.name==="AWS_ACCOUNT_MISMATCH";}check(mismatch);
  check(EXECUTION_ROLE_ARN==="arn:aws:iam::935838375949:role/DesignStudioLearnerCloudFormationRole");
  check(bootstrap.Rules.CorrectAccount.Assertions[0].Assert["Fn::Equals"][1]===ACCOUNT);
  check(bootstrap.Resources.AppUser.Properties.UserName==="design-studio-learner-pilot");
