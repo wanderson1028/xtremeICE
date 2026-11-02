@@ -22,11 +22,12 @@ export default function LearnerWorkspace(){
  useEffect(()=>{if(!run||run.status!=="terminated")return;let cancelled=false;learnerCall("verifyRemoval",{run_id:run.id}).then(d=>{if(!cancelled){setNotice(d.verified?"Environment released. AWS removal verified.":"Cleanup needs attention: "+d.remaining.join(", "));load().catch(()=>{});}}).catch(e=>{if(!cancelled)setError(learnerError(e));});return()=>{cancelled=true;};},[run?.id,run?.status]);
  useEffect(()=>{if(!operation)return;let cancelled=false,timer;
   const poll=async()=>{try{const d=await learnerCall("pollOperation",{run_id:operation.run_id,operation_id:operation.id});if(cancelled)return;
-   if(d.status==="pending"){timer=setTimeout(poll,2000);return;}setOperation(null);
-   if(d.status!=="completed"){setError("Guest action "+d.status+(d.error_code?": "+d.error_code:""));return;}
+   if(d.status==="pending"){timer=setTimeout(poll,2000);return;}
+   if(d.status!=="completed"){setOperation(null);setError("Guest action "+d.status+(d.error_code?": "+d.error_code:""));return;}
    if(operation.kind==="read"){setContent(d.result.content);setMode(d.result.mode);setLoaded(true);setNotice("Loaded the file from your guest.");}
    if(operation.kind==="write"){setLoaded(false);setNotice("File saved in your guest. Load it again to check persistence, then validate.");}
    if(operation.kind==="validate"){const h=await learnerCall("validationHistory",{run_id:operation.run_id});if(cancelled)return;setHistory(h.checks||[]);setNotice(d.result.passed?"Validation passed: permissions are 600.":"Validation failed: observed "+d.result.mode+"; required 600.");await load();}
+   if(!cancelled)setOperation(null);
   }catch(e){if(!cancelled){setOperation(null);setError(learnerError(e));}}};poll();return()=>{cancelled=true;clearTimeout(timer);};
  },[operation]);
  const perform=async(fn)=>{setBusy(true);setError("");setNotice("");try{await fn();}catch(e){setError(learnerError(e));}finally{setBusy(false);}};
