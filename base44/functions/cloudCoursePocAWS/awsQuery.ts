@@ -87,6 +87,7 @@ export class DeleteVpcCommand extends QueryCommand { constructor(input: any) { s
 export class DescribeVpcsCommand extends QueryCommand { constructor(input: any) { super("DescribeVpcs", input); } }
 export class DescribeSubnetsCommand extends QueryCommand { constructor(input: any) { super("DescribeSubnets", input); } }
 export class DescribeSecurityGroupsCommand extends QueryCommand { constructor(input: any) { super("DescribeSecurityGroups", input); } }
+export class DescribeVolumesCommand extends QueryCommand { constructor(input: any) { super("DescribeVolumes", input); } }
 export class GetCallerIdentityCommand extends QueryCommand { constructor(input: any) { super("GetCallerIdentity", input); } }
 
 export class EC2Client {
@@ -107,6 +108,7 @@ export class EC2Client {
       case "DescribeVpcs": return { Vpcs: arrays(root.vpcSet?.item).map((item) => ({ Tags: tags(item) })) };
       case "DescribeSubnets": return { Subnets: arrays(root.subnetSet?.item).map((item) => ({ Tags: tags(item) })) };
       case "DescribeSecurityGroups": return { SecurityGroups: arrays(root.securityGroupInfo?.item).map((item) => ({ Tags: tags(item) })) };
+      case "DescribeVolumes": return { Volumes: arrays(root.volumeSet?.item).map((item) => ({ VolumeId: item.volumeId, State: item.status, Tags: tags(item) })), NextToken: root.nextToken || null };
       default: return {};
     }
   }
