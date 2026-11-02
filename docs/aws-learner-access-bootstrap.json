@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "IAM-only setup for the Design Studio learner pilot in account 699121763776. Creates no EC2 or network resources.",
+  "Description": "IAM-only setup for the Design Studio learner pilot in user-owned account 935838375949. Creates a dedicated API-only app user, roles and profile; no EC2 or network resources.",
   "Rules": {
     "CorrectAccount": {
       "Assertions": [
@@ -10,10 +10,10 @@
               {
                 "Ref": "AWS::AccountId"
               },
-              "699121763776"
+              "935838375949"
             ]
           },
-          "AssertDescription": "Deploy only in AWS account 699121763776."
+          "AssertDescription": "Deploy only in AWS account 935838375949."
         }
       ]
     }
@@ -108,7 +108,7 @@
                   "Action": [
                     "ec2:CreateVpc"
                   ],
-                  "Resource": "arn:aws:ec2:us-east-1:699121763776:vpc/*",
+                  "Resource": "arn:aws:ec2:us-east-1:935838375949:vpc/*",
                   "Condition": {
                     "StringEquals": {
                       "aws:RequestedRegion": "us-east-1",
@@ -122,7 +122,7 @@
                   "Action": [
                     "ec2:CreateSubnet"
                   ],
-                  "Resource": "arn:aws:ec2:us-east-1:699121763776:subnet/*",
+                  "Resource": "arn:aws:ec2:us-east-1:935838375949:subnet/*",
                   "Condition": {
                     "StringEquals": {
                       "aws:RequestedRegion": "us-east-1",
@@ -136,7 +136,7 @@
                   "Action": [
                     "ec2:CreateSecurityGroup"
                   ],
-                  "Resource": "arn:aws:ec2:us-east-1:699121763776:security-group/*",
+                  "Resource": "arn:aws:ec2:us-east-1:935838375949:security-group/*",
                   "Condition": {
                     "StringEquals": {
                       "aws:RequestedRegion": "us-east-1",
@@ -150,7 +150,7 @@
                   "Action": [
                     "ec2:CreateVpcEndpoint"
                   ],
-                  "Resource": "arn:aws:ec2:us-east-1:699121763776:vpc-endpoint/*",
+                  "Resource": "arn:aws:ec2:us-east-1:935838375949:vpc-endpoint/*",
                   "Condition": {
                     "StringEquals": {
                       "aws:RequestedRegion": "us-east-1",
@@ -168,9 +168,9 @@
                     "ec2:RunInstances"
                   ],
                   "Resource": [
-                    "arn:aws:ec2:us-east-1:699121763776:vpc/*",
-                    "arn:aws:ec2:us-east-1:699121763776:subnet/*",
-                    "arn:aws:ec2:us-east-1:699121763776:security-group/*"
+                    "arn:aws:ec2:us-east-1:935838375949:vpc/*",
+                    "arn:aws:ec2:us-east-1:935838375949:subnet/*",
+                    "arn:aws:ec2:us-east-1:935838375949:security-group/*"
                   ],
                   "Condition": {
                     "StringEquals": {
@@ -186,8 +186,8 @@
                     "ec2:RunInstances"
                   ],
                   "Resource": [
-                    "arn:aws:ec2:us-east-1:699121763776:instance/*",
-                    "arn:aws:ec2:us-east-1:699121763776:volume/*"
+                    "arn:aws:ec2:us-east-1:935838375949:instance/*",
+                    "arn:aws:ec2:us-east-1:935838375949:volume/*"
                   ],
                   "Condition": {
                     "StringEquals": {
@@ -221,7 +221,7 @@
                   "Action": [
                     "ec2:RunInstances"
                   ],
-                  "Resource": "arn:aws:ec2:us-east-1:699121763776:network-interface/*",
+                  "Resource": "arn:aws:ec2:us-east-1:935838375949:network-interface/*",
                   "Condition": {
                     "StringEquals": {
                       "aws:RequestedRegion": "us-east-1"
@@ -237,7 +237,7 @@
                   "Action": [
                     "ec2:CreateTags"
                   ],
-                  "Resource": "arn:aws:ec2:us-east-1:699121763776:*/*",
+                  "Resource": "arn:aws:ec2:us-east-1:935838375949:*/*",
                   "Condition": {
                     "StringEquals": {
                       "aws:RequestedRegion": "us-east-1",
@@ -273,7 +273,7 @@
                     "ec2:CreateTags",
                     "ec2:DeleteTags"
                   ],
-                  "Resource": "arn:aws:ec2:us-east-1:699121763776:*/*",
+                  "Resource": "arn:aws:ec2:us-east-1:935838375949:*/*",
                   "Condition": {
                     "StringEquals": {
                       "aws:RequestedRegion": "us-east-1",
@@ -287,7 +287,7 @@
                   "Action": [
                     "iam:GetInstanceProfile"
                   ],
-                  "Resource": "arn:aws:iam::699121763776:instance-profile/DesignStudioLearnerGuestProfile"
+                  "Resource": "arn:aws:iam::935838375949:instance-profile/DesignStudioLearnerGuestProfile"
                 },
                 {
                   "Sid": "PassOnlyGuestRoleToEC2",
@@ -295,7 +295,7 @@
                   "Action": [
                     "iam:PassRole"
                   ],
-                  "Resource": "arn:aws:iam::699121763776:role/DesignStudioLearnerGuestRole",
+                  "Resource": "arn:aws:iam::935838375949:role/DesignStudioLearnerGuestRole",
                   "Condition": {
                     "StringEquals": {
                       "iam:PassedToService": "ec2.amazonaws.com"
@@ -313,7 +313,9 @@
       "Properties": {
         "PolicyName": "DesignStudioLearnerPilot",
         "Users": [
-          "base-64-user1"
+          {
+            "Ref": "AppUser"
+          }
         ],
         "PolicyDocument": {
           "Version": "2012-10-17",
@@ -337,7 +339,7 @@
               "Action": [
                 "cloudformation:DescribeStacks"
               ],
-              "Resource": "arn:aws:cloudformation:us-east-1:699121763776:stack/ExtremeICE-DesignStudio-Learner-Pilot/*",
+              "Resource": "arn:aws:cloudformation:us-east-1:935838375949:stack/ExtremeICE-DesignStudio-Learner-Pilot/*",
               "Condition": {
                 "StringEquals": {
                   "aws:RequestedRegion": "us-east-1"
@@ -351,11 +353,11 @@
                 "cloudformation:CreateStack",
                 "cloudformation:DeleteStack"
               ],
-              "Resource": "arn:aws:cloudformation:us-east-1:699121763776:stack/ExtremeICE-DesignStudio-Learner-Pilot/*",
+              "Resource": "arn:aws:cloudformation:us-east-1:935838375949:stack/ExtremeICE-DesignStudio-Learner-Pilot/*",
               "Condition": {
                 "StringEquals": {
                   "aws:RequestedRegion": "us-east-1",
-                  "cloudformation:RoleArn": "arn:aws:iam::699121763776:role/DesignStudioLearnerCloudFormationRole"
+                  "cloudformation:RoleArn": "arn:aws:iam::935838375949:role/DesignStudioLearnerCloudFormationRole"
                 }
               }
             },
@@ -365,7 +367,7 @@
               "Action": [
                 "iam:PassRole"
               ],
-              "Resource": "arn:aws:iam::699121763776:role/DesignStudioLearnerCloudFormationRole",
+              "Resource": "arn:aws:iam::935838375949:role/DesignStudioLearnerCloudFormationRole",
               "Condition": {
                 "StringEquals": {
                   "iam:PassedToService": "cloudformation.amazonaws.com"
@@ -422,7 +424,7 @@
               "Action": [
                 "ssm:SendCommand"
               ],
-              "Resource": "arn:aws:ec2:us-east-1:699121763776:instance/*",
+              "Resource": "arn:aws:ec2:us-east-1:935838375949:instance/*",
               "Condition": {
                 "StringEquals": {
                   "aws:RequestedRegion": "us-east-1",
@@ -432,6 +434,18 @@
             }
           ]
         }
+      }
+    },
+    "AppUser": {
+      "Type": "AWS::IAM::User",
+      "Properties": {
+        "UserName": "design-studio-learner-pilot",
+        "Tags": [
+          {
+            "Key": "ManagedBy",
+            "Value": "ExtremeICE-DesignStudio-Learner-Setup"
+          }
+        ]
       }
     }
   },
@@ -450,7 +464,9 @@
       }
     },
     "AppUser": {
-      "Value": "base-64-user1"
+      "Value": {
+        "Ref": "AppUser"
+      }
     }
   }
 }
