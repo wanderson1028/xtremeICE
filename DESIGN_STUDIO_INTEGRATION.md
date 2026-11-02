@@ -1,6 +1,6 @@
 # Design Studio integration into Extreme ICE
 
-Status: experimental branch `design-studio-integration` (2026-10-23). Do not merge to main until the gates below are met. Extreme ICE main remains the live demo. Capital Intelligence is outside this work.
+Status: experimental branch `design-studio-integration` (updated 2026-11-01). AWS is now the first provider proof target. Do not merge to main until the gates below are met. Extreme ICE main remains the live demo. Capital Intelligence is outside this work.
 
 ## Ownership and boundaries
 
@@ -22,6 +22,14 @@ Status: experimental branch `design-studio-integration` (2026-10-23). Do not mer
 - Extended `LabTemplate` with runtime-relevant optional fields and structured task/criterion fields; extended `LabInstance` with optional frozen snapshot and provider handles. Added the admin-only `RuntimeValidationAttempt` schema, but no execution function or attempts. Existing required fields and Extreme ICE RLS were preserved. No records were migrated.
 - Ported the advanced lab-task editor. It can author criteria, a path-existence or allowlisted file-mode validation definition, hints, and adaptive task flow. The editor explicitly says this does not execute a Kasm check in Extreme ICE.
 - Normalize legacy task rows when opened and before saving; reject cyclic/invalid task dependencies at save time. No existing template was saved by this integration work.
+
+## AWS course-lab proof path (code staged; no AWS launch verified)
+
+- New admin-only `CloudCoursePoc` page and `cloudCoursePocAWS` backend provide a narrow path: prepare a draft `LabTemplate`, check template compatibility and AWS identity/AMI, launch one isolated Amazon Linux 2023 `t3.micro`, observe its console boot marker, and request/verify cleanup. `CloudPocRun` records the branch pilot and links a frozen `LabInstance`; no Live Fire record is repurposed.
+- The intended AWS scope is `us-east-1`, one new `10.253.0.0/24` VPC and `/28` subnet, one security group with default egress revoked and no ingress, one encrypted 8 GiB root disk, no IGW/NAT/public IP/SSH key, and no IAM role. The guest requests shutdown after 105 minutes with instance-initiated shutdown set to terminate. The user set a $10 / two-hour maximum; the code limits resource shape and duration but does not enforce an AWS billing ceiling. Manually inspect and clean up immediately after proof.
+- This first proof targets cloud boot and provider state, not learner browser access or task validation. Readiness requires AWS state plus a run-specific console marker. The page's launch action is disabled until a read-only preflight passes and requires a confirmation dialog; the backend enforces admin role and an explicit launch acknowledgment.
+- `deno check --node-modules-dir=auto`, focused frontend ESLint, and `npm run build` passed. AWS secret **names** are present in the app; no values were read. The AWS preflight, entity sync, live launch, guest marker, resource cleanup, and final cost have **not** been verified. The branch preview browser was blocked by a browser security policy, so UI interaction was not completed from this session.
+- Before launch, verify the branch-only entity/function sync and read-only AWS preflight from the app page. Then launch one run, observe its EC2 state and console marker, terminate it promptly, repeat cleanup until the run is `terminated`, and confirm the tagged instance, security group, subnet, and VPC are gone. If any step fails, preserve its run ID and resource IDs for reconciliation. Do not use the old Live Fire deploy path for this proof: its network creator opens several inbound ports to the internet.
 
 ## Gates before learner execution
 
