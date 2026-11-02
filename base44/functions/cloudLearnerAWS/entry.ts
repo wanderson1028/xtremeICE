@@ -137,7 +137,8 @@ Deno.serve(async(req)=>{
    try{command=await aws("ssm","GetCommandInvocation",{CommandId:op.command_id,InstanceId:run.instance_id});}catch(e:any){if(e.name==="InvocationDoesNotExist")return reply({status:"pending"});throw e;}
    if(["Pending","InProgress","Delayed"].includes(command.Status))return reply({status:"pending"});
    if(command.Status!=="Success"||command.ResponseCode!==0){await b.asServiceRole.entities.CloudGuestOperation.update(op.id,{status:"failed",error_code:"GUEST_COMMAND_FAILED"});return reply({status:"failed",error_code:"GUEST_COMMAND_FAILED"});}
-   const result=parseOutput(op.kind,op.binding,command.StandardOutputContent||"");
+   let result;
+   try{result=parseOutput(op.kind,op.binding,command.StandardOutputContent||"");}catch{await b.asServiceRole.entities.CloudGuestOperation.update(op.id,{status:"failed",error_code:"INVALID_GUEST_OUTPUT"});return reply({status:"failed",error_code:"INVALID_GUEST_OUTPUT"});}
    if(op.kind==="validate"){
      const existing=await b.asServiceRole.entities.RuntimeValidationAttempt.filter({instance_id:run.lab_instance_id||run.id,task_id:TASK.task_id,check_id:TASK.check_id});
      if(!existing.some((a:any)=>a.evidence?.operation_id===op.id))await b.asServiceRole.entities.RuntimeValidationAttempt.create({instance_id:run.lab_instance_id||run.id,user_email:user.email,task_id:TASK.task_id,check_id:TASK.check_id,validator_type:"command_result",status:"completed",token_hash:await hash(op.binding),expires_at:op.expires_at,passed:(result as any).passed,observed:(result as any).mode,message:"SSM observed the guest file mode independently.",evidence:{run_id:run.id,operation_id:op.id,command_id:op.command_id,path:run.contract.path,expected_mode:run.contract.expected_mode,source:"aws_ssm_guided_task"}});
