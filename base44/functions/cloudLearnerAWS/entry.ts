@@ -97,7 +97,7 @@ Deno.serve(async(req)=>{
    const expires=new Date(Date.now()+110*60000).toISOString();
    const run=await b.asServiceRole.entities.CloudLearnerRun.create({owner_user_id:user.id,owner_email:user.email,status:"preparing",region:REGION,stack_name:STACK_NAME,contract:{...TASK,title:source.snapshot.lab_content.tasks[0].title,account_id:ACCOUNT,template_snapshot:source.snapshot},template_id:source.template.id,started_at:now(),expires_at:expires});
    try{
-     const lab=await b.asServiceRole.entities.LabInstance.create({template_id:source.template.id,user_email:user.email,status:"provisioning",provider:"aws",template_snapshot:source.snapshot,started_at:now(),expires_at:expires,provider_status_message:"Creating private SSM learner stack."});
+     const lab=await b.asServiceRole.entities.LabInstance.create({template_id:source.template.id,user_email:user.email,status:"provisioning",provider:"aws",template_snapshot:source.snapshot,template_version:source.template.version||"",started_at:now(),expires_at:expires,provider_status_message:"Creating private SSM learner stack."});
      await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{lab_instance_id:lab.id});
      const result=await aws("cloudformation","CreateStack",{StackName:STACK_NAME,TemplateBody:JSON.stringify(stackTemplate(input.ami_id,input.zone,run.id)),RoleARN:EXECUTION_ROLE_ARN,OnFailure:"DELETE",TimeoutInMinutes:15,ClientRequestToken:run.id,Tags:[{Key:"ManagedBy",Value:MANAGED_BY},{Key:"LearnerRunId",Value:run.id}]});
      await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{stack_id:result.StackId,status:"provisioning"});
@@ -109,6 +109,11 @@ Deno.serve(async(req)=>{
  if(!run)return reply({error:"Run not found"},404);
  if(!owns(run,user)&&user.role!=="admin")return reply({error:"Run access denied"},403);
  if(run.contract?.account_id!==ACCOUNT)fail("RUN_ACCOUNT_BINDING_MISMATCH");
+ if(action==="validationHistory"){
+   if(!run.lab_instance_id)return reply({checks:[]});
+   const attempts=await b.asServiceRole.entities.RuntimeValidationAttempt.filter({instance_id:run.lab_instance_id,task_id:TASK.task_id,check_id:TASK.check_id},"-created_date",20);
+   return reply({checks:attempts.filter((a:any)=>a.evidence?.run_id===run.id).map((a:any)=>({id:a.id,status:a.status,passed:a.passed,observed:a.observed}))});
+ }
  await assertAccount();
  if(action==="refresh"){run=await refresh(b,run);return reply({run:publicRun(run)});}
  if(action==="cleanup"){
@@ -159,7 +164,7 @@ Deno.serve(async(req)=>{
    try{result=parseOutput(op.kind,op.binding,command.StandardOutputContent||"");}catch{await b.asServiceRole.entities.CloudGuestOperation.update(op.id,{status:"failed",error_code:"INVALID_GUEST_OUTPUT"});return reply({status:"failed",error_code:"INVALID_GUEST_OUTPUT"});}
    if(op.kind==="validate"){
      const existing=await b.asServiceRole.entities.RuntimeValidationAttempt.filter({instance_id:run.lab_instance_id||run.id,task_id:TASK.task_id,check_id:TASK.check_id});
-     if(!existing.some((a:any)=>a.evidence?.operation_id===op.id))await b.asServiceRole.entities.RuntimeValidationAttempt.create({instance_id:run.lab_instance_id||run.id,user_email:user.email,task_id:TASK.task_id,check_id:TASK.check_id,validator_type:"command_result",status:"completed",token_hash:await hash(op.binding),expires_at:op.expires_at,passed:(result as any).passed,observed:(result as any).mode,message:"SSM observed the guest file mode independently.",evidence:{run_id:run.id,operation_id:op.id,command_id:op.command_id,path:run.contract.path,expected_mode:run.contract.expected_mode,source:"aws_ssm_guided_task"}});
+     if(!existing.some((a:any)=>a.evidence?.operation_id===op.id))await b.asServiceRole.entities.RuntimeValidationAttempt.create({instance_id:run.lab_instance_id||run.id,user_email:user.email,task_id:TASK.task_id,check_id:TASK.check_id,validator_type:"command_result",status:"completed",token_hash:await hash(op.binding),expires_at:op.expires_at,passed:(result as any).passed,observed:(result as any).mode,message:"SSM observed the guest file mode independently.",evidence:{run_id:run.id,operation_id:op.id,command_id:op.command_id,path:run.contract.path,template_id:run.template_id,expected_mode:run.contract.expected_mode,source:"aws_ssm_guided_task"}});
    }
    await b.asServiceRole.entities.CloudGuestOperation.update(op.id,{status:"completed",result});
    return reply({status:"completed",result});
