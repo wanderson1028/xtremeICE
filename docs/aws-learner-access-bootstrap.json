@@ -1,0 +1,456 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "IAM-only setup for the Design Studio learner pilot in account 699121763776. Creates no EC2 or network resources.",
+  "Rules": {
+    "CorrectAccount": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Equals": [
+              {
+                "Ref": "AWS::AccountId"
+              },
+              "699121763776"
+            ]
+          },
+          "AssertDescription": "Deploy only in AWS account 699121763776."
+        }
+      ]
+    }
+  },
+  "Resources": {
+    "GuestRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "DesignStudioLearnerGuestRole",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ec2.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+        ]
+      }
+    },
+    "GuestProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "InstanceProfileName": "DesignStudioLearnerGuestProfile",
+        "Roles": [
+          {
+            "Ref": "GuestRole"
+          }
+        ]
+      }
+    },
+    "ExecutionRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "DesignStudioLearnerCloudFormationRole",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudformation.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "DesignStudioLearnerEC2Lifecycle",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "ReadPilotResources",
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:DescribeImages",
+                    "ec2:DescribeInstances",
+                    "ec2:DescribeInstanceTypes",
+                    "ec2:DescribeInstanceTypeOfferings",
+                    "ec2:DescribeInstanceCreditSpecifications",
+                    "ec2:DescribeInstanceAttribute",
+                    "ec2:DescribeVolumes",
+                    "ec2:DescribeVpcs",
+                    "ec2:DescribeVpcAttribute",
+                    "ec2:DescribeSubnets",
+                    "ec2:DescribeSecurityGroups",
+                    "ec2:DescribeSecurityGroupRules",
+                    "ec2:DescribeVpcEndpoints",
+                    "ec2:DescribeVpcEndpointServices",
+                    "ec2:DescribeNetworkInterfaces",
+                    "ec2:DescribeTags",
+                    "ec2:DescribeAvailabilityZones"
+                  ],
+                  "Resource": "*",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1"
+                    }
+                  }
+                },
+                {
+                  "Sid": "CreateTaggedvpc",
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:CreateVpc"
+                  ],
+                  "Resource": "arn:aws:ec2:us-east-1:699121763776:vpc/*",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1",
+                      "aws:RequestTag/ManagedBy": "ExtremeICE-DesignStudio-Learner"
+                    }
+                  }
+                },
+                {
+                  "Sid": "CreateTaggedsubnet",
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:CreateSubnet"
+                  ],
+                  "Resource": "arn:aws:ec2:us-east-1:699121763776:subnet/*",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1",
+                      "aws:RequestTag/ManagedBy": "ExtremeICE-DesignStudio-Learner"
+                    }
+                  }
+                },
+                {
+                  "Sid": "CreateTaggedsecuritygroup",
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:CreateSecurityGroup"
+                  ],
+                  "Resource": "arn:aws:ec2:us-east-1:699121763776:security-group/*",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1",
+                      "aws:RequestTag/ManagedBy": "ExtremeICE-DesignStudio-Learner"
+                    }
+                  }
+                },
+                {
+                  "Sid": "CreateTaggedvpcendpoint",
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:CreateVpcEndpoint"
+                  ],
+                  "Resource": "arn:aws:ec2:us-east-1:699121763776:vpc-endpoint/*",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1",
+                      "aws:RequestTag/ManagedBy": "ExtremeICE-DesignStudio-Learner"
+                    }
+                  }
+                },
+                {
+                  "Sid": "ReferenceTaggedNetwork",
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:CreateSubnet",
+                    "ec2:CreateSecurityGroup",
+                    "ec2:CreateVpcEndpoint",
+                    "ec2:RunInstances"
+                  ],
+                  "Resource": [
+                    "arn:aws:ec2:us-east-1:699121763776:vpc/*",
+                    "arn:aws:ec2:us-east-1:699121763776:subnet/*",
+                    "arn:aws:ec2:us-east-1:699121763776:security-group/*"
+                  ],
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1",
+                      "ec2:ResourceTag/ManagedBy": "ExtremeICE-DesignStudio-Learner"
+                    }
+                  }
+                },
+                {
+                  "Sid": "LaunchTaggedMicroAndDisk",
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:RunInstances"
+                  ],
+                  "Resource": [
+                    "arn:aws:ec2:us-east-1:699121763776:instance/*",
+                    "arn:aws:ec2:us-east-1:699121763776:volume/*"
+                  ],
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1",
+                      "aws:RequestTag/ManagedBy": "ExtremeICE-DesignStudio-Learner"
+                    },
+                    "StringEqualsIfExists": {
+                      "ec2:InstanceType": "t3.micro"
+                    },
+                    "BoolIfExists": {
+                      "ec2:Encrypted": "true"
+                    }
+                  }
+                },
+                {
+                  "Sid": "UseImage",
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:RunInstances"
+                  ],
+                  "Resource": "arn:aws:ec2:us-east-1::image/ami-*",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1"
+                    }
+                  }
+                },
+                {
+                  "Sid": "CreatePrivateGuestInterface",
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:RunInstances"
+                  ],
+                  "Resource": "arn:aws:ec2:us-east-1:699121763776:network-interface/*",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1"
+                    },
+                    "BoolIfExists": {
+                      "ec2:AssociatePublicIpAddress": "false"
+                    }
+                  }
+                },
+                {
+                  "Sid": "TagAtCreation",
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:CreateTags"
+                  ],
+                  "Resource": "arn:aws:ec2:us-east-1:699121763776:*/*",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1",
+                      "ec2:CreateAction": [
+                        "CreateVpc",
+                        "CreateSubnet",
+                        "CreateSecurityGroup",
+                        "CreateVpcEndpoint",
+                        "RunInstances"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "Sid": "ManageOnlyTaggedPilotResources",
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:ModifyVpcAttribute",
+                    "ec2:ModifySubnetAttribute",
+                    "ec2:ModifySecurityGroupRules",
+                    "ec2:AuthorizeSecurityGroupIngress",
+                    "ec2:RevokeSecurityGroupIngress",
+                    "ec2:AuthorizeSecurityGroupEgress",
+                    "ec2:RevokeSecurityGroupEgress",
+                    "ec2:DeleteSecurityGroup",
+                    "ec2:DeleteSubnet",
+                    "ec2:DeleteVpc",
+                    "ec2:ModifyVpcEndpoint",
+                    "ec2:DeleteVpcEndpoints",
+                    "ec2:TerminateInstances",
+                    "ec2:DeleteVolume",
+                    "ec2:ModifyInstanceAttribute",
+                    "ec2:CreateTags",
+                    "ec2:DeleteTags"
+                  ],
+                  "Resource": "arn:aws:ec2:us-east-1:699121763776:*/*",
+                  "Condition": {
+                    "StringEquals": {
+                      "aws:RequestedRegion": "us-east-1",
+                      "ec2:ResourceTag/ManagedBy": "ExtremeICE-DesignStudio-Learner"
+                    }
+                  }
+                },
+                {
+                  "Sid": "ReadOnlyGuestProfile",
+                  "Effect": "Allow",
+                  "Action": [
+                    "iam:GetInstanceProfile"
+                  ],
+                  "Resource": "arn:aws:iam::699121763776:instance-profile/DesignStudioLearnerGuestProfile"
+                },
+                {
+                  "Sid": "PassOnlyGuestRoleToEC2",
+                  "Effect": "Allow",
+                  "Action": [
+                    "iam:PassRole"
+                  ],
+                  "Resource": "arn:aws:iam::699121763776:role/DesignStudioLearnerGuestRole",
+                  "Condition": {
+                    "StringEquals": {
+                      "iam:PassedToService": "ec2.amazonaws.com"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "AppUserAccess": {
+      "Type": "AWS::IAM::Policy",
+      "Properties": {
+        "PolicyName": "DesignStudioLearnerPilot",
+        "Users": [
+          "base-64-user1"
+        ],
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "ValidateLearnerTemplate",
+              "Effect": "Allow",
+              "Action": [
+                "cloudformation:ValidateTemplate"
+              ],
+              "Resource": "*",
+              "Condition": {
+                "StringEquals": {
+                  "aws:RequestedRegion": "us-east-1"
+                }
+              }
+            },
+            {
+              "Sid": "ReadOnlyLearnerStack",
+              "Effect": "Allow",
+              "Action": [
+                "cloudformation:DescribeStacks"
+              ],
+              "Resource": "arn:aws:cloudformation:us-east-1:699121763776:stack/ExtremeICE-DesignStudio-Learner-Pilot/*",
+              "Condition": {
+                "StringEquals": {
+                  "aws:RequestedRegion": "us-east-1"
+                }
+              }
+            },
+            {
+              "Sid": "OperateOnlyLearnerStack",
+              "Effect": "Allow",
+              "Action": [
+                "cloudformation:CreateStack",
+                "cloudformation:DeleteStack"
+              ],
+              "Resource": "arn:aws:cloudformation:us-east-1:699121763776:stack/ExtremeICE-DesignStudio-Learner-Pilot/*",
+              "Condition": {
+                "StringEquals": {
+                  "aws:RequestedRegion": "us-east-1",
+                  "cloudformation:RoleArn": "arn:aws:iam::699121763776:role/DesignStudioLearnerCloudFormationRole"
+                }
+              }
+            },
+            {
+              "Sid": "PassOnlyLearnerExecutionRole",
+              "Effect": "Allow",
+              "Action": [
+                "iam:PassRole"
+              ],
+              "Resource": "arn:aws:iam::699121763776:role/DesignStudioLearnerCloudFormationRole",
+              "Condition": {
+                "StringEquals": {
+                  "iam:PassedToService": "cloudformation.amazonaws.com"
+                }
+              }
+            },
+            {
+              "Sid": "ReadLearnerAWSStatus",
+              "Effect": "Allow",
+              "Action": [
+                "ec2:DescribeImages",
+                "ec2:DescribeInstances",
+                "ec2:DescribeInstanceTypes",
+                "ec2:DescribeInstanceTypeOfferings",
+                "ec2:DescribeInstanceCreditSpecifications",
+                "ec2:DescribeInstanceAttribute",
+                "ec2:DescribeVolumes",
+                "ec2:DescribeVpcs",
+                "ec2:DescribeVpcAttribute",
+                "ec2:DescribeSubnets",
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeSecurityGroupRules",
+                "ec2:DescribeVpcEndpoints",
+                "ec2:DescribeVpcEndpointServices",
+                "ec2:DescribeNetworkInterfaces",
+                "ec2:DescribeTags",
+                "ec2:DescribeAvailabilityZones",
+                "ssm:DescribeInstanceInformation",
+                "ssm:GetCommandInvocation"
+              ],
+              "Resource": "*",
+              "Condition": {
+                "StringEquals": {
+                  "aws:RequestedRegion": "us-east-1"
+                }
+              }
+            },
+            {
+              "Sid": "ApprovedSSMDocument",
+              "Effect": "Allow",
+              "Action": [
+                "ssm:SendCommand"
+              ],
+              "Resource": "arn:aws:ssm:us-east-1::document/AWS-RunShellScript",
+              "Condition": {
+                "StringEquals": {
+                  "aws:RequestedRegion": "us-east-1"
+                }
+              }
+            },
+            {
+              "Sid": "CommandsOnlyOnLearnerGuests",
+              "Effect": "Allow",
+              "Action": [
+                "ssm:SendCommand"
+              ],
+              "Resource": "arn:aws:ec2:us-east-1:699121763776:instance/*",
+              "Condition": {
+                "StringEquals": {
+                  "aws:RequestedRegion": "us-east-1",
+                  "ssm:resourceTag/ManagedBy": "ExtremeICE-DesignStudio-Learner"
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "ExecutionRoleArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "ExecutionRole",
+          "Arn"
+        ]
+      }
+    },
+    "GuestProfileName": {
+      "Value": {
+        "Ref": "GuestProfile"
+      }
+    },
+    "AppUser": {
+      "Value": "base-64-user1"
+    }
+  }
+}
