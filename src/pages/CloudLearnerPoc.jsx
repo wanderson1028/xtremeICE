@@ -8,6 +8,7 @@ export default function CloudLearnerPoc(){
  const [user,setUser]=useState(null),[runs,setRuns]=useState([]),[schema,setSchema]=useState(false),[plan,setPlan]=useState(null);
  const [templates,setTemplates]=useState([]),[templateId,setTemplateId]=useState(new URLSearchParams(window.location.search).get("template_id")||"");
  const [selected,setSelected]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
+ const [history,setHistory]=useState([]),[historyTick,setHistoryTick]=useState(0);
  const [content,setContent]=useState(""),[mode,setMode]=useState("644"),[loaded,setLoaded]=useState(false),[operation,setOperation]=useState(null),[validation,setValidation]=useState(null);
  const run=runs.find(r=>r.id===selected),locked=busy||!!operation;
  const load=async()=>{const data=await call("list");setRuns(data.runs||[]);setSchema(data.schema_ready);return data.runs||[];};
@@ -23,12 +24,30 @@ export default function CloudLearnerPoc(){
    if(data.status!=="completed"){setError("Guest task action "+data.status+(data.error_code?": "+data.error_code:""));return;}
    if(operation.kind==="read"){setContent(data.result.content);setMode(data.result.mode==="600"?"600":"644");setLoaded(true);setNotice("Loaded file contents and permissions from the AWS guest.");}
    if(operation.kind==="write"){setNotice("The AWS guest saved the file. Run validation to check its permissions.");setValidation(null);}
-   if(operation.kind==="validate"){setValidation(data.result);setNotice("Independent guest validation completed.");}
+   if(operation.kind==="validate"){setValidation(data.result);setHistoryTick(n=>n+1);setNotice("Independent guest validation completed.");}
   }catch(e){if(!cancelled){setOperation(null);setError(message(e));}}};
   poll();return()=>{cancelled=true;clearTimeout(timer);};
  },[operation]);
+ useEffect(()=>{
+  if(!selected)return;
+  let cancelled=false;call("validationHistory",{run_id:selected}).then(data=>{if(!cancelled)setHistory(data.checks||[]);}).catch(()=>{if(!cancelled)setHistory([]);});
+  return()=>{cancelled=true;};
+ },[selected,historyTick]);
+ useEffect(()=>{
+  if(!run||!["preparing","provisioning","cleanup_pending"].includes(run.status))return;
+  let cancelled=false,timer,tries=0;const id=run.id;
+  const poll=async()=>{try{
+    const data=await call("refresh",{run_id:id});if(cancelled)return;
+    setRuns(previous=>previous.map(r=>r.id===id?data.run:r));
+    if(data.run.status==="terminated"){const removal=await call("verifyRemoval",{run_id:id});if(!cancelled)setNotice(removal.verified?"Cleanup verified: AWS reports no learner stack resources remain.":"Cleanup needs attention: "+removal.remaining.join(", "));return;}
+    if(data.run.status==="ready"){setNotice("Your AWS guest is ready. Start with an initial validation, then load and edit its file.");return;}
+    if(data.run.status==="failed"){setError("AWS stack needs inspection or cleanup. Check its status before another launch.");return;}
+    if(++tries<90)timer=setTimeout(poll,5000);else setNotice("AWS is still working. Use Refresh guest status to check again.");
+  }catch(e){if(!cancelled)setError(message(e));}};
+  timer=setTimeout(poll,2000);return()=>{cancelled=true;clearTimeout(timer);};
+ },[run?.id,run?.status]);
  const perform=async(fn)=>{setBusy(true);setError("");setNotice("");try{await fn();}catch(e){setError(message(e));}finally{setBusy(false);}};
- const choose=id=>{setSelected(id);setLoaded(false);setContent("");setMode("644");setValidation(null);setNotice("");setError("");};
+ const choose=id=>{setSelected(id);setLoaded(false);setContent("");setMode("644");setValidation(null);setHistory([]);setNotice("");setError("");};
  const refresh=()=>perform(async()=>{await call("refresh",{run_id:run.id});await load();});
  const provision=()=>{if(!plan?.eligible||plan.template_id!==templateId)return;if(!window.confirm("Launch one private t3.micro with an encrypted 8 GiB disk, two private SSM endpoints, and the preconfigured SSM instance profile? No public IP or internet gateway. Private endpoints stay billable until stack deletion. Clean up within the $10/two-hour pilot limit; the guest requests termination after 105 minutes."))return;
  perform(async()=>{const data=await call("provision",{ack:"LAUNCH_PRIVATE_SSM_LEARNER_PILOT",template_id:templateId,template_hash:plan.template_hash,ami_id:plan.ami_id,zone:plan.zone});await load();choose(data.run_id);setNotice("Private learner stack requested. Refresh its status until ready.");});};
@@ -73,6 +92,7 @@ export default function CloudLearnerPoc(){
    <label className="block">File permissions <select className="bg-gray-900 p-2 border border-gray-600" disabled={locked||!loaded||run.status!=="ready"} value={mode} onChange={e=>setMode(e.target.value)}><option value="644">644 — owner writes; others can read</option><option value="600">600 — owner reads and writes</option></select></label>
    <div className="flex gap-3"><button className={button} disabled={locked||!loaded||run.status!=="ready"} onClick={()=>start("write")}>Save file to guest</button><button className={button} disabled={locked||run.status!=="ready"} onClick={()=>start("validate")}>Validate guest permissions</button></div>
    {operation&&<p role="status">Guest action in progress…</p>}
+   {history.length>0&&<div className="border border-gray-700 rounded p-3 space-y-1"><h3 className="font-semibold">Recorded validations · newest first</h3>{history.map(check=><p key={check.id} className={check.passed?"text-green-300":"text-amber-300"}>{check.passed?"Pass":"Fail"} · Observed mode: {check.observed} · Required: 600</p>)}</div>}
    {validation&&<p role="status" className={validation.passed?"text-green-300":"text-amber-300"}>Validation: {validation.passed?"Pass":"Fail"} · Guest mode: {validation.mode} · Required mode: 600</p>}
   </section>}
  </main></div>;
