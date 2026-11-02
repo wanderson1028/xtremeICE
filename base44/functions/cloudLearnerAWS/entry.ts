@@ -20,19 +20,25 @@ async function getStack(run:any){
  return s;
  }catch(e:any){if(e.name==="ValidationError"&&/does not exist/i.test(e.message))return null;throw e;}
 }
+async function markTerminated(b:any,run:any){
+ const terminated_at=run.terminated_at||now();
+ await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{status:"terminated",terminated_at});
+ if(run.lab_instance_id&&run.status!=="terminated")await b.asServiceRole.entities.LabInstance.update(run.lab_instance_id,{status:"terminated",completed_at:terminated_at,provider_status_message:"Learner stack deletion completed."});
+ return {...run,status:"terminated",terminated_at};
+}
 async function refresh(b:any,run:any){
  const stack=await getStack(run);
- if(!stack){if(run.status==="cleanup_pending"||run.stack_id){await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{status:"terminated",terminated_at:now()});run.status="terminated";}return run;}
+ if(!stack){if(run.status==="cleanup_pending"||run.stack_id)return await markTerminated(b,run);return run;}
  const state=stack.StackStatus,output=Object.fromEntries(list(stack.Outputs?.member).map(x=>[x.OutputKey,x.OutputValue]));
  const update:any={stack_id:stack.StackId,stack_status:state};
  if(state==="CREATE_COMPLETE"&&run.status!=="cleanup_pending"&&run.status!=="terminated"){
    update.instance_id=output.InstanceId;update.vpc_id=output.VpcId;
    const info=await aws("ssm","DescribeInstanceInformation",{Filters:[{Key:"InstanceIds",Values:[output.InstanceId]}],MaxResults:5});
    update.status=info.InstanceInformationList?.[0]?.PingStatus==="Online"?"ready":"provisioning";
- }else if(state==="DELETE_COMPLETE") {update.status="terminated";update.terminated_at=now();}
+ }else if(state==="DELETE_COMPLETE") {update.status="terminated";update.terminated_at=run.terminated_at||now();}
  else if(/FAILED|ROLLBACK/.test(state)&&state!=="DELETE_IN_PROGRESS")update.status="failed";
  await b.asServiceRole.entities.CloudLearnerRun.update(run.id,update);
- if(run.lab_instance_id && ["ready","terminated"].includes(update.status))await b.asServiceRole.entities.LabInstance.update(run.lab_instance_id,{status:update.status==="ready"?"running":"terminated",...(update.status==="terminated"?{completed_at:now()}:{}),provider_status_message:update.status==="ready"?"Private SSM guest is online.":"Learner stack deletion completed."});
+ if(run.lab_instance_id && update.status!==run.status && ["ready","terminated"].includes(update.status))await b.asServiceRole.entities.LabInstance.update(run.lab_instance_id,{status:update.status==="ready"?"running":"terminated",...(update.status==="terminated"?{completed_at:now()}:{}),provider_status_message:update.status==="ready"?"Private SSM guest is online.":"Learner stack deletion completed."});
  return {...run,...update};
 }
 function publicRun(run:any){
@@ -96,8 +102,8 @@ Deno.serve(async(req)=>{
  if(action==="cleanup"){
    if(input.ack!=="DELETE_LEARNER_STACK")return reply({error:"Cleanup acknowledgment required"},400);
    let stack;
-   try{stack=await getStack(run);}catch(e){if(!run.stack_id&&run.last_error_code==="AlreadyExistsException"){await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{status:"terminated",terminated_at:now()});return reply({status:"terminated"});}throw e;}
-   if(!stack||stack.StackStatus==="DELETE_COMPLETE"){await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{status:"terminated",terminated_at:now()});return reply({status:"terminated"});}
+   try{stack=await getStack(run);}catch(e){if(!run.stack_id&&run.last_error_code==="AlreadyExistsException"){await markTerminated(b,run);return reply({status:"terminated"});}throw e;}
+   if(!stack||stack.StackStatus==="DELETE_COMPLETE"){await markTerminated(b,run);return reply({status:"terminated"});}
    await aws("cloudformation","DeleteStack",{StackName:stack.StackId,ClientRequestToken:"cleanup-"+run.id});
    await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{status:"cleanup_pending"});return reply({status:"cleanup_pending"});
  }
