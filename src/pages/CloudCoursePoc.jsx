@@ -154,7 +154,7 @@ export default function CloudCoursePoc() {
               {observed?.validation && <div className="rounded border border-emerald-900 p-3 space-y-1">
                 <p>Validation self-test: {observed.validation.verified ? "Verified" : "Pending or unexpected result"}</p>
                 {observed.validation.checks.map(check => <p key={check.check}>{check.check}: {check.status} · Result: {check.passed === null ? "pending" : check.passed ? "pass" : "fail"} · Expected: {check.expected_pass ? "pass" : "fail"}</p>)}
-              </div>
+              </div>}
               {run.last_error_code && <p className="text-amber-300">Last AWS error: {run.last_error_code}</p>}
               <div className="flex gap-3">
                 <button type="button" disabled={!!busy} onClick={() => inspect(run.id)} className="rounded bg-sky-800 px-3 py-1.5 disabled:opacity-50">Inspect in AWS</button>
