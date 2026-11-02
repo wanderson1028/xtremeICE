@@ -63,7 +63,7 @@ export default function CloudCoursePoc() {
     setTemplates(rows || []);
     setTemplateId(data.template_id);
     setPreflight(null);
-    setNotice(data.created ? "A draft AWS proof template was prepared." : "Using the existing draft AWS proof template.");
+    setNotice(data.schema_ready === false ? "The draft exists, but its shared data schema needs the optional environment field before launch." : data.created ? "A draft AWS proof template was prepared." : "Using the existing draft AWS proof template.");
   });
   const check = () => runAction("preflight", async () => {
     const data = await invoke("preflight", { template_id: templateId });
@@ -127,6 +127,7 @@ export default function CloudCoursePoc() {
               <p>AWS account: <span className="font-mono">{preflight.aws?.account_id}</span> · Region: {preflight.aws?.region} · AMI: <span className="font-mono">{preflight.aws?.ami_id}</span></p>
               <p>Scope: {preflight.scope}</p>
               <p>Template: <strong className={preflight.assessment?.ready ? "text-green-300" : "text-amber-300"}>{preflight.assessment?.ready ? "Eligible" : "Needs changes"}</strong></p>
+              {preflight.schema_gate && <p className="text-amber-300">{preflight.schema_gate}</p>}
               {(preflight.assessment?.errors || []).map((item, index) => <p className="text-amber-300" key={index}>• {item}</p>)}
             </div>
           )}
