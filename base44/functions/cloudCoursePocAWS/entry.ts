@@ -295,6 +295,9 @@ Deno.serve(async (req) => {
       if (!assessment.ready) return reply({ error: "Template is not eligible", assessment }, 400);
       const existing = await base44.asServiceRole.entities.CloudPocRun.list("-created_date", 100);
       if (existing.some((run) => ACTIVE.includes(run.status))) return reply({ error: "A cloud proof is already active or needs cleanup." }, 409);
+      let learnerRuns: any[] = [];
+      try { learnerRuns = await base44.asServiceRole.entities.CloudLearnerRun.filter({ status: { $in: ["preparing", "provisioning", "ready", "failed", "cleanup_pending"] } }); } catch { /* Learner schema is optional until that pilot is enabled. */ }
+      if (learnerRuns.length) return reply({ error: "An AWS learner pilot is active or needs cleanup." }, 409);
       const amiId = await findAmi();
       const zone = await findZone();
       const started = new Date();
