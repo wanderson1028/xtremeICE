@@ -43,6 +43,7 @@ export function buildAiGuidedTemplate(narrative:any){
 export function isGuidedTemplate(value:any){return Array.isArray(value?.tags)&&value.tags.includes(PROFILE_TAG);}
 export function assessGuidedTemplate(value:any){
  const errors:string[]=[];
+ if(value?.status==="archived")errors.push("Restore this template from archived status before deployment.");
  if(!isGuidedTemplate(value))errors.push("Select the AWS guided file profile.");
  if(typeof value?.title!=="string"||!value.title.trim())errors.push("A lab title is required.");
  if(value?.environment_profile_id)errors.push("Remove the other environment profile for this AWS task.");
