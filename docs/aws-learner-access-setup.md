@@ -13,7 +13,7 @@ The older Base44 AWS identity identified account 699121763776. The user said tha
 ## One-time IAM setup
 
 1. Sign into account 935838375949 as an authorized administrator and select us-east-1.
-2. The earlier DesignStudioLearnerAccessSetup attempt is ROLLBACK_COMPLETE. Its Events explicitly say the old template's account assertion rejected account 935838375949. Keep that failed stack as evidence; use a fresh setup stack name: DesignStudioLearnerAccessSetupV2.
+2. The earlier DesignStudioLearnerAccessSetup attempt is ROLLBACK_COMPLETE. Its Events explicitly say the old template's account assertion rejected account 935838375949. Keep that failed stack as evidence; use a fresh setup stack name: DesignStudioLearnerAccessSetupV3.
 3. Create a standard CloudFormation stack using the corrected aws-learner-access-bootstrap.json file.
 4. Review the named IAM resources and policy, acknowledge named IAM capabilities, then submit and wait for CREATE_COMPLETE.
 5. Check Outputs: the execution role ARN must be in account 935838375949 and the AppUser must be design-studio-learner-pilot.
@@ -35,9 +35,16 @@ The corrected bootstrap and learner templates passed static CloudFormation lint.
 
 ## Cleanup and rollback
 
-Delete the disposable runtime stack ExtremeICE-DesignStudio-Learner-Pilot after each demo and verify removal in the app. The IAM setup is reusable and remains in place. For full decommissioning, first remove the runtime stack, then deactivate/delete the access key you created for the app user, then delete DesignStudioLearnerAccessSetupV2. Keep the execution role available until runtime cleanup finishes.
+Delete the disposable runtime stack ExtremeICE-DesignStudio-Learner-Pilot after each demo and verify removal in the app. The IAM setup is reusable and remains in place. For full decommissioning, first remove the runtime stack, then deactivate/delete the access key you created for the app user, then delete DesignStudioLearnerAccessSetupV3. Keep the execution role available until runtime cleanup finishes.
 
 See [the demo runbook](aws-learner-demo-runbook.md).
 
 References: [CloudFormation service roles](https://docs.aws.amazon.com/prescriptive-guidance/latest/least-privilege-cloudformation/service-roles-for-cloudformation.html), [IAM administrator key management](https://docs.aws.amazon.com/IAM/latest/UserGuide/access-keys-admin-managed.html).
+
+
+## November 2 retry: IAM policy size corrected
+
+DesignStudioLearnerAccessSetupV2 reached ROLLBACK_COMPLETE because AppUserAccess used an IAM user inline policy of 2,264 characters, above the 2,048-character aggregate limit. The corrected AppUserAccess is AWS::IAM::ManagedPolicy attached to the same dedicated user, with the exact same PolicyDocument and permissions. It fits the 6,144-character managed-policy limit. All 14 focused tests and static CloudFormation lint pass; live deployment is still pending.
+
+Create a fresh standard stack named DesignStudioLearnerAccessSetupV3 in account 935838375949, us-east-1, uploading the newly updated AWS_Learner_Access_Bootstrap.json. Acknowledge named IAM capabilities. Wait for CREATE_COMPLETE before creating the dedicated user's key. Preserve the failed V2 stack for its event history. If AWS reports a named resource already exists, inspect that resource and V2 Resources first rather than deleting it blindly.
 
