@@ -300,7 +300,7 @@ Deno.serve(async (req) => {
       } catch (error) {
         await base44.asServiceRole.entities.CloudPocRun.update(run.id, { status: "cleanup_pending", last_error_code: `${stage}:${code(error)}` });
         await base44.asServiceRole.entities.LabInstance.update(instance.id, { status: "failed", provider_status_message: `AWS launch failed at ${stage}: ${code(error)}` });
-        return reply({ error: "AWS launch failed; cleanup may be needed.", error_code: code(error), error_stage: stage, error_detail: String(error?.message || "").slice(0, 300), run_id: run.id }, 502);
+        return reply({ error: "AWS launch failed; cleanup may be needed.", error_code: code(error), error_stage: stage, error_detail: String((error as any)?.message || "").slice(0, 300), run_id: run.id }, 502);
       }
     }
     if (action === "inspect") {
