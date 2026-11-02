@@ -14,7 +14,7 @@ function form(v:any,p="",out:Record<string,string>={}){
 }
 export async function aws(service:"cloudformation"|"ssm",action:string,input:any){
  const access=Deno.env.get("AWS_LEARNER_ACCESS_KEY_ID"),secret=Deno.env.get("AWS_LEARNER_SECRET_ACCESS_KEY"),session=Deno.env.get("AWS_LEARNER_SESSION_TOKEN");
- if(!access||!secret)throw new Error("AWS_KEYS_MISSING");
+ if(!access||!secret)throw Object.assign(new Error("Configure the dedicated learner AWS credentials in Base44 secrets."),{name:"LEARNER_AWS_KEYS_MISSING"});
  const query=service==="cloudformation"?form({Action:action,Version:"2010-05-15",...input}):null;
  const body=query?Object.keys(query).sort().map(k=>enc(k)+"="+enc(query[k])).join("&"):JSON.stringify(input);
  const host=service+"."+REGION+".amazonaws.com",stamp=new Date().toISOString().replace(/[:-]|\.\d{3}/g,""),date=stamp.slice(0,8);
