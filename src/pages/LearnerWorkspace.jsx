@@ -9,7 +9,8 @@ export default function LearnerWorkspace(){
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState(""),[operation,setOperation]=useState(null);
  const [content,setContent]=useState(""),[mode,setMode]=useState("644"),[loaded,setLoaded]=useState(false),[history,setHistory]=useState([]),[clock,setClock]=useState(Date.now());
  const run=runs.find(r=>r.id===selected),snapshot=run?.contract?.template_snapshot,learning=run?.contract?.learning||{},locked=busy||!!operation;
- const expired=run&&Date.parse(run.expires_at)<=clock,canEdit=run?.status==="ready"&&!expired&&!learning.finished_at;
+ const hasAssignment=!run?.contract?.assignment_id||assignments.some(a=>a.id===run.contract.assignment_id);
+ const expired=run&&Date.parse(run.expires_at)<=clock,canEdit=run?.status==="ready"&&!expired&&!learning.finished_at&&hasAssignment;
  const load=async()=>{const [me,a,r]=await Promise.all([base44.auth.me(),learnerCall("assignedLabs"),learnerCall("list")]);setUser(me);setAssignments(a.assignments);setCapacity(a.capacity_available);setRuns(r.runs.filter(x=>x.owner_user_id===me.id));};
  useEffect(()=>{load().catch(e=>setError(learnerError(e))).finally(()=>setLoading(false));const timer=setInterval(()=>setClock(Date.now()),1000);return()=>clearInterval(timer);},[]);
  useEffect(()=>{setLoaded(false);setContent("");setMode("644");setHistory([]);setOperation(null);setNotice("");setError("");if(!selected)return;
@@ -59,6 +60,7 @@ export default function LearnerWorkspace(){
    {["preparing","provisioning"].includes(run.status)&&<p role="status" className="text-amber-300">Preparing your private environment. This may take 5–10 minutes. You can return to this session later.</p>}
    {expired&&run.status!=="terminated"&&<p className="text-amber-300">The session has expired. Finish the lab to release its remaining resources.</p>}
    {run.status==="failed"&&<p className="text-amber-300">The environment needs attention. Finish this session to request cleanup, or contact your instructor.</p>}
+   {!hasAssignment&&run.status!=="terminated"&&<p className="text-amber-300">Your assignment was revoked. Finish this session to release the environment, or contact your instructor.</p>}
    {canEdit&&<div className="space-y-4"><p className="text-sm text-gray-400">Validate once to see the starting state. Load the file, edit it and save with permissions 600. Reload it, then validate again.</p>
     <p className="font-mono text-sm">{run.contract.path}</p>
     <button className={button} disabled={locked} onClick={()=>action("read")}>Load file from guest</button>
