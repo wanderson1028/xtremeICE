@@ -8,6 +8,8 @@ import {
   DescribeVpcsCommand, DescribeSubnetsCommand, DescribeSecurityGroupsCommand, DescribeVolumesCommand,
 } from "./awsQuery.ts";
 
+import { CHECKS, TASK_ID, VALIDATION_TITLE, validationTasks, isValidationTemplate, validValidationTasks, validationUserData, digest, readProbe } from "./validationProof.ts";
+
 // Branch-only AWS proof: one isolated Amazon Linux VM. No IGW, NAT, public IP,
 // inbound rule, SSH key, browser session, or existing Live Fire resource is used.
 const REGION = "us-east-1";
@@ -54,7 +56,9 @@ function assessTemplate(template: any) {
   if (env?.identity_requirements?.directory_required || env?.identity_requirements?.mfa_required || (env?.identity_requirements?.accounts_needed || []).length) errors.push("Identity provisioning is outside this proof.");
   if ((env?.initialization?.startup_scripts || []).length || env?.initialization?.seed_data_notes || env?.initialization?.snapshot_required) errors.push("Initialization and snapshots are outside this proof.");
   const tasks = template?.lab_content?.tasks || [];
-  if (tasks.some((task: any) => Array.isArray(task.validation_criteria) && task.validation_criteria.length > 0)) errors.push("AWS runtime validators are not implemented; use manual criteria only.");
+  if (isValidationTemplate(template)) {
+    if (!validValidationTasks(template)) errors.push("Validation self-test tasks must match the fixed server probe definitions.");
+  } else if (tasks.some((task: any) => Array.isArray(task.validation_criteria) && task.validation_criteria.length > 0)) errors.push("Only the fixed AWS validation self-test supports automated criteria in this proof.");
   return { ready: errors.length === 0, errors, resource_id: resource?.id || null, network_id: network?.id || null };
 }
 function freeze(template: any) {
@@ -120,15 +124,41 @@ async function inspectRun(base44: any, run: any) {
   if (!run.instance_id) return { state: run.status, guest_ready: false };
   const state = await observeInstance(run.instance_id);
   let guestReady = false;
+  let consoleText = "";
   if (state === "running" || state === "stopping" || state === "stopped") {
     try {
       const output = await ec2.send(new GetConsoleOutputCommand({ InstanceId: run.instance_id, Latest: true }));
       const encoded = String(output.Output || "");
       const decoded = encoded ? atob(encoded) : "";
+      consoleText = decoded;
       guestReady = decoded.includes(`${MARKER}:${run.id}`);
     } catch { /* Console output can lag; EC2 state remains observable. */ }
   }
-  const status = guestReady && state === "running" ? "running" : run.status;
+  const lab = run.lab_instance_id ? await base44.asServiceRole.entities.LabInstance.get(run.lab_instance_id) : null;
+  let validation: any = null;
+  if (isValidationTemplate(lab?.template_snapshot)) {
+    const attempts = await base44.asServiceRole.entities.RuntimeValidationAttempt.filter({ instance_id: run.lab_instance_id, task_id: TASK_ID });
+    for (const attempt of attempts) {
+      if (attempt.status !== "pending" || attempt.evidence?.run_id !== run.id) continue;
+      const passed = consoleText ? await readProbe(consoleText, run.id, attempt.token_hash, attempt.check_id) : null;
+      if (passed !== null) {
+        await base44.asServiceRole.entities.RuntimeValidationAttempt.update(attempt.id, {
+          status: "completed", passed, observed: passed ? "file present" : "file absent",
+          message: "Observed fixed path probe via AWS console output.",
+        });
+        attempt.status = "completed"; attempt.passed = passed;
+      } else if (Date.now() > Date.parse(attempt.expires_at)) {
+        await base44.asServiceRole.entities.RuntimeValidationAttempt.update(attempt.id, { status: "expired", message: "No correlated guest evidence before expiry." });
+        attempt.status = "expired";
+      }
+    }
+    validation = { checks: CHECKS.map(c => {
+      const a = attempts.find((a: any) => a.check_id === c.check && a.evidence?.run_id === run.id);
+      return { check: c.check, expected_pass: c.expected, status: a?.status || "missing", passed: a?.passed ?? null };
+    }) };
+    validation.verified = validation.checks.every((c: any) => c.status === "completed" && c.passed === c.expected_pass);
+  }
+  const status = guestReady && state === "running" && !["cleanup_pending", "terminated"].includes(run.status) ? "running" : run.status;
   if (status !== run.status || state !== run.last_observed_state) {
     await base44.asServiceRole.entities.CloudPocRun.update(run.id, { status, last_observed_state: state });
     if (run.lab_instance_id && status === "running") {
@@ -137,7 +167,7 @@ async function inspectRun(base44: any, run: any) {
       });
     }
   }
-  return { run_id: run.id, lab_instance_id: run.lab_instance_id || null, region: REGION, instance_id: run.instance_id, state, guest_ready: guestReady, status, expires_at: run.expires_at };
+  return { run_id: run.id, lab_instance_id: run.lab_instance_id || null, region: REGION, instance_id: run.instance_id, state, guest_ready: guestReady, validation, status, expires_at: run.expires_at };
 }
 function hasRunTag(tags: any, runId: string) {
   return Array.isArray(tags) && tags.some((tag) => tag.Key === "PocRunId" && tag.Value === runId) && tags.some((tag) => tag.Key === "ManagedBy" && tag.Value === "ExtremeICE-DesignStudio-POC");
@@ -199,6 +229,19 @@ Deno.serve(async (req) => {
   try { input = await req.json(); } catch { return reply({ error: "Invalid JSON" }, 400); }
   const action = input?.action;
   try {
+    if (action === "prepareValidationTemplate") {
+      const candidates = await base44.asServiceRole.entities.LabTemplate.filter({ title: VALIDATION_TITLE });
+      if (candidates[0]) return reply({ template_id: candidates[0].id, created: false });
+      const source = (await base44.asServiceRole.entities.LabTemplate.filter({ title: "AWS Isolated Boot Proof (Design Studio)" }))[0];
+      if (!source?.environment_definition) return reply({ error: "Prepare the boot proof template first" }, 400);
+      const template = await base44.asServiceRole.entities.LabTemplate.create({
+        title: VALIDATION_TITLE, description: "Fixed guest validation self-test: one passing and one failing path check.",
+        nice_category: "Operate and Maintain", difficulty: "Beginner", status: "draft", estimated_duration_minutes: 110, passing_score: 50,
+        environment_definition: source.environment_definition,
+        lab_content: { scenario: "Validate seeded guest fixtures through AWS console evidence.", tasks: validationTasks(), success_criteria: "Present file passes, missing file fails, then all resources are removed." },
+      });
+      return reply({ template_id: template.id, created: true });
+    }
     if (action === "prepareTemplate") {
       const title = "AWS Isolated Boot Proof (Design Studio)";
       const candidates = await base44.asServiceRole.entities.LabTemplate.filter({ title });
@@ -226,6 +269,10 @@ Deno.serve(async (req) => {
       const template = await getTemplate(base44, input.template_id);
       if (!template) return reply({ error: "Template not found" }, 404);
       const assessment = assessTemplate(template);
+      if (isValidationTemplate(template)) {
+        try { await base44.asServiceRole.entities.RuntimeValidationAttempt.list("-created_date", 1); }
+        catch { assessment.errors.push("Shared RuntimeValidationAttempt schema is required before this self-test can launch."); assessment.ready = false; }
+      }
       const identity = await sts.send(new GetCallerIdentityCommand({}));
       const amiId = await findAmi();
       const zone = await findZone();
@@ -241,6 +288,10 @@ Deno.serve(async (req) => {
       const template = await getTemplate(base44, input.template_id);
       if (!template) return reply({ error: "Template not found" }, 404);
       const assessment = assessTemplate(template);
+      if (isValidationTemplate(template)) {
+        try { await base44.asServiceRole.entities.RuntimeValidationAttempt.list("-created_date", 1); }
+        catch { assessment.errors.push("Shared RuntimeValidationAttempt schema is required before this self-test can launch."); assessment.ready = false; }
+      }
       if (!assessment.ready) return reply({ error: "Template is not eligible", assessment }, 400);
       const existing = await base44.asServiceRole.entities.CloudPocRun.list("-created_date", 100);
       if (existing.some((run) => ACTIVE.includes(run.status))) return reply({ error: "A cloud proof is already active or needs cleanup." }, 409);
@@ -261,8 +312,20 @@ Deno.serve(async (req) => {
       });
       await base44.asServiceRole.entities.CloudPocRun.update(run.id, { lab_instance_id: instance.id });
       const tags = [{ Key: "Name", Value: `ExtremeICE-DesignStudio-POC-${run.id}` }, { Key: "ManagedBy", Value: "ExtremeICE-DesignStudio-POC" }, { Key: "PocRunId", Value: run.id }];
-      let stage = "create_vpc";
+      let stage = "prepare_validation";
       try {
+        let probeUserData: string | null = null;
+        if (isValidationTemplate(snapshot)) {
+          const nonce = crypto.randomUUID().replaceAll("-", "");
+          const hash = await digest(nonce);
+          for (const c of CHECKS) await base44.asServiceRole.entities.RuntimeValidationAttempt.create({
+            instance_id: instance.id, user_email: user.email, task_id: TASK_ID, check_id: c.check,
+            validator_type: "path_exists", status: "pending", token_hash: hash, expires_at: expires,
+            evidence: { run_id: run.id, path: c.path, expected_pass: c.expected, source: "aws_console_self_test" },
+          });
+          probeUserData = validationUserData(run.id, nonce);
+        }
+        stage = "create_vpc";
         const vpc = await ec2.send(new CreateVpcCommand({ CidrBlock: VPC_CIDR, TagSpecifications: [{ ResourceType: "vpc", Tags: tags }] }));
         if (!vpc.Vpc?.VpcId) throw new Error("CREATE_VPC_INCOMPLETE");
         await base44.asServiceRole.entities.CloudPocRun.update(run.id, { vpc_id: vpc.Vpc.VpcId });
@@ -281,7 +344,7 @@ Deno.serve(async (req) => {
         await ec2.send(new RevokeSecurityGroupEgressCommand({
           GroupId: sg.GroupId, IpPermissions: [{ IpProtocol: "-1", IpRanges: [{ CidrIp: "0.0.0.0/0" }] }],
         }));
-        const userData = `#!/bin/bash\nset -eu\nshutdown -h +105\necho "${MARKER}:${run.id}" > /dev/console\n`;
+        const userData = probeUserData || `#!/bin/bash\nset -eu\nshutdown -h +105\necho "${MARKER}:${run.id}" > /dev/console\n`;
         stage = "run_instance";
         const launched = await ec2.send(new RunInstancesCommand({
           ImageId: amiId, InstanceType: INSTANCE_TYPE, MinCount: 1, MaxCount: 1,
