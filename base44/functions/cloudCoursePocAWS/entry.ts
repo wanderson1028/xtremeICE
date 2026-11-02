@@ -258,7 +258,7 @@ Deno.serve(async (req) => {
         if (!subnet.Subnet?.SubnetId) throw new Error("CREATE_SUBNET_INCOMPLETE");
         await base44.asServiceRole.entities.CloudPocRun.update(run.id, { subnet_id: subnet.Subnet.SubnetId });
         const sg = await ec2.send(new CreateSecurityGroupCommand({
-          VpcId: vpc.Vpc.VpcId, GroupName: `ds-poc-${run.id}`, Description: "No inbound or outbound access for Design Studio boot proof",
+          VpcId: vpc.Vpc.VpcId, GroupName: `ds-poc-${run.id}`, GroupDescription: "No inbound or outbound access for Design Studio boot proof",
           TagSpecifications: [{ ResourceType: "security-group", Tags: tags }],
         }));
         if (!sg.GroupId) throw new Error("CREATE_SECURITY_GROUP_INCOMPLETE");
