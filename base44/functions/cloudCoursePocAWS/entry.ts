@@ -193,8 +193,8 @@ Deno.serve(async (req) => {
     if (action === "prepareTemplate") {
       const title = "AWS Isolated Boot Proof (Design Studio)";
       const candidates = await base44.asServiceRole.entities.LabTemplate.filter({ title });
-      const existing = candidates.find((template: any) => template.created_by_id === user.id && assessTemplate(template).ready);
-      if (existing) return reply({ template_id: existing.id, created: false });
+      const existing = candidates.find((template: any) => template.title === title);
+      if (existing) return reply({ template_id: existing.id, created: false, schema_ready: !!existing.environment_definition });
       const template = await base44.asServiceRole.entities.LabTemplate.create({
         title, description: "Disposable course-lab cloud boot proof; no learner access or task validation.",
         nice_category: "Operate and Maintain", difficulty: "Beginner", status: "draft",
