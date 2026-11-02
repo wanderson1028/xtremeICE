@@ -62,7 +62,7 @@ async function signedQuery(service: "ec2" | "sts", action: string, input: any) {
     const parsed = parser.parse(raw);
     const detail = parsed.Response?.Errors?.Error || parsed.ErrorResponse?.Error || {};
     const name = String(detail.Code || `HTTP_${response.status}`);
-    throw Object.assign(new Error("AWS request failed"), { name });
+    throw Object.assign(new Error(String(detail.Message || "AWS request failed").slice(0, 300)), { name });
   }
   return parser.parse(raw);
 }
@@ -77,6 +77,7 @@ export class CreateSecurityGroupCommand extends QueryCommand { constructor(input
 export class RevokeSecurityGroupEgressCommand extends QueryCommand { constructor(input: any) { super("RevokeSecurityGroupEgress", input); } }
 export class RunInstancesCommand extends QueryCommand { constructor(input: any) { super("RunInstances", input); } }
 export class DescribeImagesCommand extends QueryCommand { constructor(input: any) { super("DescribeImages", input); } }
+export class DescribeInstanceTypeOfferingsCommand extends QueryCommand { constructor(input: any) { super("DescribeInstanceTypeOfferings", input); } }
 export class DescribeInstancesCommand extends QueryCommand { constructor(input: any) { super("DescribeInstances", input); } }
 export class GetConsoleOutputCommand extends QueryCommand { constructor(input: any) { super("GetConsoleOutput", input); } }
 export class TerminateInstancesCommand extends QueryCommand { constructor(input: any) { super("TerminateInstances", input); } }
@@ -98,6 +99,7 @@ export class EC2Client {
       case "CreateSecurityGroup": return { GroupId: root.groupId };
       case "RunInstances": return { Instances: arrays(root.instancesSet?.item).map((item) => ({ InstanceId: item.instanceId })) };
       case "DescribeImages": return { Images: arrays(root.imagesSet?.item).map((item) => ({ ImageId: item.imageId, CreationDate: item.creationDate })) };
+      case "DescribeInstanceTypeOfferings": return { Offerings: arrays(root.instanceTypeOfferingSet?.item).map((item) => ({ Location: item.location })) };
       case "DescribeInstances": return { Reservations: arrays(root.reservationSet?.item).map((reservation) => ({
         Instances: arrays(reservation.instancesSet?.item).map((item) => ({ State: { Name: item.instanceState?.name }, Tags: tags(item) })),
       })) };
