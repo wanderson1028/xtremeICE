@@ -12,7 +12,7 @@ The new account's live end-to-end proof is still pending. Before presenting, fin
 ## Presenter preparation
 
 - Use the design-studio-integration preview, not the published main app.
-- Complete DesignStudioLearnerAccessSetupV2 and enter the two dedicated learner secret settings in Base44.
+- Complete DesignStudioLearnerAccessSetupV3 and enter the two dedicated learner secret settings in Base44.
 - Allow 5–10 minutes for private AWS endpoint and guest provisioning, especially on the first run.
 - Stay present for the live pilot. The scope remains one t3.micro, encrypted 8 GiB disk and two private SSM endpoints under the $10/two-hour limit. The guest requests termination after 105 minutes; endpoints keep accruing charges until stack deletion. A hard billing ceiling and automatic stack deletion are not implemented.
 - Keep credentials and IAM security-credential screens out of the presentation.
@@ -90,8 +90,15 @@ Check CloudLearnerRun and LabInstance are terminated. Preserve validation record
 
 ## Evidence completed before the live session
 
-- 13 focused tests passed, including account/credential isolation, generated Bash fail-pass-fail operations, template normalization/freeze, and a full API rehearsal with mocked AWS and a real temporary file.
+- 14 focused tests passed, including account/credential isolation, generated Bash fail-pass-fail operations, template normalization/freeze, and a full API rehearsal with mocked AWS and a real temporary file.
 - Backend type checks, frontend build and focused lint passed.
 - Both CloudFormation templates passed lint; the sample-zone warning reflects a zone selected dynamically by real preflight.
 - A temporary real Base44 draft persisted the environment and validator correctly. It was archived and untagged after the platform's delete API returned an authorization error; record 6ae8a40cc95c1530a89fb55e is not offered in the learner selector.
 - The API rehearsal does not prove live AI service generation, new-account IAM authorization, or a real new-account AWS guest. Those remain live gates.
+
+## November 2 retry: IAM policy size corrected
+
+DesignStudioLearnerAccessSetupV2 reached ROLLBACK_COMPLETE because AppUserAccess used an IAM user inline policy of 2,264 characters, above the 2,048-character aggregate limit. The corrected AppUserAccess is AWS::IAM::ManagedPolicy attached to the same dedicated user, with the exact same PolicyDocument and permissions. It fits the 6,144-character managed-policy limit. All 14 focused tests and static CloudFormation lint pass; live deployment is still pending.
+
+Create a fresh standard stack named DesignStudioLearnerAccessSetupV3 in account 935838375949, us-east-1, uploading the newly updated AWS_Learner_Access_Bootstrap.json. Acknowledge named IAM capabilities. Wait for CREATE_COMPLETE before creating the dedicated user's key. Preserve the failed V2 stack for its event history. If AWS reports a named resource already exists, inspect that resource and V2 Resources first rather than deleting it blindly.
+
