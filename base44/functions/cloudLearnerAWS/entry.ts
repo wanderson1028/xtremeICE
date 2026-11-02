@@ -62,7 +62,7 @@ Deno.serve(async(req)=>{
    await aws("cloudformation","ValidateTemplate",{TemplateBody:JSON.stringify(template)});
    await aws("ssm","DescribeInstanceInformation",{MaxResults:5});
    const ready=await schemaReady(b);
-   return reply({schema_ready:ready,eligible:ready,account:identity.Account,region:REGION,ami_id:ami,zone,scope:"One t3.micro, encrypted 8 GiB disk, new VPC/subnet, two private SSM endpoints, two security groups, SSM preconfigured SSM instance profile. No public IP or internet gateway. Endpoints remain billable until stack cleanup.",task:TASK});
+   return reply({schema_ready:ready,eligible:ready,account:identity.Account,region:REGION,ami_id:ami,zone,scope:"One t3.micro, encrypted 8 GiB disk, new VPC/subnet, two private SSM endpoints, two security groups, and the preconfigured SSM instance profile. No public IP or internet gateway. Endpoints remain billable until stack cleanup.",task:TASK});
  }
  if(action==="list"){
    if(!await schemaReady(b))return reply({runs:[],schema_ready:false});
