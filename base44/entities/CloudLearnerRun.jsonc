@@ -1,0 +1,95 @@
+{
+  "name": "CloudLearnerRun",
+  "type": "object",
+  "properties": {
+    "owner_user_id": {
+      "type": "string"
+    },
+    "owner_email": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "preparing",
+        "provisioning",
+        "ready",
+        "failed",
+        "cleanup_pending",
+        "terminated"
+      ]
+    },
+    "region": {
+      "type": "string"
+    },
+    "stack_name": {
+      "type": "string"
+    },
+    "stack_id": {
+      "type": "string"
+    },
+    "stack_status": {
+      "type": "string"
+    },
+    "instance_id": {
+      "type": "string"
+    },
+    "vpc_id": {
+      "type": "string"
+    },
+    "template_id": {
+      "type": "string"
+    },
+    "lab_instance_id": {
+      "type": "string"
+    },
+    "contract": {
+      "type": "object"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "terminated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_error_code": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "owner_user_id",
+    "status",
+    "region",
+    "stack_name",
+    "contract",
+    "expires_at"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

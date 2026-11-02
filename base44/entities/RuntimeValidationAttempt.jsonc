@@ -1,0 +1,86 @@
+{
+  "name": "RuntimeValidationAttempt",
+  "type": "object",
+  "properties": {
+    "instance_id": {
+      "type": "string"
+    },
+    "user_email": {
+      "type": "string"
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "check_id": {
+      "type": "string"
+    },
+    "validator_type": {
+      "type": "string",
+      "enum": [
+        "path_exists",
+        "command_result"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "completed",
+        "expired",
+        "failed"
+      ],
+      "default": "pending"
+    },
+    "token_hash": {
+      "type": "string"
+    },
+    "passed": {
+      "type": "boolean"
+    },
+    "observed": {
+      "type": "string"
+    },
+    "message": {
+      "type": "string"
+    },
+    "evidence": {
+      "type": "object"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "instance_id",
+    "user_email",
+    "task_id",
+    "check_id",
+    "validator_type",
+    "status",
+    "token_hash",
+    "expires_at"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

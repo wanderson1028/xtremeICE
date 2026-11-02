@@ -1,0 +1,75 @@
+{
+  "name": "CloudGuestOperation",
+  "type": "object",
+  "properties": {
+    "run_id": {
+      "type": "string"
+    },
+    "owner_user_id": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "read",
+        "write",
+        "validate"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "completed",
+        "failed",
+        "expired"
+      ]
+    },
+    "binding": {
+      "type": "string"
+    },
+    "command_id": {
+      "type": "string"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "result": {
+      "type": "object"
+    },
+    "error_code": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "run_id",
+    "owner_user_id",
+    "kind",
+    "status",
+    "binding",
+    "expires_at"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
