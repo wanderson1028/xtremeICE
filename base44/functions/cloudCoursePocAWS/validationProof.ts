@@ -14,7 +14,14 @@ export function isValidationTemplate(template: any) {
   return template?.title === VALIDATION_TITLE;
 }
 export function validValidationTasks(template: any) {
-  return JSON.stringify(template?.lab_content?.tasks) === JSON.stringify(validationTasks());
+  const tasks = template?.lab_content?.tasks;
+  if (!Array.isArray(tasks) || tasks.length !== 1 || tasks[0].id !== TASK_ID) return false;
+  const criteria = tasks[0].validation_criteria;
+  return Array.isArray(criteria) && criteria.length === CHECKS.length && CHECKS.every(c => {
+    const matches = criteria.filter((item: any) => item.check === c.check);
+    const v = matches[0]?.runtime_validator;
+    return matches.length === 1 && v?.type === "path_exists" && v.path === c.path && v.path_kind === "file" && v.resource_id === "res_aws_boot_poc";
+  });
 }
 export async function digest(value: string) {
   return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))))
