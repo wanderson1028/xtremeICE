@@ -1,12 +1,12 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 import {
-  EC2Client, CreateVpcCommand, CreateSubnetCommand, CreateSecurityGroupCommand,
+  EC2Client, STSClient, GetCallerIdentityCommand,
+  CreateVpcCommand, CreateSubnetCommand, CreateSecurityGroupCommand,
   RevokeSecurityGroupEgressCommand, RunInstancesCommand, DescribeImagesCommand,
   DescribeInstancesCommand, GetConsoleOutputCommand, TerminateInstancesCommand,
   DeleteSecurityGroupCommand, DeleteSubnetCommand, DeleteVpcCommand,
   DescribeVpcsCommand, DescribeSubnetsCommand, DescribeSecurityGroupsCommand,
-} from "npm:@aws-sdk/client-ec2";
-import { STSClient, GetCallerIdentityCommand } from "npm:@aws-sdk/client-sts";
+} from "./awsQuery.ts";
 
 // Branch-only AWS proof: one isolated Amazon Linux VM. No IGW, NAT, public IP,
 // inbound rule, SSH key, browser session, or existing Live Fire resource is used.
@@ -19,8 +19,8 @@ const SUBNET_CIDR = "10.253.0.0/28";
 const MARKER = "DESIGN_STUDIO_POC_READY";
 const ACTIVE = ["preparing", "provisioning", "running", "cleanup_pending"];
 const now = () => new Date().toISOString();
-const ec2 = new EC2Client({ region: REGION, maxAttempts: 2 });
-const sts = new STSClient({ region: REGION, maxAttempts: 2 });
+const ec2 = new EC2Client();
+const sts = new STSClient();
 
 function reply(body: unknown, status = 200) {
   return Response.json(body, { status });
