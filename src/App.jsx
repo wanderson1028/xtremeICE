@@ -22,6 +22,7 @@ import LabTemplates from './pages/LabTemplates'
 import LabBuilder from './pages/LabBuilder'
 import LabInstances from './pages/LabInstances'
 import CloudCoursePoc from './pages/CloudCoursePoc'
+import CloudLearnerPoc from './pages/CloudLearnerPoc'
 import LabEnvironments from './pages/LabEnvironments'
 import LabExports from './pages/LabExports'
 import NiceMapping from './pages/NiceMapping'
@@ -216,6 +217,7 @@ const AuthenticatedApp = () => {
       <Route path="/LabBuilder" element={<LayoutWrapper currentPageName="LabBuilder"><LabBuilder /></LayoutWrapper>} />
       <Route path="/LabInstances" element={<LayoutWrapper currentPageName="LabInstances"><LabInstances /></LayoutWrapper>} />
       <Route path="/CloudCoursePoc" element={<LayoutWrapper currentPageName="CloudCoursePoc"><CloudCoursePoc /></LayoutWrapper>} />
+      <Route path="/CloudLearnerPoc" element={<LayoutWrapper currentPageName="CloudLearnerPoc"><CloudLearnerPoc /></LayoutWrapper>} />
       <Route path="/LabEnvironments" element={<LayoutWrapper currentPageName="LabEnvironments"><LabEnvironments /></LayoutWrapper>} />
       <Route path="/LabExports" element={<LayoutWrapper currentPageName="LabExports"><LabExports /></LayoutWrapper>} />
       <Route path="/NiceMapping" element={<LayoutWrapper currentPageName="NiceMapping"><NiceMapping /></LayoutWrapper>} />
