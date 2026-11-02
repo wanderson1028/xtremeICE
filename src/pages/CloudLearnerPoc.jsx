@@ -12,7 +12,7 @@ export default function CloudLearnerPoc(){
  const [content,setContent]=useState(""),[mode,setMode]=useState("644"),[loaded,setLoaded]=useState(false),[operation,setOperation]=useState(null),[validation,setValidation]=useState(null);
  const run=runs.find(r=>r.id===selected),locked=busy||!!operation;
  const load=async()=>{const data=await call("list");setRuns(data.runs||[]);setSchema(data.schema_ready);return data.runs||[];};
- useEffect(()=>{let mounted=true;(async()=>{try{const me=await base44.auth.me();const [data,rows]=await Promise.all([call("list"),me.role==="admin"?base44.entities.LabTemplate.list("-created_date",100):Promise.resolve([])]);if(mounted){setUser(me);setRuns(data.runs||[]);setSchema(data.schema_ready);setTemplates(rows.filter(isGuidedTemplate));}}catch(e){if(mounted)setError(message(e));}})();return()=>{mounted=false;};},[]);
+ useEffect(()=>{let mounted=true;(async()=>{try{const me=await base44.auth.me();const [data,rows]=await Promise.all([call("list"),me.role==="admin"?base44.entities.LabTemplate.list("-created_date",100):Promise.resolve([])]);if(mounted){setUser(me);setRuns(data.runs||[]);setSchema(data.schema_ready);setTemplates(rows.filter(t=>isGuidedTemplate(t)&&t.status!=="archived"));}}catch(e){if(mounted)setError(message(e));}})();return()=>{mounted=false;};},[]);
  useEffect(()=>{
   if(!operation)return;
   let cancelled=false,timer;
