@@ -228,6 +228,7 @@ Deno.serve(async (req) => {
   let input;
   try { input = await req.json(); } catch { return reply({ error: "Invalid JSON" }, 400); }
   const action = input?.action;
+  if (["prepareTemplate", "prepareValidationTemplate", "preflight", "launch"].includes(action)) return reply({ error: "This earlier AWS proof is closed for new launches. Use AI → AWS Demo and the dedicated learner account 935838375949." }, 409);
   try {
     if (action === "prepareValidationTemplate") {
       const candidates = await base44.asServiceRole.entities.LabTemplate.filter({ title: VALIDATION_TITLE });
