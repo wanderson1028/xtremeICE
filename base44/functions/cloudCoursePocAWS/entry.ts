@@ -21,17 +21,17 @@ const now = () => new Date().toISOString();
 const ec2 = new EC2Client({ region: REGION, maxAttempts: 2 });
 const sts = new STSClient({ region: REGION, maxAttempts: 2 });
 
-function reply(body, status = 200) {
+function reply(body: unknown, status = 200) {
   return Response.json(body, { status });
 }
-function code(error) {
+function code(error: any) {
   const name = String(error?.name || error?.code || "AWS_OPERATION_FAILED");
   return /^[A-Za-z][A-Za-z0-9_.-]{0,79}$/.test(name) ? name : "AWS_OPERATION_FAILED";
 }
-function single(items) {
+function single(items: any) {
   return Array.isArray(items) && items.length === 1 ? items[0] : null;
 }
-function assessTemplate(template) {
+function assessTemplate(template: any) {
   const errors = [];
   const env = template?.environment_definition;
   const resource = single(env?.resources);
@@ -42,7 +42,7 @@ function assessTemplate(template) {
   if (resource) {
     if (!["workstation", "server"].includes(resource.resource_type)) errors.push("The resource must be a workstation or server.");
     if (!/linux|amazon/i.test(resource.os_type || "")) errors.push("The OS requirement must be Linux.");
-    if (Number(resource.cpu_cores) > 2 || Number(resource.memory_mb) > 1024 || Number(resource.storage_gb) > 8) errors.push("The proof is limited to 2 vCPU, 1 GiB memory, and 8 GiB storage.");
+    if (![resource.cpu_cores, resource.memory_mb, resource.storage_gb].every((value) => Number.isFinite(Number(value)) && Number(value) > 0) || Number(resource.cpu_cores) > 2 || Number(resource.memory_mb) > 1024 || Number(resource.storage_gb) > 8) errors.push("The proof is limited to 2 vCPU, 1 GiB memory, and 8 GiB storage.");
     if (!["none", "serial_console"].includes(resource.access_method)) errors.push("Learner access is outside this first cloud boot proof; use none or serial_console.");
     if (["tools", "services", "startup_scripts", "initial_files"].some((key) => Array.isArray(resource[key]) && resource[key].length)) errors.push("Software, services, scripts, and seed files are not provisioned by this proof.");
     if (network && Array.isArray(resource.network_ids) && (resource.network_ids.length !== 1 || resource.network_ids[0] !== network.id)) errors.push("The resource must attach only to its isolated network.");
@@ -53,10 +53,10 @@ function assessTemplate(template) {
   if (env?.identity_requirements?.directory_required || env?.identity_requirements?.mfa_required || (env?.identity_requirements?.accounts_needed || []).length) errors.push("Identity provisioning is outside this proof.");
   if ((env?.initialization?.startup_scripts || []).length || env?.initialization?.seed_data_notes || env?.initialization?.snapshot_required) errors.push("Initialization and snapshots are outside this proof.");
   const tasks = template?.lab_content?.tasks || [];
-  if (tasks.some((task) => (task.validation_criteria || []).some((criterion) => criterion?.validation_method && criterion.validation_method !== "manual"))) errors.push("AWS runtime validators are not implemented; use manual criteria only.");
+  if (tasks.some((task: any) => Array.isArray(task.validation_criteria) && task.validation_criteria.length > 0)) errors.push("AWS runtime validators are not implemented; use manual criteria only.");
   return { ready: errors.length === 0, errors, resource_id: resource?.id || null, network_id: network?.id || null };
 }
-function freeze(template) {
+function freeze(template: any) {
   const content = template.lab_content || {};
   return {
     title: template.title || "AWS cloud proof",
@@ -69,16 +69,16 @@ function freeze(template) {
     environment_definition: template.environment_definition,
     lab_content: {
       scenario: content.scenario || "",
-      tasks: (content.tasks || []).map(({ expected_commands, reference_config, ...task }) => task),
+      tasks: (content.tasks || []).map(({ expected_commands, reference_config, ...task }: any) => task),
       success_criteria: content.success_criteria || "",
     },
   };
 }
-async function getTemplate(base44, templateId) {
+async function getTemplate(base44: any, templateId: unknown) {
   if (typeof templateId !== "string" || !/^[a-f0-9]{16,32}$/i.test(templateId)) return null;
   return (await base44.asServiceRole.entities.LabTemplate.filter({ id: templateId }))[0] || null;
 }
-async function getRun(base44, runId) {
+async function getRun(base44: any, runId: unknown) {
   if (typeof runId !== "string" || !/^[a-f0-9]{16,32}$/i.test(runId)) return null;
   return (await base44.asServiceRole.entities.CloudPocRun.filter({ id: runId }))[0] || null;
 }
@@ -96,7 +96,7 @@ async function findAmi() {
   if (!image?.ImageId) throw new Error("NO_AMI");
   return image.ImageId;
 }
-async function observeInstance(instanceId) {
+async function observeInstance(instanceId: string) {
   try {
     const result = await ec2.send(new DescribeInstancesCommand({ InstanceIds: [instanceId] }));
     const instance = result.Reservations?.flatMap((reservation) => reservation.Instances || [])[0];
@@ -106,7 +106,7 @@ async function observeInstance(instanceId) {
     throw error;
   }
 }
-async function inspectRun(base44, run) {
+async function inspectRun(base44: any, run: any) {
   if (!run.instance_id) return { state: run.status, guest_ready: false };
   const state = await observeInstance(run.instance_id);
   let guestReady = false;
@@ -127,7 +127,7 @@ async function inspectRun(base44, run) {
   }
   return { run_id: run.id, lab_instance_id: run.lab_instance_id || null, region: REGION, instance_id: run.instance_id, state, guest_ready: guestReady, status, expires_at: run.expires_at };
 }
-async function cleanup(base44, run) {
+async function cleanup(base44: any, run: any) {
   let state = run.instance_id ? await observeInstance(run.instance_id) : "not_created";
   if (run.instance_id && !["terminated", "not_found"].includes(state)) {
     await ec2.send(new TerminateInstancesCommand({ InstanceIds: [run.instance_id] }));
