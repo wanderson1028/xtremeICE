@@ -153,7 +153,7 @@ export async function handleLearnerRequest(req:Request,b:any){
    return reply({verified:remaining.length===0,remaining});
  }
  if(action==="startOperation"){
-   if(run.contract.assignment_id)await assignedLab(b,user,run.contract.assignment_id);
+   if(run.contract.assignment_id){const access=await assignedLab(b,user,run.contract.assignment_id,false);if(access.assignment.lab_id!==run.template_id)return reply({error:"Assignment changed. Finish this session and contact your instructor."},403);}
    if(run.contract.learning?.finished_at)return reply({error:"This learning session has finished. Start a new session to try again."},409);
    if(!canOperate(run,user))return reply({error:"Only the owner of a ready, unexpired run can access its guest"},403);
    const kind=input.kind as Operation;if(!["read","write","validate"].includes(kind))return reply({error:"Unsupported task action"},400);
