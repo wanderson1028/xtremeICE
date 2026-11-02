@@ -88,6 +88,79 @@
               "instructions": {
                 "type": "string",
                 "description": "Step-by-step instructions (markdown)"
+              },
+              "id": {
+                "type": "string",
+                "description": "Stable task identity (survives reordering); used by runtime results, dependencies, branching, analytics, and validation"
+              },
+              "validation_criteria": {
+                "type": "array",
+                "description": "Structured success criteria for scoring, rubrics, and lab QA",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "check": {
+                      "type": "string",
+                      "description": "Short identifier for the check"
+                    },
+                    "description": {
+                      "type": "string",
+                      "description": "What to verify"
+                    },
+                    "points": {
+                      "type": "number",
+                      "default": 1,
+                      "description": "Point value awarded when this criterion passes. Defaults to 1 to match the task editor's non-zero criterion default."
+                    },
+                    "runtime_validator": {
+                      "type": "object",
+                      "description": "Optional provider-neutral automated runtime validator. The validator describes what to verify; provider adapters decide how to observe it.",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "path_exists",
+                            "command_result"
+                          ],
+                          "description": "Runtime validation supports path existence and an allowlisted file-mode command result. Future types remain provider-neutral."
+                        },
+                        "path": {
+                          "type": "string",
+                          "description": "Absolute path to verify inside the learner resource."
+                        },
+                        "path_kind": {
+                          "type": "string",
+                          "enum": [
+                            "any",
+                            "file",
+                            "directory"
+                          ],
+                          "default": "any",
+                          "description": "Whether the path must be any filesystem entry, specifically a file, or specifically a directory."
+                        },
+                        "command_key": {
+                          "type": "string",
+                          "enum": [
+                            "file_mode"
+                          ],
+                          "description": "Allowlisted read-only command profile for command_result."
+                        },
+                        "expected_output": {
+                          "type": "string",
+                          "description": "Expected octal file mode, such as 600, for command_result/file_mode."
+                        },
+                        "resource_id": {
+                          "type": "string",
+                          "description": "Optional stable environment resource ID. Runtime Validation v1 defaults to the single provisioned resource."
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "path"
+                      ]
+                    }
+                  }
+                }
               }
             }
           }
