@@ -57,6 +57,14 @@ export default function CloudCoursePoc() {
     try { await operation(); } catch (cause) { setError(messageOf(cause)); }
     finally { setBusy(""); }
   };
+  const prepareTemplate = () => runAction("prepare", async () => {
+    const data = await invoke("prepareTemplate");
+    const rows = await base44.entities.LabTemplate.list("-created_date", 100);
+    setTemplates(rows || []);
+    setTemplateId(data.template_id);
+    setPreflight(null);
+    setNotice(data.created ? "A draft AWS proof template was prepared." : "Using the existing draft AWS proof template.");
+  });
   const check = () => runAction("preflight", async () => {
     const data = await invoke("preflight", { template_id: templateId });
     setPreflight(data);
@@ -107,6 +115,7 @@ export default function CloudCoursePoc() {
         {notice && <div role="status" className="rounded border border-sky-700 bg-sky-950/40 p-3 text-sky-200">{notice}</div>}
         <section className="rounded-xl border border-gray-800 bg-gray-900 p-5 space-y-4">
           <h2 className="font-semibold">1. Select and check a course template</h2>
+          <button type="button" disabled={!!busy} onClick={prepareTemplate} className="rounded border border-sky-700 text-sky-300 px-4 py-2 disabled:opacity-50">Prepare isolated proof template</button>
           <select aria-label="Course template" className="w-full rounded bg-gray-950 border border-gray-700 p-2" value={templateId}
             onChange={(event) => { setTemplateId(event.target.value); setPreflight(null); }}>
             <option value="">Select a template</option>
