@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import { isGuidedTemplate } from "@/lib/awsLearnerTemplate";
 const call = async (action,fields={}) => (await base44.functions.invoke("cloudLearnerAWS",{action,...fields})).data;
 const message = e => [e?.response?.data?.error,e?.response?.data?.error_code,e?.response?.data?.detail].filter(Boolean).join(": ") || e.message;
 export default function CloudLearnerPoc(){
  const [user,setUser]=useState(null),[runs,setRuns]=useState([]),[schema,setSchema]=useState(false),[plan,setPlan]=useState(null);
+ const [templates,setTemplates]=useState([]),[templateId,setTemplateId]=useState(new URLSearchParams(window.location.search).get("template_id")||"");
  const [selected,setSelected]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const [content,setContent]=useState(""),[mode,setMode]=useState("644"),[loaded,setLoaded]=useState(false),[operation,setOperation]=useState(null),[validation,setValidation]=useState(null);
  const run=runs.find(r=>r.id===selected),locked=busy||!!operation;
  const load=async()=>{const data=await call("list");setRuns(data.runs||[]);setSchema(data.schema_ready);return data.runs||[];};
- useEffect(()=>{let mounted=true;(async()=>{try{const me=await base44.auth.me();const data=await call("list");if(mounted){setUser(me);setRuns(data.runs||[]);setSchema(data.schema_ready);}}catch(e){if(mounted)setError(message(e));}})();return()=>{mounted=false;};},[]);
+ useEffect(()=>{let mounted=true;(async()=>{try{const me=await base44.auth.me();const [data,rows]=await Promise.all([call("list"),me.role==="admin"?base44.entities.LabTemplate.list("-created_date",100):Promise.resolve([])]);if(mounted){setUser(me);setRuns(data.runs||[]);setSchema(data.schema_ready);setTemplates(rows.filter(isGuidedTemplate));}}catch(e){if(mounted)setError(message(e));}})();return()=>{mounted=false;};},[]);
  useEffect(()=>{
   if(!operation)return;
   let cancelled=false,timer;
@@ -28,8 +30,8 @@ export default function CloudLearnerPoc(){
  const perform=async(fn)=>{setBusy(true);setError("");setNotice("");try{await fn();}catch(e){setError(message(e));}finally{setBusy(false);}};
  const choose=id=>{setSelected(id);setLoaded(false);setContent("");setMode("644");setValidation(null);setNotice("");setError("");};
  const refresh=()=>perform(async()=>{await call("refresh",{run_id:run.id});await load();});
- const provision=()=>{if(!plan?.eligible)return;if(!window.confirm("Launch one private t3.micro with an encrypted 8 GiB disk, two private SSM endpoints, and the preconfigured SSM instance profile? No public IP or internet gateway. Private endpoints stay billable until stack deletion. Clean up within the $10/two-hour pilot limit; the guest requests termination after 105 minutes."))return;
- perform(async()=>{const data=await call("provision",{ack:"LAUNCH_PRIVATE_SSM_LEARNER_PILOT",ami_id:plan.ami_id,zone:plan.zone});await load();choose(data.run_id);setNotice("Private learner stack requested. Refresh its status until ready.");});};
+ const provision=()=>{if(!plan?.eligible||plan.template_id!==templateId)return;if(!window.confirm("Launch one private t3.micro with an encrypted 8 GiB disk, two private SSM endpoints, and the preconfigured SSM instance profile? No public IP or internet gateway. Private endpoints stay billable until stack deletion. Clean up within the $10/two-hour pilot limit; the guest requests termination after 105 minutes."))return;
+ perform(async()=>{const data=await call("provision",{ack:"LAUNCH_PRIVATE_SSM_LEARNER_PILOT",template_id:templateId,template_hash:plan.template_hash,ami_id:plan.ami_id,zone:plan.zone});await load();choose(data.run_id);setNotice("Private learner stack requested. Refresh its status until ready.");});};
  const start=kind=>perform(async()=>{const data=await call("startOperation",{run_id:run.id,kind,...(kind==="write"?{content,mode}:{})});setOperation({id:data.operation_id,run_id:run.id,kind});});
  const cleanup=()=>{if(!window.confirm("Delete this learner stack, including its guest, disk and private endpoints? The reusable IAM setup stays in place."))return;perform(async()=>{const data=await call("cleanup",{run_id:run.id,ack:"DELETE_LEARNER_STACK"});await load();setNotice("Cleanup: "+data.status+". Refresh until terminated, then verify AWS removal.");});};
  const button="rounded bg-sky-800 px-4 py-2 disabled:opacity-40";
@@ -42,10 +44,13 @@ export default function CloudLearnerPoc(){
   {notice&&<div role="status" className="border border-sky-700 p-3">{notice}</div>}
   {!schema&&<p className="text-amber-300">The shared learner data schemas need to be applied before provisioning.</p>}
   {user?.role==="admin"&&<section className="border border-gray-700 rounded p-4 space-y-3">
-   <h2 className="font-semibold">Provision a disposable learner pilot</h2>
-   <button className={button} disabled={locked} onClick={()=>perform(async()=>setPlan(await call("preflight")))}>Check AWS learner access</button>
-   {plan&&<div className="space-y-2 text-sm"><p>Account: {plan.account} · Region: {plan.region} · Zone: {plan.zone} · AMI: {plan.ami_id}</p><p>{plan.scope}</p><p>Shared schemas: {plan.schema_ready?"ready":"required"} · Eligible: {plan.eligible?"yes":"no"}</p></div>}
-   <button className={button+" bg-red-800"} disabled={locked||!plan?.eligible} onClick={provision}>Launch private learner guest</button>
+   <h2 className="font-semibold">Provision your reviewed lab</h2>
+   <Link to="/QuickBuild?preset=aws-learner" className="block text-sky-300">1. Generate a lab with AI →</Link>
+   <label className="block">Saved AWS lab template<select aria-label="Saved AWS lab template" disabled={locked} className="block mt-2 w-full bg-gray-900 border border-gray-600 p-2" value={templateId} onChange={e=>{setTemplateId(e.target.value);setPlan(null);}}><option value="">Select the saved lab</option>{templates.map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select></label>
+   {templateId&&<Link className="block text-sky-300" to={"/LabBuilder?id="+templateId}>2. Review this lab in Lab Builder →</Link>}
+   <button className={button} disabled={locked||!templateId} onClick={()=>perform(async()=>setPlan(await call("preflight",{template_id:templateId})))}>Check AWS learner access</button>
+   {plan&&<div className="space-y-2 text-sm"><p>Reviewed lab: {plan.template_title}</p><p>Account: {plan.account} · Region: {plan.region} · Zone: {plan.zone} · AMI: {plan.ami_id}</p><p>{plan.scope}</p><p>Shared schemas: {plan.schema_ready?"ready":"required"} · Eligible: {plan.eligible?"yes":"no"}</p></div>}
+   <button className={button+" bg-red-800"} disabled={locked||!plan?.eligible||plan.template_id!==templateId||runs.some(r=>r.status!=="terminated")} onClick={provision}>Launch private learner guest</button>
   </section>}
   <section className="border border-gray-700 rounded p-4 space-y-3">
    <h2 className="font-semibold">Your learner run</h2>
@@ -60,6 +65,7 @@ export default function CloudLearnerPoc(){
    </>}
   </section>
   {run&&run.owner_user_id===user?.id&&<section className="border border-gray-700 rounded p-4 space-y-3">
+   {run.contract?.template_snapshot&&<div className="border-b border-gray-700 pb-3 space-y-2"><h2 className="font-semibold text-lg">{run.contract.template_snapshot.title}</h2><p>{run.contract.template_snapshot.description}</p><p className="whitespace-pre-wrap">{run.contract.template_snapshot.lab_content?.scenario}</p><p className="whitespace-pre-wrap">{run.contract.template_snapshot.lab_content?.tasks?.[0]?.instructions}</p></div>}
    <h2 className="font-semibold">{run.contract?.title}</h2><p className="font-mono text-sm">{run.contract?.path}</p>
    <p>First validate the initial permissions to see a failure. Load the file, edit its contents, choose 600, and save. Validate again to check the change. Changing back to 644 should fail a new validation.</p>
    <button className={button} disabled={locked||run.status!=="ready"} onClick={()=>start("read")}>Load file from guest</button>
