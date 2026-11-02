@@ -91,6 +91,10 @@ export default function CloudCoursePoc() {
     setNotice(data.guest_ready ? "Guest boot marker observed in AWS console output." : "AWS guest boot marker is pending.");
     await refreshRuns();
   });
+  const verifyCleanup = (runId) => runAction(runId, async () => {
+    const data = await invoke("verifyCleanup", { run_id: runId });
+    setNotice(data.verified ? `AWS confirms proof run ${runId} has no remaining instance, tagged volume, security group, subnet, or VPC.` : `AWS still reports: ${(data.remaining || []).join(", ")}.`);
+  });
   const cleanup = (run) => {
     if (!window.confirm(`Terminate the instance and remove the isolated VPC for proof run ${run.id}? This deletes its 8 GiB root volume.`)) return;
     runAction(run.id, async () => {
@@ -150,6 +154,7 @@ export default function CloudCoursePoc() {
               <div className="flex gap-3">
                 <button type="button" disabled={!!busy} onClick={() => inspect(run.id)} className="rounded bg-sky-800 px-3 py-1.5 disabled:opacity-50">Inspect in AWS</button>
                 {run.status !== "terminated" && <button type="button" disabled={!!busy} onClick={() => cleanup(run)} className="rounded bg-red-800 px-3 py-1.5 disabled:opacity-50">Terminate and clean up</button>}
+                {run.status === "terminated" && <button type="button" disabled={!!busy} onClick={() => verifyCleanup(run.id)} className="rounded bg-emerald-800 px-3 py-1.5 disabled:opacity-50">Verify AWS removal</button>}
               </div>
             </div>;
           })}
