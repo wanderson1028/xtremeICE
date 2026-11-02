@@ -96,6 +96,8 @@ Deno.test("Assignment rehearsal: instructor controls, non-admin start, one guest
   const launched=await api("startAssigned",launchFields);
   check(launched.status===200,"provision accepted");const runId=launched.body.run_id,run=tables.CloudLearnerRun[0],lab=tables.LabInstance[0];
   check(lab.template_id===draft.id&&lab.template_snapshot.lab_content.tasks[0].instructions==="Reviewed revision","reviewed snapshot linked");
+  const provisioningState=run.status;run.status="preparing";const boundStack=run.stack_id;delete run.stack_id;
+  check((await api("finish",{run_id:runId,ack:"DELETE_LEARNER_STACK"})).status===409,"finish cannot race an unsettled start request");run.status=provisioningState;run.stack_id=boundStack;
   check((await api("startAssigned",launchFields)).body.run_id===runId,"repeat start resumes same run");
   check(tables.CloudLearnerRun.length===1&&observed.filter(a=>a==="CreateStack").length===1,"repeat start launches no second guest");
   check((await api("assignedLabs")).body.capacity_available===false,"occupied capacity visible without owner details");
