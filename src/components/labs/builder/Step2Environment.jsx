@@ -3,13 +3,17 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Label } from "@/components/ui/label";
 import { Cpu, MemoryStick, HardDrive } from "lucide-react";
+import { isGuidedTemplate } from "@/lib/awsLearnerTemplate";
 
 export default function Step2Environment({ form, updateForm }) {
+  const awsProfile = isGuidedTemplate(form);
   const { data: profiles = [], isLoading } = useQuery({
     queryKey: ["environment-profiles"],
     queryFn: () => base44.entities.EnvironmentProfile.list(),
+    enabled: !awsProfile,
   });
 
+  if (awsProfile) return <div className="rounded border border-sky-800 p-4 space-y-2 text-sm text-gray-300"><p className="font-semibold text-white">Private AWS Linux guest</p><p>Amazon Linux 2023 · t3.micro · 2 vCPU · 1 GiB RAM · 8 GiB encrypted disk</p><p>Guided browser file editor through private Systems Manager endpoints. One isolated network; no public IP or internet gateway.</p><p>Account 935838375949 · us-east-1 · Live preflight and explicit launch acknowledgment are required.</p></div>;
   return (
     <div className="space-y-5">
       {isLoading && <p className="text-gray-500 text-sm animate-pulse">Loading environments...</p>}
