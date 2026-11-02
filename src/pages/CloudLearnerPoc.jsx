@@ -58,7 +58,7 @@ export default function CloudLearnerPoc(){
     {run.status==="terminated"&&<button className={button} disabled={locked} onClick={()=>perform(async()=>{const data=await call("verifyRemoval",{run_id:run.id});setNotice(data.verified?"AWS confirms no learner stack, active instance, VPC, or tagged volume remains.":"AWS still reports: "+data.remaining.join(", "));})}>Verify AWS removal</button>}</div>
    </>}
   </section>
-  {run?.owner_user_id===user?.id&&<section className="border border-gray-700 rounded p-4 space-y-3">
+  {run&&run.owner_user_id===user?.id&&<section className="border border-gray-700 rounded p-4 space-y-3">
    <h2 className="font-semibold">{run.contract?.title}</h2><p className="font-mono text-sm">{run.contract?.path}</p>
    <p>First validate the initial permissions to see a failure. Load the file, edit its contents, choose 600, and save. Validate again to check the change. Changing back to 644 should fail a new validation.</p>
    <button className={button} disabled={locked||run.status!=="ready"} onClick={()=>start("read")}>Load file from guest</button>
