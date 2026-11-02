@@ -33,6 +33,8 @@ Status: experimental branch `design-studio-integration` (updated 2026-11-01). AW
 
 ## Gates before learner execution
 
+Complete the AWS cloud boot proof above first. After that, decide whether the next cloud slice is a server-mediated learner session or a manual AWS validation probe. The Kasm and Proxmox gates below remain later work.
+
 1. Confirm Kasm credentials and callback reachability for this Extreme ICE app without exposing secret values. The Design Studio callback URL embeds its own app ID and cannot be copied unchanged.
 2. Harden the Kasm backend interface. Design Studio's general `execCommand` action accepts a caller-provided command from any authenticated user; do not expose that surface in Extreme ICE. The runtime validator should dispatch only server-built, allowlisted probes from a frozen template snapshot.
 3. Implement a server-owned validator using the new admin-only `RuntimeValidationAttempt` entity: hashed one-time callback tokens, expiry, ownership-checked sanitized inspection, and separate dispatch/probe/callback outcomes. Keep tokens and provider credentials out of browser responses, logs, and workspace traces. The schema alone is not an execution path.
