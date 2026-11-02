@@ -309,9 +309,8 @@
       }
     },
     "AppUserAccess": {
-      "Type": "AWS::IAM::Policy",
+      "Type": "AWS::IAM::ManagedPolicy",
       "Properties": {
-        "PolicyName": "DesignStudioLearnerPilot",
         "Users": [
           {
             "Ref": "AppUser"
@@ -433,7 +432,8 @@
               }
             }
           ]
-        }
+        },
+        "ManagedPolicyName": "DesignStudioLearnerPilot"
       }
     },
     "AppUser": {
