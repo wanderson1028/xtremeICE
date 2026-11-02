@@ -36,6 +36,7 @@ export default function CloudLearnerPoc(){
  return <div className="min-h-screen bg-gray-950 text-gray-100 p-6"><main className="max-w-4xl mx-auto space-y-5">
   <Link to="/CloudCoursePoc" className="text-sky-300">← AWS course proof</Link>
   <h1 className="text-2xl font-semibold">AWS learner file task</h1>
+  <p className="text-sm text-sky-300">Learner account: 935838375949 · Region: us-east-1 · Dedicated learner credentials</p>
   <p className="text-gray-300">Edit a file in your AWS guest and protect it with permissions 600. Validation independently reads the guest file mode.</p>
   {error&&<div role="alert" className="border border-red-700 p-3">{error}</div>}
   {notice&&<div role="status" className="border border-sky-700 p-3">{notice}</div>}
