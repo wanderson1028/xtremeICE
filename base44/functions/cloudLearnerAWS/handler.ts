@@ -1,3 +1,4 @@
+import { assignedLab, assignmentActions } from "./assignments.ts";
 import { aws, list, hash } from "./awsControl.ts";
 import { EXECUTION_ROLE_ARN } from "./accessConfig.ts";
 import { assessGuidedTemplate, freezeGuidedTemplate } from "./templateContract.ts";
@@ -34,7 +35,7 @@ async function getStack(run:any){
 async function markTerminated(b:any,run:any){
  const terminated_at=run.terminated_at||now();
  await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{status:"terminated",terminated_at});
- if(run.lab_instance_id&&run.status!=="terminated")await b.asServiceRole.entities.LabInstance.update(run.lab_instance_id,{status:"terminated",completed_at:terminated_at,provider_status_message:"Learner stack deletion completed."});
+ if(run.lab_instance_id&&run.status!=="terminated")await b.asServiceRole.entities.LabInstance.update(run.lab_instance_id,{status:"terminated",provider_status_message:"Learner stack deletion completed."});
  return {...run,status:"terminated",terminated_at};
 }
 async function refresh(b:any,run:any){
@@ -49,7 +50,7 @@ async function refresh(b:any,run:any){
  }else if(state==="DELETE_COMPLETE") {update.status="terminated";update.terminated_at=run.terminated_at||now();}
  else if(/FAILED|ROLLBACK/.test(state)&&state!=="DELETE_IN_PROGRESS")update.status="failed";
  await b.asServiceRole.entities.CloudLearnerRun.update(run.id,update);
- if(run.lab_instance_id && update.status!==run.status && ["ready","terminated"].includes(update.status))await b.asServiceRole.entities.LabInstance.update(run.lab_instance_id,{status:update.status==="ready"?"running":"terminated",...(update.status==="terminated"?{completed_at:now()}:{}),provider_status_message:update.status==="ready"?"Private SSM guest is online.":"Learner stack deletion completed."});
+ if(run.lab_instance_id && update.status!==run.status && ["ready","terminated"].includes(update.status))await b.asServiceRole.entities.LabInstance.update(run.lab_instance_id,{status:update.status==="ready"?"running":"terminated",provider_status_message:update.status==="ready"?"Private SSM guest is online.":"Learner stack deletion completed."});
  return {...run,...update};
 }
 function publicRun(run:any){
@@ -61,8 +62,15 @@ export async function handleLearnerRequest(req:Request,b:any){
  let input:any;try{input=await req.json();}catch{return reply({error:"Invalid JSON"},400);}
  try{
  const action=input.action;
- if(action==="preflight"){
-   if(user.role!=="admin")return reply({error:"Admin pilot provisioning required"},403);
+ const assignmentResponse=await assignmentActions(action,input,b,user);
+ if(assignmentResponse)return reply(assignmentResponse);
+ let assignmentContext:any=null;
+ if(["assignmentPreflight","startAssigned"].includes(action)){
+   assignmentContext=await assignedLab(b,user,input.assignment_id);
+   input.template_id=assignmentContext.template.id;
+ }
+ if(action==="preflight"||action==="assignmentPreflight"){
+   if(user.role!=="admin"&&!assignmentContext)return reply({error:"Admin pilot provisioning required"},403);
    const source=await authoredTemplate(b,input.template_id);
    const identity=await assertAccount();
    const images=await ec2.send(new DescribeImagesCommand({Owners:["137112412989"],Filters:[{Name:"name",Values:["al2023-ami-2023.*-x86_64"]},{Name:"state",Values:["available"]},{Name:"architecture",Values:["x86_64"]}]}));
@@ -80,12 +88,15 @@ export async function handleLearnerRequest(req:Request,b:any){
    const runs=await b.asServiceRole.entities.CloudLearnerRun.filter(user.role==="admin"?{}:{owner_user_id:user.id},"-created_date",50);
    return reply({runs:runs.map(publicRun),schema_ready:true});
  }
- if(action==="provision"){
+ if(action==="provision"||action==="startAssigned"){
    if(user.role!=="admin")return reply({error:"Admin pilot provisioning required"},403);
    if(input.ack!=="LAUNCH_PRIVATE_SSM_LEARNER_PILOT")return reply({error:"Explicit scope acknowledgment required"},400);
    stackTemplate(input.ami_id,input.zone,"0123456789abcdef01234567");
    if(!await schemaReady(b))return reply({error:"Shared learner schemas are required"},409);
-   const active=await b.asServiceRole.entities.CloudLearnerRun.filter({status:{$in:ACTIVE}});if(active.length)return reply({error:"An existing learner pilot needs inspection or cleanup"},409);
+   const active=await b.asServiceRole.entities.CloudLearnerRun.filter({status:{$in:ACTIVE}});
+   const resumable=assignmentContext&&active.find((r:any)=>r.owner_user_id===user.id&&r.contract?.assignment_id===assignmentContext.assignment.id);
+   if(resumable)return reply({run_id:resumable.id,status:resumable.status,expires_at:resumable.expires_at,resumed:true});
+   if(active.length)return reply({error:"The single lab environment is in use or awaiting cleanup. Try again when it is available.",error_code:"LAB_CAPACITY_BUSY"},409);
    const old=await b.asServiceRole.entities.CloudPocRun.filter({status:{$in:["preparing","provisioning","running","cleanup_pending"]}});if(old.length)return reply({error:"A previous AWS proof is active"},409);
    const source=await authoredTemplate(b,input.template_id);
    if(input.template_hash!==source.fingerprint)return reply({error:"The saved template changed after preflight. Check AWS learner access again."},409);
@@ -94,7 +105,7 @@ export async function handleLearnerRequest(req:Request,b:any){
    if(!images.Images?.some((x:any)=>x.ImageId===input.ami_id))fail("AMI_PREFLIGHT_CHANGED");
    const zones=await ec2.send(new DescribeInstanceTypeOfferingsCommand({LocationType:"availability-zone",Filters:[{Name:"instance-type",Values:["t3.micro"]},{Name:"location",Values:[input.zone]}]}));if(!zones.Offerings?.some((x:any)=>x.Location===input.zone))fail("ZONE_PREFLIGHT_CHANGED");
    const expires=new Date(Date.now()+110*60000).toISOString();
-   const run=await b.asServiceRole.entities.CloudLearnerRun.create({owner_user_id:user.id,owner_email:user.email,status:"preparing",region:REGION,stack_name:STACK_NAME,contract:{...TASK,title:source.snapshot.lab_content.tasks[0].title,account_id:ACCOUNT,template_snapshot:source.snapshot},template_id:source.template.id,started_at:now(),expires_at:expires});
+   const run=await b.asServiceRole.entities.CloudLearnerRun.create({owner_user_id:user.id,owner_email:user.email,status:"preparing",region:REGION,stack_name:STACK_NAME,contract:{...TASK,...(assignmentContext?{assignment_id:assignmentContext.assignment.id}:{}),title:source.snapshot.lab_content.tasks[0].title,account_id:ACCOUNT,template_snapshot:source.snapshot},template_id:source.template.id,started_at:now(),expires_at:expires});
    try{
      const lab=await b.asServiceRole.entities.LabInstance.create({template_id:source.template.id,user_email:user.email,status:"provisioning",provider:"aws",template_snapshot:source.snapshot,template_version:source.template.version||"",started_at:now(),expires_at:expires,provider_status_message:"Creating private SSM learner stack."});
      await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{lab_instance_id:lab.id});
@@ -108,6 +119,10 @@ export async function handleLearnerRequest(req:Request,b:any){
  if(!run)return reply({error:"Run not found"},404);
  if(!owns(run,user)&&user.role!=="admin")return reply({error:"Run access denied"},403);
  if(run.contract?.account_id!==ACCOUNT)fail("RUN_ACCOUNT_BINDING_MISMATCH");
+ if(action==="workspaceState"){
+   const operations=await b.asServiceRole.entities.CloudGuestOperation.filter({run_id:run.id,owner_user_id:user.id,status:"pending"},"-created_date",20);
+   return reply({run:publicRun(run),pending_operation:operations[0]?{id:operations[0].id,kind:operations[0].kind}:null});
+ }
  if(action==="validationHistory"){
    if(!run.lab_instance_id)return reply({checks:[]});
    const attempts=await b.asServiceRole.entities.RuntimeValidationAttempt.filter({instance_id:run.lab_instance_id,task_id:TASK.task_id,check_id:TASK.check_id},"-created_date",20);
@@ -115,8 +130,13 @@ export async function handleLearnerRequest(req:Request,b:any){
  }
  await assertAccount();
  if(action==="refresh"){run=await refresh(b,run);return reply({run:publicRun(run)});}
- if(action==="cleanup"){
+ if(action==="cleanup"||action==="finish"){
    if(input.ack!=="DELETE_LEARNER_STACK")return reply({error:"Cleanup acknowledgment required"},400);
+   if(action==="finish"){
+    const current=(await b.asServiceRole.entities.CloudLearnerRun.filter({id:run.id}))[0];
+    run={...run,contract:{...current.contract,learning:{...current.contract.learning,finished_at:current.contract.learning?.finished_at||now()}}};
+    await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{contract:run.contract});
+   }
    let stack;
    try{stack=await getStack(run);}catch(e){if(!run.stack_id&&run.last_error_code==="AlreadyExistsException"){await markTerminated(b,run);return reply({status:"terminated"});}throw e;}
    if(!stack||stack.StackStatus==="DELETE_COMPLETE"){await markTerminated(b,run);return reply({status:"terminated"});}
@@ -133,6 +153,8 @@ export async function handleLearnerRequest(req:Request,b:any){
    return reply({verified:remaining.length===0,remaining});
  }
  if(action==="startOperation"){
+   if(run.contract.assignment_id)await assignedLab(b,user,run.contract.assignment_id);
+   if(run.contract.learning?.finished_at)return reply({error:"This learning session has finished. Start a new session to try again."},409);
    if(!canOperate(run,user))return reply({error:"Only the owner of a ready, unexpired run can access its guest"},403);
    const kind=input.kind as Operation;if(!["read","write","validate"].includes(kind))return reply({error:"Unsupported task action"},400);
    const nonce=crypto.randomUUID().replaceAll("-","");
@@ -165,9 +187,15 @@ export async function handleLearnerRequest(req:Request,b:any){
      const existing=await b.asServiceRole.entities.RuntimeValidationAttempt.filter({instance_id:run.lab_instance_id||run.id,task_id:TASK.task_id,check_id:TASK.check_id});
      if(!existing.some((a:any)=>a.evidence?.operation_id===op.id))await b.asServiceRole.entities.RuntimeValidationAttempt.create({instance_id:run.lab_instance_id||run.id,user_email:user.email,task_id:TASK.task_id,check_id:TASK.check_id,validator_type:"command_result",status:"completed",token_hash:await hash(op.binding),expires_at:op.expires_at,passed:(result as any).passed,observed:(result as any).mode,message:"SSM observed the guest file mode independently.",evidence:{run_id:run.id,operation_id:op.id,command_id:op.command_id,path:run.contract.path,template_id:run.template_id,expected_mode:run.contract.expected_mode,source:"aws_ssm_guided_task"}});
    }
+   if(op.kind==="validate"){
+     const current=(await b.asServiceRole.entities.CloudLearnerRun.filter({id:run.id}))[0];
+     const learning={...current.contract.learning,last_validation:{passed:(result as any).passed,mode:(result as any).mode,operation_id:op.id},...((result as any).passed?{completed_at:current.contract.learning?.completed_at||now()}:{} )};
+     await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{contract:{...current.contract,learning}});
+     if(run.lab_instance_id)await b.asServiceRole.entities.LabInstance.update(run.lab_instance_id,{progress:learning.completed_at?100:0,score:learning.completed_at?100:0,...(learning.completed_at?{completed_at:learning.completed_at}:{}),task_results:[{task_id:TASK.task_id,check_id:TASK.check_id,passed:(result as any).passed,observed:(result as any).mode,validation_operation_id:op.id}]});
+   }
    await b.asServiceRole.entities.CloudGuestOperation.update(op.id,{status:"completed",result});
    return reply({status:"completed",result});
  }
  return reply({error:"Unknown action"},400);
- }catch(e:any){return reply({error:"AWS learner request failed",error_code:safe(e),detail:String(e.message||"").slice(0,300)},[400,409].includes(e.status)?e.status:502);}
+ }catch(e:any){return reply({error:"AWS learner request failed",error_code:safe(e),detail:String(e.message||"").slice(0,300)},[400,403,404,409].includes(e.status)?e.status:502);}
 }
