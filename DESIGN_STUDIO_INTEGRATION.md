@@ -2,6 +2,16 @@
 
 Status: experimental branch `design-studio-integration` (updated 2026-11-02). The current target is AI generation → Lab Builder → guided AWS learner editing and validation in user-owned account `935838375949`. Do not merge to main until the gates below are met. Extreme ICE main remains the live demo. Capital Intelligence is outside this work.
 
+## November 2 live acceptance completed
+
+The bounded AI → Lab Builder → AWS guided-file demo completed in account `935838375949`, `us-east-1`. Saved draft `6ae8dcb50cfc77ecfbad0643`, “Securing Sensitive Configuration Files on Linux,” has the ai-generated and aws-guided-file-v1 tags. The reviewed-source preflight identified the intended account and reported schemas ready/eligible. The user reported IAM setup V3 CREATE_COMPLETE; the branch function was refreshed after the dedicated secret settings were added.
+
+Live run `6ae8e04d7150a2b2eab52b81` linked frozen LabInstance `6ae8e04d4c856fdd25c144da` and EC2 `i-02d6dee583d878f95`. Stored completed guest operations show: initial read at mode 644; successful write; read-back containing “My Design Studio lab change” at mode 600; independent validation passed with mode 600. There is no completed initial failed validation or revert/fail in this run's recorded operations; those remain additional live demonstrations rather than claimed evidence.
+
+The run and LabInstance were queried and both are terminated. Run stack_status is DELETE_COMPLETE, terminated_at `2026-11-02T19:24:21.901Z`, last_error_code null. The user clicked Verify AWS removal and reported: “AWS confirms no learner stack, active instance, VPC, or tagged volume remains.” That is user-reported output of the backend's AWS inventory check, distinct from the directly queried database evidence.
+
+The requested simple demo is now proven through guest modification, persistence, passing validation and cleanup. Keep the IAM setup for reuse; no new runtime launch is needed. Actual billing, live cross-user denial and automatic stack-expiry cleanup are not verified/implemented by this proof. The existing $10/two-hour scope remains an operator-managed limit. Branch only; no merge/publish. Kasm/Proxmox and unrelated Live Fire resource reconciliation remain separate later work.
+
 ## Ownership and boundaries
 
 - Course lab authoring: `LabTemplate` and `LabInstance`. This is the target for Design Studio's provider-neutral task, snapshot, scoring, and validation model.
@@ -41,7 +51,9 @@ New preparation, preflight and launch actions for this old proof path are closed
 - Backend type check, frontend build, and focused lint passed. All four tests passed, including actual generated Bash execution of the present and absent file checks in a temporary sandbox directory. Live draft `6ae80d805cb0b1b54d0d16b9` persisted both validation criteria. Run `6ae80deed278e8db47400319` launched EC2 `i-03a55b9860f01f9cf` and frozen LabInstance `6ae80dee7bf842c995c58a43`. AWS console evidence completed attempt `6ae80deeb8ed15456fe51ad7` with present_file=true and attempt `6ae80def934b2a2af122d202` with missing_file=false. The stored snapshot contains both criteria. The user reported Validation self-test: Verified on the first and repeat inspections. Both completed attempt records retained the same outcomes and timestamps after repeat inspection. The run and frozen LabInstance reached terminated after cleanup; the instance was observed terminated and cleanup had no error. The user then clicked Verify AWS removal and reported AWS confirmed no proof resources remain. The successful run lasted approximately six minutes, within the two-hour pilot limit. Actual AWS billing remains unverified.
 - Live acceptance completed: draft criteria persisted, AWS preflight passed, one isolated guest ran the fixed checks, present_file passed, missing_file failed, repeat inspection preserved the results, and cleanup plus read-only AWS removal verification completed. The self-test demonstrates system validation evidence; it does not provide learner access or measure learner achievement.
 
-## AI → Builder → AWS guided learner demo (implemented; live new-account proof pending)
+## AI → Builder → AWS guided learner demo (implementation and pre-proof history)
+
+The live acceptance record above supersedes the pending gates recorded in this historical section.
 
 - Current target: user-owned AWS account `935838375949`, region `us-east-1`. Every new learner AWS operation checks the expected STS identity and the run's account binding. Separate learner credentials are required; there is no fallback to the original app-wide AWS integration. Existing integration settings and unrelated Live Fire records were preserved.
 - `QuickBuild?preset=aws-learner` invokes Base44's AI integration for courseware, then builds the bounded `aws-guided-file-v1` template. AI supplies narrative and objectives; supported infrastructure and the validator are deterministic. Incomplete AI responses fail visibly. Save & Open in Builder persists the actual draft, and Builder reviews/normalizes it before Save & open AWS learner task passes its ID.
