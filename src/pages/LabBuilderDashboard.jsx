@@ -11,6 +11,7 @@ const modules = [
   { name: "Environments", icon: Globe, path: "/LabEnvironments", desc: "Configure Kasm workspace environments" },
   { name: "Exports", icon: Download, path: "/LabExports", desc: "Export lab configurations and bundles" },
   { name: "NICE Mapping", icon: FileText, path: "/NiceMapping", desc: "Map labs to NICE Framework work roles" },
+  { name: "AI → AWS Demo", icon: Cloud, path: "/QuickBuild?preset=aws-learner", desc: "Generate a Linux file-permissions lab, review it, deploy and validate" },
   { name: "Quick Build", icon: Zap, path: "/QuickBuild", desc: "Smart rapid lab scenario generation" },
   { name: "Network Lab Designer", icon: Network, path: "/NetworkLabDesigner", desc: "Design network-based lab topologies" },
 ];
