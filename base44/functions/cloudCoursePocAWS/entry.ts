@@ -140,7 +140,7 @@ async function inspectRun(base44: any, run: any) {
     const attempts = await base44.asServiceRole.entities.RuntimeValidationAttempt.filter({ instance_id: run.lab_instance_id, task_id: TASK_ID });
     for (const attempt of attempts) {
       if (attempt.status !== "pending" || attempt.evidence?.run_id !== run.id) continue;
-      const passed = consoleText ? await readProbe(consoleText, run.id, attempt.token_hash, attempt.check_id) : null;
+      const passed = consoleText && Date.now() <= Date.parse(attempt.expires_at) ? await readProbe(consoleText, run.id, attempt.token_hash, attempt.check_id) : null;
       if (passed !== null) {
         await base44.asServiceRole.entities.RuntimeValidationAttempt.update(attempt.id, {
           status: "completed", passed, observed: passed ? "file present" : "file absent",
