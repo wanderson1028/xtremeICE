@@ -9,7 +9,7 @@ const invoke = async (action, fields = {}) => {
 };
 const messageOf = (error) => {
   const body = error?.response?.data;
-  return [body?.error, body?.error_code].filter(Boolean).join(": ") || error?.message || "Request failed";
+  return [body?.error, body?.error_stage, body?.error_code, body?.error_detail].filter(Boolean).join(": ") || error?.message || "Request failed";
 };
 
 export default function CloudCoursePoc() {
@@ -124,7 +124,7 @@ export default function CloudCoursePoc() {
           <button type="button" disabled={!templateId || !!busy} onClick={check} className="rounded bg-sky-700 px-4 py-2 disabled:opacity-50">Check AWS and template</button>
           {preflight && (
             <div className="rounded bg-gray-950 border border-gray-800 p-4 text-sm space-y-2">
-              <p>AWS account: <span className="font-mono">{preflight.aws?.account_id}</span> · Region: {preflight.aws?.region} · AMI: <span className="font-mono">{preflight.aws?.ami_id}</span></p>
+              <p>AWS account: <span className="font-mono">{preflight.aws?.account_id}</span> · Region: {preflight.aws?.region} · Zone: {preflight.aws?.availability_zone || "pending"} · AMI: <span className="font-mono">{preflight.aws?.ami_id}</span></p>
               <p>Scope: {preflight.scope}</p>
               <p>Template: <strong className={preflight.assessment?.ready ? "text-green-300" : "text-amber-300"}>{preflight.assessment?.ready ? "Eligible" : "Needs changes"}</strong></p>
               {preflight.schema_gate && <p className="text-amber-300">{preflight.schema_gate}</p>}
