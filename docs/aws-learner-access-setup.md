@@ -1,22 +1,43 @@
-# AWS learner access IAM setup
+# AWS learner access setup — user-owned account
 
-The first live preflight failed because base-64-user1 lacks cloudformation:ValidateTemplate. No learner resources were launched.
+## Current target
 
-## Install with an AWS IAM administrator
+- AWS account: 935838375949, confirmed by the user.
+- Region: us-east-1.
+- Dedicated API-only app user: design-studio-learner-pilot.
+- Dedicated app secret settings: AWS_LEARNER_ACCESS_KEY_ID and AWS_LEARNER_SECRET_ACCESS_KEY.
+- Bootstrap file: docs/aws-learner-access-bootstrap.json. The local upload copy is AWS_Learner_Access_Bootstrap.json in the project workspace.
 
-1. Select account 699121763776 and region us-east-1 in AWS CloudFormation.
-2. Create a standard stack from docs/aws-learner-access-bootstrap.json, using stack name DesignStudioLearnerAccessSetup.
-3. Review the IAM changes and acknowledge creation of named IAM resources. Create the stack and wait for CREATE_COMPLETE.
-4. Reload the Design Studio integration branch, open AWS learner file task, and run Check AWS learner access again. Keep Launch untouched until the preflight result has been reviewed.
+The older Base44 AWS identity identified account 699121763776. The user said that may be Jason's account. Its credentials and other app integrations have not been changed. The learner adapter has no fallback to those settings. Every learner AWS lifecycle action checks the expected account.
 
-The setup creates DesignStudioLearnerCloudFormationRole, DesignStudioLearnerGuestRole, DesignStudioLearnerGuestProfile, and an inline DesignStudioLearnerPilot policy on the existing base-64-user1. It creates no EC2 instance, endpoint, VPC, or credential. Existing user policies are retained.
+## One-time IAM setup
 
-The app can validate a template, operate the fixed ExtremeICE-DesignStudio-Learner-Pilot stack using the exact execution role, read AWS status, and run AWS-RunShellScript on learner-tagged EC2 instances. The execution role has specific regional EC2 lifecycle permissions with tag restrictions and can pass only the guest role to EC2. Neither added role nor app policy has IAM role/policy creation or modification actions. The guest role uses AWS's AmazonSSMManagedInstanceCore policy.
+1. Sign into account 935838375949 as an authorized administrator and select us-east-1.
+2. The earlier DesignStudioLearnerAccessSetup attempt is ROLLBACK_COMPLETE. Its Events explicitly say the old template's account assertion rejected account 935838375949. Keep that failed stack as evidence; use a fresh setup stack name: DesignStudioLearnerAccessSetupV2.
+3. Create a standard CloudFormation stack using the corrected aws-learner-access-bootstrap.json file.
+4. Review the named IAM resources and policy, acknowledge named IAM capabilities, then submit and wait for CREATE_COMPLETE.
+5. Check Outputs: the execution role ARN must be in account 935838375949 and the AppUser must be design-studio-learner-pilot.
 
-These are additional permissions; existing user permissions are not removed. Static CloudFormation lint passed for both setup and learner templates. Actual IAM authorization and provisioning are pending live verification.
+The template creates two roles, one instance profile, the dedicated IAM user, and its limited inline policy. It creates no access keys, console password, EC2 instance, VPC, or private endpoint. The app can use only the fixed learner stack and approved SSM document on learner-tagged instances. The execution role cannot create or modify IAM roles or policies.
+
+## Secure credential entry
+
+After the setup stack succeeds, an administrator must create an access key for design-studio-learner-pilot in IAM → Users → Security credentials → Access keys. Enter that pair directly into the Base44 app's secret settings:
+
+- AWS_LEARNER_ACCESS_KEY_ID: that user's access key ID.
+- AWS_LEARNER_SECRET_ACCESS_KEY: its matching secret access key.
+
+Keep credential values out of chat, source code, project files, and screenshots. Existing app-wide AWS settings stay in place. This pilot uses a dedicated IAM user; no root credentials are needed. Live preflight must identify account 935838375949 before any learner stack is launched.
+
+## Verified and pending
+
+The corrected bootstrap and learner templates passed static CloudFormation lint. Account/no-fallback guards, task scripts, template snapshot flow, API orchestration and frontend builds passed their checks. Actual IAM authorization and a live learner run in account 935838375949 are not yet verified. Browser automation confirmed the old rollback reason, but the console file chooser did not open, so no corrected setup was submitted.
 
 ## Cleanup and rollback
 
-Delete and verify the disposable learner stack after each proof. Its VM, disk, VPC, subnet, security groups, and private endpoints are disposable. The IAM setup stack is reusable and remains in place. To remove the added permissions and roles, first delete every learner pilot stack, then delete DesignStudioLearnerAccessSetup. Keep its execution role available until learner stack cleanup finishes.
+Delete the disposable runtime stack ExtremeICE-DesignStudio-Learner-Pilot after each demo and verify removal in the app. The IAM setup is reusable and remains in place. For full decommissioning, first remove the runtime stack, then deactivate/delete the access key you created for the app user, then delete DesignStudioLearnerAccessSetupV2. Keep the execution role available until runtime cleanup finishes.
 
-References: [CloudFormation service roles](https://docs.aws.amazon.com/prescriptive-guidance/latest/least-privilege-cloudformation/service-roles-for-cloudformation.html), [SSM command restrictions](https://docs.aws.amazon.com/launchwizard/latest/userguide/launch-wizard-sap-service-catalog-errors.html).
+See [the demo runbook](aws-learner-demo-runbook.md).
+
+References: [CloudFormation service roles](https://docs.aws.amazon.com/prescriptive-guidance/latest/least-privilege-cloudformation/service-roles-for-cloudformation.html), [IAM administrator key management](https://docs.aws.amazon.com/IAM/latest/UserGuide/access-keys-admin-managed.html).
+
