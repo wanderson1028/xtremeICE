@@ -52,6 +52,7 @@ Deno.test("stack contains only private endpoints, one bounded guest, and SSM ins
  eq(Object.values(r).some((v:any)=>/InternetGateway|NatGateway|EIP|AccessKey/.test(v.Type)),false);
  eq(r.Guest.Properties.BlockDeviceMappings[0].Ebs,{VolumeSize:8,VolumeType:"gp3",Encrypted:true,DeleteOnTermination:true});
  eq(r.GuestGroup.Properties.SecurityGroupEgress,[{IpProtocol:"tcp",FromPort:443,ToPort:443,DestinationSecurityGroupId:{Ref:"EndpointGroup"}}]);
- eq(r.GuestRole.Properties.ManagedPolicyArns,["arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"]);
+ eq(r.Guest.Properties.IamInstanceProfile,"DesignStudioLearnerGuestProfile");
+ eq(Object.values(r).some((v:any)=>v.Type.startsWith("AWS::IAM::")),false);
  rejects(()=>stackTemplate("ami-0123456789abcdef0","us-west-2a","0123456789abcdef01234567"));
 });
