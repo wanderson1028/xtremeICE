@@ -5,7 +5,7 @@ import {
   RevokeSecurityGroupEgressCommand, RunInstancesCommand, DescribeImagesCommand, DescribeInstanceTypeOfferingsCommand,
   DescribeInstancesCommand, GetConsoleOutputCommand, TerminateInstancesCommand,
   DeleteSecurityGroupCommand, DeleteSubnetCommand, DeleteVpcCommand,
-  DescribeVpcsCommand, DescribeSubnetsCommand, DescribeSecurityGroupsCommand,
+  DescribeVpcsCommand, DescribeSubnetsCommand, DescribeSecurityGroupsCommand, DescribeVolumesCommand,
 } from "./awsQuery.ts";
 
 // Branch-only AWS proof: one isolated Amazon Linux VM. No IGW, NAT, public IP,
@@ -313,6 +313,24 @@ Deno.serve(async (req) => {
       if (!run) return reply({ error: "Run not found" }, 404);
       if (run.status === "terminated") return reply({ status: "terminated", run_id: run.id });
       return reply(await cleanup(base44, run));
+    }
+    if (action === "verifyCleanup") {
+      const run = await getRun(base44, input.run_id);
+      if (!run) return reply({ error: "Run not found" }, 404);
+      if (run.status !== "terminated") return reply({ error: "Cleanup is still in progress" }, 409);
+      const state = run.instance_id ? await observeInstance(run.instance_id) : "not_created";
+      const remaining = [];
+      if (!["terminated", "not_found", "not_created"].includes(state)) remaining.push("instance");
+      if (run.security_group_id && await assertOwned(run, "security_group", run.security_group_id)) remaining.push("security_group");
+      if (run.subnet_id && await assertOwned(run, "subnet", run.subnet_id)) remaining.push("subnet");
+      if (run.vpc_id && await assertOwned(run, "vpc", run.vpc_id)) remaining.push("vpc");
+      const volumes = await ec2.send(new DescribeVolumesCommand({
+        Filters: [{ Name: "tag:PocRunId", Values: [run.id] }, { Name: "tag:ManagedBy", Values: ["ExtremeICE-DesignStudio-POC"] }],
+        MaxResults: 1000,
+      }));
+      if (volumes.NextToken) return reply({ error: "Volume inventory was incomplete" }, 502);
+      if (volumes.Volumes?.some((volume: any) => volume.State !== "deleted")) remaining.push("volume");
+      return reply({ run_id: run.id, verified: remaining.length === 0, instance_state: state, remaining });
     }
     if (action === "list") {
       const runs = await base44.asServiceRole.entities.CloudPocRun.list("-created_date", 20);
