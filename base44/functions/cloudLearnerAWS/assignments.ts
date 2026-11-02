@@ -2,10 +2,11 @@ import { assessGuidedTemplate, freezeGuidedTemplate } from "./templateContract.t
 import { hash } from "./awsControl.ts";
 export const ASSIGNMENT_KIND={lab_type:"lab_course",service_key:"lab_scenarios"};
 const denied=(message:string,status=403)=>Object.assign(new Error(message),{name:"ASSIGNMENT_ACCESS_DENIED",status});
-export async function assignedLab(b:any,user:any,id:unknown){
+export async function assignedLab(b:any,user:any,id:unknown,checkTemplate=true){
  if(typeof id!=="string"||!/^[a-f0-9]{16,32}$/i.test(id))throw denied("Select an assigned lab.");
  const assignment=(await b.asServiceRole.entities.UserLabAssignment.filter({id,...ASSIGNMENT_KIND}))[0];
  if(!assignment||assignment.user_email.toLowerCase()!==String(user.email).toLowerCase())throw denied("This lab is not assigned to you.");
+ if(!checkTemplate)return {assignment,template:null};
  const template=(await b.asServiceRole.entities.LabTemplate.filter({id:assignment.lab_id}))[0];
  if(!template||!assessGuidedTemplate(template).ready)throw denied("This assigned lab is unavailable. Contact your instructor.",409);
  return {assignment,template};
@@ -43,5 +44,6 @@ export async function assignmentActions(action:string,input:any,b:any,user:any){
   const template=(await b.asServiceRole.entities.LabTemplate.filter({id:row.lab_id}))[0];
   if(template?.tags?.includes("aws-guided-file-v1"))assignments.push({id:row.id,template_id:row.lab_id,title:template.title,description:template.description||"",objectives:template.objectives||[],available:assessGuidedTemplate(template).ready});
  }
- return {assignments};
+ const occupied=await b.asServiceRole.entities.CloudLearnerRun.filter({status:{$in:["preparing","provisioning","ready","failed","cleanup_pending"]}});
+ return {assignments,capacity_available:occupied.length===0};
 }
