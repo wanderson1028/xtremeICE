@@ -39,7 +39,8 @@ Deno.test("real file edits produce fail-pass-fail and preserve literal untrusted
   await run("write",text,"600");eq(await run("read"),{mode:"600",content:text});eq(await run("validate"),{mode:"600",passed:true});
   let exists=true;try{await Deno.stat(dir+"/injected");}catch{exists=false;}eq(exists,false);
   await run("write","reverted","644");eq(await run("validate"),{mode:"644",passed:false});
-  await Deno.remove(target);await Deno.symlink("/etc/passwd",target);
+  await Deno.remove(target);await Deno.writeTextFile(dir+"/other","outside task");
+  eq((await new Deno.Command("bash",{args:["-c",'ln -s "$1" "$2"',"--",dir+"/other",target]}).output()).code,0);
   const cmd=compileOperation("read",nonce).replaceAll(TASK_PATH,target).replaceAll("/var/lock/design-studio-learner.lock",dir+"/task.lock");
   eq((await new Deno.Command("bash",{args:["-c",cmd],stdout:"piped",stderr:"piped"}).output()).success,false);
  }finally{await Deno.remove(dir,{recursive:true});}
