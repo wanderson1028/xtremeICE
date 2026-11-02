@@ -57,8 +57,8 @@ export default function CloudCoursePoc() {
     try { await operation(); } catch (cause) { setError(messageOf(cause)); }
     finally { setBusy(""); }
   };
-  const prepareTemplate = () => runAction("prepare", async () => {
-    const data = await invoke("prepareTemplate");
+  const prepareTemplate = (validation = false) => runAction("prepare", async () => {
+    const data = await invoke(validation ? "prepareValidationTemplate" : "prepareTemplate");
     const rows = await base44.entities.LabTemplate.list("-created_date", 100);
     setTemplates(rows || []);
     setTemplateId(data.template_id);
@@ -88,7 +88,7 @@ export default function CloudCoursePoc() {
   const inspect = (runId) => runAction(runId, async () => {
     const data = await invoke("inspect", { run_id: runId });
     setObservations((previous) => ({ ...previous, [runId]: data }));
-    setNotice(data.guest_ready ? "Guest boot marker observed in AWS console output." : "AWS guest boot marker is pending.");
+    setNotice(data.validation?.verified ? "Validation self-test verified: present file passed and missing file failed. Clean up this run now." : data.guest_ready ? "Guest boot marker observed in AWS console output." : "AWS guest boot marker is pending.");
     await refreshRuns();
   });
   const verifyCleanup = (runId) => runAction(runId, async () => {
@@ -113,13 +113,14 @@ export default function CloudCoursePoc() {
         <Link to="/LabBuilderDashboard" className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-white"><ChevronLeft className="h-4 w-4" /> Course Lab Builder</Link>
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2"><Cloud className="h-6 w-6 text-sky-400" /> AWS course lab proof</h1>
-          <p className="text-gray-400 text-sm mt-2">Experimental Design Studio integration branch. Proves a frozen course lab can boot one isolated AWS guest and records the result in a LabInstance. Learner access and AWS task validation are not included.</p>
+          <p className="text-gray-400 text-sm mt-2">Experimental Design Studio integration branch. Proves a frozen course lab can boot one isolated AWS guest and records the result in a LabInstance. The validation self-test runs fixed file checks at boot and records both pass and fail evidence. Learner access is a later step.</p>
         </div>
         {error && <div role="alert" className="rounded border border-red-700 bg-red-950/50 p-3 text-red-200">{error}</div>}
         {notice && <div role="status" className="rounded border border-sky-700 bg-sky-950/40 p-3 text-sky-200">{notice}</div>}
         <section className="rounded-xl border border-gray-800 bg-gray-900 p-5 space-y-4">
           <h2 className="font-semibold">1. Select and check a course template</h2>
-          <button type="button" disabled={!!busy} onClick={prepareTemplate} className="rounded border border-sky-700 text-sky-300 px-4 py-2 disabled:opacity-50">Prepare isolated proof template</button>
+          <button type="button" disabled={!!busy} onClick={() => prepareTemplate(false)} className="rounded border border-sky-700 text-sky-300 px-4 py-2 disabled:opacity-50">Prepare isolated proof template</button>
+          <button type="button" disabled={!!busy} onClick={() => prepareTemplate(true)} className="rounded border border-emerald-700 text-emerald-300 px-4 py-2 disabled:opacity-50">Prepare validation self-test</button>
           <select aria-label="Course template" className="w-full rounded bg-gray-950 border border-gray-700 p-2" value={templateId}
             onChange={(event) => { setTemplateId(event.target.value); setPreflight(null); }}>
             <option value="">Select a template</option>
@@ -150,6 +151,10 @@ export default function CloudCoursePoc() {
               <p className="font-mono text-xs break-all">{run.id} · {run.status}</p>
               <p>Instance: {run.instance_id || "pending"} · Region: {run.region} · Expires: {run.expires_at || "pending"}</p>
               {observed && <p>AWS state: {observed.state} · Guest marker: {observed.guest_ready ? "observed" : "pending"}</p>}
+              {observed?.validation && <div className="rounded border border-emerald-900 p-3 space-y-1">
+                <p>Validation self-test: {observed.validation.verified ? "Verified" : "Pending or unexpected result"}</p>
+                {observed.validation.checks.map(check => <p key={check.check}>{check.check}: {check.status} · Result: {check.passed === null ? "pending" : check.passed ? "pass" : "fail"} · Expected: {check.expected_pass ? "pass" : "fail"}</p>)}
+              </div>
               {run.last_error_code && <p className="text-amber-300">Last AWS error: {run.last_error_code}</p>}
               <div className="flex gap-3">
                 <button type="button" disabled={!!busy} onClick={() => inspect(run.id)} className="rounded bg-sky-800 px-3 py-1.5 disabled:opacity-50">Inspect in AWS</button>
