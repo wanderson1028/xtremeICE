@@ -38,7 +38,7 @@ export function buildGuidedTemplate(narrative:any={}){
 }
 export function buildAiGuidedTemplate(narrative:any){
  if(!narrative||!["title","description","scenario","task_title","instructions"].every(k=>typeof narrative[k]==="string"&&narrative[k].trim())||!Array.isArray(narrative.objectives)||narrative.objectives.length<3)throw new Error("AI returned incomplete lab courseware. Please generate again.");
- return buildGuidedTemplate(narrative);
+ const template=buildGuidedTemplate(narrative);template.tags.push("ai-generated");return template;
 }
 export function isGuidedTemplate(value:any){return Array.isArray(value?.tags)&&value.tags.includes(PROFILE_TAG);}
 export function assessGuidedTemplate(value:any){
