@@ -17,3 +17,17 @@ Deno.test("bootstrap and runtime target the user-owned account and a separate ap
  const actions=bootstrap.Resources.AppUserAccess.Properties.PolicyDocument.Statement.flatMap(s=>s.Action);
  check(!actions.some(a=>/^iam:(Create|Put|Attach|Update)/.test(a)));
 });
+Deno.test("bootstrap policy attachments fit IAM identity and managed-policy size quotas",()=>{
+ check(bootstrap.Resources.AppUserAccess.Type==="AWS::IAM::ManagedPolicy");
+ check(bootstrap.Resources.AppUserAccess.Properties.ManagedPolicyName==="DesignStudioLearnerPilot");
+ const size=(doc:unknown)=>JSON.stringify(doc).replace(/\s/g,"").length;
+ check(size(bootstrap.Resources.AppUserAccess.Properties.PolicyDocument)<=6144);
+ const userInline=(bootstrap.Resources.AppUser.Properties as {Policies?:{PolicyDocument:unknown}[]}).Policies??[];
+ check(userInline.reduce((total,p)=>total+size(p.PolicyDocument),0)<=2048);
+ for(const resource of Object.values(bootstrap.Resources)){
+  if(resource.Type!=="AWS::IAM::Role")continue;
+  const policies=(resource.Properties as {Policies?:{PolicyDocument:unknown}[]}).Policies??[];
+  check(policies.reduce((total,p)=>total+size(p.PolicyDocument),0)<=10240);
+ }
+});
+
