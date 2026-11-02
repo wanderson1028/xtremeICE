@@ -1,6 +1,6 @@
 import { GUEST_PROFILE_NAME } from "./accessConfig.ts";
 export const REGION = "us-east-1";
-export const ACCOUNT = "699121763776";
+export const ACCOUNT = "935838375949";
 export const MANAGED_BY = "ExtremeICE-DesignStudio-Learner";
 export const TASK_PATH = "/var/tmp/design-studio-learner/proof.txt";
 export const TASK = Object.freeze({ title: "Protect the task file", path: TASK_PATH, expected_mode: "600", initial_mode: "644", task_id: "protect_file", check_id: "file_mode" });
