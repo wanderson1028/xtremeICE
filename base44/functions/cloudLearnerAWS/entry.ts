@@ -1,5 +1,6 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 import { aws, list, hash } from "./awsControl.ts";
+import { EXECUTION_ROLE_ARN } from "./accessConfig.ts";
 import { REGION, ACCOUNT, MANAGED_BY, TASK, canOperate, owns, compileOperation, parseOutput, stackTemplate, type Operation } from "./model.ts";
 import { EC2Client, STSClient, GetCallerIdentityCommand, DescribeImagesCommand, DescribeInstanceTypeOfferingsCommand, DescribeInstancesCommand, DescribeVolumesCommand, DescribeVpcsCommand } from "./awsQuery.ts";
 const ec2=new EC2Client(),sts=new STSClient();
@@ -61,7 +62,7 @@ Deno.serve(async(req)=>{
    await aws("cloudformation","ValidateTemplate",{TemplateBody:JSON.stringify(template)});
    await aws("ssm","DescribeInstanceInformation",{MaxResults:5});
    const ready=await schemaReady(b);
-   return reply({schema_ready:ready,eligible:ready,account:identity.Account,region:REGION,ami_id:ami,zone,scope:"One t3.micro, encrypted 8 GiB disk, new VPC/subnet, two private SSM endpoints, two security groups, SSM instance role/profile. No public IP or internet gateway. Endpoints remain billable until stack cleanup.",task:TASK});
+   return reply({schema_ready:ready,eligible:ready,account:identity.Account,region:REGION,ami_id:ami,zone,scope:"One t3.micro, encrypted 8 GiB disk, new VPC/subnet, two private SSM endpoints, two security groups, SSM preconfigured SSM instance profile. No public IP or internet gateway. Endpoints remain billable until stack cleanup.",task:TASK});
  }
  if(action==="list"){
    if(!await schemaReady(b))return reply({runs:[],schema_ready:false});
@@ -89,7 +90,7 @@ Deno.serve(async(req)=>{
    try{
      const lab=await b.asServiceRole.entities.LabInstance.create({template_id:template.id,user_email:user.email,status:"provisioning",provider:"aws",template_snapshot:{...spec,lab_content:{...spec.lab_content,tasks:[task]}},started_at:now(),expires_at:expires,provider_status_message:"Creating private SSM learner stack."});
      await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{lab_instance_id:lab.id});
-     const result=await aws("cloudformation","CreateStack",{StackName:STACK_NAME,TemplateBody:JSON.stringify(stackTemplate(input.ami_id,input.zone,run.id)),Capabilities:["CAPABILITY_IAM"],OnFailure:"DELETE",TimeoutInMinutes:15,ClientRequestToken:run.id,Tags:[{Key:"ManagedBy",Value:MANAGED_BY},{Key:"LearnerRunId",Value:run.id}]});
+     const result=await aws("cloudformation","CreateStack",{StackName:STACK_NAME,TemplateBody:JSON.stringify(stackTemplate(input.ami_id,input.zone,run.id)),RoleARN:EXECUTION_ROLE_ARN,OnFailure:"DELETE",TimeoutInMinutes:15,ClientRequestToken:run.id,Tags:[{Key:"ManagedBy",Value:MANAGED_BY},{Key:"LearnerRunId",Value:run.id}]});
      await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{stack_id:result.StackId,status:"provisioning"});
      return reply({run_id:run.id,status:"provisioning",expires_at:expires});
    }catch(e){await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{status:"failed",last_error_code:safe(e)});return reply({error:"Provisioning request failed; inspect or clean up this run",error_code:safe(e),run_id:run.id},502);}
@@ -104,7 +105,7 @@ Deno.serve(async(req)=>{
    let stack;
    try{stack=await getStack(run);}catch(e){if(!run.stack_id&&run.last_error_code==="AlreadyExistsException"){await markTerminated(b,run);return reply({status:"terminated"});}throw e;}
    if(!stack||stack.StackStatus==="DELETE_COMPLETE"){await markTerminated(b,run);return reply({status:"terminated"});}
-   await aws("cloudformation","DeleteStack",{StackName:stack.StackId,ClientRequestToken:"cleanup-"+run.id});
+   await aws("cloudformation","DeleteStack",{StackName:stack.StackId,RoleARN:EXECUTION_ROLE_ARN,ClientRequestToken:"cleanup-"+run.id});
    await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{status:"cleanup_pending"});return reply({status:"cleanup_pending"});
  }
  if(action==="verifyRemoval"){
