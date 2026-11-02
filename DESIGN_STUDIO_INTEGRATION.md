@@ -41,6 +41,14 @@ No live assignment was created and no AWS launch was performed during this imple
 6. Reload during a pending action or ready session and resume the same run. A second assigned learner should receive the occupied-capacity response.
 7. Finish lab; wait for Released and AWS removal verified. Reload and confirm results/completion remain. Instructor revocation must block new file commands while preserving cleanup access.
 
+## Live non-admin learner acceptance — November 2, 2026
+
+The user reported the complete assigned-learner flow worked: task completed and environment released. Read-only Base44 verification confirms run `6ae8ff3e2a35d3ed7b480186` belongs to app user `6acd003cac5ce4e1e0f5f07f`, whose current role is `user`, not admin. The run binds assignment `6ae8f323681d4ec23dcf09cc`, account `935838375949`, the frozen Linux lab and LabInstance `6ae8ff3e890054e02dc7854d`.
+
+Three completed validation attempts persisted: mode 644 failed at 21:29:16 UTC, mode 600 passed at 21:30:21 UTC, and a repeat mode 600 check passed at 21:32:28 UTC. Server-owned learning completion is 21:30:22 UTC; Finish is 21:32:56 UTC. The run and LabInstance are terminated, stack status is DELETE_COMPLETE, and last_error_code is null. Resource termination at 21:36:50 UTC preserved LabInstance progress 100, score 100 and its original learning completion time.
+
+This proves the positive non-admin assignment → AWS session → validation failure/change/pass → finish/release path, with durable completion independent of resource state. The user reported environment release; the exact independent AWS removal-verification notice for this run has not been separately captured. Live cross-user denial, live revocation, concurrent admission and browser-independent expiry cleanup remain separate gates. Do not treat the mocked security tests as those live proofs. No merge or publish; retain one active AWS guest.
+
 ## Ownership and boundaries
 
 - Course lab authoring: `LabTemplate` and `LabInstance`. This is the target for Design Studio's provider-neutral task, snapshot, scoring, and validation model.
