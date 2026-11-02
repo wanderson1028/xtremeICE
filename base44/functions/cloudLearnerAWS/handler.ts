@@ -131,6 +131,7 @@ export async function handleLearnerRequest(req:Request,b:any){
  await assertAccount();
  if(action==="refresh"){run=await refresh(b,run);return reply({run:publicRun(run)});}
  if(action==="cleanup"||action==="finish"){
+   if(run.status==="preparing"&&!run.stack_id&&Date.now()-Date.parse(run.started_at)<300000)return reply({error:"The start request is still settling. Refresh its status before finishing this session."},409);
    if(input.ack!=="DELETE_LEARNER_STACK")return reply({error:"Cleanup acknowledgment required"},400);
    if(action==="finish"){
     const current=(await b.asServiceRole.entities.CloudLearnerRun.filter({id:run.id}))[0];
