@@ -93,40 +93,6 @@
                 "type": "string",
                 "description": "Stable task identity (survives reordering); used by runtime results, dependencies, branching, analytics, and validation"
               },
-              "order": {
-                "type": "number",
-                "description": "1-based display order"
-              },
-              "task_type": {
-                "type": "string",
-                "enum": [
-                  "Configuration",
-                  "Verification",
-                  "Troubleshooting",
-                  "Analysis",
-                  "Documentation",
-                  "Security Assessment"
-                ],
-                "default": "Configuration",
-                "description": "Cognitive-load proxy / category of work"
-              },
-              "points": {
-                "type": "number",
-                "default": 10,
-                "description": "Point weighting for scoring"
-              },
-              "is_required": {
-                "type": "boolean",
-                "default": true,
-                "description": "Core vs optional task"
-              },
-              "hints": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                },
-                "description": "Progressive hints revealed one at a time at runtime"
-              },
               "validation_criteria": {
                 "type": "array",
                 "description": "Structured success criteria for scoring, rubrics, and lab QA",
@@ -195,55 +161,6 @@
                     }
                   }
                 }
-              },
-              "expected_commands": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                },
-                "default": [],
-                "description": "Authored execution/reference commands a learner is expected to run for this task. NOT authoritative automated validation rules on their own \u2014 this is reference data a future terminal/provider validator may consume. Entering commands here does not by itself enable automated validation."
-              },
-              "reference_config": {
-                "type": "string",
-                "description": "Authoritative target configuration (router config, firewall ruleset, script, etc.) as a single multiline string. Raw config the instructor or a future runtime validator may diff against the learner's submission or live device state. Optional: a task may have validation_criteria without a reference_config, or vice versa."
-              },
-              "branch_type": {
-                "type": "string",
-                "enum": [
-                  "standard",
-                  "advanced",
-                  "remediation"
-                ],
-                "default": "standard",
-                "description": "standard = always unlocked, shown in authored order. advanced = stretch task unlocked only when the prerequisite is met. remediation = fallback task unlocked only when the prerequisite is failed. Non-standard requires depends_on_task_id + unlock_condition."
-              },
-              "depends_on_task_id": {
-                "type": "string",
-                "description": "Stable task.id of the prerequisite task this task's unlock depends on. Must reference a task in the same lab_content.tasks[] array. Must not equal this task's own id. Required when branch_type is non-standard; ignored when standard. This is the primary dependency source read by the runtime; unlock_condition.depends_on_task_id is a legacy fallback only."
-              },
-              "unlock_condition": {
-                "type": "object",
-                "description": "Trigger and threshold that unlock this task based on the prerequisite task's runtime result. Required when branch_type is non-standard. Note: depends_on_task_id is read from the task-level field (primary), not from inside unlock_condition (legacy fallback only).",
-                "properties": {
-                  "trigger": {
-                    "type": "string",
-                    "enum": [
-                      "passed",
-                      "failed",
-                      "score_above",
-                      "score_below"
-                    ],
-                    "description": "passed = prerequisite task status === 'passed'. failed = status === 'failed'. score_above = passed AND points_earned >= score_threshold. score_below = failed OR (passed AND points_earned < score_threshold)."
-                  },
-                  "score_threshold": {
-                    "type": "number",
-                    "description": "Point threshold for score_above / score_below triggers. Ignored for passed/failed. Should be within [0, prerequisite task's points]."
-                  }
-                },
-                "required": [
-                  "trigger"
-                ]
               }
             }
           }
