@@ -34,7 +34,7 @@ async function sha256(value: string) {
 }
 async function hmac(key: string | Uint8Array, value: string) {
   const bytes = typeof key === "string" ? new TextEncoder().encode(key) : key;
-  const secret = await crypto.subtle.importKey("raw", bytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const secret = await crypto.subtle.importKey("raw", bytes as unknown as BufferSource, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   return new Uint8Array(await crypto.subtle.sign("HMAC", secret, new TextEncoder().encode(value)));
 }
 async function signedQuery(service: "ec2" | "sts", action: string, input: any) {
@@ -42,7 +42,7 @@ async function signedQuery(service: "ec2" | "sts", action: string, input: any) {
   const secretKey = Deno.env.get("AWS_SECRET_ACCESS_KEY");
   if (!accessKey || !secretKey) throw Object.assign(new Error("AWS keys are not configured"), { name: "AWS_KEYS_MISSING" });
   const host = `${service}.${REGION}.amazonaws.com`;
-  const query = { Action: action, Version: service === "ec2" ? "2016-11-15" : "2011-06-15", ...flatten(input) };
+  const query: Record<string, string> = { Action: action, Version: service === "ec2" ? "2016-11-15" : "2011-06-15", ...flatten(input) };
   const sorted = Object.keys(query).sort().map((key) => `${encode(key)}=${encode(query[key])}`).join("&");
   const stamp = new Date().toISOString().replace(/[:-]|\.\d{3}/g, "");
   const date = stamp.slice(0, 8);
