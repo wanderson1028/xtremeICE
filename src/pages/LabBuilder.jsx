@@ -14,6 +14,7 @@ import GeneratorPanel from "@/components/labs/builder/GeneratorPanel";
 import SectionCard from "@/components/labs/builder/SectionCard";
 import BuilderSidebar from "@/components/labs/builder/BuilderSidebar";
 import { normalizeTasks, validateLabContent } from "@/lib/taskModel";
+import { isGuidedTemplate, assessGuidedTemplate } from "@/lib/awsLearnerTemplate";
 
 const DEFAULT_FORM = {
   title: "", description: "", difficulty: "Beginner",
@@ -65,7 +66,7 @@ export default function LabBuilder() {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const handleSave = async () => {
+  const handleSave = async (options = {}) => {
     setSaving(true);
     try {
       const labContent = {
@@ -77,15 +78,23 @@ export default function LabBuilder() {
         toast({ title: "Fix task dependencies before saving", description: validation.errors.join(" "), variant: "destructive" });
         return;
       }
+      if (options.openLearner === true) {
+        const assessment = assessGuidedTemplate({ ...form, lab_content: labContent });
+        if (!assessment.ready) { toast({ title: "AWS profile needs changes", description: assessment.errors.join(" "), variant: "destructive" }); return; }
+      }
       const payload = { ...form, lab_content: labContent };
+      let savedId = editId;
       if (editId) {
         await base44.entities.LabTemplate.update(editId, payload);
       } else {
-        await base44.entities.LabTemplate.create(payload);
+        const created = await base44.entities.LabTemplate.create(payload);
+        savedId = created.id;
       }
       setForm(payload);
       queryClient.invalidateQueries({ queryKey: ["lab-templates"] });
       toast({ title: "Lab saved", description: "Your lab template has been saved successfully." });
+      if (options.openLearner === true) navigate(`/CloudLearnerPoc?template_id=${savedId}`);
+      else if (!editId) navigate(`/LabBuilder?id=${savedId}`, { replace: true });
     } catch (error) {
       toast({ title: "Lab could not be saved", description: error?.message || "Please try again.", variant: "destructive" });
     } finally {
@@ -98,6 +107,8 @@ export default function LabBuilder() {
   const basicsComplete = !!form.title;
   const contentComplete = taskCount > 0;
   const niceComplete = !!(form.nice_category && form.nice_work_role);
+  const awsProfile = isGuidedTemplate(form);
+  const awsAssessment = awsProfile ? assessGuidedTemplate(form) : null;
 
   return (
     <div className="min-h-screen bg-gray-950 p-4 lg:p-6">
@@ -118,6 +129,7 @@ export default function LabBuilder() {
           </p>
         </div>
 
+        {awsProfile && <section className="border border-sky-800 rounded-lg p-4 mb-5 text-gray-200 space-y-2"><h2 className="font-semibold">AWS guided learner profile</h2><p>Review the AI-generated courseware below. Saving and opening the learner task uses this template for provisioning and freezes its instructions and validation criteria.</p><p className={awsAssessment.ready ? "text-green-300" : "text-amber-300"}>Deployment compatibility: {awsAssessment.ready ? "Ready" : "Needs changes"}</p>{awsAssessment.errors.map((error, i) => <p key={i} className="text-amber-300 text-sm">{error}</p>)}<button type="button" disabled={saving || !awsAssessment.ready} onClick={() => handleSave({ openLearner: true })} className="rounded bg-sky-800 px-4 py-2 disabled:opacity-40">Save & open AWS learner task</button></section>}
         <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
           {/* Sidebar */}
           <BuilderSidebar
@@ -130,7 +142,7 @@ export default function LabBuilder() {
 
           {/* Main Canvas */}
           <div className="space-y-4 min-w-0">
-            <GeneratorPanel updateForm={(updates) => updateForm({
+            {!awsProfile && <GeneratorPanel updateForm={(updates) => updateForm({
               ...updates,
               ...(updates.lab_content ? {
                 lab_content: {
@@ -138,7 +150,7 @@ export default function LabBuilder() {
                   tasks: normalizeTasks(updates.lab_content.tasks),
                 },
               } : {}),
-            })} />
+            })} />}
 
             <SectionCard
               id="basics"
