@@ -58,6 +58,89 @@
     },
     "notes": {
       "type": "string"
+    },
+    "template_snapshot": {
+      "type": "object",
+      "description": "Frozen copy of the LabTemplate's runtime-relevant fields at instance creation time. The runtime reads scenario, tasks, validation_criteria, passing_score, difficulty, and estimated_duration from this snapshot \u2014 never from the live LabTemplate. This ensures an instance is unaffected by later author edits. Populated by the provisioning flow when status transitions to 'provisioning'.",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string",
+          "description": "Frozen learner-facing lab description"
+        },
+        "difficulty": {
+          "type": "string"
+        },
+        "passing_score": {
+          "type": "number",
+          "default": 70
+        },
+        "estimated_duration_minutes": {
+          "type": "number"
+        },
+        "objectives": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "prerequisites": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "lab_guidance": {
+          "type": "string",
+          "description": "Frozen instructional guidance metadata; does not directly control runtime behavior"
+        },
+        "environment_profile_id": {
+          "type": "string"
+        },
+        "environment_definition": {
+          "type": "object",
+          "description": "Frozen platform-independent environment requirements from LabTemplate.environment_definition. Provider provisioning reads this snapshot rather than the live template."
+        },
+        "lab_content": {
+          "type": "object",
+          "description": "Full snapshot of LabTemplate.lab_content (scenario, tasks[], success_criteria)"
+        }
+      }
+    },
+    "template_version": {
+      "type": "string",
+      "description": "Denormalized LabTemplate.version at snapshot time. Allows analytics to group instances by version without deserializing template_snapshot."
+    },
+    "provider": {
+      "type": "string",
+      "description": "Execution provider that instantiated this lab (e.g. kasm, proxmox, vmware). Determines how provider_session_* handles are interpreted.",
+      "default": "kasm"
+    },
+    "provider_session_id": {
+      "type": "string",
+      "description": "Provider-neutral execution session identifier. For Kasm this mirrors kasm_session_id."
+    },
+    "provider_session_url": {
+      "type": "string",
+      "description": "Provider-neutral learner launch URL. Treat as sensitive session data and expose only under LabInstance RLS."
+    },
+    "provider_user_ref": {
+      "type": "string",
+      "description": "Provider-side user reference used to provision and manage the execution session."
+    },
+    "provider_status_message": {
+      "type": "string",
+      "description": "Latest provider provisioning/status message."
+    },
+    "provider_status_progress": {
+      "type": "number",
+      "description": "Latest provider provisioning progress percentage when available."
+    },
+    "kasm_user_id": {
+      "type": "string",
+      "description": "Kasm user_id used for this session. Compatibility field for Kasm provider operations."
     }
   },
   "required": [
