@@ -190,6 +190,29 @@ Deno.serve(async (req) => {
   try { input = await req.json(); } catch { return reply({ error: "Invalid JSON" }, 400); }
   const action = input?.action;
   try {
+    if (action === "prepareTemplate") {
+      const title = "AWS Isolated Boot Proof (Design Studio)";
+      const candidates = await base44.asServiceRole.entities.LabTemplate.filter({ title });
+      const existing = candidates.find((template: any) => template.created_by_id === user.id && assessTemplate(template).ready);
+      if (existing) return reply({ template_id: existing.id, created: false });
+      const template = await base44.asServiceRole.entities.LabTemplate.create({
+        title, description: "Disposable course-lab cloud boot proof; no learner access or task validation.",
+        nice_category: "Operate and Maintain", difficulty: "Beginner", status: "draft",
+        estimated_duration_minutes: 110, passing_score: 0,
+        objectives: ["Verify a frozen course lab can create, observe, and remove one isolated AWS guest."],
+        lab_content: { scenario: "Observe a disposable Linux guest boot in an isolated AWS VPC.", tasks: [], success_criteria: "AWS guest boot marker observed and all proof resources cleaned up." },
+        environment_definition: {
+          resources: [{ id: "res_aws_boot_poc", name: "Isolated Linux server", role: "proof_guest", resource_type: "server", os_type: "Amazon Linux 2023", cpu_cores: 2, memory_mb: 1024, storage_gb: 8, tools: [], services: [], access_method: "serial_console", network_ids: ["net_aws_poc"], startup_scripts: [], initial_files: [] }],
+          networks: [{ id: "net_aws_poc", name: "AWS isolated proof network", purpose: "internal", isolated: true, internet_access: false }],
+          connections: [],
+          connectivity_policy: { internet_access: "none", isolation_required: true, allow_inbound_external: false, allow_outbound_external: false },
+          identity_requirements: { accounts_needed: [], directory_required: false, mfa_required: false },
+          initialization: { startup_scripts: [], seed_data_notes: "", snapshot_required: false },
+          reset_policy: { reset_required: true, reset_mode: "recreate", preserve_learner_artifacts: false },
+        },
+      });
+      return reply({ template_id: template.id, created: true });
+    }
     if (action === "preflight") {
       const template = await getTemplate(base44, input.template_id);
       if (!template) return reply({ error: "Template not found" }, 404);
