@@ -221,6 +221,7 @@ Deno.serve(async (req) => {
       const amiId = await findAmi();
       return reply({
         template_id: template.id, template_title: template.title, assessment,
+        schema_gate: template.environment_definition ? null : "The shared LabTemplate schema has not applied environment_definition; AWS launch is blocked until the data model is updated.",
         aws: { account_id: identity.Account, region: REGION, ami_id: amiId, instance_type: INSTANCE_TYPE, max_minutes: MAX_MINUTES, vpc_cidr: VPC_CIDR, subnet_cidr: SUBNET_CIDR },
         scope: "One isolated VM, no public IP, internet route, inbound rule, SSH key, or learner session.",
       });
