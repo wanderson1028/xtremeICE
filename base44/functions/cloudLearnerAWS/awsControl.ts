@@ -13,7 +13,7 @@ function form(v:any,p="",out:Record<string,string>={}){
  return out;
 }
 export async function aws(service:"cloudformation"|"ssm",action:string,input:any){
- const access=Deno.env.get("AWS_ACCESS_KEY_ID"),secret=Deno.env.get("AWS_SECRET_ACCESS_KEY"),session=Deno.env.get("AWS_SESSION_TOKEN");
+ const access=Deno.env.get("AWS_LEARNER_ACCESS_KEY_ID"),secret=Deno.env.get("AWS_LEARNER_SECRET_ACCESS_KEY"),session=Deno.env.get("AWS_LEARNER_SESSION_TOKEN");
  if(!access||!secret)throw new Error("AWS_KEYS_MISSING");
  const query=service==="cloudformation"?form({Action:action,Version:"2010-05-15",...input}):null;
  const body=query?Object.keys(query).sort().map(k=>enc(k)+"="+enc(query[k])).join("&"):JSON.stringify(input);
