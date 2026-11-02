@@ -4,6 +4,7 @@ import {
   RevokeSecurityGroupEgressCommand, RunInstancesCommand, DescribeImagesCommand,
   DescribeInstancesCommand, GetConsoleOutputCommand, TerminateInstancesCommand,
   DeleteSecurityGroupCommand, DeleteSubnetCommand, DeleteVpcCommand,
+  DescribeVpcsCommand, DescribeSubnetsCommand, DescribeSecurityGroupsCommand,
 } from "npm:@aws-sdk/client-ec2";
 import { STSClient, GetCallerIdentityCommand } from "npm:@aws-sdk/client-sts";
 
@@ -45,7 +46,7 @@ function assessTemplate(template: any) {
     if (![resource.cpu_cores, resource.memory_mb, resource.storage_gb].every((value) => Number.isFinite(Number(value)) && Number(value) > 0) || Number(resource.cpu_cores) > 2 || Number(resource.memory_mb) > 1024 || Number(resource.storage_gb) > 8) errors.push("The proof is limited to 2 vCPU, 1 GiB memory, and 8 GiB storage.");
     if (!["none", "serial_console"].includes(resource.access_method)) errors.push("Learner access is outside this first cloud boot proof; use none or serial_console.");
     if (["tools", "services", "startup_scripts", "initial_files"].some((key) => Array.isArray(resource[key]) && resource[key].length)) errors.push("Software, services, scripts, and seed files are not provisioned by this proof.");
-    if (network && Array.isArray(resource.network_ids) && (resource.network_ids.length !== 1 || resource.network_ids[0] !== network.id)) errors.push("The resource must attach only to its isolated network.");
+    if (network && (!Array.isArray(resource.network_ids) || resource.network_ids.length !== 1 || resource.network_ids[0] !== network.id)) errors.push("The resource must attach only to its isolated network.");
   }
   if (network && (network.isolated !== true || network.internet_access === true)) errors.push("The network must be isolated with no internet access.");
   if (policy.internet_access !== "none" || policy.isolation_required !== true || policy.allow_inbound_external === true || policy.allow_outbound_external === true) errors.push("Connectivity must require isolation and no external access.");
@@ -113,7 +114,9 @@ async function inspectRun(base44: any, run: any) {
   if (state === "running" || state === "stopping" || state === "stopped") {
     try {
       const output = await ec2.send(new GetConsoleOutputCommand({ InstanceId: run.instance_id, Latest: true }));
-      guestReady = String(output.Output || "").includes(`${MARKER}:${run.id}`);
+      const encoded = String(output.Output || "");
+      const decoded = encoded ? atob(encoded) : "";
+      guestReady = decoded.includes(`${MARKER}:${run.id}`);
     } catch { /* Console output can lag; EC2 state remains observable. */ }
   }
   const status = guestReady && state === "running" ? "running" : run.status;
@@ -127,7 +130,31 @@ async function inspectRun(base44: any, run: any) {
   }
   return { run_id: run.id, lab_instance_id: run.lab_instance_id || null, region: REGION, instance_id: run.instance_id, state, guest_ready: guestReady, status, expires_at: run.expires_at };
 }
+function hasRunTag(tags: any, runId: string) {
+  return Array.isArray(tags) && tags.some((tag) => tag.Key === "PocRunId" && tag.Value === runId) && tags.some((tag) => tag.Key === "ManagedBy" && tag.Value === "ExtremeICE-DesignStudio-POC");
+}
+async function assertOwned(run: any, kind: "instance" | "security_group" | "subnet" | "vpc", id: string) {
+  try {
+    let tags;
+    if (kind === "instance") {
+      const result = await ec2.send(new DescribeInstancesCommand({ InstanceIds: [id] }));
+      tags = result.Reservations?.flatMap((reservation) => reservation.Instances || [])[0]?.Tags;
+    } else if (kind === "security_group") {
+      tags = (await ec2.send(new DescribeSecurityGroupsCommand({ GroupIds: [id] }))).SecurityGroups?.[0]?.Tags;
+    } else if (kind === "subnet") {
+      tags = (await ec2.send(new DescribeSubnetsCommand({ SubnetIds: [id] }))).Subnets?.[0]?.Tags;
+    } else {
+      tags = (await ec2.send(new DescribeVpcsCommand({ VpcIds: [id] }))).Vpcs?.[0]?.Tags;
+    }
+    if (!hasRunTag(tags, run.id)) throw new Error("RESOURCE_TAG_MISMATCH");
+    return true;
+  } catch (error) {
+    if (/NotFound$/.test(code(error))) return false;
+    throw error;
+  }
+}
 async function cleanup(base44: any, run: any) {
+  if (run.instance_id) await assertOwned(run, "instance", run.instance_id);
   let state = run.instance_id ? await observeInstance(run.instance_id) : "not_created";
   if (run.instance_id && !["terminated", "not_found"].includes(state)) {
     await ec2.send(new TerminateInstancesCommand({ InstanceIds: [run.instance_id] }));
@@ -140,9 +167,9 @@ async function cleanup(base44: any, run: any) {
   // Only resource IDs stored on this run are touched. A later call completes
   // network cleanup after EC2 has released its ENI.
   try {
-    if (run.security_group_id) await ec2.send(new DeleteSecurityGroupCommand({ GroupId: run.security_group_id }));
-    if (run.subnet_id) await ec2.send(new DeleteSubnetCommand({ SubnetId: run.subnet_id }));
-    if (run.vpc_id) await ec2.send(new DeleteVpcCommand({ VpcId: run.vpc_id }));
+    if (run.security_group_id && await assertOwned(run, "security_group", run.security_group_id)) await ec2.send(new DeleteSecurityGroupCommand({ GroupId: run.security_group_id }));
+    if (run.subnet_id && await assertOwned(run, "subnet", run.subnet_id)) await ec2.send(new DeleteSubnetCommand({ SubnetId: run.subnet_id }));
+    if (run.vpc_id && await assertOwned(run, "vpc", run.vpc_id)) await ec2.send(new DeleteVpcCommand({ VpcId: run.vpc_id }));
   } catch (error) {
     await base44.asServiceRole.entities.CloudPocRun.update(run.id, { status: "cleanup_pending", last_error_code: code(error) });
     return { status: "cleanup_pending", instance_state: state, run_id: run.id, error_code: code(error), message: "Instance is terminated; retry network cleanup." };
