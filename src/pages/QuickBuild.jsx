@@ -8,10 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { Zap, Save, RefreshCw, Clock, BookOpen, ChevronLeft } from "lucide-react";
 import LabStatusBadge from "@/components/labs/LabStatusBadge";
+import { AI_SCHEMA, generationPrompt, buildAiGuidedTemplate } from "@/lib/awsLearnerTemplate";
 
 export default function QuickBuild() {
   const navigate = useNavigate();
-  const [prompt, setPrompt] = useState("");
+  const defaultAwsPrompt = "Create a beginner lab about protecting a Linux configuration file. Use the guided file editor to demonstrate permissions changing from 644 to 600 and validate before and after.";
+  const [awsProfile, setAwsProfile] = useState(new URLSearchParams(window.location.search).get("preset") === "aws-learner");
+  const [prompt, setPrompt] = useState(new URLSearchParams(window.location.search).get("preset") === "aws-learner" ? defaultAwsPrompt : "");
+  const [error, setError] = useState("");
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -20,6 +24,13 @@ export default function QuickBuild() {
     if (!prompt.trim()) return;
     setGenerating(true);
     setResult(null);
+    setError("");
+    try {
+    if (awsProfile) {
+      const narrative = await base44.integrations.Core.InvokeLLM({ prompt: generationPrompt(prompt), response_json_schema: AI_SCHEMA });
+      setResult(buildAiGuidedTemplate(narrative));
+      return;
+    }
     const res = await base44.integrations.Core.InvokeLLM({
       prompt: `You are a cybersecurity lab curriculum designer. Generate a detailed lab template based on this request: "${prompt}"
       
@@ -51,12 +62,15 @@ Return a JSON object with these fields:
       }
     });
     setResult(res);
-    setGenerating(false);
+    } catch (cause) { setError(cause?.message || "Lab generation failed. Please try again."); }
+    finally { setGenerating(false); }
   };
 
   const save = async () => {
     if (!result) return;
     setSaving(true);
+    setError("");
+    try {
     const { modules, ...templateData } = result;
     const created = await base44.entities.LabTemplate.create({ ...templateData, status: "draft" });
     if (modules?.length) {
@@ -64,8 +78,9 @@ Return a JSON object with these fields:
         await base44.entities.CourseModule.create({ ...modules[i], template_id: created.id, order: i + 1 });
       }
     }
-    setSaving(false);
     navigate(`/LabBuilder?id=${created.id}`);
+    } catch (cause) { setError(cause?.message || "The generated draft could not be saved."); }
+    finally { setSaving(false); }
   };
 
   const DIFF_COLORS = {
@@ -89,9 +104,16 @@ Return a JSON object with these fields:
             </div>
             <h1 className="text-2xl font-bold text-white">Quick Build</h1>
           </div>
-          <p className="text-gray-400 text-sm">Describe the lab you want — the system will generate a complete template in seconds.</p>
+          <p className="text-gray-400 text-sm">{awsProfile ? "Generate a deployable AWS file-permissions lab, review it in Lab Builder, then launch the reviewed task." : "Describe the lab you want — the system will generate a complete template in seconds."}</p>
         </div>
 
+        {error && <div role="alert" className="border border-red-700 text-red-200 p-3 mb-4">{error}</div>}
+        <label className="block text-gray-300 text-sm mb-4">Generation profile
+          <select aria-label="Lab generation profile" className="block mt-2 w-full bg-gray-900 border border-gray-700 rounded p-2" disabled={generating || saving} value={awsProfile ? "aws" : "general"} onChange={e => { const aws = e.target.value === "aws"; setAwsProfile(aws); setResult(null); setPrompt(aws ? defaultAwsPrompt : ""); }}>
+            <option value="general">General course template</option><option value="aws">AWS guided file-permissions demo</option>
+          </select>
+        </label>
+        {awsProfile && <p className="text-sm text-sky-300 mb-4">One Linux guest · Private SSM access · One task · Independent mode-600 validation. AI generates the courseware; the deployment profile supplies the supported environment and validator.</p>}
         {/* Prompt */}
         <div className="bg-gray-900 rounded-xl border border-gray-800 p-5 mb-4">
           <Label className="text-gray-300 mb-2 block">Describe your lab</Label>
@@ -145,6 +167,7 @@ Return a JSON object with these fields:
               </div>
             )}
 
+            {awsProfile && result.lab_content?.tasks?.[0] && <div className="rounded border border-sky-800 p-3 text-gray-300 text-sm space-y-2"><p className="font-semibold">{result.lab_content.tasks[0].title}</p><p className="whitespace-pre-wrap">{result.lab_content.tasks[0].instructions}</p><p>Validation: guest file mode must equal 600.</p></div>}
             {result.modules?.length > 0 && (
               <div>
                 <h3 className="text-gray-300 text-xs font-semibold uppercase tracking-wide mb-2 flex items-center gap-1">
