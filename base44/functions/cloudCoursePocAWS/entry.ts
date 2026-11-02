@@ -2,7 +2,7 @@ import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 import {
   EC2Client, STSClient, GetCallerIdentityCommand,
   CreateVpcCommand, CreateSubnetCommand, CreateSecurityGroupCommand,
-  RevokeSecurityGroupEgressCommand, RunInstancesCommand, DescribeImagesCommand,
+  RevokeSecurityGroupEgressCommand, RunInstancesCommand, DescribeImagesCommand, DescribeInstanceTypeOfferingsCommand,
   DescribeInstancesCommand, GetConsoleOutputCommand, TerminateInstancesCommand,
   DeleteSecurityGroupCommand, DeleteSubnetCommand, DeleteVpcCommand,
   DescribeVpcsCommand, DescribeSubnetsCommand, DescribeSecurityGroupsCommand,
@@ -96,6 +96,15 @@ async function findAmi() {
   const image = (result.Images || []).sort((a: any, b: any) => String(b.CreationDate).localeCompare(String(a.CreationDate)))[0];
   if (!image?.ImageId) throw new Error("NO_AMI");
   return image.ImageId;
+}
+async function findZone() {
+  const result = await ec2.send(new DescribeInstanceTypeOfferingsCommand({
+    LocationType: "availability-zone",
+    Filters: [{ Name: "instance-type", Values: [INSTANCE_TYPE] }],
+  }));
+  const zone = (result.Offerings || []).map((item: any) => item.Location).filter((item: any) => typeof item === "string" && item.startsWith(`${REGION}`)).sort()[0];
+  if (!zone) throw new Error("NO_COMPATIBLE_ZONE");
+  return zone;
 }
 async function observeInstance(instanceId: string) {
   try {
@@ -219,10 +228,11 @@ Deno.serve(async (req) => {
       const assessment = assessTemplate(template);
       const identity = await sts.send(new GetCallerIdentityCommand({}));
       const amiId = await findAmi();
+      const zone = await findZone();
       return reply({
         template_id: template.id, template_title: template.title, assessment,
         schema_gate: template.environment_definition ? null : "The shared LabTemplate schema has not applied environment_definition; AWS launch is blocked until the data model is updated.",
-        aws: { account_id: identity.Account, region: REGION, ami_id: amiId, instance_type: INSTANCE_TYPE, max_minutes: MAX_MINUTES, vpc_cidr: VPC_CIDR, subnet_cidr: SUBNET_CIDR },
+        aws: { account_id: identity.Account, region: REGION, ami_id: amiId, instance_type: INSTANCE_TYPE, availability_zone: zone, max_minutes: MAX_MINUTES, vpc_cidr: VPC_CIDR, subnet_cidr: SUBNET_CIDR },
         scope: "One isolated VM, no public IP, internet route, inbound rule, SSH key, or learner session.",
       });
     }
@@ -235,6 +245,7 @@ Deno.serve(async (req) => {
       const existing = await base44.asServiceRole.entities.CloudPocRun.list("-created_date", 100);
       if (existing.some((run) => ACTIVE.includes(run.status))) return reply({ error: "A cloud proof is already active or needs cleanup." }, 409);
       const amiId = await findAmi();
+      const zone = await findZone();
       const started = new Date();
       const expires = new Date(started.getTime() + MAX_MINUTES * 60000).toISOString();
       const run = await base44.asServiceRole.entities.CloudPocRun.create({
@@ -250,23 +261,28 @@ Deno.serve(async (req) => {
       });
       await base44.asServiceRole.entities.CloudPocRun.update(run.id, { lab_instance_id: instance.id });
       const tags = [{ Key: "Name", Value: `ExtremeICE-DesignStudio-POC-${run.id}` }, { Key: "ManagedBy", Value: "ExtremeICE-DesignStudio-POC" }, { Key: "PocRunId", Value: run.id }];
+      let stage = "create_vpc";
       try {
         const vpc = await ec2.send(new CreateVpcCommand({ CidrBlock: VPC_CIDR, TagSpecifications: [{ ResourceType: "vpc", Tags: tags }] }));
         if (!vpc.Vpc?.VpcId) throw new Error("CREATE_VPC_INCOMPLETE");
         await base44.asServiceRole.entities.CloudPocRun.update(run.id, { vpc_id: vpc.Vpc.VpcId });
-        const subnet = await ec2.send(new CreateSubnetCommand({ VpcId: vpc.Vpc.VpcId, CidrBlock: SUBNET_CIDR, TagSpecifications: [{ ResourceType: "subnet", Tags: tags }] }));
+        stage = "create_subnet";
+        const subnet = await ec2.send(new CreateSubnetCommand({ VpcId: vpc.Vpc.VpcId, CidrBlock: SUBNET_CIDR, AvailabilityZone: zone, TagSpecifications: [{ ResourceType: "subnet", Tags: tags }] }));
         if (!subnet.Subnet?.SubnetId) throw new Error("CREATE_SUBNET_INCOMPLETE");
         await base44.asServiceRole.entities.CloudPocRun.update(run.id, { subnet_id: subnet.Subnet.SubnetId });
+        stage = "create_security_group";
         const sg = await ec2.send(new CreateSecurityGroupCommand({
           VpcId: vpc.Vpc.VpcId, GroupName: `ds-poc-${run.id}`, GroupDescription: "No inbound or outbound access for Design Studio boot proof",
           TagSpecifications: [{ ResourceType: "security-group", Tags: tags }],
         }));
         if (!sg.GroupId) throw new Error("CREATE_SECURITY_GROUP_INCOMPLETE");
         await base44.asServiceRole.entities.CloudPocRun.update(run.id, { security_group_id: sg.GroupId });
+        stage = "revoke_default_egress";
         await ec2.send(new RevokeSecurityGroupEgressCommand({
           GroupId: sg.GroupId, IpPermissions: [{ IpProtocol: "-1", IpRanges: [{ CidrIp: "0.0.0.0/0" }] }],
         }));
         const userData = `#!/bin/bash\nset -eu\nshutdown -h +105\necho "${MARKER}:${run.id}" > /dev/console\n`;
+        stage = "run_instance";
         const launched = await ec2.send(new RunInstancesCommand({
           ImageId: amiId, InstanceType: INSTANCE_TYPE, MinCount: 1, MaxCount: 1,
           ClientToken: run.id, InstanceInitiatedShutdownBehavior: "terminate",
@@ -282,9 +298,9 @@ Deno.serve(async (req) => {
         await base44.asServiceRole.entities.LabInstance.update(instance.id, { provider_session_id: instanceId, provider_status_message: "AWS instance launched; waiting for guest boot marker.", provider_status_progress: 50 });
         return reply({ run_id: run.id, lab_instance_id: instance.id, instance_id: instanceId, status: "provisioning", region: REGION, expires_at: expires });
       } catch (error) {
-        await base44.asServiceRole.entities.CloudPocRun.update(run.id, { status: "cleanup_pending", last_error_code: code(error) });
-        await base44.asServiceRole.entities.LabInstance.update(instance.id, { status: "failed", provider_status_message: `AWS launch failed: ${code(error)}` });
-        return reply({ error: "AWS launch failed; cleanup may be needed.", error_code: code(error), run_id: run.id }, 502);
+        await base44.asServiceRole.entities.CloudPocRun.update(run.id, { status: "cleanup_pending", last_error_code: `${stage}:${code(error)}` });
+        await base44.asServiceRole.entities.LabInstance.update(instance.id, { status: "failed", provider_status_message: `AWS launch failed at ${stage}: ${code(error)}` });
+        return reply({ error: "AWS launch failed; cleanup may be needed.", error_code: code(error), error_stage: stage, error_detail: String(error?.message || "").slice(0, 300), run_id: run.id }, 502);
       }
     }
     if (action === "inspect") {
