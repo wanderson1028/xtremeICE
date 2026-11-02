@@ -1,0 +1,1 @@
+export { PROFILE_TAG, TASK, TASK_PATH, AI_SCHEMA, generationPrompt, buildGuidedTemplate, isGuidedTemplate, assessGuidedTemplate } from "../../base44/functions/cloudLearnerAWS/templateContract";
