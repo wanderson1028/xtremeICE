@@ -112,6 +112,7 @@ export default function CloudCoursePoc() {
       <div className="max-w-5xl mx-auto space-y-6">
         <Link to="/LabBuilderDashboard" className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-white"><ChevronLeft className="h-4 w-4" /> Course Lab Builder</Link>
         <div>
+          <Link to="/CloudLearnerPoc" className="inline-block mb-3 text-emerald-300">Open AWS learner file task →</Link>
           <h1 className="text-2xl font-bold flex items-center gap-2"><Cloud className="h-6 w-6 text-sky-400" /> AWS course lab proof</h1>
           <p className="text-gray-400 text-sm mt-2">Experimental Design Studio integration branch. Proves a frozen course lab can boot one isolated AWS guest and records the result in a LabInstance. The validation self-test runs fixed file checks at boot and records both pass and fail evidence. Learner access is a later step.</p>
         </div>
