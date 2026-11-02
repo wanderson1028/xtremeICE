@@ -1,7 +1,7 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 import { aws, list, hash } from "./awsControl.ts";
 import { REGION, ACCOUNT, MANAGED_BY, TASK, canOperate, owns, compileOperation, parseOutput, stackTemplate, type Operation } from "./model.ts";
-import { EC2Client, STSClient, GetCallerIdentityCommand, DescribeImagesCommand, DescribeInstanceTypeOfferingsCommand, DescribeInstancesCommand, DescribeVolumesCommand } from "./awsQuery.ts";
+import { EC2Client, STSClient, GetCallerIdentityCommand, DescribeImagesCommand, DescribeInstanceTypeOfferingsCommand, DescribeInstancesCommand, DescribeVolumesCommand, DescribeVpcsCommand } from "./awsQuery.ts";
 const ec2=new EC2Client(),sts=new STSClient();
 const STACK_NAME="ExtremeICE-DesignStudio-Learner-Pilot";
 const ACTIVE=["preparing","provisioning","ready","cleanup_pending","failed"];
@@ -31,7 +31,9 @@ async function refresh(b:any,run:any){
    update.status=info.InstanceInformationList?.[0]?.PingStatus==="Online"?"ready":"provisioning";
  }else if(state==="DELETE_COMPLETE") {update.status="terminated";update.terminated_at=now();}
  else if(/FAILED|ROLLBACK/.test(state)&&state!=="DELETE_IN_PROGRESS")update.status="failed";
- await b.asServiceRole.entities.CloudLearnerRun.update(run.id,update);return {...run,...update};
+ await b.asServiceRole.entities.CloudLearnerRun.update(run.id,update);
+ if(run.lab_instance_id && ["ready","terminated"].includes(update.status))await b.asServiceRole.entities.LabInstance.update(run.lab_instance_id,{status:update.status==="ready"?"running":"terminated",...(update.status==="terminated"?{completed_at:now()}:{}),provider_status_message:update.status==="ready"?"Private SSM guest is online.":"Learner stack deletion completed."});
+ return {...run,...update};
 }
 function publicRun(run:any){
  return {id:run.id,status:run.status,stack_status:run.stack_status,instance_id:run.instance_id,expires_at:run.expires_at,contract:run.contract,owner_user_id:run.owner_user_id};
@@ -70,9 +72,16 @@ Deno.serve(async(req)=>{
    const images=await ec2.send(new DescribeImagesCommand({Owners:["137112412989"],Filters:[{Name:"image-id",Values:[input.ami_id]},{Name:"state",Values:["available"]},{Name:"name",Values:["al2023-ami-2023.*-x86_64"]}]}));
    if(!images.Images?.some((x:any)=>x.ImageId===input.ami_id))fail("AMI_PREFLIGHT_CHANGED");
    const zones=await ec2.send(new DescribeInstanceTypeOfferingsCommand({LocationType:"availability-zone",Filters:[{Name:"instance-type",Values:["t3.micro"]},{Name:"location",Values:[input.zone]}]}));if(!zones.Offerings?.some((x:any)=>x.Location===input.zone))fail("ZONE_PREFLIGHT_CHANGED");
+   const title="AWS Guided File Permissions (Design Studio)";
+   const task={id:TASK.task_id,title:TASK.title,instructions:"Edit the guest task file and change its permissions from 644 to 600, then validate.",validation_criteria:[{check:TASK.check_id,points:1,description:"Task file mode is 600",runtime_validator:{type:"command_result",command_key:"file_mode",path:TASK.path,expected_output:"600",resource_id:"aws_learner_guest"}}]};
+   const spec={title,description:"Guided file editing through private AWS Systems Manager access",difficulty:"Beginner",nice_category:"Operate and Maintain",status:"draft",passing_score:100,estimated_duration_minutes:110,lab_content:{scenario:"Protect a task file in your AWS guest.",tasks:[task],success_criteria:"Independent SSM validation observes mode 600."},environment_definition:{resources:[{id:"aws_learner_guest",resource_type:"server",os_type:"Amazon Linux 2023",cpu_cores:2,memory_mb:1024,storage_gb:8,access_method:"guided_ssm"}],connectivity_policy:{internet_access:"none",isolation_required:true,allowed_services:["ssm","ssmmessages"]}}};
+   let template=(await b.asServiceRole.entities.LabTemplate.filter({title}))[0];
+   if(!template)template=await b.asServiceRole.entities.LabTemplate.create(spec);
    const expires=new Date(Date.now()+110*60000).toISOString();
-   const run=await b.asServiceRole.entities.CloudLearnerRun.create({owner_user_id:user.id,owner_email:user.email,status:"preparing",region:REGION,stack_name:STACK_NAME,contract:{...TASK},started_at:now(),expires_at:expires});
+   const run=await b.asServiceRole.entities.CloudLearnerRun.create({owner_user_id:user.id,owner_email:user.email,status:"preparing",region:REGION,stack_name:STACK_NAME,contract:{...TASK},template_id:template.id,started_at:now(),expires_at:expires});
    try{
+     const lab=await b.asServiceRole.entities.LabInstance.create({template_id:template.id,user_email:user.email,status:"provisioning",provider:"aws",template_snapshot:{...spec,lab_content:{...spec.lab_content,tasks:[task]}},started_at:now(),expires_at:expires,provider_status_message:"Creating private SSM learner stack."});
+     await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{lab_instance_id:lab.id});
      const result=await aws("cloudformation","CreateStack",{StackName:STACK_NAME,TemplateBody:JSON.stringify(stackTemplate(input.ami_id,input.zone,run.id)),Capabilities:["CAPABILITY_IAM"],OnFailure:"DELETE",TimeoutInMinutes:15,ClientRequestToken:run.id,Tags:[{Key:"ManagedBy",Value:MANAGED_BY},{Key:"LearnerRunId",Value:run.id}]});
      await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{stack_id:result.StackId,status:"provisioning"});
      return reply({run_id:run.id,status:"provisioning",expires_at:expires});
@@ -94,6 +103,7 @@ Deno.serve(async(req)=>{
  if(action==="verifyRemoval"){
    const stack=await getStack(run);if(stack&&stack.StackStatus!=="DELETE_COMPLETE")return reply({verified:false,remaining:["stack"]});
    const remaining=[];
+   if(run.vpc_id){try{const v=await ec2.send(new DescribeVpcsCommand({VpcIds:[run.vpc_id]}));if(v.Vpcs?.length)remaining.push("vpc");}catch(e:any){if(e.name!=="InvalidVpcID.NotFound")throw e;}}
    if(run.instance_id){try{const state=(await ec2.send(new DescribeInstancesCommand({InstanceIds:[run.instance_id]}))).Reservations?.flatMap((r:any)=>r.Instances||[])[0]?.State?.Name;if(state&&state!=="terminated")remaining.push("instance");}catch(e:any){if(e.name!=="InvalidInstanceID.NotFound")throw e;}}
    const volumes=await ec2.send(new DescribeVolumesCommand({Filters:[{Name:"tag:LearnerRunId",Values:[run.id]},{Name:"tag:ManagedBy",Values:[MANAGED_BY]}],MaxResults:1000}));
    if(volumes.NextToken||volumes.Volumes?.some((x:any)=>x.State!=="deleted"))remaining.push("volume");
@@ -127,8 +137,8 @@ Deno.serve(async(req)=>{
    if(command.Status!=="Success"||command.ResponseCode!==0){await b.asServiceRole.entities.CloudGuestOperation.update(op.id,{status:"failed",error_code:"GUEST_COMMAND_FAILED"});return reply({status:"failed",error_code:"GUEST_COMMAND_FAILED"});}
    const result=parseOutput(op.kind,op.binding,command.StandardOutputContent||"");
    if(op.kind==="validate"){
-     const existing=await b.asServiceRole.entities.RuntimeValidationAttempt.filter({instance_id:run.id,task_id:TASK.task_id,check_id:op.id});
-     if(!existing.length)await b.asServiceRole.entities.RuntimeValidationAttempt.create({instance_id:run.id,user_email:user.email,task_id:TASK.task_id,check_id:op.id,validator_type:"command_result",status:"completed",token_hash:await hash(op.binding),expires_at:op.expires_at,passed:(result as any).passed,observed:(result as any).mode,message:"SSM observed the guest file mode independently.",evidence:{run_id:run.id,operation_id:op.id,command_id:op.command_id,path:run.contract.path,expected_mode:run.contract.expected_mode,source:"aws_ssm_guided_task"}});
+     const existing=await b.asServiceRole.entities.RuntimeValidationAttempt.filter({instance_id:run.lab_instance_id||run.id,task_id:TASK.task_id,check_id:TASK.check_id});
+     if(!existing.some((a:any)=>a.evidence?.operation_id===op.id))await b.asServiceRole.entities.RuntimeValidationAttempt.create({instance_id:run.lab_instance_id||run.id,user_email:user.email,task_id:TASK.task_id,check_id:TASK.check_id,validator_type:"command_result",status:"completed",token_hash:await hash(op.binding),expires_at:op.expires_at,passed:(result as any).passed,observed:(result as any).mode,message:"SSM observed the guest file mode independently.",evidence:{run_id:run.id,operation_id:op.id,command_id:op.command_id,path:run.contract.path,expected_mode:run.contract.expected_mode,source:"aws_ssm_guided_task"}});
    }
    await b.asServiceRole.entities.CloudGuestOperation.update(op.id,{status:"completed",result});
    return reply({status:"completed",result});
