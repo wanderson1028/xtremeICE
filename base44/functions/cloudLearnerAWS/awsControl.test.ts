@@ -1,5 +1,19 @@
 import { aws } from "./awsControl.ts";
+import { STSClient, GetCallerIdentityCommand } from "./awsQuery.ts";
 function ok(v:unknown){if(!v)throw new Error("Request assertion failed");}
+Deno.test("learner requests never fall back to the existing integration identity",async()=>{
+ const priorFetch=globalThis.fetch;let called=false;
+ Deno.env.set("AWS_ACCESS_KEY_ID","EXAMPLE_OTHER_INTEGRATION");
+ Deno.env.set("AWS_SECRET_ACCESS_KEY","EXAMPLE_OTHER_SECRET");
+ Deno.env.delete("AWS_LEARNER_ACCESS_KEY_ID");Deno.env.delete("AWS_LEARNER_SECRET_ACCESS_KEY");
+ globalThis.fetch=async()=>{called=true;throw new Error("Unexpected request");};
+ try{
+   let controlDenied=false,queryDenied=false;
+   try{await aws("ssm","DescribeInstanceInformation",{});}catch(e:any){controlDenied=e.name==="LEARNER_AWS_KEYS_MISSING";}
+   try{await new STSClient().send(new GetCallerIdentityCommand({}));}catch(e:any){queryDenied=e.name==="LEARNER_AWS_KEYS_MISSING";}
+   ok(controlDenied&&queryDenied&&!called);
+ }finally{globalThis.fetch=priorFetch;Deno.env.delete("AWS_ACCESS_KEY_ID");Deno.env.delete("AWS_SECRET_ACCESS_KEY");}
+});
 Deno.test("AWS control adapter signs POST forms and JSON using the correct wire formats",async()=>{
  const priorFetch=globalThis.fetch;
  Deno.env.set("AWS_LEARNER_ACCESS_KEY_ID","EXAMPLE_ACCESS");
