@@ -2,9 +2,9 @@ import { aws } from "./awsControl.ts";
 function ok(v:unknown){if(!v)throw new Error("Request assertion failed");}
 Deno.test("AWS control adapter signs POST forms and JSON using the correct wire formats",async()=>{
  const priorFetch=globalThis.fetch;
- Deno.env.set("AWS_ACCESS_KEY_ID","EXAMPLE_ACCESS");
- Deno.env.set("AWS_SECRET_ACCESS_KEY","EXAMPLE_SECRET");
- Deno.env.set("AWS_SESSION_TOKEN","EXAMPLE_SESSION");
+ Deno.env.set("AWS_LEARNER_ACCESS_KEY_ID","EXAMPLE_ACCESS");
+ Deno.env.set("AWS_LEARNER_SECRET_ACCESS_KEY","EXAMPLE_SECRET");
+ Deno.env.set("AWS_LEARNER_SESSION_TOKEN","EXAMPLE_SESSION");
  try{
  globalThis.fetch=async(url:any,init:any)=>{
   ok(String(url)==="https://cloudformation.us-east-1.amazonaws.com/");
@@ -25,5 +25,5 @@ Deno.test("AWS control adapter signs POST forms and JSON using the correct wire 
  ok((await aws("ssm","SendCommand",{Parameters:{commands:["fixed command"]}})).Command.CommandId==="command-example");
  globalThis.fetch=async()=>Response.json({__type:"com.amazonaws.ssm#AccessDeniedException",Message:"Denied"},{status:400});
  let denied=false;try{await aws("ssm","DescribeInstanceInformation",{});}catch(e:any){denied=e.name==="AccessDeniedException";}ok(denied);
- }finally{globalThis.fetch=priorFetch;Deno.env.delete("AWS_ACCESS_KEY_ID");Deno.env.delete("AWS_SECRET_ACCESS_KEY");Deno.env.delete("AWS_SESSION_TOKEN");}
+ }finally{globalThis.fetch=priorFetch;Deno.env.delete("AWS_LEARNER_ACCESS_KEY_ID");Deno.env.delete("AWS_LEARNER_SECRET_ACCESS_KEY");Deno.env.delete("AWS_LEARNER_SESSION_TOKEN");}
 });
