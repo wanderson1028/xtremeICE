@@ -18,7 +18,7 @@ Deno.test("rejects conflicting, truncated, unknown, and oversized evidence", asy
  eq(await readProbe("x".repeat(2_000_001),run,hash,"present_file"),null);
 });
 Deno.test("only the exact fixed task set can compile", () => {
- const template = {lab_content:{tasks:validationTasks()}};
+ const template: any = {lab_content:{tasks:validationTasks()}};
  eq(validValidationTasks(template),true);
  template.lab_content.tasks[0].validation_criteria[0].runtime_validator.path="/etc/shadow";
  eq(validValidationTasks(template),false);
