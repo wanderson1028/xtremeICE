@@ -89,7 +89,7 @@ export async function handleLearnerRequest(req:Request,b:any){
    return reply({runs:runs.map(publicRun),schema_ready:true});
  }
  if(action==="provision"||action==="startAssigned"){
-   if(user.role!=="admin")return reply({error:"Admin pilot provisioning required"},403);
+   if(user.role!=="admin"&&!assignmentContext)return reply({error:"Admin pilot provisioning required"},403);
    if(input.ack!=="LAUNCH_PRIVATE_SSM_LEARNER_PILOT")return reply({error:"Explicit scope acknowledgment required"},400);
    stackTemplate(input.ami_id,input.zone,"0123456789abcdef01234567");
    if(!await schemaReady(b))return reply({error:"Shared learner schemas are required"},409);
