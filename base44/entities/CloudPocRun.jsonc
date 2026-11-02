@@ -1,0 +1,95 @@
+{
+  "name": "CloudPocRun",
+  "type": "object",
+  "properties": {
+    "template_id": {
+      "type": "string"
+    },
+    "lab_instance_id": {
+      "type": "string"
+    },
+    "provider": {
+      "type": "string",
+      "enum": [
+        "aws"
+      ],
+      "default": "aws"
+    },
+    "region": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "preparing",
+        "provisioning",
+        "running",
+        "failed",
+        "cleanup_pending",
+        "terminated"
+      ],
+      "default": "preparing"
+    },
+    "vpc_id": {
+      "type": "string"
+    },
+    "subnet_id": {
+      "type": "string"
+    },
+    "security_group_id": {
+      "type": "string"
+    },
+    "instance_id": {
+      "type": "string"
+    },
+    "ami_id": {
+      "type": "string"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "terminated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_observed_state": {
+      "type": "string"
+    },
+    "last_error_code": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "template_id",
+    "provider",
+    "region",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
