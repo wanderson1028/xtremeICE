@@ -1,6 +1,7 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 import { aws, list, hash } from "./awsControl.ts";
 import { EXECUTION_ROLE_ARN } from "./accessConfig.ts";
+import { assessGuidedTemplate, freezeGuidedTemplate } from "./templateContract.ts";
 import { REGION, ACCOUNT, MANAGED_BY, TASK, requireAccount, canOperate, owns, compileOperation, parseOutput, stackTemplate, type Operation } from "./model.ts";
 import { EC2Client, STSClient, GetCallerIdentityCommand, DescribeImagesCommand, DescribeInstanceTypeOfferingsCommand, DescribeInstancesCommand, DescribeVolumesCommand, DescribeVpcsCommand } from "./awsQuery.ts";
 const ec2=new EC2Client(),sts=new STSClient();
@@ -11,6 +12,15 @@ const now=()=>new Date().toISOString();
 const safe=(e:any)=>String(e?.name||"OPERATION_FAILED").slice(0,80);
 const fail=(message:string)=>{throw new Error(message);};
 async function assertAccount(){const identity=await sts.send(new GetCallerIdentityCommand({}));requireAccount(identity.Account);return identity;}
+async function authoredTemplate(b:any,id:unknown){
+ if(typeof id!=="string"||!/^[a-f0-9]{16,32}$/i.test(id))throw Object.assign(new Error("Save and select an AWS guided lab in Lab Builder first."),{name:"TEMPLATE_REQUIRED",status:400});
+ const template=(await b.asServiceRole.entities.LabTemplate.filter({id}))[0];
+ if(!template)throw Object.assign(new Error("Saved lab template not found."),{name:"TEMPLATE_NOT_FOUND",status:400});
+ const assessment=assessGuidedTemplate(template);
+ if(!assessment.ready)throw Object.assign(new Error(assessment.errors.join(" ")),{name:"TEMPLATE_NOT_ELIGIBLE",status:400});
+ const snapshot=freezeGuidedTemplate(template);
+ return {template,snapshot,fingerprint:await hash(JSON.stringify(snapshot))};
+}
 async function schemaReady(b:any){
  try{await b.asServiceRole.entities.CloudLearnerRun.list("-created_date",1);await b.asServiceRole.entities.CloudGuestOperation.list("-created_date",1);return true;}catch{return false;}
 }
@@ -44,7 +54,7 @@ async function refresh(b:any,run:any){
  return {...run,...update};
 }
 function publicRun(run:any){
- return {id:run.id,status:run.status,stack_status:run.stack_status,instance_id:run.instance_id,expires_at:run.expires_at,contract:run.contract,owner_user_id:run.owner_user_id};
+ return {id:run.id,status:run.status,stack_status:run.stack_status,instance_id:run.instance_id,expires_at:run.expires_at,contract:run.contract,owner_user_id:run.owner_user_id,template_id:run.template_id};
 }
 Deno.serve(async(req)=>{
  const b=createClientFromRequest(req),user=await b.auth.me().catch(()=>null);
@@ -54,6 +64,7 @@ Deno.serve(async(req)=>{
  const action=input.action;
  if(action==="preflight"){
    if(user.role!=="admin")return reply({error:"Admin pilot provisioning required"},403);
+   const source=await authoredTemplate(b,input.template_id);
    const identity=await assertAccount();
    const images=await ec2.send(new DescribeImagesCommand({Owners:["137112412989"],Filters:[{Name:"name",Values:["al2023-ami-2023.*-x86_64"]},{Name:"state",Values:["available"]},{Name:"architecture",Values:["x86_64"]}]}));
    const ami=(images.Images||[]).sort((a:any,b:any)=>String(b.CreationDate).localeCompare(String(a.CreationDate)))[0]?.ImageId;if(!ami)fail("NO_AMI");
@@ -63,7 +74,7 @@ Deno.serve(async(req)=>{
    await aws("cloudformation","ValidateTemplate",{TemplateBody:JSON.stringify(template)});
    await aws("ssm","DescribeInstanceInformation",{MaxResults:5});
    const ready=await schemaReady(b);
-   return reply({schema_ready:ready,eligible:ready,account:identity.Account,region:REGION,ami_id:ami,zone,scope:"One t3.micro, encrypted 8 GiB disk, new VPC/subnet, two private SSM endpoints, two security groups, and the preconfigured SSM instance profile. No public IP or internet gateway. Endpoints remain billable until stack cleanup.",task:TASK});
+   return reply({template_id:source.template.id,template_hash:source.fingerprint,template_title:source.snapshot.title,schema_ready:ready,eligible:ready,account:identity.Account,region:REGION,ami_id:ami,zone,scope:"One t3.micro, encrypted 8 GiB disk, new VPC/subnet, two private SSM endpoints, two security groups, and the preconfigured SSM instance profile. No public IP or internet gateway. Endpoints remain billable until stack cleanup.",task:TASK});
  }
  if(action==="list"){
    if(!await schemaReady(b))return reply({runs:[],schema_ready:false});
@@ -77,19 +88,16 @@ Deno.serve(async(req)=>{
    if(!await schemaReady(b))return reply({error:"Shared learner schemas are required"},409);
    const active=await b.asServiceRole.entities.CloudLearnerRun.filter({status:{$in:ACTIVE}});if(active.length)return reply({error:"An existing learner pilot needs inspection or cleanup"},409);
    const old=await b.asServiceRole.entities.CloudPocRun.filter({status:{$in:["preparing","provisioning","running","cleanup_pending"]}});if(old.length)return reply({error:"A previous AWS proof is active"},409);
-   const identity=await assertAccount();
+   const source=await authoredTemplate(b,input.template_id);
+   if(input.template_hash!==source.fingerprint)return reply({error:"The saved template changed after preflight. Check AWS learner access again."},409);
+   await assertAccount();
    const images=await ec2.send(new DescribeImagesCommand({Owners:["137112412989"],Filters:[{Name:"image-id",Values:[input.ami_id]},{Name:"state",Values:["available"]},{Name:"name",Values:["al2023-ami-2023.*-x86_64"]}]}));
    if(!images.Images?.some((x:any)=>x.ImageId===input.ami_id))fail("AMI_PREFLIGHT_CHANGED");
    const zones=await ec2.send(new DescribeInstanceTypeOfferingsCommand({LocationType:"availability-zone",Filters:[{Name:"instance-type",Values:["t3.micro"]},{Name:"location",Values:[input.zone]}]}));if(!zones.Offerings?.some((x:any)=>x.Location===input.zone))fail("ZONE_PREFLIGHT_CHANGED");
-   const title="AWS Guided File Permissions (Design Studio)";
-   const task={id:TASK.task_id,title:TASK.title,instructions:"Edit the guest task file and change its permissions from 644 to 600, then validate.",validation_criteria:[{check:TASK.check_id,points:1,description:"Task file mode is 600",runtime_validator:{type:"command_result",command_key:"file_mode",path:TASK.path,expected_output:"600",resource_id:"aws_learner_guest"}}]};
-   const spec={title,description:"Guided file editing through private AWS Systems Manager access",difficulty:"Beginner",nice_category:"Operate and Maintain",status:"draft",passing_score:100,estimated_duration_minutes:110,lab_content:{scenario:"Protect a task file in your AWS guest.",tasks:[task],success_criteria:"Independent SSM validation observes mode 600."},environment_definition:{resources:[{id:"aws_learner_guest",resource_type:"server",os_type:"Amazon Linux 2023",cpu_cores:2,memory_mb:1024,storage_gb:8,access_method:"guided_ssm"}],connectivity_policy:{internet_access:"none",isolation_required:true,allowed_services:["ssm","ssmmessages"]}}};
-   let template=(await b.asServiceRole.entities.LabTemplate.filter({title}))[0];
-   if(!template)template=await b.asServiceRole.entities.LabTemplate.create(spec);
    const expires=new Date(Date.now()+110*60000).toISOString();
-   const run=await b.asServiceRole.entities.CloudLearnerRun.create({owner_user_id:user.id,owner_email:user.email,status:"preparing",region:REGION,stack_name:STACK_NAME,contract:{...TASK,account_id:ACCOUNT},template_id:template.id,started_at:now(),expires_at:expires});
+   const run=await b.asServiceRole.entities.CloudLearnerRun.create({owner_user_id:user.id,owner_email:user.email,status:"preparing",region:REGION,stack_name:STACK_NAME,contract:{...TASK,title:source.snapshot.lab_content.tasks[0].title,account_id:ACCOUNT,template_snapshot:source.snapshot},template_id:source.template.id,started_at:now(),expires_at:expires});
    try{
-     const lab=await b.asServiceRole.entities.LabInstance.create({template_id:template.id,user_email:user.email,status:"provisioning",provider:"aws",template_snapshot:{...spec,lab_content:{...spec.lab_content,tasks:[task]}},started_at:now(),expires_at:expires,provider_status_message:"Creating private SSM learner stack."});
+     const lab=await b.asServiceRole.entities.LabInstance.create({template_id:source.template.id,user_email:user.email,status:"provisioning",provider:"aws",template_snapshot:source.snapshot,started_at:now(),expires_at:expires,provider_status_message:"Creating private SSM learner stack."});
      await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{lab_instance_id:lab.id});
      const result=await aws("cloudformation","CreateStack",{StackName:STACK_NAME,TemplateBody:JSON.stringify(stackTemplate(input.ami_id,input.zone,run.id)),RoleARN:EXECUTION_ROLE_ARN,OnFailure:"DELETE",TimeoutInMinutes:15,ClientRequestToken:run.id,Tags:[{Key:"ManagedBy",Value:MANAGED_BY},{Key:"LearnerRunId",Value:run.id}]});
      await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{stack_id:result.StackId,status:"provisioning"});
@@ -157,5 +165,5 @@ Deno.serve(async(req)=>{
    return reply({status:"completed",result});
  }
  return reply({error:"Unknown action"},400);
- }catch(e:any){return reply({error:"AWS learner request failed",error_code:safe(e),detail:String(e.message||"").slice(0,300)},502);}
+ }catch(e:any){return reply({error:"AWS learner request failed",error_code:safe(e),detail:String(e.message||"").slice(0,300)},[400,409].includes(e.status)?e.status:502);}
 });
