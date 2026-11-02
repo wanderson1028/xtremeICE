@@ -39,12 +39,17 @@ export default function CloudLearnerPoc(){
   const poll=async()=>{try{
     const data=await call("refresh",{run_id:id});if(cancelled)return;
     setRuns(previous=>previous.map(r=>r.id===id?data.run:r));
-    if(data.run.status==="terminated"){const removal=await call("verifyRemoval",{run_id:id});if(!cancelled)setNotice(removal.verified?"Cleanup verified: AWS reports no learner stack resources remain.":"Cleanup needs attention: "+removal.remaining.join(", "));return;}
+    if(data.run.status==="terminated"){setNotice("Stack deletion completed. Checking AWS removal…");return;}
     if(data.run.status==="ready"){setNotice("Your AWS guest is ready. Start with an initial validation, then load and edit its file.");return;}
     if(data.run.status==="failed"){setError("AWS stack needs inspection or cleanup. Check its status before another launch.");return;}
     if(++tries<90)timer=setTimeout(poll,5000);else setNotice("AWS is still working. Use Refresh guest status to check again.");
   }catch(e){if(!cancelled)setError(message(e));}};
   timer=setTimeout(poll,2000);return()=>{cancelled=true;clearTimeout(timer);};
+ },[run?.id,run?.status]);
+ useEffect(()=>{
+  if(!run||run.status!=="terminated")return;
+  let cancelled=false;call("verifyRemoval",{run_id:run.id}).then(data=>{if(!cancelled)setNotice(data.verified?"Cleanup verified: AWS reports no learner stack resources remain.":"Cleanup needs attention: "+data.remaining.join(", "));}).catch(e=>{if(!cancelled)setError(message(e));});
+  return()=>{cancelled=true;};
  },[run?.id,run?.status]);
  const perform=async(fn)=>{setBusy(true);setError("");setNotice("");try{await fn();}catch(e){setError(message(e));}finally{setBusy(false);}};
  const choose=id=>{setSelected(id);setLoaded(false);setContent("");setMode("644");setValidation(null);setHistory([]);setNotice("");setError("");};
