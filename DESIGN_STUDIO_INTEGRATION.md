@@ -2,6 +2,12 @@
 
 Status: experimental branch `design-studio-integration` (updated 2026-11-02). The current target is AI generation → Lab Builder → guided AWS learner editing and validation in user-owned account `935838375949`. Do not merge to main until the gates below are met. Extreme ICE main remains the live demo. Capital Intelligence is outside this work.
 
+## November 2 expiry-cleanup implementation (integration branch)
+
+A browser-independent expiry sweep is staged on this branch. The new `expireCloudLearnerRuns` function calls the admin-only `cloudLearnerAWS` sweep; the `Expire AWS Learner Labs` workflow file schedules it every five minutes. The sweep selects only expired active `CloudLearnerRun` records, verifies the dedicated AWS account and exact pilot run/stack bindings, requires matching ManagedBy and LearnerRunId tags, sends an idempotent CloudFormation delete, and retries while deletion is pending. It marks the run and LabInstance terminated only after the stack is absent or DELETE_COMPLETE and an independent EC2/VPC/tagged-volume inventory finds no remaining resources. It preserves learning completion and validation history. An unsettled initial start has a five-minute grace period. Errors retain the run for retry and record a bounded error code.
+
+The three new expiry tests passed: owned delete/retry/verified termination, foreign-stack denial, and no AWS request with no expired runs. All 18 cloudLearnerAWS tests, backend type checks, frontend build and whitespace check passed. Live read-only run inventory currently has two terminated learner runs and no active run, so no AWS deletion was exercised. The app-wide workflow list still contains only the four pre-existing workflows; the branch workflow has not been observed running. Browser-independent cleanup therefore remains unproven until the scheduled workflow is active and a disposable expired run reaches verified AWS removal. Keep the existing operator-present $10/two-hour pilot limit and do not merge/publish on this evidence alone.
+
 ## November 2 live acceptance completed
 
 The bounded AI → Lab Builder → AWS guided-file demo completed in account `935838375949`, `us-east-1`. Saved draft `6ae8dcb50cfc77ecfbad0643`, “Securing Sensitive Configuration Files on Linux,” has the ai-generated and aws-guided-file-v1 tags. The reviewed-source preflight identified the intended account and reported schemas ready/eligible. The user reported IAM setup V3 CREATE_COMPLETE; the branch function was refreshed after the dedicated secret settings were added.
