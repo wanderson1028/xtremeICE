@@ -1,4 +1,5 @@
 import { assignedLab, assignmentActions } from "./assignments.ts";
+import { sweepExpiredLearners } from "./expiry.ts";
 import { aws, list, hash } from "./awsControl.ts";
 import { EXECUTION_ROLE_ARN } from "./accessConfig.ts";
 import { assessGuidedTemplate, freezeGuidedTemplate } from "./templateContract.ts";
@@ -62,6 +63,11 @@ export async function handleLearnerRequest(req:Request,b:any){
  let input:any;try{input=await req.json();}catch{return reply({error:"Invalid JSON"},400);}
  try{
  const action=input.action;
+ if(action==="sweepExpired"){
+   if(user.role!=="admin")return reply({error:"Instructor access required"},403);
+   const result=await sweepExpiredLearners(b);
+   return reply(result,result.errors.length?207:200);
+ }
  const assignmentResponse=await assignmentActions(action,input,b,user);
  if(assignmentResponse)return reply(assignmentResponse);
  let assignmentContext:any=null;
