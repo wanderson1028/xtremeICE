@@ -1,17 +1,4 @@
 {
   "name": "expireCloudLearnerRuns",
-  "entry": "entry.ts",
-  "automations": [
-    {
-      "name": "Expire AWS learner labs",
-      "type": "scheduled",
-      "schedule_mode": "recurring",
-      "schedule_type": "simple",
-      "repeat_unit": "minutes",
-      "repeat_interval": 5,
-      "ends_type": "never",
-      "is_active": true,
-      "description": "Delete expired, ownership-tagged pilot learner stacks and verify AWS resource removal."
-    }
-  ]
+  "entry": "entry.ts"
 }
