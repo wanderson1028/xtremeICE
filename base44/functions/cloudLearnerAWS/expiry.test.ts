@@ -108,3 +108,18 @@ Deno.test("non-admin cannot trigger expiry sweep", async () => {
   const response = await handleLearnerRequest(req, db);
   assert(response.status === 403, "learner denied before AWS or entity access");
 });
+Deno.test("unsettled initial launch gets a five-minute cleanup grace", async () => {
+  const row: any = { ...run(), status: "preparing", stack_id: null, started_at: "2026-01-03T00:00:00Z" };
+  let providerCalls = 0, updates = 0;
+  const db: any = { asServiceRole: { entities: { CloudLearnerRun: {
+    filter: async () => [row], update: async () => { updates++; },
+  } } } };
+  const result = await sweepExpiredLearners(db, {
+    clock: () => Date.parse("2026-01-03T00:03:00Z"),
+    sts: { send: async () => ({ Account: "935838375949" }) },
+    aws: async () => { providerCalls++; throw new Error("should not inspect stack"); },
+    ec2: { send: async () => { providerCalls++; throw new Error("should not inspect resources"); } },
+  });
+  assert(result.pending === 1 && result.cleanup_requested === 0, "initial launch held pending");
+  assert(providerCalls === 0 && updates === 0 && row.status === "preparing", "no cleanup or record mutation during grace");
+});
