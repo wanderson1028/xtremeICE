@@ -1,7 +1,7 @@
-import { aws as awsRequest, list } from "../cloudLearnerAWS/awsControl.ts";
-import { EXECUTION_ROLE_ARN } from "../cloudLearnerAWS/accessConfig.ts";
-import { ACCOUNT, MANAGED_BY, REGION, requireAccount } from "../cloudLearnerAWS/model.ts";
-import { EC2Client, STSClient, GetCallerIdentityCommand, DescribeInstancesCommand, DescribeVolumesCommand, DescribeVpcsCommand } from "../cloudLearnerAWS/awsQuery.ts";
+import { aws as awsRequest, list } from "./awsControl.ts";
+import { EXECUTION_ROLE_ARN } from "./accessConfig.ts";
+import { ACCOUNT, MANAGED_BY, REGION, requireAccount } from "./model.ts";
+import { EC2Client, STSClient, GetCallerIdentityCommand, DescribeInstancesCommand, DescribeVolumesCommand, DescribeVpcsCommand } from "./awsQuery.ts";
 
 const STACK_NAME = "ExtremeICE-DesignStudio-Learner-Pilot";
 const ACTIVE = ["preparing", "provisioning", "ready", "failed", "cleanup_pending"];
