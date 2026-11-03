@@ -1,4 +1,5 @@
 import { sweepExpiredLearners } from "./expiry.ts";
+import { handleLearnerRequest } from "./handler.ts";
 
 const assert = (value: unknown, label: string) => { if (!value) throw new Error(label); };
 const RUN_ID = "0123456789abcdef01234567";
@@ -64,4 +65,46 @@ Deno.test("expiry sweep with no expired runs makes no AWS request", async () => 
     sts: { send: async () => { throw new Error("should not contact AWS"); } },
   });
   assert(result.scanned === 0 && result.cleanup_requested === 0, "empty sweep");
+});
+Deno.test("wrong AWS account stops the whole sweep before provider action", async () => {
+  let providerCalls = 0, updates = 0;
+  const db: any = { asServiceRole: { entities: { CloudLearnerRun: {
+    filter: async () => [run()], update: async () => { updates++; },
+  } } } };
+  try {
+    await sweepExpiredLearners(db, {
+      sts: { send: async () => ({ Account: "699121763776" }) },
+      aws: async () => { providerCalls++; return {}; },
+    });
+    throw new Error("wrong account accepted");
+  } catch (error: any) {
+    assert(error.name === "AWS_ACCOUNT_MISMATCH", "account mismatch signaled");
+    assert(providerCalls === 0 && updates === 0, "no provider action or record change");
+  }
+});
+Deno.test("remaining AWS resources defer termination until independent inventory is clear", async () => {
+  const row: any = { ...run(), status: "cleanup_pending", vpc_id: "vpc-owned", instance_id: "i-owned" };
+  const lab: any = { status: "running" };
+  let vpcExists = true;
+  const db: any = { asServiceRole: { entities: {
+    CloudLearnerRun: { filter: async () => [row], update: async (_id: string, changes: any) => Object.assign(row, changes) },
+    LabInstance: { update: async (_id: string, changes: any) => Object.assign(lab, changes) },
+  } } };
+  const deps: any = {
+    clock: () => Date.parse("2026-01-03T00:00:00Z"),
+    sts: { send: async () => ({ Account: "935838375949" }) },
+    aws: async () => ({ Stacks: { member: { StackId: STACK_ID, StackStatus: "DELETE_COMPLETE", Tags: { member: [{ Key: "ManagedBy", Value: "ExtremeICE-DesignStudio-Learner" }, { Key: "LearnerRunId", Value: RUN_ID }] } } } }),
+    ec2: { send: async (command: any) => command.action === "DescribeVpcs" ? { Vpcs: vpcExists ? [{}] : [] } : command.action === "DescribeInstances" ? { Reservations: [{ Instances: [{ State: { Name: "terminated" } }] }] } : { Volumes: [] } },
+  };
+  const pending = await sweepExpiredLearners(db, deps);
+  assert(pending.pending === 1 && row.status === "cleanup_pending" && lab.status === "running", "resource blocks completion");
+  vpcExists = false;
+  const complete = await sweepExpiredLearners(db, deps);
+  assert(complete.verified_terminated === 1 && row.status === "terminated" && lab.status === "terminated", "termination follows inventory");
+});
+Deno.test("non-admin cannot trigger expiry sweep", async () => {
+  const req = new Request("https://example.invalid/learner", { method: "POST", body: JSON.stringify({ action: "sweepExpired" }) });
+  const db: any = { auth: { me: async () => ({ id: "learner", role: "user" }) }, asServiceRole: { entities: {} } };
+  const response = await handleLearnerRequest(req, db);
+  assert(response.status === 403, "learner denied before AWS or entity access");
 });
