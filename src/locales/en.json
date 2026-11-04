@@ -24,7 +24,7 @@
   "home": {
     "title": "Xtreme I.C.E.",
     "subtitle": "Integrated Cybersecurity Environment",
-    "tagline": "Build a resilient workforce through controlled chaos testing.",
+    "tagline": "Workforce Resilience Through Controlled Chaos Testing.",
     "intro": "Xtreme I.C.E. is an all-in-one cybersecurity training and simulation platform built for network engineers, SOC analysts, and security educators. It combines enterprise network design, live-fire cyber range events, and hands-on SOC simulations into a single integrated environment. From building multi-site topologies to responding to real-world attack scenarios, every feature is designed to sharpen operational skills under realistic conditions.",
     "feature_network_wizard": "Network Design Wizard",
     "feature_network_wizard_desc": "build multi-site topologies with auto-generated CLI configs",
