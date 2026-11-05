@@ -69,7 +69,7 @@ export async function requestCleanup(b:any,run:any,deps:any={}) {
  if(starting(run,time))return {run,pending:true,cleanup_requested:false};
  // Persist intent before the provider call. A timeout must never reopen a guest.
  const current=await latest(b,run);
- if(current.status!=="terminated")await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{status:"cleanup_pending"});
+ if(current.status!=="terminated")await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{status:"cleanup_pending",cleanup_requested_at:current.cleanup_requested_at||new Date(time).toISOString()});
  try {
   let stack:any=null;
   try {stack=await ownedStack(current,deps);}
@@ -103,7 +103,7 @@ export async function refreshLifecycle(b:any,run:any,deps:any={}) {
  bound(run);const time=(deps.clock||Date.now)();
  if(run.status==="terminated")return run;
  const elapsed=time-Date.parse(run.started_at);
- if(["cleanup_pending","failed"].includes(run.status)||Date.parse(run.expires_at)<=time ||
+ if(run.cleanup_requested_at||["cleanup_pending","failed"].includes(run.status)||Date.parse(run.expires_at)<=time ||
     (run.status==="preparing"&&elapsed>=START_GRACE_MS) ||
     (run.status==="provisioning"&&elapsed>=PROVISION_TIMEOUT_MS))
   return (await requestCleanup(b,run,deps)).run;
@@ -121,7 +121,7 @@ export async function refreshLifecycle(b:any,run:any,deps:any={}) {
   }else changes.status="provisioning";
   const current=await latest(b,run);
   if(current.status==="terminated")return current;
-  if(current.status==="cleanup_pending"||current.contract?.learning?.finished_at)return (await requestCleanup(b,current,deps)).run;
+  if(current.cleanup_requested_at||current.status==="cleanup_pending"||current.contract?.learning?.finished_at)return (await requestCleanup(b,current,deps)).run;
   await b.asServiceRole.entities.CloudLearnerRun.update(run.id,changes);
   if(current.lab_instance_id&&changes.status==="ready")await b.asServiceRole.entities.LabInstance.update(current.lab_instance_id,{status:"running",provider_status_message:"Private SSM guest is online."});
   return {...current,...changes};
