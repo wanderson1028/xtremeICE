@@ -1,3 +1,4 @@
+import { rehearsalAction } from "./rehearsal.ts";
 import { assignedLab, assignmentActions } from "./assignments.ts";
 import { lifecycleDiagnostics } from "./diagnostics.ts";
 import { sweepExpiredLearners } from "./expiry.ts";
@@ -36,6 +37,7 @@ export async function handleLearnerRequest(req:Request,b:any){
  let input:any;try{input=await req.json();}catch{return reply({error:"Invalid JSON"},400);}
  try{
  const action=input.action;
+ const rehearsalResult=await rehearsalAction(action,input,b,user);if(rehearsalResult)return reply(rehearsalResult);
  if(action==="lifecycleDiagnostics")return reply(await lifecycleDiagnostics(b,user));
  if(action==="sweepExpired"){
    if(user.role!=="admin")return reply({error:"Instructor access required"},403);

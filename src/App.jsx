@@ -1,3 +1,4 @@
+import AWSRecoveryRehearsal from "./pages/AWSRecoveryRehearsal";
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
@@ -222,6 +223,7 @@ const AuthenticatedApp = () => {
       <Route path="/CloudCoursePoc" element={<LayoutWrapper currentPageName="CloudCoursePoc"><CloudCoursePoc /></LayoutWrapper>} />
       <Route path="/CloudLearnerPoc" element={<LayoutWrapper currentPageName="CloudLearnerPoc"><CloudLearnerPoc /></LayoutWrapper>} />
       <Route path="/LabAssignments" element={<LayoutWrapper currentPageName="LabAssignments"><LabAssignments /></LayoutWrapper>} />
+      <Route path="/AWSRecoveryRehearsal" element={<AWSRecoveryRehearsal />} />
       <Route path="/LifecycleDiagnostics" element={<LayoutWrapper currentPageName="LifecycleDiagnostics"><LifecycleDiagnostics /></LayoutWrapper>} />
       <Route path="/LearnerWorkspace" element={<LayoutWrapper currentPageName="LearnerWorkspace"><LearnerWorkspace /></LayoutWrapper>} />
       <Route path="/LabEnvironments" element={<LayoutWrapper currentPageName="LabEnvironments"><LabEnvironments /></LayoutWrapper>} />
