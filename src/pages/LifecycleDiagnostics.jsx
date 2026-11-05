@@ -1,4 +1,5 @@
 import React,{useEffect,useRef,useState} from "react";
+import OperatorAlertBanner from "@/components/OperatorAlertBanner";
 import {Link} from "react-router-dom";
 import {learnerCall,learnerError} from "@/lib/cloudLearnerClient";
 
@@ -22,9 +23,10 @@ export default function LifecycleDiagnostics(){
  useEffect(()=>{mounted.current=true;refresh();return()=>{mounted.current=false;};},[]);
  const sessions=data?[...data.active,...data.legacy]:[];
  return <main className="min-h-screen bg-gray-950 text-gray-100 p-6"><div className="max-w-5xl mx-auto space-y-6">
-  <nav className="flex gap-5 text-sky-300"><Link to="/LabAssignments">← Lab assignments</Link><Link to="/CloudLearnerPoc">Manage AWS sessions</Link></nav>
+  <nav className="flex gap-5 text-sky-300"><Link to="/LabAssignments">← Lab assignments</Link><Link to="/CloudLearnerPoc">Manage AWS sessions</Link><Link to="/OperatorAlerts">Operator alerts</Link></nav>
   <header><h1 className="text-3xl font-semibold">Session recovery overview</h1><p className="text-gray-300 mt-2">Review saved session records, capacity holds and cleanup errors.</p></header>
   <button className="rounded-lg bg-sky-700 px-4 py-2 disabled:opacity-40" disabled={busy} onClick={refresh}>{busy?"Loading records…":"Refresh records"}</button>
+  <OperatorAlertBanner enabled={!!data}/>
   {error&&<p role="alert" className="rounded border border-red-700 p-4">{data?"Refresh failed. The records below are stale. ":""}{error}</p>}
   {data&&<><section className="rounded border border-sky-700 p-4 space-y-2">
    <p className="font-semibold">{error?"Stale snapshot":"Snapshot"} · {stamp(data.generated_at)}</p>

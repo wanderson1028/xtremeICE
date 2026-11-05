@@ -4,6 +4,7 @@ import { BookOpen, Layers, Settings, FileText, Globe, Download, Network, Zap, Cl
 import { Card, CardContent } from "@/components/ui/card";
 
 const modules = [
+  { name: "Operator alerts", icon: Cloud, path: "/OperatorAlerts", desc: "Review lab failures, delayed cleanup and expiry monitoring" },
   { name: "Lab Assignments", icon: BookOpen, path: "/LabAssignments", desc: "Assign a reviewed AWS lab to an existing learner" },
   { name: "Assigned Labs", icon: Layers, path: "/LearnerWorkspace", desc: "Start or resume your lab, practice and validate your work" },
   { name: "Lab Templates", icon: BookOpen, path: "/LabTemplates", desc: "Browse and manage reusable lab templates" },

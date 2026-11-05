@@ -1,4 +1,5 @@
 import React,{useEffect,useState} from "react";
+import OperatorAlertBanner from "@/components/OperatorAlertBanner";
 import {Link} from "react-router-dom";
 import {learnerCall,learnerError} from "@/lib/cloudLearnerClient";
 export default function LabAssignments(){
@@ -13,6 +14,7 @@ export default function LabAssignments(){
  return <main className="min-h-screen bg-gray-950 text-gray-100 p-6"><div className="max-w-5xl mx-auto space-y-6">
   <nav className="flex gap-5 text-sky-300"><Link to="/LabBuilderDashboard">← Course Lab Builder</Link><Link to="/LearnerWorkspace">Assigned Labs</Link><Link to="/CloudLearnerPoc">Manage AWS sessions</Link><Link to="/LifecycleDiagnostics">Session recovery overview</Link></nav>
   <header><h1 className="text-3xl font-semibold">Lab assignments</h1><p className="text-gray-400 mt-2">Review a supported lab and assign it to an existing learner. One AWS guest can run at a time.</p></header>
+  <OperatorAlertBanner enabled={!!data}/>
   {error&&<p role="alert" className="rounded border border-red-700 p-4">{error}</p>}
   {notice&&<p role="status" className="rounded border border-sky-700 p-4">{notice}</p>}
   {!data&&!error&&<p>Loading instructor controls…</p>}
