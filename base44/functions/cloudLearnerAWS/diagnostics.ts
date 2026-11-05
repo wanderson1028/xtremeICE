@@ -61,7 +61,7 @@ export async function lifecycleDiagnostics(b: any, user: any, time=Date.now()) {
    "This view reads saved records only. Refreshing it does not check AWS, start guests, or request cleanup.",
    "Last successful provider checks are not recorded. Record update times can include learning changes and do not prove AWS health.",
    "Recorded release times reflect earlier verified cleanup; they are not a new provider check.",
-   "Pending-action counts may be incomplete when the operation list is truncated. Distributed admission remains best effort.",
+   "Guest-action counts may be incomplete when results are limited. Continue using the supervised one-guest pilot checks.",
   ],
  };
 }
