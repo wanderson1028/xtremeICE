@@ -53,7 +53,8 @@ Deno.test("API rehearsal: AI-shaped draft, Builder, frozen AWS run, real file fa
     const script=input.Parameters.commands.join("\n").replaceAll(TASK_PATH,target).replaceAll("/var/tmp/design-studio-learner/",directory+"/fixture/").replaceAll("/var/lock/design-studio-learner.lock",directory+"/task.lock");
     const result=await new Deno.Command("bash",{args:["-c",script],stdout:"piped",stderr:"piped"}).output();
     const key=crypto.randomUUID();commands.set(key,{CommandId:key,InstanceId:instance,Status:result.success?"Success":"Failed",ResponseCode:result.code,StandardOutputContent:new TextDecoder().decode(result.stdout),reads:0});
-    if(loseDispatch){loseDispatch=false;throw new TypeError("simulated response lost after dispatch");}\n    return Response.json({Command:{CommandId:key}});
+    if(loseDispatch){loseDispatch=false;throw new TypeError("simulated response lost after dispatch");}
+    return Response.json({Command:{CommandId:key}});
    }
    if(action==="GetCommandInvocation"){
     const command=commands.get(input.CommandId);check(command&&input.InstanceId===command.InstanceId,"poll uses stored binding");
