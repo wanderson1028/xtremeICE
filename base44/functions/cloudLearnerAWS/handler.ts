@@ -1,5 +1,6 @@
 import { assignedLab, assignmentActions } from "./assignments.ts";
 import { sweepExpiredLearners } from "./expiry.ts";
+import { ownedStack as getStack, refreshLifecycle as refresh, requestCleanup, verifyRunRemoval, starting } from "./lifecycle.ts";
 import { aws, list, hash } from "./awsControl.ts";
 import { EXECUTION_ROLE_ARN } from "./accessConfig.ts";
 import { assessGuidedTemplate, freezeGuidedTemplate } from "./templateContract.ts";
@@ -25,37 +26,8 @@ async function authoredTemplate(b:any,id:unknown){
 async function schemaReady(b:any){
  try{await b.asServiceRole.entities.CloudLearnerRun.list("-created_date",1);await b.asServiceRole.entities.CloudGuestOperation.list("-created_date",1);return true;}catch{return false;}
 }
-async function getStack(run:any){
- try{
- const result=await aws("cloudformation","DescribeStacks",{StackName:run.stack_id||run.stack_name});
- const s=list(result.Stacks?.member)[0];if(!s)return null;
- if(!list(s.Tags?.member).some(t=>t.Key==="LearnerRunId"&&t.Value===run.id)||!list(s.Tags?.member).some(t=>t.Key==="ManagedBy"&&t.Value===MANAGED_BY))fail("STACK_OWNERSHIP_MISMATCH");
- return s;
- }catch(e:any){if(e.name==="ValidationError"&&/does not exist/i.test(e.message))return null;throw e;}
-}
-async function markTerminated(b:any,run:any){
- const terminated_at=run.terminated_at||now();
- await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{status:"terminated",terminated_at});
- if(run.lab_instance_id&&run.status!=="terminated")await b.asServiceRole.entities.LabInstance.update(run.lab_instance_id,{status:"terminated",provider_status_message:"Learner stack deletion completed."});
- return {...run,status:"terminated",terminated_at};
-}
-async function refresh(b:any,run:any){
- const stack=await getStack(run);
- if(!stack){if(run.status==="cleanup_pending"||run.stack_id)return await markTerminated(b,run);return run;}
- const state=stack.StackStatus,output=Object.fromEntries(list(stack.Outputs?.member).map(x=>[x.OutputKey,x.OutputValue]));
- const update:any={stack_id:stack.StackId,stack_status:state};
- if(state==="CREATE_COMPLETE"&&run.status!=="cleanup_pending"&&run.status!=="terminated"){
-   update.instance_id=output.InstanceId;update.vpc_id=output.VpcId;
-   const info=await aws("ssm","DescribeInstanceInformation",{Filters:[{Key:"InstanceIds",Values:[output.InstanceId]}],MaxResults:5});
-   update.status=info.InstanceInformationList?.[0]?.PingStatus==="Online"?"ready":"provisioning";
- }else if(state==="DELETE_COMPLETE") {update.status="terminated";update.terminated_at=run.terminated_at||now();}
- else if(/FAILED|ROLLBACK/.test(state)&&state!=="DELETE_IN_PROGRESS")update.status="failed";
- await b.asServiceRole.entities.CloudLearnerRun.update(run.id,update);
- if(run.lab_instance_id && update.status!==run.status && ["ready","terminated"].includes(update.status))await b.asServiceRole.entities.LabInstance.update(run.lab_instance_id,{status:update.status==="ready"?"running":"terminated",provider_status_message:update.status==="ready"?"Private SSM guest is online.":"Learner stack deletion completed."});
- return {...run,...update};
-}
 function publicRun(run:any){
- return {id:run.id,status:run.status,stack_status:run.stack_status,instance_id:run.instance_id,expires_at:run.expires_at,contract:run.contract,owner_user_id:run.owner_user_id,template_id:run.template_id};
+ return {id:run.id,status:run.status,stack_status:run.stack_status,instance_id:run.instance_id,expires_at:run.expires_at,contract:run.contract,owner_user_id:run.owner_user_id,template_id:run.template_id,last_error_code:run.last_error_code||null};
 }
 export async function handleLearnerRequest(req:Request,b:any){
  const user=await b.auth.me().catch(()=>null);
@@ -137,33 +109,27 @@ export async function handleLearnerRequest(req:Request,b:any){
  await assertAccount();
  if(action==="refresh"){run=await refresh(b,run);return reply({run:publicRun(run)});}
  if(action==="cleanup"||action==="finish"){
-   if(run.status==="preparing"&&!run.stack_id&&Date.now()-Date.parse(run.started_at)<300000)return reply({error:"The start request is still settling. Refresh its status before finishing this session."},409);
+   if(starting(run))return reply({error:"The start request is still settling. Refresh its status before finishing this session."},409);
    if(input.ack!=="DELETE_LEARNER_STACK")return reply({error:"Cleanup acknowledgment required"},400);
    if(action==="finish"){
     const current=(await b.asServiceRole.entities.CloudLearnerRun.filter({id:run.id}))[0];
-    run={...run,contract:{...current.contract,learning:{...current.contract.learning,finished_at:current.contract.learning?.finished_at||now()}}};
+    run={...current,contract:{...current.contract,learning:{...current.contract.learning,finished_at:current.contract.learning?.finished_at||now()}}};
     await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{contract:run.contract});
    }
-   let stack;
-   try{stack=await getStack(run);}catch(e){if(!run.stack_id&&run.last_error_code==="AlreadyExistsException"){await markTerminated(b,run);return reply({status:"terminated"});}throw e;}
-   if(!stack||stack.StackStatus==="DELETE_COMPLETE"){await markTerminated(b,run);return reply({status:"terminated"});}
-   await aws("cloudformation","DeleteStack",{StackName:stack.StackId,RoleARN:EXECUTION_ROLE_ARN,ClientRequestToken:"cleanup-"+run.id});
-   await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{status:"cleanup_pending"});return reply({status:"cleanup_pending"});
+   const result=await requestCleanup(b,run);
+   return reply({status:result.run.status,remaining:result.remaining||[]});
  }
- if(action==="verifyRemoval"){
-   const stack=await getStack(run);if(stack&&stack.StackStatus!=="DELETE_COMPLETE")return reply({verified:false,remaining:["stack"]});
-   const remaining=[];
-   if(run.vpc_id){try{const v=await ec2.send(new DescribeVpcsCommand({VpcIds:[run.vpc_id]}));if(v.Vpcs?.length)remaining.push("vpc");}catch(e:any){if(e.name!=="InvalidVpcID.NotFound")throw e;}}
-   if(run.instance_id){try{const state=(await ec2.send(new DescribeInstancesCommand({InstanceIds:[run.instance_id]}))).Reservations?.flatMap((r:any)=>r.Instances||[])[0]?.State?.Name;if(state&&state!=="terminated")remaining.push("instance");}catch(e:any){if(e.name!=="InvalidInstanceID.NotFound")throw e;}}
-   const volumes=await ec2.send(new DescribeVolumesCommand({Filters:[{Name:"tag:LearnerRunId",Values:[run.id]},{Name:"tag:ManagedBy",Values:[MANAGED_BY]}],MaxResults:1000}));
-   if(volumes.NextToken||volumes.Volumes?.some((x:any)=>x.State!=="deleted"))remaining.push("volume");
-   return reply({verified:remaining.length===0,remaining});
- }
+ if(action==="verifyRemoval")return reply(await verifyRunRemoval(run));
  if(action==="startOperation"){
    if(run.contract.assignment_id){const access=await assignedLab(b,user,run.contract.assignment_id,false);if(access.assignment.lab_id!==run.template_id)return reply({error:"Assignment changed. Finish this session and contact your instructor."},403);}
    if(run.contract.learning?.finished_at)return reply({error:"This learning session has finished. Start a new session to try again."},409);
    if(!canOperate(run,user))return reply({error:"Only the owner of a ready, unexpired run can access its guest"},403);
    const kind=input.kind as Operation;if(!["read","write","validate"].includes(kind))return reply({error:"Unsupported task action"},400);
+   const pending=await b.asServiceRole.entities.CloudGuestOperation.filter({run_id:run.id,owner_user_id:user.id,status:"pending"},"-created_date",20);
+   for(const op of pending){
+    if(Date.parse(op.expires_at)>Date.now())return reply({operation_id:op.id,status:"pending",kind:op.kind,resumed:true});
+    await b.asServiceRole.entities.CloudGuestOperation.update(op.id,{status:"expired"});
+   }
    const nonce=crypto.randomUUID().replaceAll("-","");
    const script=compileOperation(kind,nonce,input.content,input.mode);
    const stack=await getStack(run);if(stack?.StackStatus!=="CREATE_COMPLETE")return reply({error:"Guest stack is not ready"},409);
@@ -174,15 +140,15 @@ export async function handleLearnerRequest(req:Request,b:any){
      const result=await aws("ssm","SendCommand",{DocumentName:"AWS-RunShellScript",InstanceIds:[run.instance_id],Parameters:{commands:[script],executionTimeout:["30"]},TimeoutSeconds:30,MaxConcurrency:"1",MaxErrors:"0",Comment:"Design Studio guided task "+op.id});
      if(!result.Command?.CommandId)fail("COMMAND_ID_MISSING");
      await b.asServiceRole.entities.CloudGuestOperation.update(op.id,{command_id:result.Command.CommandId});
-     return reply({operation_id:op.id,status:"pending"});
-   }catch(e){await b.asServiceRole.entities.CloudGuestOperation.update(op.id,{status:"failed",error_code:safe(e)});throw e;}
+     return reply({operation_id:op.id,status:"pending",kind});
+   }catch(e){await b.asServiceRole.entities.CloudGuestOperation.update(op.id,{error_code:"DISPATCH_UNCERTAIN"});return reply({operation_id:op.id,status:"pending",kind,dispatch_uncertain:true});}
  }
  if(action==="pollOperation"){
    if(!owns(run,user))return reply({error:"Guest operation access denied"},403);
    if(typeof input.operation_id!=="string"||!/^[a-f0-9]{16,32}$/i.test(input.operation_id))return reply({error:"Invalid operation"},400);
    const op=(await b.asServiceRole.entities.CloudGuestOperation.filter({id:input.operation_id,run_id:run.id,owner_user_id:user.id}))[0];if(!op)return reply({error:"Operation not found"},404);
    if(op.status!=="pending")return reply({status:op.status,result:op.result||null,error_code:op.error_code||null});
-   if(Date.now()>Date.parse(op.expires_at)){await b.asServiceRole.entities.CloudGuestOperation.update(op.id,{status:"expired"});return reply({status:"expired"});}
+   if(Date.now()>Date.parse(op.expires_at)){await b.asServiceRole.entities.CloudGuestOperation.update(op.id,{status:"expired"});return reply({status:"expired",error_code:op.error_code||null});}
    if(!op.command_id)return reply({status:"pending"});
    let command;
    try{command=await aws("ssm","GetCommandInvocation",{CommandId:op.command_id,InstanceId:run.instance_id});}catch(e:any){if(e.name==="InvocationDoesNotExist")return reply({status:"pending"});throw e;}

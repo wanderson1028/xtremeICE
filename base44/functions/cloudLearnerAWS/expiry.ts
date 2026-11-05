@@ -16,6 +16,6 @@ export async function sweepExpiredLearners(b:any,deps:any={}) {
   const r=await requestCleanup(b,row,deps);
   if(r.cleanup_requested)result.cleanup_requested++;
   if(r.pending)result.pending++;else if(r.run.status==="terminated")result.verified_terminated++;
- }catch(e:any){result.errors.push({run_id:row.id,error_code:String(e?.name||"EXPIRY_CLEANUP_FAILED").slice(0,80)});}
+ }catch(e:any){const error_code=String(e?.name||"EXPIRY_CLEANUP_FAILED").slice(0,80);await b.asServiceRole.entities.CloudLearnerRun.update(row.id,{last_error_code:error_code});result.errors.push({run_id:row.id,error_code});}
  return result;
 }
