@@ -7,7 +7,7 @@ const empty=()=>({checked_at:null,entries:{}});
 export function useOperatorAlerts(enabled=true){
  const [snapshot,setSnapshot]=useState(null),[cache,setCache]=useState(empty),[busy,setBusy]=useState(false),[error,setError]=useState(""),[storageWarning,setStorageWarning]=useState("");
  const cacheRef=useRef(empty()),actor=useRef(null),execute=useRef(null),live=useRef(false);
- const read=useCallback(id=>{try{return parseAlertCache(window.localStorage.getItem(alertStorageKey(id)));}catch{setStorageWarning("Acknowledgments cannot be saved in this browser. They will last only while this page stays open.");return cacheRef.current;}},[]);
+ const read=useCallback(id=>{try{const raw=window.localStorage.getItem(alertStorageKey(id));return raw===null?cacheRef.current:parseAlertCache(raw);}catch{setStorageWarning("Acknowledgments cannot be saved in this browser. They will last only while this page stays open.");return cacheRef.current;}},[]);
  const save=useCallback((id,next)=>{cacheRef.current=next;setCache(next);try{window.localStorage.setItem(alertStorageKey(id),serializeAlertCache(next));setStorageWarning("");}catch{setStorageWarning("Acknowledgments cannot be saved in this browser. They will last only while this page stays open.");}},[]);
  useEffect(()=>{
   if(!enabled){setSnapshot(null);setCache(empty());return;}
@@ -19,7 +19,7 @@ export function useOperatorAlerts(enabled=true){
    try{
     const me=await base44.auth.me();if(cancelled)return;
     if(me.role!=="admin")throw Object.assign(new Error("Instructor access required"),{response:{status:403}});
-    if(actor.current!==me.id){actor.current=me.id;cacheRef.current=read(me.id);setCache(cacheRef.current);setSnapshot(null);}
+    if(actor.current!==me.id){actor.current=me.id;cacheRef.current=empty();cacheRef.current=read(me.id);setCache(cacheRef.current);setSnapshot(null);}
     const result=await learnerCall("operatorAlerts");if(cancelled)return;
     if(result.subject_id!==me.id||result.scope!==ALERT_SCOPE)throw Object.assign(new Error("The signed-in account changed. Reload this page."),{response:{status:403}});
     const next=reconcileAlerts(read(me.id),result);save(me.id,next);setSnapshot(result);setError("");failures=0;
