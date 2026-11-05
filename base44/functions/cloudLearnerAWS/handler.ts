@@ -37,7 +37,7 @@ export async function handleLearnerRequest(req:Request,b:any){
  let input:any;try{input=await req.json();}catch{return reply({error:"Invalid JSON"},400);}
  try{
  const action=input.action;
- if(action==="refresh"&&input.run_id==="6aec19b249c4859cff228a3c")return reply({error:"Rehearsal client refresh intentionally unavailable; shared scheduled cleanup remains active",error_code:"REHEARSAL_CLIENT_DISCONNECTED"},503);
+ if(user.id==="6a1dc1b3258d8468d6226587"&&action==="refresh"&&input.run_id==="6aec19b249c4859cff228a3c")return reply({error:"Rehearsal client refresh intentionally unavailable; shared scheduled cleanup remains active",error_code:"REHEARSAL_CLIENT_DISCONNECTED"},503);
  const rehearsalResult=await rehearsalAction(action,input,b,user);if(rehearsalResult)return reply(rehearsalResult);
  if(action==="lifecycleDiagnostics")return reply(await lifecycleDiagnostics(b,user));
  if(action==="sweepExpired"){
