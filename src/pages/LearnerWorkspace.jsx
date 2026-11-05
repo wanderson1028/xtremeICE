@@ -2,7 +2,6 @@ import React,{useEffect,useState} from "react";
 import {Link,useSearchParams} from "react-router-dom";
 import {base44} from "@/api/base44Client";
 import {learnerCall,learnerError} from "@/lib/cloudLearnerClient";
-import LiveVerification from "@/components/LiveVerification";
 const ACTIVE=["preparing","provisioning","ready","failed","cleanup_pending"];
 export default function LearnerWorkspace(){
  const [params,setParams]=useSearchParams(),selected=params.get("run")||"";
@@ -41,7 +40,6 @@ export default function LearnerWorkspace(){
  const button="rounded-lg bg-sky-700 px-4 py-2 text-white disabled:opacity-40";
  return <main className="min-h-screen bg-gray-950 text-gray-100 p-6"><div className="max-w-6xl mx-auto space-y-6">
   <header className="flex justify-between gap-4"><div><h1 className="text-3xl font-semibold">Assigned Labs</h1><p className="text-gray-400 mt-2">Learn, practice and check your work in a private lab.</p></div>{user?.role==="admin"&&<Link className="text-sky-300" to="/LabAssignments">Instructor assignments →</Link>}</header>
-  <LiveVerification/>
   {error&&<p role="alert" className="border border-red-700 rounded p-4">{error}</p>}
   {notice&&<p role="status" className="border border-sky-700 rounded p-4">{notice}</p>}
   {loading&&<p>Loading your labs…</p>}
