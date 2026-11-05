@@ -1,5 +1,5 @@
 import { aws } from "./awsControl.ts";
-import { STSClient, GetCallerIdentityCommand } from "./awsQuery.ts";
+import { EC2Client, DescribeVpcsCommand, DescribeInstancesCommand, STSClient, GetCallerIdentityCommand } from "./awsQuery.ts";
 function ok(v:unknown){if(!v)throw new Error("Request assertion failed");}
 Deno.test("learner requests never fall back to the existing integration identity",async()=>{
  const priorFetch=globalThis.fetch;let called=false;
@@ -40,4 +40,10 @@ Deno.test("AWS control adapter signs POST forms and JSON using the correct wire 
  globalThis.fetch=async()=>Response.json({__type:"com.amazonaws.ssm#AccessDeniedException",Message:"Denied"},{status:400});
  let denied=false;try{await aws("ssm","DescribeInstanceInformation",{});}catch(e:any){denied=e.name==="AccessDeniedException";}ok(denied);
  }finally{globalThis.fetch=priorFetch;Deno.env.delete("AWS_LEARNER_ACCESS_KEY_ID");Deno.env.delete("AWS_LEARNER_SECRET_ACCESS_KEY");Deno.env.delete("AWS_LEARNER_SESSION_TOKEN");}
+});
+Deno.test("inventory adapter preserves pagination, tag filters and a bounded request deadline",async()=>{
+ const previous=globalThis.fetch;Deno.env.set("AWS_LEARNER_ACCESS_KEY_ID","EXAMPLE_ACCESS");Deno.env.set("AWS_LEARNER_SECRET_ACCESS_KEY","EXAMPLE_SECRET");
+ try{globalThis.fetch=async(url:any,init:any)=>{const q=new URL(String(url)).searchParams;ok(q.get("Filter.1.Name")==="tag:LearnerRunId"&&q.get("Filter.1.Value.1")==="owned-run");ok(init.signal instanceof AbortSignal);const action=q.get("Action");return new Response("<"+action+"Response><nextToken>more-resources</nextToken></"+action+"Response>");};
+ for(const C of [DescribeVpcsCommand,DescribeInstancesCommand]){const result=await new EC2Client().send(new C({Filters:[{Name:"tag:LearnerRunId",Values:["owned-run"]}]}));ok(result.NextToken==="more-resources");}
+ }finally{globalThis.fetch=previous;}
 });
