@@ -18,7 +18,7 @@ function Session({run}){
 export default function LifecycleDiagnostics(){
  const [data,setData]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState("");
  const mounted=useRef(false);
- const refresh=async()=>{setBusy(true);try{const result=await learnerCall("lifecycleDiagnostics");if(mounted.current){setData(result);setError("");}}catch(e){if(mounted.current)setError(learnerError(e));}finally{if(mounted.current)setBusy(false);}};
+ const refresh=async()=>{setBusy(true);try{const result=await learnerCall("lifecycleDiagnostics");if(mounted.current){setData(result);setError("");}}catch(e){if(mounted.current){if([401,403].includes(e?.response?.status))setData(null);setError(learnerError(e));}}finally{if(mounted.current)setBusy(false);}};
  useEffect(()=>{mounted.current=true;refresh();return()=>{mounted.current=false;};},[]);
  const sessions=data?[...data.active,...data.legacy]:[];
  return <main className="min-h-screen bg-gray-950 text-gray-100 p-6"><div className="max-w-5xl mx-auto space-y-6">

@@ -28,6 +28,7 @@ export async function lifecycleDiagnostics(b: any, user: any, time=Date.now()) {
    if(run.cleanup_requested_at)reasons.push("Cleanup requested; capacity remains reserved");
    if(run.cleanup_requested_at&&!cleanup)reasons.push("Cleanup timestamp is invalid");
    if(cleanup&&time-Date.parse(cleanup)>=15*60000)reasons.push("Cleanup has been waiting at least 15 minutes");
+   if(run.status==="cleanup_pending"&&!run.cleanup_requested_at)reasons.push("Cleanup is pending; inspect saved errors and wait for verified release");
    if(run.status==="failed")reasons.push("Launch failed; inspect cleanup");
    if(run.status==="preparing"&&age!==null&&age>=START_GRACE_MS)reasons.push("Start exceeded its settling grace");
    if(run.status==="provisioning"&&age!==null&&age>=PROVISION_TIMEOUT_MS)reasons.push("Provisioning exceeded its recovery threshold");

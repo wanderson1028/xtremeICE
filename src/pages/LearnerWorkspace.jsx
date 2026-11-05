@@ -6,7 +6,7 @@ const ACTIVE=["preparing","provisioning","ready","failed","cleanup_pending"];
 export default function LearnerWorkspace(){
  const [params,setParams]=useSearchParams(),selected=params.get("run")||"";
  const [user,setUser]=useState(null),[assignments,setAssignments]=useState([]),[runs,setRuns]=useState([]),[capacity,setCapacity]=useState(true),[loading,setLoading]=useState(true);
- const [statusError,setStatusError]=useState("");
+ const [statusError,setStatusError]=useState(""),[operationError,setOperationError]=useState("");
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState(""),[operation,setOperation]=useState(null);
  const [content,setContent]=useState(""),[mode,setMode]=useState("644"),[loaded,setLoaded]=useState(false),[history,setHistory]=useState([]),[clock,setClock]=useState(Date.now());
  const run=runs.find(r=>r.id===selected),snapshot=run?.contract?.template_snapshot,learning=run?.contract?.learning||{},locked=busy||!!operation;
@@ -14,14 +14,14 @@ export default function LearnerWorkspace(){
  const expired=run&&Date.parse(run.expires_at)<=clock,canEdit=run?.status==="ready"&&!run.cleanup_requested_at&&!expired&&!learning.finished_at&&hasAssignment;
  const load=async()=>{const [me,a,r]=await Promise.all([base44.auth.me(),learnerCall("assignedLabs"),learnerCall("list")]);setUser(me);setAssignments(a.assignments);setCapacity(a.capacity_available);setRuns(r.runs.filter(x=>x.owner_user_id===me.id));};
  useEffect(()=>{load().catch(e=>setError(learnerError(e))).finally(()=>setLoading(false));const timer=setInterval(()=>setClock(Date.now()),1000);return()=>clearInterval(timer);},[]);
- useEffect(()=>{setLoaded(false);setContent("");setMode("644");setHistory([]);setOperation(null);setNotice("");setError("");if(!selected)return;
+ useEffect(()=>{setLoaded(false);setContent("");setMode("644");setHistory([]);setOperation(null);setOperationError("");setStatusError("");setNotice("");setError("");if(!selected)return;
   let cancelled=false;Promise.all([learnerCall("workspaceState",{run_id:selected}),learnerCall("validationHistory",{run_id:selected})]).then(([s,h])=>{if(cancelled)return;setRuns(rows=>rows.some(r=>r.id===s.run.id)?rows.map(r=>r.id===s.run.id?s.run:r):[s.run,...rows]);setHistory(h.checks||[]);if(s.pending_operation)setOperation({...s.pending_operation,run_id:selected});}).catch(e=>{if(!cancelled)setError(learnerError(e));});return()=>{cancelled=true;};
  },[selected]);
  useEffect(()=>{if(!run||!ACTIVE.includes(run.status))return;
   let cancelled=false,timer,failures=0;const poll=async()=>{let delay=15000;try{
    const d=await learnerCall("refresh",{run_id:run.id});if(cancelled)return;
-   setRuns(rows=>rows.map(r=>r.id===run.id?d.run:r));setStatusError("");failures=0;
-   const a=await learnerCall("assignedLabs");if(cancelled)return;setAssignments(a.assignments);setCapacity(a.capacity_available);
+   setRuns(rows=>rows.map(r=>r.id===run.id?d.run:r));
+   const a=await learnerCall("assignedLabs");if(cancelled)return;setAssignments(a.assignments);setCapacity(a.capacity_available);setStatusError("");failures=0;
    if(!ACTIVE.includes(d.run.status))return;
    delay=d.run.status==="ready"?15000:5000;
   }catch(e){if(cancelled)return;setStatusError(learnerError(e));delay=Math.min(30000,2000*2**Math.min(++failures,4));}
@@ -31,25 +31,26 @@ export default function LearnerWorkspace(){
  useEffect(()=>{if(!run||run.status!=="terminated")return;let cancelled=false;learnerCall("verifyRemoval",{run_id:run.id}).then(d=>{if(!cancelled){setNotice(d.verified?"Environment released. AWS removal verified.":"Cleanup needs attention: "+d.remaining.join(", "));load().catch(()=>{});}}).catch(e=>{if(!cancelled)setError(learnerError(e));});return()=>{cancelled=true;};},[run?.id,run?.status]);
  useEffect(()=>{if(!operation)return;let cancelled=false,timer,failures=0;
   const poll=async()=>{try{const d=await learnerCall("pollOperation",{run_id:operation.run_id,operation_id:operation.id});if(cancelled)return;
-   if(d.status==="pending"){setStatusError("");failures=0;timer=setTimeout(poll,2000);return;}
-   if(d.status!=="completed"){setOperation(null);setError("Guest action "+d.status+(d.error_code?": "+d.error_code:""));return;}
+   if(d.status==="pending"){setOperationError("");failures=0;timer=setTimeout(poll,2000);return;}
+   if(d.status!=="completed"){setOperationError("");setOperation(null);setError("Guest action "+d.status+(d.error_code?": "+d.error_code:""));return;}
    if(operation.kind==="read"){setContent(d.result.content);setMode(d.result.mode);setLoaded(true);setNotice("Loaded the file from your guest.");}
    if(operation.kind==="write"){setLoaded(false);setNotice("File saved in your guest. Load it again to check persistence, then validate.");}
    if(operation.kind==="validate"){const h=await learnerCall("validationHistory",{run_id:operation.run_id});if(cancelled)return;setHistory(h.checks||[]);setNotice(d.result.passed?"Validation passed: permissions are 600.":"Validation failed: observed "+d.result.mode+"; required 600.");await load();}
-   if(!cancelled)setOperation(null);
-  }catch(e){if(!cancelled){setStatusError(learnerError(e));timer=setTimeout(poll,Math.min(30000,2000*2**Math.min(++failures,4)));}}};poll();return()=>{cancelled=true;clearTimeout(timer);};
+   if(!cancelled){setOperationError("");setOperation(null);}
+  }catch(e){if(!cancelled){setOperationError(learnerError(e));timer=setTimeout(poll,Math.min(30000,2000*2**Math.min(++failures,4)));}}};poll();return()=>{cancelled=true;clearTimeout(timer);};
  },[operation]);
  const perform=async(fn)=>{setBusy(true);setError("");setNotice("");try{await fn();}catch(e){setError(learnerError(e));}finally{setBusy(false);}};
  const open=id=>setParams({run:id});
  const start=a=>{if(!window.confirm("Start your private lab session? Finish the lab to release its environment. This pilot allows one active guest and a session of up to 110 minutes."))return;perform(async()=>{const p=await learnerCall("assignmentPreflight",{assignment_id:a.id});if(!p.eligible)throw new Error("The assigned lab is not ready. Contact your instructor.");const d=await learnerCall("startAssigned",{assignment_id:a.id,template_hash:p.template_hash,ami_id:p.ami_id,zone:p.zone,ack:"LAUNCH_PRIVATE_SSM_LEARNER_PILOT"});await load();open(d.run_id);});};
  const action=kind=>perform(async()=>{const d=await learnerCall("startOperation",{run_id:run.id,kind,...(kind==="write"?{content,mode}:{})});setOperation({id:d.operation_id,kind:d.kind||kind,run_id:run.id});});
  const finish=()=>{if(window.confirm("Finish this session and release its environment? Your validation results will be kept."))perform(async()=>{await learnerCall("finish",{run_id:run.id,ack:"DELETE_LEARNER_STACK"});await load();});};
- const refresh=()=>perform(async()=>{if(run)await learnerCall("refresh",{run_id:run.id});await load();});
+ const refresh=()=>perform(async()=>{if(run)await learnerCall("refresh",{run_id:run.id});await load();setStatusError("");});
  const button="rounded-lg bg-sky-700 px-4 py-2 text-white disabled:opacity-40";
  return <main className="min-h-screen bg-gray-950 text-gray-100 p-6"><div className="max-w-6xl mx-auto space-y-6">
   <header className="flex justify-between gap-4"><div><h1 className="text-3xl font-semibold">Assigned Labs</h1><p className="text-gray-400 mt-2">Learn, practice and check your work in a private lab.</p></div>{user?.role==="admin"&&<Link className="text-sky-300" to="/LabAssignments">Instructor assignments →</Link>}</header>
   {error&&<p role="alert" className="border border-red-700 rounded p-4">{error}</p>}
   {statusError&&<p role="status" className="border border-amber-700 rounded p-4">Status could not be verified. Retrying automatically; the environment remains reserved until cleanup is verified.</p>}
+  {operationError&&<p role="status" className="border border-amber-700 rounded p-4">Guest action status could not be verified. Retrying the same action automatically; controls remain locked.</p>}
   {notice&&<p role="status" className="border border-sky-700 rounded p-4">{notice}</p>}
   {loading&&<p>Loading your labs…</p>}
   {!loading&&<div className="grid lg:grid-cols-[280px_1fr] gap-6"><aside className="space-y-5">

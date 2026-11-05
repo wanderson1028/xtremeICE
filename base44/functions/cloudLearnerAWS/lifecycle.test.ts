@@ -110,3 +110,59 @@ Deno.test("durable cleanup intent blocks guest access even if a late readiness w
  const r=await refreshLifecycle(f.db,f.row,f.deps);
  check(r.status==="cleanup_pending"&&f.row.cleanup_requested_at===marker&&f.deletes()===1,"cleanup resumes without reopening or duplicate deletion");
 });
+
+Deno.test("cleanup intent persistence failure prevents every provider call",async()=>{
+ const f=fixture();f.db.asServiceRole.entities.CloudLearnerRun.update=async()=>{throw Object.assign(Error("database unavailable"),{name:"DatabaseUnavailable"});};
+ try{await requestCleanup(f.db,f.row,f.deps)}catch{}
+ check(f.calls.length===0&&f.row.status==="ready"&&f.deletes()===0,"no provider call without durable intent");
+});
+Deno.test("final run write failure keeps capacity held and a repeated cleanup repairs release",async()=>{
+ const f=fixture();f.set({state:"DELETE_COMPLETE"});const original=f.db.asServiceRole.entities.CloudLearnerRun.update;let fail=true;
+ f.db.asServiceRole.entities.CloudLearnerRun.update=async(id:string,c:any)=>{if(c.status==="terminated"&&fail){fail=false;throw Object.assign(Error("write failed"),{name:"DatabaseUnavailable"});}return original(id,c);};
+ try{await requestCleanup(f.db,f.row,f.deps)}catch{}
+ check(f.row.status==="cleanup_pending"&&f.lab.status==="terminated","projection alone does not free capacity");
+ await requestCleanup(f.db,f.row,f.deps);
+ check(f.row.status==="terminated"&&f.lab.score===100,"release repaired and learning preserved");
+});
+Deno.test("outage at each independent removal inventory stage retains cleanup and retries",async()=>{
+ for(const stage of ["DescribeVpcs","DescribeInstances","DescribeVolumes"]){
+  const f=fixture();f.set({state:"DELETE_COMPLETE"});const original=f.deps.ec2.send;let fail=true;
+  f.deps.ec2.send=async(c:any)=>{if(c.action===stage&&fail){fail=false;throw Object.assign(Error("provider unavailable"),{name:"ServiceUnavailable"});}return original(c);};
+  try{await requestCleanup(f.db,f.row,f.deps)}catch{}
+  check(f.row.status==="cleanup_pending"&&f.row.last_error_code==="ServiceUnavailable","inventory outage holds "+stage);
+  await requestCleanup(f.db,f.row,f.deps);check(f.row.status==="terminated"&&f.deletes()===0,"retry verifies without delete replay");
+ }
+});
+Deno.test("overlapping cleanup reads reuse the same provider idempotency token and retain capacity",async()=>{
+ const f=fixture(),original=f.deps.aws;let reads=0,release:any;
+ const barrier=new Promise<void>(resolve=>{release=resolve;});
+ f.deps.aws=async(s:string,a:string,i:any)=>{if(a==="DescribeStacks"){
+  const snapshot=await original(s,a,i);if(++reads===2)release();await barrier;return snapshot;
+ }return original(s,a,i);};
+ await Promise.all([requestCleanup(f.db,{...f.row},f.deps),requestCleanup(f.db,{...f.row},f.deps)]);
+ const deletes=f.calls.filter(c=>c.action==="DeleteStack");
+ check(deletes.length===2&&new Set(deletes.map(c=>c.input.ClientRequestToken)).size===1,"overlap may issue two calls but shares one stable provider token");
+ check(f.row.status==="cleanup_pending"&&!!f.row.cleanup_requested_at,"no premature release");
+});
+Deno.test("interrupted launch with no provider stack is released after settling grace without relaunch",async()=>{
+ const f=fixture({status:"preparing",stack_id:null,started_at:new Date(TIME-6*60000).toISOString()});f.set({state:"MISSING"});
+ const result=await refreshLifecycle(f.db,f.row,f.deps);
+ check(result.status==="terminated"&&f.deletes()===0&&!f.calls.some(c=>c.action==="CreateStack"),"empty abandoned start safely reconciled");
+});
+Deno.test("late readiness cannot reopen a run released during its provider read",async()=>{
+ const f=fixture({status:"provisioning"}),original=f.deps.aws;
+ f.deps.aws=async(s:string,a:string,i:any)=>{const response=await original(s,a,i);if(a==="DescribeInstanceInformation")f.row.status="terminated";return response;};
+ const result=await refreshLifecycle(f.db,f.row,f.deps);
+ check(result.status==="terminated"&&!f.writes.some(c=>c.status==="ready"),"terminated result wins before ready write");
+});
+Deno.test("missing run during cleanup aborts before provider access",async()=>{
+ const f=fixture();f.db.asServiceRole.entities.CloudLearnerRun.filter=async()=>[];
+ try{await requestCleanup(f.db,f.row,f.deps);throw Error("allowed");}catch(e:any){check(e.name==="RUN_NOT_FOUND","missing run surfaced");}
+ check(f.calls.length===0&&f.deletes()===0,"no provider mutation on missing run");
+});
+Deno.test("foreign resource binding is rejected before reads, writes and provider calls",async()=>{
+ for(const patch of [{region:"us-west-2"},{stack_name:"OtherStack"},{stack_id:"arn:aws:cloudformation:us-east-1:123456789012:stack/foreign/id"}]){
+  const f=fixture(patch);try{await requestCleanup(f.db,f.row,f.deps);throw Error("allowed");}catch{}
+  check(f.calls.length===0&&f.writes.length===0&&f.deletes()===0,"boundaries held");
+ }
+});
