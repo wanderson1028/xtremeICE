@@ -56,6 +56,7 @@ async function signedQuery(service: "ec2" | "sts", action: string, input: any) {
   const signature = Array.from(await hmac(key, toSign)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
   const response = await fetch(`https://${host}/?${sorted}`, {
     headers: { "Host": host, "X-Amz-Date": stamp, "Authorization": `AWS4-HMAC-SHA256 Credential=${accessKey}/${scope}, SignedHeaders=host;x-amz-date, Signature=${signature}` },
+    signal: AbortSignal.timeout(25000),
   });
   const raw = await response.text();
   if (!response.ok) {
