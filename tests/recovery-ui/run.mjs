@@ -60,13 +60,13 @@ function reset(){
   me:{id:"learner",role:"user",email:"learner@example.invalid"},
   run:{id,owner_user_id:"learner",status:"ready",expires_at:new Date(time+3600000).toISOString(),contract:{assignment_id:"assignment",path:"/fixture/proof.txt",template_snapshot:{title:"Recovery test lab",objectives:["Protect the file"],lab_content:{tasks:[{title:"Permissions",instructions:"Use the fixture"}]}},learning:{}}},
   assignments:[{id:"assignment",title:"Recovery test lab",available:true}],
-  pending:null,refreshErrors:0,assignmentErrors:0,pollErrors:0,pollPending:false,diagnosticErrors:0,denyDiagnostics:false,
+  assignmentDeferred:null,pending:null,refreshErrors:0,assignmentErrors:0,pollErrors:0,pollPending:false,diagnosticErrors:0,denyDiagnostics:false,
   diagnostics:{generated_at:new Date(time).toISOString(),capacity:{held:false,record_count_at_least:0,guest_limit:1},active:[],legacy:[],recent:[],truncated:{active:false,legacy:false,recent:false,operations:false},notes:["Saved records only. No AWS check."]},
  };
  globalThis.__recoveryMe=config.me;
  globalThis.__recoveryCall=async(action,fields)=>{
   calls.push({action,fields,time});
-  if(action==="assignedLabs"){if(config.assignmentErrors-->0)throw Error("Assignment refresh unavailable");return {assignments:copy(config.assignments),capacity_available:config.run.status==="terminated"};}
+  if(action==="assignedLabs"){if(config.assignmentDeferred)await config.assignmentDeferred;if(config.assignmentErrors-->0)throw Error("Assignment refresh unavailable");return {assignments:copy(config.assignments),capacity_available:config.run.status==="terminated"};}
   if(action==="list")return {runs:[copy(config.run)]};
   if(action==="workspaceState")return {run:copy(config.run),pending_operation:copy(config.pending)};
   if(action==="validationHistory")return {checks:[]};
@@ -141,9 +141,9 @@ try{
  });
  await test("cleanup transition shows verified release and retains earned completion",async()=>{
   config.run.status="cleanup_pending";config.run.contract.learning.completed_at=new Date(time).toISOString();
-  await mount("LearnerWorkspace");assert.match(body(),/Releasing the environment/);config.refreshErrors=1;await advance(2000);assert.match(body(),/Status could not be verified/);config.run.status="terminated";await advance(4000);
+  await mount("LearnerWorkspace");assert.match(body(),/Releasing the environment/);config.refreshErrors=1;await advance(2000);assert.match(body(),/Status could not be verified/);let releaseAssignments;config.assignmentDeferred=new Promise(resolve=>{releaseAssignments=resolve;});config.run.status="terminated";await advance(4000);
   assert.match(body(),/Environment released. AWS removal verified/);assert.doesNotMatch(body(),/Status could not be verified/);assert.match(body(),/Task completed/);assert.equal(count("verifyRemoval"),1);
-  assert.equal(button("Load file from guest"),undefined);
+  assert.equal(button("Load file from guest"),undefined);await act(async()=>releaseAssignments());config.assignmentDeferred=null;
  });
  await test("instructor records retain stale snapshot on refresh failure then recover",async()=>{
   await mount("LifecycleDiagnostics");config.diagnosticErrors=1;await click("Refresh records");assert.match(body(),/records below are stale/);
