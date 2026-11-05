@@ -1,0 +1,44 @@
+{
+  "name": "Expire AWS Learner Labs",
+  "description": "Checks expired AWS learner runs every five minutes and releases only the tagged pilot stack.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "*/5 * * * *",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "expire_cloud_learner_runs",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "expire_learner_runs": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "expireCloudLearnerRuns"
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Release expired AWS learner labs",
+            "description": "Checks pilot ownership and verifies removal of the expired learner stack and resources."
+          }
+        }
+      }
+    ]
+  }
+}
