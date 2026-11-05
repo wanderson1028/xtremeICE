@@ -10,7 +10,7 @@ export { TASK, TASK_PATH };
 export type Operation = "read" | "write" | "validate";
 export function owns(run: any, user: any) { return !!user?.id && run?.owner_user_id === user.id; }
 export function canOperate(run: any, user: any, time = Date.now()) {
-  return owns(run,user) && run.status === "ready" && Date.parse(run.expires_at) > time &&
+  return owns(run,user) && !run.cleanup_requested_at && run.status === "ready" && Date.parse(run.expires_at) > time &&
     run.contract?.path === TASK_PATH && run.contract?.expected_mode === "600";
 }
 const utf8b64 = (text: string) => btoa(String.fromCharCode(...new TextEncoder().encode(text)));
