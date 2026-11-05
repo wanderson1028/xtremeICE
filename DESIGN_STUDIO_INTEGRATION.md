@@ -1,8 +1,27 @@
 # Design Studio integration into Extreme ICE
 
-Status: read-only instructor recovery diagnostics and deeper failure testing completed on the integration branch (November 5, 2026). 60 backend tests and 12 recovery UI tests passed. Main is unchanged from lifecycle hardening pass 1. Preserve all supervised one-guest pilot limits and project decisions.
+Status: one approved offline AWS recovery rehearsal completed with browser verification limits (November 5, 2026). Pending command recovery, scheduled verified release and a resource-free idempotency retry passed. Temporary code removed; main unchanged.
 
-## November 5 recovery diagnostics and failure testing (current handoff)
+## November 5 approved offline AWS recovery rehearsal (current handoff)
+
+The user explicitly approved one agent-monitored AWS recovery rehearsal while offline, within a USD 1 allowance and two-hour window. The approval window began 05:45:57 UTC (12:45:57 AM Eastern) and ended 07:45:57 UTC. One guest was launched in account 935838375949, us-east-1, using the existing t3.micro/8 GiB encrypted gp3/two private endpoint profile. No additional guest, IAM/schema/RLS change, main deployment, workflow-definition change, branch merge or frontend publish occurred.
+
+Run 6aec19b249c4859cff228a3c, LabInstance 6aec19b2a63a0e2035c8d63f and EC2 i-0b9c70dd986dab413 were created at 05:52:50 UTC; VPC vpc-0f3a01c963b710820. Prelaunch AWS tag inventory showed zero VPCs, active instances and volumes; the live run inventory later showed exactly one of each. Readiness was observed at 05:59:20 UTC. The initial mode-644 validation failed as expected.
+
+A temporary exact-run, admin-only action scheduled a 45-second management-agent stop and automatic restart. A read submitted at 06:01:09 UTC remained pending across a workspace reload. Read/save controls stayed locked, and reopening did not create another operation. Operation 6aec1ba5c0cd25f4381f7107 and SSM command 46515d6f-950f-4005-956a-433aad6c9c4b completed at 06:02:12 UTC using the original identifiers; the real file contents were displayed and controls unlocked. An initial read before the interruption window had also completed. Host journal output was not retrieved, so exact service stop/start timestamps are not independently recorded.
+
+Only this run and its LabInstance expiry were shortened from 07:42:50 UTC to 06:10:00 UTC. A temporary branch guard prevented the exact owner's refresh calls from initiating cleanup. The unchanged main scheduled workflow requested deletion at 06:10:18.516 UTC (run efd9a37e-613f-49f2-9bc2-8506182f1c8c) and verified removal at 06:15:26.024 UTC (scheduled run bc8337c1-b507-401a-9512-303fb0b11b58). The deployed lifecycle path requires owned stack removal plus independent instance/VPC/volume absence checks before termination.
+
+For a resource-free idempotency test, only this already-removed run's status was changed back to cleanup_pending using an exact ID/status/termination-time match. Manual invocation of the unchanged workflow, run 1b137ef3-e9ea-4970-9a05-119f859ca505, completed successfully at 06:16:33 UTC and returned the run to terminated with the original termination timestamp and contract unchanged. LabInstance termination retained score/progress 0 and the initial failed validation. All three test operations remain completed. Final shared-record inventories contain no nonterminated learner or previous-pilot runs. Raw workflow step outputs are unavailable, so cleanup proof is through the live unchanged reconciler's checked release path and repeated record transitions; no separate post-cleanup console/API inventory response was captured.
+
+All temporary test pages, interruption actions and the refresh guard were removed. Before this handoff update, the branch source tree matched the prior a6717a2e4e841188d9206e92de41b00eeebfdcb0 baseline exactly. Sixty backend tests passed after restoration; frontend build, focused ESLint and whitespace checks passed. The existing Browserslist-data advisory remains. The prior twelve deterministic UI tests remain dated evidence for unchanged source and were not rerun in this rehearsal. Main remains f4b5f17e5e01267a830023f5c76e1782f5241896.
+
+Limit: browser control failed after the read recovered, and Firefox fallback was stopped by the Computer Use platform because Windows browser URL enforcement is unsupported. Additional post-recovery edit-to-600/pass and host-journal checks were not completed. This run records no passing course completion. Estimated incremental AWS spend is USD 0.03-0.05 before tax; actual invoice/cost data is unverified. Resources were verified removed within about thirty minutes of approval. The earlier two-learner isolation acceptance remains separately dated.
+
+Evidence: Design_Studio_AWS_Recovery_Rehearsal_2026-11-05.json and aws-recovery-rehearsal-2026-11-05/. Pre-rehearsal checkpoint 6aec186da6c487bf36f42060 at a6717a2e4e841188d9206e92de41b00eeebfdcb0. Existing project decisions and pilot limits remain; this approval covered only the single offline run. Operator alerting remains the next implementation block.
+
+
+## November 5 recovery diagnostics and failure testing (previous handoff)
 
 Implemented on design-studio-integration only. No main deployment, branch merge, frontend publish, workflow/schema/RLS change, AWS guest launch, or new AWS resource. The one-guest maximum, 110-minute TTL, supervised USD 10/two-hour pilot, dedicated account/region and LabTemplate -> frozen LabInstance -> execution provider decisions are unchanged. Main remains at f4b5f17e5e01267a830023f5c76e1782f5241896.
 
