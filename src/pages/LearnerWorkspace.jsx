@@ -11,7 +11,7 @@ export default function LearnerWorkspace(){
  const [content,setContent]=useState(""),[mode,setMode]=useState("644"),[loaded,setLoaded]=useState(false),[history,setHistory]=useState([]),[clock,setClock]=useState(Date.now());
  const run=runs.find(r=>r.id===selected),snapshot=run?.contract?.template_snapshot,learning=run?.contract?.learning||{},locked=busy||!!operation;
  const hasAssignment=!run?.contract?.assignment_id||assignments.some(a=>a.id===run.contract.assignment_id);
- const expired=run&&Date.parse(run.expires_at)<=clock,canEdit=run?.status==="ready"&&!expired&&!learning.finished_at&&hasAssignment;
+ const expired=run&&Date.parse(run.expires_at)<=clock,canEdit=run?.status==="ready"&&!run.cleanup_requested_at&&!expired&&!learning.finished_at&&hasAssignment;
  const load=async()=>{const [me,a,r]=await Promise.all([base44.auth.me(),learnerCall("assignedLabs"),learnerCall("list")]);setUser(me);setAssignments(a.assignments);setCapacity(a.capacity_available);setRuns(r.runs.filter(x=>x.owner_user_id===me.id));};
  useEffect(()=>{load().catch(e=>setError(learnerError(e))).finally(()=>setLoading(false));const timer=setInterval(()=>setClock(Date.now()),1000);return()=>clearInterval(timer);},[]);
  useEffect(()=>{setLoaded(false);setContent("");setMode("644");setHistory([]);setOperation(null);setNotice("");setError("");if(!selected)return;
