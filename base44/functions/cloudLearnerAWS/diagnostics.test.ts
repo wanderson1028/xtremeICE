@@ -43,7 +43,7 @@ Deno.test("diagnostics flags stuck cleanup, launch failures and expired uncertai
 Deno.test("diagnostics includes stale starts, unknown states and malformed timing conservatively",async()=>{
  const f=fixture([row({id:"start",status:"preparing",started_at:iso(-6*60000)}),row({id:"stuck",status:"provisioning",started_at:iso(-21*60000)}),row({id:"corrupt",status:"mystery",started_at:"invalid",expires_at:"invalid",cleanup_requested_at:"invalid"})]);
  const d=await lifecycleDiagnostics(f.b,{role:"admin"},TIME);
- check(d.capacity.held&&d.active.every(r=>r.attention.length>0),"all unsafe records remain held");
+ check(d.capacity.held&&d.active.every((r:any)=>r.attention.length>0),"all unsafe records remain held");
  check(d.active[2].started_at===null&&d.active[2].expires_at===null,"invalid dates never displayed as valid");
 });
 Deno.test("diagnostics records release history without claiming current provider health",async()=>{
