@@ -103,9 +103,9 @@ export class EC2Client {
       case "DescribeInstanceTypeOfferings": return { Offerings: arrays(root.instanceTypeOfferingSet?.item).map((item) => ({ Location: item.location })) };
       case "DescribeInstances": return { Reservations: arrays(root.reservationSet?.item).map((reservation) => ({
         Instances: arrays(reservation.instancesSet?.item).map((item) => ({ State: { Name: item.instanceState?.name }, Tags: tags(item) })),
-      })) };
+      })), NextToken: root.nextToken || null };
       case "GetConsoleOutput": return { Output: root.output || "" };
-      case "DescribeVpcs": return { Vpcs: arrays(root.vpcSet?.item).map((item) => ({ Tags: tags(item) })) };
+      case "DescribeVpcs": return { Vpcs: arrays(root.vpcSet?.item).map((item) => ({ Tags: tags(item) })), NextToken: root.nextToken || null };
       case "DescribeSubnets": return { Subnets: arrays(root.subnetSet?.item).map((item) => ({ Tags: tags(item) })) };
       case "DescribeSecurityGroups": return { SecurityGroups: arrays(root.securityGroupInfo?.item).map((item) => ({ Tags: tags(item) })) };
       case "DescribeVolumes": return { Volumes: arrays(root.volumeSet?.item).map((item) => ({ VolumeId: item.volumeId, State: item.status, Tags: tags(item) })), NextToken: root.nextToken || null };
