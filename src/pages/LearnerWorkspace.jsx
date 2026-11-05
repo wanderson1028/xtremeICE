@@ -28,7 +28,7 @@ export default function LearnerWorkspace(){
   if(!cancelled)timer=setTimeout(poll,delay);};
   timer=setTimeout(poll,run.status==="ready"?15000:2000);return()=>{cancelled=true;clearTimeout(timer);};
  },[run?.id,run?.status]);
- useEffect(()=>{if(!run||run.status!=="terminated")return;let cancelled=false;learnerCall("verifyRemoval",{run_id:run.id}).then(d=>{if(!cancelled){setNotice(d.verified?"Environment released. AWS removal verified.":"Cleanup needs attention: "+d.remaining.join(", "));load().catch(()=>{});}}).catch(e=>{if(!cancelled)setError(learnerError(e));});return()=>{cancelled=true;};},[run?.id,run?.status]);
+ useEffect(()=>{if(!run||run.status!=="terminated")return;let cancelled=false;learnerCall("verifyRemoval",{run_id:run.id}).then(d=>{if(!cancelled){if(d.verified)setStatusError("");setNotice(d.verified?"Environment released. AWS removal verified.":"Cleanup needs attention: "+d.remaining.join(", "));load().catch(()=>{});}}).catch(e=>{if(!cancelled)setError(learnerError(e));});return()=>{cancelled=true;};},[run?.id,run?.status]);
  useEffect(()=>{if(!operation)return;let cancelled=false,timer,failures=0;
   const poll=async()=>{try{const d=await learnerCall("pollOperation",{run_id:operation.run_id,operation_id:operation.id});if(cancelled)return;
    if(d.status==="pending"){setOperationError("");failures=0;timer=setTimeout(poll,2000);return;}
