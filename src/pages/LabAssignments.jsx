@@ -11,7 +11,7 @@ export default function LabAssignments(){
  const revoke=id=>{if(window.confirm("Revoke this assignment? New guest actions will be blocked. An existing session still needs Finish lab or instructor cleanup."))perform(async()=>{await learnerCall("revokeAssignment",{assignment_id:id});setNotice("Assignment revoked. Check any active session for cleanup.");});};
  const button="rounded-lg bg-sky-700 px-4 py-2 text-white disabled:opacity-40";
  return <main className="min-h-screen bg-gray-950 text-gray-100 p-6"><div className="max-w-5xl mx-auto space-y-6">
-  <nav className="flex gap-5 text-sky-300"><Link to="/LabBuilderDashboard">← Course Lab Builder</Link><Link to="/LearnerWorkspace">Assigned Labs</Link><Link to="/CloudLearnerPoc">Manage AWS sessions</Link></nav>
+  <nav className="flex gap-5 text-sky-300"><Link to="/LabBuilderDashboard">← Course Lab Builder</Link><Link to="/LearnerWorkspace">Assigned Labs</Link><Link to="/CloudLearnerPoc">Manage AWS sessions</Link><Link to="/LifecycleDiagnostics">Session recovery overview</Link></nav>
   <header><h1 className="text-3xl font-semibold">Lab assignments</h1><p className="text-gray-400 mt-2">Review a supported lab and assign it to an existing learner. One AWS guest can run at a time.</p></header>
   {error&&<p role="alert" className="rounded border border-red-700 p-4">{error}</p>}
   {notice&&<p role="status" className="rounded border border-sky-700 p-4">{notice}</p>}
