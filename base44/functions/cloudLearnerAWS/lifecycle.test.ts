@@ -79,6 +79,7 @@ Deno.test("scheduler selects cleanup and failure before expiry, but protects hea
  const f=fixture();let selected:string[]=[];
  const rows=[
   {...f.row,id:"healthy",status:"ready"},
+  {...f.row,id:"late-ready",status:"ready",cleanup_requested_at:new Date(TIME-1000).toISOString()},
   {...f.row,id:"cleanup",status:"cleanup_pending"},
   {...f.row,id:"failed",status:"failed"},
   {...f.row,id:"young",status:"preparing"},
@@ -87,7 +88,7 @@ Deno.test("scheduler selects cleanup and failure before expiry, but protects hea
  const match=(r:any,q:any):boolean=>Object.entries(q).every(([k,v]:any)=>k==="$or"?v.some((x:any)=>match(r,x)):v&&typeof v==="object"?v.$in?v.$in.includes(r[k]):r[k]<=v.$lte:r[k]===v);
  f.db.asServiceRole.entities.CloudLearnerRun.filter=async(q:any)=>{selected=rows.filter(r=>match(r,q)).map(r=>r.id);return []};
  await sweepExpiredLearners(f.db,f.deps);
- check(selected.join(",")==="cleanup,failed,abandoned,stuck","retry query does not wait for original TTL");
+ check(selected.join(",")==="late-ready,cleanup,failed,abandoned,stuck","retry query does not wait for original TTL");
 });
 Deno.test("provider outage cannot release capacity through refresh",async()=>{
  const f=fixture();f.deps.aws=async()=>{throw Object.assign(Error("provider unavailable"),{name:"ServiceUnavailable"})};
