@@ -3,10 +3,10 @@ import { ownedStack } from "./lifecycle.ts";
 import { requireAccount, MANAGED_BY } from "./model.ts";
 import { EC2Client, STSClient, GetCallerIdentityCommand, DescribeInstancesCommand, DescribeVpcsCommand, DescribeVolumesCommand } from "./awsQuery.ts";
 export const REHEARSAL_DEADLINE=Date.parse("2026-11-05T07:30:00Z");
-export const TARGET_RUN="";
+export const TARGET_RUN="6aec19b249c4859cff228a3c";
 const denied=(name:string)=>{throw Object.assign(new Error(name),{name,status:403});};
 export async function rehearsalAction(action:string,input:any,b:any,user:any){
- if(!["rehearsalInspect","rehearsalInterrupt","rehearsalCommand"].includes(action))return null;
+ if(!["rehearsalInspect","rehearsalInterrupt","rehearsalCommand","rehearsalEvidence","rehearsalEvidenceCommand"].includes(action))return null;
  if(user?.role!=="admin")denied("REHEARSAL_ADMIN_REQUIRED");
  if(Date.now()>REHEARSAL_DEADLINE)denied("REHEARSAL_WINDOW_CLOSED");
  const identity=await new STSClient().send(new GetCallerIdentityCommand({}));requireAccount(identity.Account);
@@ -22,11 +22,20 @@ export async function rehearsalAction(action:string,input:any,b:any,user:any){
  if(!TARGET_RUN||input.run_id!==TARGET_RUN)denied("REHEARSAL_RUN_REQUIRED");
  const run=(await b.asServiceRole.entities.CloudLearnerRun.filter({id:TARGET_RUN}))[0];
  if(!run||run.owner_user_id!==user.id)denied("REHEARSAL_OWNER_REQUIRED");
- if(action==="rehearsalCommand"){
-  const command_id=run.contract?.lifecycle?.rehearsal_command_id;
+ if(action==="rehearsalCommand"||action==="rehearsalEvidenceCommand"){
+  const command_id=action==="rehearsalCommand"?run.contract?.lifecycle?.rehearsal_command_id:run.contract?.lifecycle?.rehearsal_evidence_command_id;
   if(!command_id)return {status:"not_recorded"};
   const r=await aws("ssm","GetCommandInvocation",{CommandId:command_id,InstanceId:run.instance_id});
   return {status:r.Status,response_code:r.ResponseCode,output:String(r.StandardOutputContent||"").slice(0,2000),command_id};
+ }
+ if(action==="rehearsalEvidence"){
+  if(run.status!=="ready"||run.cleanup_requested_at)denied("REHEARSAL_RUN_NOT_READY");
+  await ownedStack(run);
+  if(run.contract?.lifecycle?.rehearsal_evidence_command_id)return {status:"already_requested",command_id:run.contract.lifecycle.rehearsal_evidence_command_id};
+  const result=await aws("ssm","SendCommand",{DocumentName:"AWS-RunShellScript",InstanceIds:[run.instance_id],TimeoutSeconds:30,Parameters:{commands:["set -eu\njournalctl -u design-studio-recovery-rehearsal.service --no-pager -o short-iso\nsystemctl is-active amazon-ssm-agent"],executionTimeout:["30"]}});
+  const current=(await b.asServiceRole.entities.CloudLearnerRun.filter({id:run.id}))[0];
+  await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{contract:{...current.contract,lifecycle:{...current.contract.lifecycle,rehearsal_evidence_command_id:result.Command.CommandId}}});
+  return {status:"requested",command_id:result.Command.CommandId};
  }
  if(run.contract?.lifecycle?.rehearsal_requested_at)return {status:"already_requested",requested_at:run.contract.lifecycle.rehearsal_requested_at,command_id:run.contract.lifecycle.rehearsal_command_id||null};
  if(run.status!=="ready"||run.cleanup_requested_at||Date.parse(run.expires_at)-Date.now()<8*60000)denied("REHEARSAL_RUN_NOT_READY");

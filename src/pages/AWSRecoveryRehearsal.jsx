@@ -2,7 +2,7 @@ import React,{useEffect,useState} from "react";
 import {base44} from "@/api/base44Client";
 const TEMPLATE="6ae8dcb50cfc77ecfbad0643";
 export default function AWSRecoveryRehearsal(){
- const [me,setMe]=useState(null),[plan,setPlan]=useState(null),[run,setRun]=useState(new URLSearchParams(window.location.search).get("run")||""),[operation,setOperation]=useState(null),[busy,setBusy]=useState(false),[logs,setLogs]=useState([]);
+ const [me,setMe]=useState(null),[plan,setPlan]=useState(null),[run,setRun]=useState(new URLSearchParams(window.location.search).get("run")||"6aec19b249c4859cff228a3c"),[operation,setOperation]=useState(null),[busy,setBusy]=useState(false),[logs,setLogs]=useState([]);
  useEffect(()=>{base44.auth.me().then(setMe).catch(()=>setMe({role:"none"}));},[]);
  const call=async(action,fields={})=>(await base44.functions.invoke("cloudLearnerAWS",{action,...fields})).data;
  const perform=(label,fn)=>async()=>{setBusy(true);try{const data=await fn();setLogs(rows=>[{at:new Date().toISOString(),label,data},...rows]);}catch(e){setLogs(rows=>[{at:new Date().toISOString(),label,error:e?.response?.data||e.message},...rows]);}finally{setBusy(false);}};
@@ -20,6 +20,8 @@ export default function AWSRecoveryRehearsal(){
  <button disabled={busy||!run} className={button} onClick={perform("refresh",async()=>{const d=await call("refresh",{run_id:run});return {run:{...d.run,contract:undefined}};})}>Refresh run</button>
  <button disabled={busy||!run} className={button} onClick={perform("interrupt",()=>call("rehearsalInterrupt",{run_id:run}))}>Pause agent with automatic restart</button>
  <button disabled={busy||!run} className={button} onClick={perform("interrupt command",()=>call("rehearsalCommand",{run_id:run}))}>Check interruption command</button>
+ <button disabled={busy||!run} className={button} onClick={perform("recovery journal request",()=>call("rehearsalEvidence",{run_id:run}))}>Request recovery journal</button>
+ <button disabled={busy||!run} className={button} onClick={perform("recovery journal",()=>call("rehearsalEvidenceCommand",{run_id:run}))}>Read recovery journal</button>
  <button disabled={busy||!run} className={button} onClick={begin("read")}>Read guest file</button>
  <button disabled={busy||!run} className={button} onClick={begin("write")}>Write approved proof at 600</button>
  <button disabled={busy||!run} className={button} onClick={begin("validate")}>Validate guest file</button>
