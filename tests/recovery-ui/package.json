@@ -1,0 +1,11 @@
+{
+  "name": "design-studio-recovery-ui-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node run.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "30.1.3"
+  }
+}
