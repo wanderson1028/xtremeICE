@@ -2,7 +2,7 @@
 export const ALERT_SCOPE="69a0a5a90473fac0aa3ea135:design-studio-integration";
 export const EXPIRY_WORKFLOW_ID="6aebf2f5f80221b22d139e5d";
 const APP_ID="69a0a5a90473fac0aa3ea135",LIMIT=50,RECENT=20,OPS=200;
-const WORKFLOW_URL="https://app.base44.com/api/apps/"+APP_ID+"/workflows/"+EXPIRY_WORKFLOW_ID;
+const WORKFLOW_URL="https://base44.app/api/apps/"+APP_ID+"/workflows/"+EXPIRY_WORKFLOW_ID;
 const minutes=(n:number)=>n*60000;
 const date=(v:any)=>typeof v==="string"&&Number.isFinite(Date.parse(v))?Date.parse(v):null;
 const codes:Record<string,[string,string,string]>={
@@ -31,7 +31,7 @@ export async function workflowHealth(request:Request, deps:any={}){
   const headers:Record<string,string>={authorization,"accept":"application/json"};
   const state=request.headers.get("Base44-State");if(state)headers["Base44-State"]=state;
   const response=await (deps.fetch||fetch)(WORKFLOW_URL,{method:"GET",headers,redirect:"error",signal:AbortSignal.timeout(8000)});
-  if(!response.ok)return {available:false,reason:response.status===401||response.status===403?"workflow_access_unavailable":"workflow_read_failed"};
+  if(!response.ok)return {available:false,reason:response.status===401||response.status===403?"workflow_access_unavailable":"workflow_read_failed",status_code:response.status};
   const raw=await response.text();if(raw.length>200000)return {available:false,reason:"workflow_response_invalid"};
   const w=JSON.parse(raw);
   if(w.id!==EXPIRY_WORKFLOW_ID||(w.app_id&&w.app_id!==APP_ID)||!["active","inactive","archived"].includes(w.status))return {available:false,reason:"workflow_response_invalid"};
