@@ -49,7 +49,8 @@ export default function LearnerWorkspace(){
  return <main className="min-h-screen bg-gray-950 text-gray-100 p-6"><div className="max-w-6xl mx-auto space-y-6">
   <header className="flex justify-between gap-4"><div><h1 className="text-3xl font-semibold">Assigned Labs</h1><p className="text-gray-400 mt-2">Learn, practice and check your work in a private lab.</p></div>{user?.role==="admin"&&<Link className="text-sky-300" to="/LabAssignments">Instructor assignments →</Link>}</header>
   {error&&<p role="alert" className="border border-red-700 rounded p-4">{error}</p>}
-  {statusError&&<p role="status" className="border border-amber-700 rounded p-4">Status could not be verified. Retrying automatically; the environment remains reserved until cleanup is verified.</p>}\n  {notice&&<p role="status" className="border border-sky-700 rounded p-4">{notice}</p>}
+  {statusError&&<p role="status" className="border border-amber-700 rounded p-4">Status could not be verified. Retrying automatically; the environment remains reserved until cleanup is verified.</p>}
+  {notice&&<p role="status" className="border border-sky-700 rounded p-4">{notice}</p>}
   {loading&&<p>Loading your labs…</p>}
   {!loading&&<div className="grid lg:grid-cols-[280px_1fr] gap-6"><aside className="space-y-5">
    <section className="space-y-3"><h2 className="font-semibold">Your assignments</h2>{!assignments.length&&<p className="text-gray-400 text-sm">No AWS labs assigned yet. Ask your instructor to assign a lab.</p>}
@@ -67,7 +68,8 @@ export default function LearnerWorkspace(){
    <div className="border-t border-gray-700 pt-4"><h3 className="font-semibold mb-2">{snapshot?.lab_content?.tasks?.[0]?.title}</h3><p className="whitespace-pre-wrap text-gray-300">{snapshot?.lab_content?.tasks?.[0]?.instructions}</p></div>
    {["preparing","provisioning"].includes(run.status)&&<p role="status" className="text-amber-300">Preparing your private environment. This may take 5–10 minutes. You can return to this session later.</p>}
    {expired&&run.status!=="terminated"&&<p className="text-amber-300">The session has expired. Automatic cleanup will release its resources; you can also request cleanup below.</p>}
-   {run.status==="cleanup_pending"&&<p role="status" className="text-amber-300">Releasing the environment. Capacity stays reserved until AWS removal is verified. Failed checks are retried automatically.</p>}\n   {run.status==="failed"&&<p className="text-amber-300">The environment could not finish starting. Cleanup will retry automatically; you can also request it below or contact your instructor.</p>}
+   {run.status==="cleanup_pending"&&<p role="status" className="text-amber-300">Releasing the environment. Capacity stays reserved until AWS removal is verified. Failed checks are retried automatically.</p>}
+   {run.status==="failed"&&<p className="text-amber-300">The environment could not finish starting. Cleanup will retry automatically; you can also request it below or contact your instructor.</p>}
    {!hasAssignment&&run.status!=="terminated"&&<p className="text-amber-300">Your assignment was revoked. Finish this session to release the environment, or contact your instructor.</p>}
    {canEdit&&<div className="space-y-4"><p className="text-sm text-gray-400">Validate once to see the starting state. Load the file, edit it and save with permissions 600. Reload it, then validate again.</p>
     <p className="font-mono text-sm">{run.contract.path}</p>
