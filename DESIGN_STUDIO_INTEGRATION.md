@@ -1,8 +1,25 @@
 # Design Studio integration into Extreme ICE
 
-Status: lifecycle hardening pass 1 implemented and tested (November 4, 2026). The reviewed learner backend and scheduler are deployed on main; learner UI changes remain on design-studio-integration. No frontend publish or branch merge. Preserve the one-guest, supervised USD 10/two-hour pilot and the LabTemplate -> frozen LabInstance -> execution provider model. Capital Intelligence, original Design Studio, Kasm, Proxmox, and unrelated Live Fire reconciliation remain separate.
+Status: read-only instructor recovery diagnostics and deeper failure testing completed on the integration branch (November 5, 2026). 60 backend tests and 12 recovery UI tests passed. Main is unchanged from lifecycle hardening pass 1. Preserve all supervised one-guest pilot limits and project decisions.
 
-## November 4 lifecycle hardening pass 1 (current handoff)
+## November 5 recovery diagnostics and failure testing (current handoff)
+
+Implemented on design-studio-integration only. No main deployment, branch merge, frontend publish, workflow/schema/RLS change, AWS guest launch, or new AWS resource. The one-guest maximum, 110-minute TTL, supervised USD 10/two-hour pilot, dedicated account/region and LabTemplate -> frozen LabInstance -> execution provider decisions are unchanged. Main remains at f4b5f17e5e01267a830023f5c76e1782f5241896.
+
+The instructor Session recovery overview at /LifecycleDiagnostics is linked from Lab assignments. Its admin-only lifecycleDiagnostics action performs four bounded database reads and no AWS calls or writes. It reports stuck/expired sessions, cleanup intent, recorded errors, capacity holds including previous AWS proof records, uncertain/overdue guest actions, recent releases and explicit truncation. DTOs exclude frozen snapshots, tokens/bindings, command IDs/output, provider ARNs and credentials. Last successful provider checks are honestly shown as not recorded; record update times and earlier verified-release times are labelled separately. A failed refresh retains a stale snapshot, while loss of authorization clears it.
+
+The learner page now keeps guest-action retry warnings separate from session-status warnings, clears recovered-action warnings, and increases backoff across repeated assignment-refresh failures. Pending operations retain their identity and keep controls locked; no redispatch or automatic launch recovery is introduced.
+
+Verification: 60 backend tests passed (the previous 42 plus ten diagnostics/access/redaction cases and eight deeper lifecycle fault cases). The new fault cases cover overlapping deletion requests with one stable provider idempotency token, failures to persist cleanup intent or release, outages in each independent inventory check, interrupted starts, late readiness after release, missing records and foreign bindings. Twelve deterministic UI tests render the actual React pages with simulated clients, virtual time and all network requests denied. They cover retry/backoff, pending-action locks and resume, independent warnings, revocation, cleanup intent, release presentation, diagnostics authorization, stale refreshes and incomplete-result wording. These simulated tests do not replace the earlier live two-learner AWS acceptance proof.
+
+Frontend build, focused page ESLint, deployed-entry type checks and baseline-to-current whitespace checks passed. Build emits the existing stale Browserslist-data advisory. The live admin branch preview loaded the new endpoint with four historical released sessions and no active capacity hold; Refresh records succeeded. Separate shared-entity queries returned zero nonterminated CloudLearnerRun and CloudPocRun records. This is saved-record evidence, not a new AWS inventory probe.
+
+Implementation checkpoint: 6aec1491b8d984e527cfed0a, commit b4d50849ca7a13b1138f524a250fc17a2b3376a3. Pre-change restore point: 6aec119ef8b70aacd78fe0d2 at commit 27d3c37f646cbb3a1f5635caaca713ad06a6641d. Evidence: Design_Studio_Recovery_Diagnostics_2026-11-05.json and tests/recovery-ui/. The local authoritative Design_Studio_Project_Snapshot.md is updated in place.
+
+Remaining limits: no live outage or database failure induced, no new billable guest rehearsal, no new learner-login session required, no atomic distributed admission/operation creation claimed, and actual billing remains unverified. Next attended block: review this branch, rehearse one supervised fault-recovery guest if desired within the pilot, then explicitly approve any promotion to main. Operator alert delivery and broader concurrency remain later decisions.
+
+The dated sections below retain the preceding verified state and history.
+\n## November 4 lifecycle hardening pass 1 (previous handoff)
 
 The preceding live acceptance gate passed using actual Joe Schmo and Radi app-user identities, two sequential AWS guests, bidirectional direct/API denial, scheduled expiry, independent AWS removal, and repeated cleanup. The authoritative local snapshot and Design_Studio_Live_Verification_2026-11-04.json retain those run and workflow IDs.
 
