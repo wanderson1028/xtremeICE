@@ -19,7 +19,8 @@ Implementation checkpoint: 6aec1491b8d984e527cfed0a, commit b4d50849ca7a13b1138f
 Remaining limits: no live outage or database failure induced, no new billable guest rehearsal, no new learner-login session required, no atomic distributed admission/operation creation claimed, and actual billing remains unverified. Next attended block: review this branch, rehearse one supervised fault-recovery guest if desired within the pilot, then explicitly approve any promotion to main. Operator alert delivery and broader concurrency remain later decisions.
 
 The dated sections below retain the preceding verified state and history.
-\n## November 4 lifecycle hardening pass 1 (previous handoff)
+
+## November 4 lifecycle hardening pass 1 (previous handoff)
 
 The preceding live acceptance gate passed using actual Joe Schmo and Radi app-user identities, two sequential AWS guests, bidirectional direct/API denial, scheduled expiry, independent AWS removal, and repeated cleanup. The authoritative local snapshot and Design_Studio_Live_Verification_2026-11-04.json retain those run and workflow IDs.
 
