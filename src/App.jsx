@@ -24,6 +24,7 @@ import LabInstances from './pages/LabInstances'
 import CloudCoursePoc from './pages/CloudCoursePoc'
 import CloudLearnerPoc from './pages/CloudLearnerPoc'
 import LabAssignments from './pages/LabAssignments'
+import LifecycleDiagnostics from './pages/LifecycleDiagnostics'
 import LearnerWorkspace from './pages/LearnerWorkspace'
 import LabEnvironments from './pages/LabEnvironments'
 import LabExports from './pages/LabExports'
@@ -221,6 +222,7 @@ const AuthenticatedApp = () => {
       <Route path="/CloudCoursePoc" element={<LayoutWrapper currentPageName="CloudCoursePoc"><CloudCoursePoc /></LayoutWrapper>} />
       <Route path="/CloudLearnerPoc" element={<LayoutWrapper currentPageName="CloudLearnerPoc"><CloudLearnerPoc /></LayoutWrapper>} />
       <Route path="/LabAssignments" element={<LayoutWrapper currentPageName="LabAssignments"><LabAssignments /></LayoutWrapper>} />
+      <Route path="/LifecycleDiagnostics" element={<LayoutWrapper currentPageName="LifecycleDiagnostics"><LifecycleDiagnostics /></LayoutWrapper>} />
       <Route path="/LearnerWorkspace" element={<LayoutWrapper currentPageName="LearnerWorkspace"><LearnerWorkspace /></LayoutWrapper>} />
       <Route path="/LabEnvironments" element={<LayoutWrapper currentPageName="LabEnvironments"><LabEnvironments /></LayoutWrapper>} />
       <Route path="/LabExports" element={<LayoutWrapper currentPageName="LabExports"><LabExports /></LayoutWrapper>} />
