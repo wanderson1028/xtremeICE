@@ -26,7 +26,7 @@ Deno.test("API rehearsal: AI-shaped draft, Builder, frozen AWS run, real file fa
  const draft:any=buildAiGuidedTemplate(narrative);draft.lab_content.tasks=normalizeTasks(draft.lab_content.tasks);
  draft.id="0123456789abcdef01234567";tables.LabTemplate=[draft];
  const commands=new Map<string,any>();const observed:string[]=[];
- let account="935838375949",stackState="CREATE_COMPLETE";
+ let account="935838375949",stackState="CREATE_COMPLETE",loseDispatch=false;
  const instance="i-0123456789abcdef0",vpc="vpc-0123456789abcdef0",stack="arn:aws:cloudformation:us-east-1:935838375949:stack/ExtremeICE-DesignStudio-Learner-Pilot/test-id";
  const target=directory+"/fixture/proof.txt";await Deno.mkdir(directory+"/fixture");await Deno.writeTextFile(target,"initial");await Deno.chmod(target,0o644);
  const xml=(action:string,body:string)=>new Response("<"+action+"Response>"+body+"</"+action+"Response>");
@@ -53,7 +53,7 @@ Deno.test("API rehearsal: AI-shaped draft, Builder, frozen AWS run, real file fa
     const script=input.Parameters.commands.join("\n").replaceAll(TASK_PATH,target).replaceAll("/var/tmp/design-studio-learner/",directory+"/fixture/").replaceAll("/var/lock/design-studio-learner.lock",directory+"/task.lock");
     const result=await new Deno.Command("bash",{args:["-c",script],stdout:"piped",stderr:"piped"}).output();
     const key=crypto.randomUUID();commands.set(key,{CommandId:key,InstanceId:instance,Status:result.success?"Success":"Failed",ResponseCode:result.code,StandardOutputContent:new TextDecoder().decode(result.stdout),reads:0});
-    return Response.json({Command:{CommandId:key}});
+    if(loseDispatch){loseDispatch=false;throw new TypeError("simulated response lost after dispatch");}\n    return Response.json({Command:{CommandId:key}});
    }
    if(action==="GetCommandInvocation"){
     const command=commands.get(input.CommandId);check(command&&input.InstanceId===command.InstanceId,"poll uses stored binding");
@@ -86,6 +86,10 @@ Deno.test("API rehearsal: AI-shaped draft, Builder, frozen AWS run, real file fa
   check((await api("startOperation",{run_id:runId,kind:"read"})).status===403,"another learner denied");
   check(observed.length===count,"owner denial precedes AWS dispatch");
   user={id:"owner-id",email:"owner@example.invalid",role:"user"};
+  const pendingRead=await api("startOperation",{run_id:runId,kind:"read"}),sendCount=commands.size;
+  const retryRead=await api("startOperation",{run_id:runId,kind:"write",content:"must not dispatch",mode:"600"});
+  check(retryRead.body.operation_id===pendingRead.body.operation_id&&retryRead.body.kind==="read"&&commands.size===sendCount,"duplicate start resumes stored operation without changing its kind");
+  await api("pollOperation",{run_id:runId,operation_id:pendingRead.body.operation_id});await api("pollOperation",{run_id:runId,operation_id:pendingRead.body.operation_id});
   const operate=async(kind:string,content?:string,mode?:string)=>{
    const started=await api("startOperation",{run_id:runId,kind,content,mode});check(started.status===200,"owner operation start");
    const pending=await api("pollOperation",{run_id:runId,operation_id:started.body.operation_id});check(pending.body.status==="pending","SSM eventual consistency handled");
@@ -103,6 +107,14 @@ Deno.test("API rehearsal: AI-shaped draft, Builder, frozen AWS run, real file fa
   const expiredStart=await api("startOperation",{run_id:runId,kind:"validate"});const op=tables.CloudGuestOperation.find(x=>x.id===expiredStart.body.operation_id);op.expires_at="2000-01-01T00:00:00Z";
   check((await api("pollOperation",{run_id:runId,operation_id:op.id})).body.status==="expired","late result rejected");
   check(tables.RuntimeValidationAttempt.length===3,"expired evidence not recorded");
+  loseDispatch=true;const uncertain=await api("startOperation",{run_id:runId,kind:"read"}),uncertainCount=commands.size;
+  check(uncertain.body.dispatch_uncertain&&uncertain.status===200,"uncertain dispatch is tracked, not silently replayed");
+  const retryUncertain=await api("startOperation",{run_id:runId,kind:"read"});
+  check(retryUncertain.body.operation_id===uncertain.body.operation_id&&commands.size===uncertainCount,"lost response does not dispatch twice");
+  check((await api("pollOperation",{run_id:runId,operation_id:uncertain.body.operation_id})).body.status==="pending","unknown dispatch retained until deadline");
+  tables.CloudGuestOperation.find(x=>x.id===uncertain.body.operation_id).expires_at="2000-01-01T00:00:00Z";
+  check((await api("pollOperation",{run_id:runId,operation_id:uncertain.body.operation_id})).body.error_code==="DISPATCH_UNCERTAIN","uncertainty survives expiry");
+
   check((await api("cleanup",{run_id:runId,ack:"DELETE_LEARNER_STACK"})).body.status==="cleanup_pending","cleanup requested");
   stackState="DELETE_COMPLETE";check((await api("refresh",{run_id:runId})).body.run.status==="terminated","stack termination observed");
   check(tables.LabInstance[0].status==="terminated","course instance terminated");
