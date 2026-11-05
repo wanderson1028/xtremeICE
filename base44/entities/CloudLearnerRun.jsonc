@@ -60,6 +60,11 @@
     },
     "last_error_code": {
       "type": "string"
+    },
+    "cleanup_requested_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Server-owned durable cleanup intent; retained independently of readiness and learning updates."
     }
   },
   "required": [
