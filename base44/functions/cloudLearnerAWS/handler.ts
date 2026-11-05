@@ -27,7 +27,7 @@ async function schemaReady(b:any){
  try{await b.asServiceRole.entities.CloudLearnerRun.list("-created_date",1);await b.asServiceRole.entities.CloudGuestOperation.list("-created_date",1);return true;}catch{return false;}
 }
 function publicRun(run:any){
- return {id:run.id,status:run.status,stack_status:run.stack_status,instance_id:run.instance_id,expires_at:run.expires_at,contract:run.contract,owner_user_id:run.owner_user_id,template_id:run.template_id,last_error_code:run.last_error_code||null};
+ return {id:run.id,status:run.status,stack_status:run.stack_status,instance_id:run.instance_id,expires_at:run.expires_at,contract:run.contract,owner_user_id:run.owner_user_id,template_id:run.template_id,last_error_code:run.last_error_code||null,cleanup_requested_at:run.cleanup_requested_at||null};
 }
 export async function handleLearnerRequest(req:Request,b:any){
  const user=await b.auth.me().catch(()=>null);
