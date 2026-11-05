@@ -75,7 +75,7 @@ export async function requestCleanup(b:any,run:any,deps:any={}) {
   try {stack=await ownedStack(current,deps);}
   catch(e:any){
    // A concurrent launch loser owns no stack. Never touch the winning stack.
-   if(!(e.name==="STACK_OWNERSHIP_MISMATCH"&&!current.stack_id&&current.last_error_code==="AlreadyExistsException"))throw e;
+   if(!(e.name==="STACK_OWNERSHIP_MISMATCH"&&!current.stack_id&&(current.last_error_code==="AlreadyExistsException"||current.contract?.lifecycle?.launch_collision===true)))throw e;
   }
   if(stack && stack.StackStatus!=="DELETE_COMPLETE") {
    let requested=false;
