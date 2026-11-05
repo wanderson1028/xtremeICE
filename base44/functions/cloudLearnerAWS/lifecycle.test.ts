@@ -1,3 +1,4 @@
+import { canOperate, TASK } from "./model.ts";
 import { requestCleanup, refreshLifecycle, verifyRunRemoval, STACK_NAME } from "./lifecycle.ts";
 import { sweepExpiredLearners } from "./expiry.ts";
 const check=(v:unknown,m:string)=>{if(!v)throw Error(m)};
@@ -97,4 +98,14 @@ Deno.test("launch collision ownership survives an intervening provider outage",a
  const f=fixture({stack_id:null,status:"failed",last_error_code:"TimeoutError",contract:{account_id:"935838375949",lifecycle:{launch_collision:true}}});
  f.set({foreign:true});await requestCleanup(f.db,f.row,f.deps);
  check(f.deletes()===0&&f.row.status==="terminated","durable collision marker releases only the empty loser");
+});
+Deno.test("durable cleanup intent blocks guest access even if a late readiness write wins",async()=>{
+ const f=fixture({contract:{...TASK,account_id:"935838375949"}}),user={id:"owner"};
+ check(canOperate(f.row,user,TIME),"initial owner access");
+ await requestCleanup(f.db,f.row,f.deps);const marker=f.row.cleanup_requested_at;
+ f.row.status="ready";
+ f.row.contract={...f.row.contract,learning:{completed_at:"late validation"}};
+ check(!!marker&&!canOperate(f.row,user,TIME),"independent cleanup marker survives stale status and learning writes");
+ const r=await refreshLifecycle(f.db,f.row,f.deps);
+ check(r.status==="cleanup_pending"&&f.row.cleanup_requested_at===marker&&f.deletes()===1,"cleanup resumes without reopening or duplicate deletion");
 });
