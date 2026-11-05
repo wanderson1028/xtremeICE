@@ -60,7 +60,7 @@ function reset(){
   me:{id:"instructor",role:"admin",email:"instructor@example.invalid"},
   run:{id,owner_user_id:"learner",status:"ready",expires_at:new Date(time+3600000).toISOString(),contract:{assignment_id:"assignment",path:"/fixture/proof.txt",template_snapshot:{title:"Recovery test lab",objectives:["Protect the file"],lab_content:{tasks:[{title:"Permissions",instructions:"Use the fixture"}]}},learning:{}}},
   assignments:[{id:"assignment",title:"Recovery test lab",available:true}],
-  alertCandidates:[{key:"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.cleanup_overdue",code:"cleanup_overdue",severity:"high",title:"Lab cleanup is delayed",next_step:"Review the recovery overview.",source_type:"learner",run_id:id}],clearKeys:[],alertErrors:0,denyAlerts:false,subjectOverride:null,alertSequence:0,alertDeferred:null,
+  workflowOverride:null,alertCandidates:[{key:"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.cleanup_overdue",code:"cleanup_overdue",severity:"high",title:"Lab cleanup is delayed",next_step:"Review the recovery overview.",source_type:"learner",run_id:id}],clearKeys:[],alertErrors:0,denyAlerts:false,subjectOverride:null,alertSequence:0,alertDeferred:null,
   pending:null,refreshErrors:0,assignmentErrors:0,pollErrors:0,pollPending:false,diagnosticErrors:0,denyDiagnostics:false,
   diagnostics:{generated_at:new Date(time).toISOString(),capacity:{held:false,record_count_at_least:0,guest_limit:1},active:[],legacy:[],recent:[],truncated:{active:false,legacy:false,recent:false,operations:false},notes:["Saved records only. No AWS check."]},
  };
@@ -82,7 +82,7 @@ function reset(){
    if(config.denyAlerts)throw Object.assign(Error("Instructor access required"),{response:{status:403}});
    if(config.alertErrors-->0)throw Error("Alert records unavailable");
    if(config.alertDeferred)await config.alertDeferred;
-   return {subject_id:config.subjectOverride||config.me.id,scope:"69a0a5a90473fac0aa3ea135:design-studio-integration",checked_at:new Date(time+ ++config.alertSequence).toISOString(),alerts:copy(config.alertCandidates),cleared_keys:copy(config.clearKeys),workflow:{available:true,status:"active",last_run_at:new Date(time).toISOString()},pilot:{guest_limit:1,ttl_minutes:110}};
+   return {subject_id:config.subjectOverride||config.me.id,scope:"69a0a5a90473fac0aa3ea135:design-studio-integration",checked_at:new Date(time+ ++config.alertSequence).toISOString(),alerts:copy(config.alertCandidates),cleared_keys:copy(config.clearKeys),workflow:config.workflowOverride||{available:true,status:"active",last_run_at:new Date(time).toISOString()},pilot:{guest_limit:1,ttl_minutes:110}};
   }
   if(action==="lifecycleDiagnostics"){
    if(config.denyDiagnostics)throw Object.assign(Error("Instructor access required"),{response:{status:403,data:{error:"Instructor access required"}}});
@@ -204,6 +204,11 @@ try{
   const current={scope:components.ALERT_SCOPE,checked_at:new Date(time).toISOString(),alerts:copy(config.alertCandidates),cleared_keys:[config.alertCandidates[0].key]};
   const cache=components.reconcileAlerts(components.parseAlertCache(null),current);
   assert.equal(cache.entries[config.alertCandidates[0].key].status,"open");
+ });
+ await test("platform workflow access limits are explained without claiming successful monitoring",async()=>{
+  config.workflowOverride={available:false,reason:"workflow_access_unavailable"};
+  config.alertCandidates=[{key:"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.monitor_unavailable",code:"monitor_unavailable",severity:"warning",title:"Expiry workflow status could not be verified",next_step:"Review Base44 workflow history.",source_type:"workflow",run_id:null}];
+  await mount("OperatorAlerts");assert.match(body(),/This app login cannot read the platform workflow history/);assert.match(body(),/not verified/);assert.doesNotMatch(body(),/No current operator warnings/);
  });
  const report={simulated:true,network_attempts:networkAttempts,passed:results.filter(r=>r.status==="passed").length,failed:results.filter(r=>r.status==="failed").length,results};
  console.log(JSON.stringify(report,null,2));if(process.env.RECOVERY_TEST_REPORT)fs.writeFileSync(process.env.RECOVERY_TEST_REPORT,JSON.stringify(report,null,2)+"\n");
