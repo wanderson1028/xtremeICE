@@ -94,7 +94,7 @@ Deno.test("invalid or future workflow timestamps are unknown rather than healthy
 Deno.test("workflow reader is a fixed bounded GET using only caller authorization and allowlist proof",async()=>{
  const seen:any[]=[];
  const w=await workflowHealth(req(),{fetch:async(url:any,options:any)=>{seen.push({url,options});return Response.json({id:EXPIRY_WORKFLOW_ID,app_id:"69a0a5a90473fac0aa3ea135",status:"active",last_run_at:iso(),last_run_status:"success",consecutive_failures:0,definition:{secret:"NEVER_RETURN"}});}});
- assert(w.available&&seen.length===1&&seen[0].url.startsWith("https://app.base44.com/api/apps/69a0a5a90473fac0aa3ea135/workflows/"),"fixed same-service metadata endpoint");
+ assert(w.available&&seen.length===1&&seen[0].url.startsWith("https://base44.app/api/apps/69a0a5a90473fac0aa3ea135/workflows/"),"fixed same-service metadata endpoint");
  assert(seen[0].options.method==="GET"&&seen[0].options.redirect==="error"&&seen[0].options.signal instanceof AbortSignal,"bounded read, redirects forbidden");
  assert(Object.keys(seen[0].options.headers).sort().join(",")==="Base44-State,accept,authorization","never forwards service-role auth");
  assert(!JSON.stringify(w).includes("NEVER_RETURN")&&!JSON.stringify(w).includes("TEST_ONLY_CREDENTIAL"),"DTO omits definition and auth");
@@ -113,7 +113,7 @@ Deno.test("operator endpoint is bounded read-only and returns only whitelisted a
  const f=fixture(),net:any[]=[];
  const output=await operatorAlerts(f.b,{id:"instructor",role:"admin"},req(),{clock:()=>TIME,fetch:async(url:any)=>{net.push(url);return Response.json({id:EXPIRY_WORKFLOW_ID,status:"active",last_run_at:iso(-60000),last_run_status:"success",consecutive_failures:0});}});
  assert(f.calls.length===5&&f.calls.every(c=>c.limit>0&&c.limit<=201),"bounded entity reads");
- assert(net.length===1&&net.every(u=>new URL(u).hostname==="app.base44.com"),"no AWS or third-party calls");
+ assert(net.length===1&&net.every(u=>new URL(u).hostname==="base44.app"),"no AWS or third-party calls");
  assert(output.scope===ALERT_SCOPE&&output.subject_id==="instructor"&&output.read_only&&!output.provider_checked&&output.acknowledgments==="this_browser_only","honest scope and limits");
 });
 Deno.test("record read failures cannot become empty healthy snapshots",async()=>{
