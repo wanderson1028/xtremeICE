@@ -1,4 +1,5 @@
 import React,{useEffect,useState} from "react";
+import {Link} from "react-router-dom";
 import {base44} from "@/api/base44Client";
 const TEMPLATE="6ae8dcb50cfc77ecfbad0643";
 export default function AWSRecoveryRehearsal(){
@@ -12,6 +13,7 @@ export default function AWSRecoveryRehearsal(){
  if(me.role!=="admin")return <p>Instructor access required</p>;
  return <main className="bg-gray-950 text-white p-6 space-y-5"><h1 className="text-2xl">Temporary approved AWS recovery rehearsal</h1>
  <p>One guest · $1 allowance · deadline 07:45 UTC November 5 · no main deployment. This temporary test page will be removed.</p>
+ <Link className="text-sky-300 underline" to={"/LearnerWorkspace?run="+run}>Open actual learner workspace</Link>
  <p>Authenticated instructor: {me.email}</p><p>Run: {run||"Not launched"}</p><p>Stored test operation: {operation?.id||"None"}</p>
  <div className="flex flex-wrap gap-3">
  <button disabled={busy} className={button} onClick={perform("AWS tagged inventory",()=>call("rehearsalInspect"))}>Check AWS pilot inventory</button>
