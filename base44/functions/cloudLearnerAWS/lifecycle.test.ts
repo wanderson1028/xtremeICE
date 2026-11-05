@@ -93,3 +93,8 @@ Deno.test("provider outage cannot release capacity through refresh",async()=>{
  try{await refreshLifecycle(f.db,f.row,f.deps)}catch{}
  check(f.row.status==="ready"&&f.row.last_error_code==="ServiceUnavailable"&&!f.writes.some(c=>c.status==="terminated"),"unverified capacity is retained");
 });
+Deno.test("launch collision ownership survives an intervening provider outage",async()=>{
+ const f=fixture({stack_id:null,status:"failed",last_error_code:"TimeoutError",contract:{account_id:"935838375949",lifecycle:{launch_collision:true}}});
+ f.set({foreign:true});await requestCleanup(f.db,f.row,f.deps);
+ check(f.deletes()===0&&f.row.status==="terminated","durable collision marker releases only the empty loser");
+});
