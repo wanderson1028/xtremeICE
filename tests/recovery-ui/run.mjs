@@ -41,7 +41,11 @@ const bundle=await build({
  absWorkingDir:app,stdin:{contents:'export {default as LearnerWorkspace} from "./src/pages/LearnerWorkspace.jsx"; export {default as LifecycleDiagnostics} from "./src/pages/LifecycleDiagnostics.jsx";',resolveDir:app,loader:"jsx"},
  bundle:true,format:"esm",platform:"node",write:false,packages:"external",
  plugins:[{name:"no-cloud-test-client",setup(b){
-  b.onResolve({filter:/^@\/(api\/base44Client|lib\/cloudLearnerClient)$/},args=>({path:args.path,namespace:"mock"}));
+  b.onResolve({filter:/^@\//},args=>{
+   if(/^@\/(api\/base44Client|lib\/cloudLearnerClient)$/.test(args.path))return {path:args.path,namespace:"mock"};
+   const target=path.join(app,"src",args.path.slice(2));for(const suffix of ["",".js",".jsx",".ts"])if(fs.existsSync(target+suffix)&&fs.statSync(target+suffix).isFile())return {path:target+suffix};
+   throw Error("Unresolved test alias "+args.path);
+  });
   b.onLoad({filter:/.*/,namespace:"mock"},()=>({contents:mock,loader:"js"}));
  }}],
 });
@@ -51,7 +55,7 @@ const components=await import(pathToFileURL(modulePath).href);
 const copy=value=>JSON.parse(JSON.stringify(value));
 const id="0123456789abcdef01234567";
 function reset(){
- time=Date.parse("2026-01-03T12:00:00Z");timers.clear();calls=[];
+ time=Date.parse("2026-01-03T12:00:00Z");timers.clear();calls=[];window.localStorage.clear();
  config={
   me:{id:"learner",role:"user",email:"learner@example.invalid"},
   run:{id,owner_user_id:"learner",status:"ready",expires_at:new Date(time+3600000).toISOString(),contract:{assignment_id:"assignment",path:"/fixture/proof.txt",template_snapshot:{title:"Recovery test lab",objectives:["Protect the file"],lab_content:{tasks:[{title:"Permissions",instructions:"Use the fixture"}]}},learning:{}}},
@@ -73,6 +77,7 @@ function reset(){
    return config.pollPending?{status:"pending"}:{status:"completed",result:{content:"fixture contents",mode:"600",passed:true}};
   }
   if(action==="verifyRemoval")return {verified:true,remaining:[]};
+  if(action==="operatorAlerts")return {subject_id:config.me.id,scope:"69a0a5a90473fac0aa3ea135:design-studio-integration",checked_at:new Date(time).toISOString(),alerts:[],cleared_keys:[],workflow:{available:true,status:"active",last_run_at:new Date(time).toISOString()},pilot:{guest_limit:1,ttl_minutes:110}};
   if(action==="lifecycleDiagnostics"){
    if(config.denyDiagnostics)throw Object.assign(Error("Instructor access required"),{response:{status:403,data:{error:"Instructor access required"}}});
    if(config.diagnosticErrors-->0)throw Error("Records unavailable");
@@ -81,8 +86,9 @@ function reset(){
   throw Error("Unexpected action "+action);
  };
 }
-async function mount(name){
- await act(async()=>{root=createRoot(document.getElementById("root"));root.render(React.createElement(MemoryRouter,{initialEntries:["/LearnerWorkspace?run="+id],future:{v7_startTransition:true,v7_relativeSplatPath:true}},React.createElement(components[name])));});
+async function mount(name,props){
+ if(name==="LifecycleDiagnostics")config.me.role="admin";
+ await act(async()=>{root=createRoot(document.getElementById("root"));root.render(React.createElement(MemoryRouter,{initialEntries:["/LearnerWorkspace?run="+id],future:{v7_startTransition:true,v7_relativeSplatPath:true}},React.createElement(components[name],props)));});
  await flush();
 }
 async function unmount(){if(root){await act(async()=>root.unmount());root=null;}timers.clear();}
@@ -135,14 +141,14 @@ try{
  });
  await test("cleanup transition shows verified release and retains earned completion",async()=>{
   config.run.status="cleanup_pending";config.run.contract.learning.completed_at=new Date(time).toISOString();
-  await mount("LearnerWorkspace");assert.match(body(),/Releasing the environment/);config.run.status="terminated";await advance(2000);
-  assert.match(body(),/Environment released. AWS removal verified/);assert.match(body(),/Task completed/);assert.equal(count("verifyRemoval"),1);
+  await mount("LearnerWorkspace");assert.match(body(),/Releasing the environment/);config.refreshErrors=1;await advance(2000);assert.match(body(),/Status could not be verified/);config.run.status="terminated";await advance(4000);
+  assert.match(body(),/Environment released. AWS removal verified/);assert.doesNotMatch(body(),/Status could not be verified/);assert.match(body(),/Task completed/);assert.equal(count("verifyRemoval"),1);
   assert.equal(button("Load file from guest"),undefined);
  });
  await test("instructor records retain stale snapshot on refresh failure then recover",async()=>{
   await mount("LifecycleDiagnostics");config.diagnosticErrors=1;await click("Refresh records");assert.match(body(),/records below are stale/);
   assert.match(body(),/No saved active sessions/);await click("Refresh records");assert.doesNotMatch(body(),/stale/);
-  assert.ok(calls.every(c=>c.action==="lifecycleDiagnostics"),"Read-only action only");
+  assert.ok(calls.every(c=>["lifecycleDiagnostics","operatorAlerts"].includes(c.action)),"Read-only action only");
  });
  await test("learner cannot load instructor records",async()=>{
   config.denyDiagnostics=true;await mount("LifecycleDiagnostics");assert.match(body(),/Instructor access required/);assert.doesNotMatch(body(),/No saved active sessions/);
@@ -156,7 +162,7 @@ try{
   config.diagnostics.active=[{id:"run",source:"learner",title:"Stuck lab",learner_email:"learner@example.invalid",status:"cleanup_pending",attention:["Cleanup has been waiting at least 15 minutes"],pending_operations:1,uncertain_operations:1,overdue_operations:0}];
   config.diagnostics.capacity={held:true,record_count_at_least:1,guest_limit:1};
   await mount("LifecycleDiagnostics");assert.match(body(),/Results are limited/);assert.match(body(),/Last successful provider checkNot recorded/);assert.match(body(),/Cleanup has been waiting/);
-  assert.ok(calls.every(c=>c.action==="lifecycleDiagnostics"));
+  assert.ok(calls.every(c=>["lifecycleDiagnostics","operatorAlerts"].includes(c.action)));
  });
  const report={simulated:true,network_attempts:networkAttempts,passed:results.filter(r=>r.status==="passed").length,failed:results.filter(r=>r.status==="failed").length,results};
  console.log(JSON.stringify(report,null,2));if(process.env.RECOVERY_TEST_REPORT)fs.writeFileSync(process.env.RECOVERY_TEST_REPORT,JSON.stringify(report,null,2)+"\n");
