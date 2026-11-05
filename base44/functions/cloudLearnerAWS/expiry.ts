@@ -5,7 +5,7 @@ const ACTIVE=["preparing","provisioning","ready","failed","cleanup_pending"],BAT
 export async function sweepExpiredLearners(b:any,deps:any={}) {
  const clock=deps.clock||Date.now,cutoff=new Date(clock()).toISOString();
  const rows=await b.asServiceRole.entities.CloudLearnerRun.filter({status:{$in:ACTIVE},$or:[
-  {expires_at:{$lte:cutoff}},{status:{$in:["cleanup_pending","failed"]}},
+  {expires_at:{$lte:cutoff}},{cleanup_requested_at:{$lte:cutoff}},{status:{$in:["cleanup_pending","failed"]}},
   {status:"preparing",started_at:{$lte:new Date(clock()-START_GRACE_MS).toISOString()}},
   {status:"provisioning",started_at:{$lte:new Date(clock()-PROVISION_TIMEOUT_MS).toISOString()}}
  ]},"expires_at",BATCH);
