@@ -31,12 +31,12 @@ export async function rehearsalAction(action:string,input:any,b:any,user:any){
  if(run.contract?.lifecycle?.rehearsal_requested_at)return {status:"already_requested",requested_at:run.contract.lifecycle.rehearsal_requested_at,command_id:run.contract.lifecycle.rehearsal_command_id||null};
  if(run.status!=="ready"||run.cleanup_requested_at||Date.parse(run.expires_at)-Date.now()<8*60000)denied("REHEARSAL_RUN_NOT_READY");
  const stack=await ownedStack(run);if(!stack||stack.StackStatus!=="CREATE_COMPLETE")denied("REHEARSAL_STACK_NOT_READY");
- const lifecycle={...run.contract?.lifecycle,rehearsal_requested_at:new Date().toISOString(),rehearsal_pause_seconds:120};
+ const lifecycle={...run.contract?.lifecycle,rehearsal_requested_at:new Date().toISOString(),rehearsal_pause_seconds:45};
  await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{contract:{...run.contract,lifecycle}});
  // A detached, fixed systemd job restarts the agent even if the SSM worker disconnects.
- const script="set -eu\nsystemd-run --unit=design-studio-recovery-rehearsal --on-active=5s --property=Type=oneshot /bin/bash -c 'date -u +pause-start:%FT%TZ; systemctl stop amazon-ssm-agent; sleep 120; systemctl start amazon-ssm-agent; date -u +pause-end:%FT%TZ'\necho 'Recovery job scheduled: agent pause 120 seconds, automatic restart.'";
+ const script="set -eu\nsystemd-run --unit=design-studio-recovery-rehearsal --on-active=5s --property=Type=oneshot /bin/bash -c 'date -u +pause-start:%FT%TZ; systemctl stop amazon-ssm-agent; sleep 45; systemctl start amazon-ssm-agent; date -u +pause-end:%FT%TZ'\necho 'Recovery job scheduled: agent pause 45 seconds, automatic restart.'";
  const result=await aws("ssm","SendCommand",{DocumentName:"AWS-RunShellScript",InstanceIds:[run.instance_id],TimeoutSeconds:60,Parameters:{commands:[script],executionTimeout:["30"]}});
  const current=(await b.asServiceRole.entities.CloudLearnerRun.filter({id:run.id}))[0];
  await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{contract:{...current.contract,lifecycle:{...current.contract.lifecycle,rehearsal_command_id:result.Command.CommandId}}});
- return {status:"scheduled",command_id:result.Command.CommandId,pause_seconds:120,restart_delay_seconds:5};
+ return {status:"scheduled",command_id:result.Command.CommandId,pause_seconds:45,restart_delay_seconds:5};
 }
