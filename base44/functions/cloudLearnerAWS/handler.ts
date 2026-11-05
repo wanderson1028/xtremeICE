@@ -1,4 +1,3 @@
-import { rehearsalAction } from "./rehearsal.ts";
 import { assignedLab, assignmentActions } from "./assignments.ts";
 import { lifecycleDiagnostics } from "./diagnostics.ts";
 import { sweepExpiredLearners } from "./expiry.ts";
@@ -38,7 +37,6 @@ export async function handleLearnerRequest(req:Request,b:any){
  try{
  const action=input.action;
  if(user.id==="6a1dc1b3258d8468d6226587"&&action==="refresh"&&input.run_id==="6aec19b249c4859cff228a3c")return reply({error:"Rehearsal client refresh intentionally unavailable; shared scheduled cleanup remains active",error_code:"REHEARSAL_CLIENT_DISCONNECTED"},503);
- const rehearsalResult=await rehearsalAction(action,input,b,user);if(rehearsalResult)return reply(rehearsalResult);
  if(action==="lifecycleDiagnostics")return reply(await lifecycleDiagnostics(b,user));
  if(action==="sweepExpired"){
    if(user.role!=="admin")return reply({error:"Instructor access required"},403);
