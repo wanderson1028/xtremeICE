@@ -90,7 +90,7 @@ export async function handleLearnerRequest(req:Request,b:any){
      const result=await aws("cloudformation","CreateStack",{StackName:STACK_NAME,TemplateBody:JSON.stringify(stackTemplate(input.ami_id,input.zone,run.id)),RoleARN:EXECUTION_ROLE_ARN,OnFailure:"DELETE",TimeoutInMinutes:15,ClientRequestToken:run.id,Tags:[{Key:"ManagedBy",Value:MANAGED_BY},{Key:"LearnerRunId",Value:run.id}]});
      await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{stack_id:result.StackId,status:"provisioning"});
      return reply({run_id:run.id,status:"provisioning",expires_at:expires});
-   }catch(e){await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{status:"failed",last_error_code:safe(e)});return reply({error:"Provisioning request failed; inspect or clean up this run",error_code:safe(e),run_id:run.id},502);}
+   }catch(e){await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{status:"failed",last_error_code:safe(e),...(safe(e)==="AlreadyExistsException"?{contract:{...run.contract,lifecycle:{launch_collision:true}}}:{})});return reply({error:"Provisioning request failed; inspect or clean up this run",error_code:safe(e),run_id:run.id},502);}
  }
  if(typeof input.run_id!=="string"||!/^[a-f0-9]{16,32}$/i.test(input.run_id))return reply({error:"Invalid run"},400);
  let run=(await b.asServiceRole.entities.CloudLearnerRun.filter({id:input.run_id}))[0];
