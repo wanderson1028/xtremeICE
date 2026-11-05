@@ -45,7 +45,7 @@ Deno.test("unknown states and invalid times do not falsely clear state-dependent
  const good=await detectOperatorAlerts(data({active:[row()]}),TIME);
  const bad=await detectOperatorAlerts(data({active:[row({status:"mystery",started_at:"invalid",expires_at:"invalid",cleanup_requested_at:"invalid"})]}),TIME);
  assert(codes(bad).includes("session_state")&&codes(bad).includes("session_timing"),"corrupt records surfaced");
- const startKey=good.cleared_keys.find((k:string)=>k.endsWith(".start_stalled"));
+ const startKey=good.cleared_keys.find((k:string)=>k.endsWith(".start_stalled"))!;
  assert(!bad.cleared_keys.includes(startKey),"invalid start cannot clear prior stuck-start warning");
 });
 Deno.test("uncertain expired dispatch remains actionable until recorded guest release",async()=>{
