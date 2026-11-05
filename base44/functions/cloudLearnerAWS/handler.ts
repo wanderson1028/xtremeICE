@@ -1,4 +1,5 @@
 import { assignedLab, assignmentActions } from "./assignments.ts";
+import { lifecycleDiagnostics } from "./diagnostics.ts";
 import { sweepExpiredLearners } from "./expiry.ts";
 import { ownedStack as getStack, refreshLifecycle as refresh, requestCleanup, verifyRunRemoval, starting } from "./lifecycle.ts";
 import { aws, list, hash } from "./awsControl.ts";
@@ -35,6 +36,7 @@ export async function handleLearnerRequest(req:Request,b:any){
  let input:any;try{input=await req.json();}catch{return reply({error:"Invalid JSON"},400);}
  try{
  const action=input.action;
+ if(action==="lifecycleDiagnostics")return reply(await lifecycleDiagnostics(b,user));
  if(action==="sweepExpired"){
    if(user.role!=="admin")return reply({error:"Instructor access required"},403);
    const result=await sweepExpiredLearners(b);
