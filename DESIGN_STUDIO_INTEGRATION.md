@@ -1,6 +1,22 @@
 # Design Studio integration into Extreme ICE
 
-Status: experimental branch `design-studio-integration` (updated 2026-11-02). The current target is AI generation → Lab Builder → guided AWS learner editing and validation in user-owned account `935838375949`. Do not merge to main until the gates below are met. Extreme ICE main remains the live demo. Capital Intelligence is outside this work.
+Status: lifecycle hardening pass 1 implemented and tested (November 4, 2026). The reviewed learner backend and scheduler are deployed on main; learner UI changes remain on design-studio-integration. No frontend publish or branch merge. Preserve the one-guest, supervised USD 10/two-hour pilot and the LabTemplate -> frozen LabInstance -> execution provider model. Capital Intelligence, original Design Studio, Kasm, Proxmox, and unrelated Live Fire reconciliation remain separate.
+
+## November 4 lifecycle hardening pass 1 (current handoff)
+
+The preceding live acceptance gate passed using actual Joe Schmo and Radi app-user identities, two sequential AWS guests, bidirectional direct/API denial, scheduled expiry, independent AWS removal, and repeated cleanup. The authoritative local snapshot and Design_Studio_Live_Verification_2026-11-04.json retain those run and workflow IDs.
+
+This pass shares lifecycle.ts across manual refresh, finish/cleanup, and the cloudLearnerAWS sweep. Capacity is released only after both stack deletion and independent instance/VPC/volume checks. Inventory uses known IDs plus run-scoped tags so missing saved IDs cannot hide orphans; incomplete pagination is not absence proof. LabInstance termination is written before releasing the run, allowing a failed projection write to retry without losing the capacity hold. Existing completion, score, and validation evidence are preserved.
+
+Cleanup intent is persisted before provider deletion. DELETE_IN_PROGRESS is observed without issuing another delete. Pending cleanup and failed starts are retried on the next five-minute sweep even before the original expiry. Preparing runs retain the five-minute settling grace; abandoned preparing runs and provisioning stuck for twenty minutes enter cleanup. No automatic CreateStack retry is introduced. Known concurrent launch losers can release their empty records without touching the winning learner's tagged stack, including after an intervening provider error. Read-before-write guards prevent a late readiness response from reopening a cleanup request; no atomic database claim/transaction is claimed.
+
+Guest-operation retries resume the stored pending operation and actual kind. A lost SendCommand response remains an explicitly uncertain pending operation until its deadline instead of silently dispatching a duplicate command. AWS query requests now have a 25-second deadline. The learner preview refreshes ready sessions, retains pending commands through temporary polling errors, retries with bounded backoff, and shows cleanup/retry status. The scheduler wrapper invokes cloudLearnerAWS so its cleanup implementation cannot drift from manual operations; partial failures still fail the workflow. Obsolete duplicate scheduler files were removed from main.
+
+Verification: 41 backend tests passed, including thirteen lifecycle failure/recovery cases, five scheduler-wrapper cases, pagination/deadline checks, and the existing real-temporary-file assignment/API rehearsals. Frontend build, focused learner-page ESLint, backend type checks, and whitespace checks passed. Live workflow runs 2ad1a3a6-ff30-47f6-9465-6771643388a7 and ae9cb597-6a35-4064-8bde-34534582de98 cleared failed and cleanup-pending resource-free test records before their expiry, while the healthy control stayed ready. All temporary records were removed; no new AWS guest was launched and final active-run inventory was empty.
+
+Limits: live provider outages and database failures were not induced; those are deterministic fault tests. The previous live two-learner AWS proof remains dated acceptance evidence, rather than a new VM proof of this patch. Distributed admission and operation creation remain best effort, with the fixed CloudFormation stack name as the guest uniqueness boundary. Actual billing and a hard cost ceiling remain unverified. Local evidence: Design_Studio_Lifecycle_Hardening_2026-11-04.json. Pre-change restore points: main 6aec06b6e46a29fbbb553d64 and branch 6aec06b5f2638164e4ab94b5.
+
+The dated sections below are historical and are superseded by this handoff where they describe an inactive scheduler or unverified learner isolation.
 
 ## November 2 expiry-cleanup implementation (integration branch)
 
