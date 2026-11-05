@@ -2,13 +2,14 @@ export const ALERT_SCOPE="69a0a5a90473fac0aa3ea135:design-studio-integration";
 export const ALERT_LABELS={
  launch_failed:"A lab launch failed",start_stalled:"A lab start is stranded",provisioning_stalled:"A guest has taken too long to become ready",cleanup_overdue:"Lab cleanup is delayed",expiry_overdue:"An expired lab still holds capacity",session_error:"A session check recorded an error",session_timing:"A session has invalid timing data",session_state:"A session has an unrecognized state",uncertain_action:"A guest action has an uncertain outcome",operation_overdue:"A guest action needs review",capacity_conflict:"Multiple session records hold pilot capacity",expiry_disabled:"Automatic expiry cleanup is disabled",expiry_failed:"The expiry workflow reported a failure",expiry_stale:"The expiry workflow has not run recently",monitor_unavailable:"Expiry workflow status could not be verified",results_incomplete:"Some monitoring results are incomplete"
 };
-const validKey=(key,code)=>typeof key==="string"&&new RegExp("^[a-f0-9]{32}\\."+code+"$").test(key)&&Object.hasOwn(ALERT_LABELS,code);
+const validKey=(key,code)=>typeof key==="string"&&Object.hasOwn(ALERT_LABELS,code)&&new RegExp("^[a-f0-9]{32}\\."+code+"$").test(key);
 const stamp=value=>typeof value==="string"&&Number.isFinite(Date.parse(value))?value:null;
 export const alertStorageKey=id=>"design-studio-operator-alerts:v1:"+id;
 export function parseAlertCache(raw){
  const empty={checked_at:null,entries:{}};
  if(!raw)return empty;
  try{if(raw.length>80000)return empty;const parsed=JSON.parse(raw);if(parsed.scope!==ALERT_SCOPE)return empty;
+  if(stamp(parsed.checked_at)&&Date.parse(parsed.checked_at)>Date.now()+300000)return empty;
   const entries={};for(const [key,v] of Object.entries(parsed.entries||{}).slice(0,100)){
    if(!validKey(key,v?.code)||!["open","acknowledged","resolved"].includes(v.status)||!stamp(v.first_seen_at))continue;
    entries[key]={code:v.code,status:v.status,first_seen_at:v.first_seen_at,last_seen_at:stamp(v.last_seen_at),acknowledged_at:stamp(v.acknowledged_at),resolved_at:stamp(v.resolved_at),occurrences:Number.isInteger(v.occurrences)&&v.occurrences>0?v.occurrences:1};

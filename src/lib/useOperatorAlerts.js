@@ -15,7 +15,7 @@ export function useOperatorAlerts(enabled=true){
   live.current=true;
   const check=async()=>{
    if(cancelled||inFlight)return;
-   clearTimeout(timer);inFlight=true;setBusy(true);let denied=false;
+   clearTimeout(timer);inFlight=true;setBusy(true);let denied=false,failed=false;
    try{
     const me=await base44.auth.me();if(cancelled)return;
     if(me.role!=="admin")throw Object.assign(new Error("Instructor access required"),{response:{status:403}});
@@ -24,7 +24,7 @@ export function useOperatorAlerts(enabled=true){
     if(result.subject_id!==me.id||result.scope!==ALERT_SCOPE)throw Object.assign(new Error("The signed-in account changed. Reload this page."),{response:{status:403}});
     const next=reconcileAlerts(read(me.id),result);save(me.id,next);setSnapshot(result);setError("");failures=0;
    }catch(e){
-    if(cancelled)return;
+    if(cancelled)return;failed=true;
     if([401,403].includes(e?.response?.status)){
      denied=true;setSnapshot(null);cacheRef.current=empty();setCache(empty());
      if(actor.current)try{window.localStorage.removeItem(alertStorageKey(actor.current));}catch{}
@@ -32,7 +32,7 @@ export function useOperatorAlerts(enabled=true){
     }
     setError(learnerError(e));
    }finally{
-    inFlight=false;if(!cancelled){setBusy(false);if(!denied)timer=setTimeout(check,error?Math.min(120000,30000*2**Math.min(++failures,2)):60000);}
+    inFlight=false;if(!cancelled){setBusy(false);if(!denied)timer=setTimeout(check,failed?Math.min(120000,30000*2**Math.min(++failures,2)):60000);}
    }
   };
   execute.current=check;check();
