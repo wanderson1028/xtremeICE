@@ -11,7 +11,7 @@ Deno.test("expiry sweep deletes only an owned expired stack and preserves comple
   let stackStatus = "CREATE_COMPLETE";
   const db: any = { asServiceRole: { entities: {
     CloudLearnerRun: {
-      filter: async (query: any) => { assert(query.expires_at.$lte === "2026-01-03T00:00:00.000Z", "server clock cutoff"); return row.status === "terminated" ? [] : [row]; },
+      filter: async (query: any) => { if(query.id)return [row]; assert(query.$or[0].expires_at.$lte === "2026-01-03T00:00:00.000Z", "server clock cutoff"); return row.status === "terminated" ? [] : [row]; },
       update: async (_id: string, changes: any) => Object.assign(row, changes),
     },
     LabInstance: { update: async (_id: string, changes: any) => Object.assign(lab, changes) },
@@ -22,7 +22,7 @@ Deno.test("expiry sweep deletes only an owned expired stack and preserves comple
     aws: async (_service: string, action: string, input: any) => {
       calls.push(action);
       if (action === "DescribeStacks") return { Stacks: { member: { StackId: STACK_ID, StackStatus: stackStatus, Tags: { member: [{ Key: "ManagedBy", Value: "ExtremeICE-DesignStudio-Learner" }, { Key: "LearnerRunId", Value: RUN_ID }] } } } };
-      assert(action === "DeleteStack" && input.StackName === STACK_ID && input.ClientRequestToken === "expiry-" + RUN_ID, "bounded idempotent deletion");
+      assert(action === "DeleteStack" && input.StackName === STACK_ID && input.ClientRequestToken === "cleanup-" + RUN_ID, "bounded idempotent deletion");
       stackStatus = "DELETE_IN_PROGRESS";
       return {};
     },
@@ -58,7 +58,7 @@ Deno.test("expiry sweep refuses another run's stack", async () => {
     },
     ec2: { send: async () => { throw new Error("should not inspect"); } },
   });
-  assert(deletes === 0 && result.errors[0].error_code === "STACK_OWNERSHIP_MISMATCH" && row.status === "ready", "foreign stack protected");
+  assert(deletes === 0 && result.errors[0].error_code === "STACK_OWNERSHIP_MISMATCH" && row.status === "cleanup_pending", "foreign stack protected");
 });
 Deno.test("expiry sweep with no expired runs makes no AWS request", async () => {
   const result = await sweepExpiredLearners({ asServiceRole: { entities: { CloudLearnerRun: { filter: async () => [] } } } }, {
