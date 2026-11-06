@@ -1,6 +1,7 @@
 import React from "react";
 import { Trash2, Plus, ArrowUp, ArrowDown, ListChecks } from "lucide-react";
-import { QUESTION_TYPE_LABEL, uid } from "@/lib/assessmentQuestions";
+import { QUESTION_TYPE_LABEL, EDITABLE_TYPES, uid, convertQuestionType } from "@/lib/assessmentQuestions";
+import HotspotEditor from "@/components/assessment/HotspotEditor";
 
 const inputCls =
   "w-full bg-gray-950 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-600 transition-colors placeholder-gray-600";
@@ -61,9 +62,18 @@ export default function QuestionCard({ question, index, total, onChange, onRemov
         <span className="h-6 w-6 rounded-full bg-red-900/40 border border-red-700/40 text-red-400 text-[11px] font-bold flex items-center justify-center shrink-0">
           {index + 1}
         </span>
-        <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-800 border border-gray-700 text-gray-300 uppercase tracking-wide">
-          {QUESTION_TYPE_LABEL[question.question_type] || question.question_type}
-        </span>
+        <select
+          value={question.question_type}
+          onChange={(e) => onChange(convertQuestionType(question, e.target.value))}
+          className="text-[10px] uppercase tracking-wide rounded-full bg-gray-800 border border-gray-700 text-gray-300 px-2 py-1 focus:outline-none focus:border-red-600 cursor-pointer"
+          title="Change the question format"
+        >
+          {EDITABLE_TYPES.map((type) => (
+            <option key={type} value={type}>
+              {QUESTION_TYPE_LABEL[type]}
+            </option>
+          ))}
+        </select>
         <div className="ml-auto flex items-center gap-1">
           <button
             type="button"
@@ -201,6 +211,8 @@ export default function QuestionCard({ question, index, total, onChange, onRemov
           </button>
         </div>
       )}
+
+      {question.question_type === "hotspot" && <HotspotEditor question={question} onChange={onChange} />}
 
       {question.question_type === "matching" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

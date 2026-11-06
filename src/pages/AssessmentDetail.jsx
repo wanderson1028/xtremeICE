@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, Send, Users, Clock, Target, CheckCircle2, Shield, FileText, BarChart2, ChevronRight } from "lucide-react";
+import { ArrowLeft, Send, Users, Clock, Target, CheckCircle2, Shield, FileText, BarChart2, ChevronRight, Pencil } from "lucide-react";
 
 const urlParams = () => new URLSearchParams(window.location.search);
 
@@ -59,6 +59,9 @@ export default function AssessmentDetail() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Link to={`/application-test-builder?id=${id}`} className="flex items-center gap-2 px-4 py-2.5 border border-gray-700 text-gray-200 hover:text-white rounded-lg text-sm font-semibold transition-colors">
+              <Pencil className="h-4 w-4" /> Edit
+            </Link>
             <Link to={`/invite-candidate?assessment_id=${id}`} className="flex items-center gap-2 px-4 py-2.5 border border-gray-700 text-gray-200 hover:text-white rounded-lg text-sm font-semibold transition-colors">
               <Send className="h-4 w-4" /> Invite One
             </Link>
@@ -156,7 +159,7 @@ export default function AssessmentDetail() {
                     <div>
                       <h3 className="text-white font-semibold">{task.title}</h3>
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-800 border border-gray-700 text-gray-400">
-                        {task.question_type === "mcq" ? "Multiple Choice" : task.question_type === "matching" ? "Matching" : task.task_type}
+                        {task.question_type === "mcq" ? "Multiple Choice" : task.question_type === "matching" ? "Matching" : task.question_type === "hotspot" ? "Hotspot" : task.task_type}
                       </span>
                       {task.question_type && task.question_type !== "manual" && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-900/30 border border-green-700/40 text-green-400">Auto-scored</span>
@@ -182,6 +185,40 @@ export default function AssessmentDetail() {
                         {option.text}
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {task.question_type === "hotspot" && task.hotspot_image_url && (
+                  <div className="mb-4">
+                    <div className="relative w-full max-w-xl rounded-lg overflow-hidden border border-gray-800 bg-gray-950">
+                      <img src={task.hotspot_image_url} alt={task.title} className="w-full h-auto block" />
+                      {(task.hotspot_regions || []).map((region) => (
+                        <div
+                          key={region.id}
+                          className={`absolute border-2 rounded-sm pointer-events-none ${
+                            task.correct_region_id === region.id
+                              ? "border-green-400 bg-green-500/20"
+                              : "border-gray-500/60 bg-white/5"
+                          }`}
+                          style={{
+                            left: `${region.x}%`,
+                            top: `${region.y}%`,
+                            width: `${region.w}%`,
+                            height: `${region.h}%`,
+                          }}
+                        >
+                          <span className="absolute -top-5 left-0 text-[10px] font-semibold px-1 rounded bg-black/70 text-white whitespace-nowrap">
+                            {region.label || "Area"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500">
+                      Correct area:{" "}
+                      <span className="text-green-400">
+                        {(task.hotspot_regions || []).find((r) => r.id === task.correct_region_id)?.label || "—"}
+                      </span>
+                    </p>
                   </div>
                 )}
 

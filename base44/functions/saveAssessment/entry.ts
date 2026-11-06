@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 
-const QUESTION_TYPES = ['mcq', 'matching', 'manual'];
+const QUESTION_TYPES = ['mcq', 'matching', 'hotspot', 'manual'];
 
 const pairs = (list) =>
   (Array.isArray(list) ? list : [])
@@ -8,6 +8,21 @@ const pairs = (list) =>
     .map((entry) => ({ id: String(entry.id), text: String(entry.text).trim() }));
 
 const normalizeType = (value) => (QUESTION_TYPES.includes(String(value)) ? String(value) : 'manual');
+
+const clampPercent = (value) => Math.min(100, Math.max(0, Math.round((Number(value) || 0) * 10) / 10));
+
+const normalizeRegions = (list) =>
+  (Array.isArray(list) ? list : [])
+    .filter((entry) => entry && entry.id)
+    .map((entry) => ({
+      id: String(entry.id),
+      label: String(entry.label || '').trim().slice(0, 60),
+      x: clampPercent(entry.x),
+      y: clampPercent(entry.y),
+      w: clampPercent(entry.w),
+      h: clampPercent(entry.h),
+    }))
+    .filter((entry) => entry.w > 0 && entry.h > 0);
 
 const normalizeWeights = (raw) => {
   const list = raw && Array.isArray(raw.themes) ? raw.themes : [];
@@ -47,6 +62,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const assessmentData = body?.assessmentData;
     const tasks = Array.isArray(body?.tasks) ? body.tasks : [];
+    const assessmentId = String(body?.assessment_id || '').trim();
 
     if (!assessmentData || typeof assessmentData !== 'object') {
       return Response.json({ error: 'Assessment details are required.' }, { status: 400 });
@@ -57,6 +73,7 @@ Deno.serve(async (req) => {
 
     // Build and validate task records (including the objective answer keys).
     const normalizedTasks = [];
+    const taskIds = [];
     for (let index = 0; index < tasks.length; index += 1) {
       const task = tasks[index] || {};
       const label = `Question ${index + 1}`;
@@ -89,6 +106,9 @@ Deno.serve(async (req) => {
         matching_prompts: [],
         matching_choices: [],
         matching_answer: {},
+        hotspot_image_url: '',
+        hotspot_regions: [],
+        correct_region_id: '',
       };
 
       if (question_type === 'mcq') {
@@ -101,6 +121,20 @@ Deno.serve(async (req) => {
         record.options = options;
         record.correct_option_id = correct;
         record.option_credits = normalizeCredits(task.option_credits, options, correct);
+      }
+
+      if (question_type === 'hotspot') {
+        const image = String(task.hotspot_image_url || '').trim();
+        if (!image) return Response.json({ error: `${label}: add the image candidates should click on.` }, { status: 400 });
+        const regions = normalizeRegions(task.hotspot_regions);
+        if (regions.length < 2) return Response.json({ error: `${label}: draw at least two hotspot areas.` }, { status: 400 });
+        const correct = String(task.correct_region_id || '');
+        if (!regions.some((region) => region.id === correct)) {
+          return Response.json({ error: `${label}: mark the correct hotspot area.` }, { status: 400 });
+        }
+        record.hotspot_image_url = image;
+        record.hotspot_regions = regions;
+        record.correct_region_id = correct;
       }
 
       if (question_type === 'matching') {
@@ -123,24 +157,72 @@ Deno.serve(async (req) => {
       }
 
       normalizedTasks.push(record);
+      taskIds.push(String(task.id || ''));
     }
 
-    const assessment = await base44.asServiceRole.entities.Assessment.create({
+    const assessmentPayload = {
       ...assessmentData,
       scenario_block: String(assessmentData.scenario_block || '').trim(),
       scoring_weights: normalizeWeights(assessmentData.scoring_weights),
-      created_by_id: user.id,
-      created_by_email: user.email,
       assessment_kind: assessmentData.assessment_kind === 'application_test' ? 'application_test' : 'hands_on',
-    });
+    };
+    delete assessmentPayload.id;
+    delete assessmentPayload.created_by_id;
+    delete assessmentPayload.created_by_email;
 
-    if (normalizedTasks.length) {
-      await base44.asServiceRole.entities.AssessmentTask.bulkCreate(
-        normalizedTasks.map((task) => ({ ...task, assessment_id: assessment.id }))
-      );
+    let assessment;
+    if (assessmentId) {
+      const current = await base44.asServiceRole.entities.Assessment
+        .get(assessmentId)
+        .catch((error) => (error?.status === 404 ? null : Promise.reject(error)));
+      if (!current) return Response.json({ error: 'Assessment not found.' }, { status: 404 });
+      if (current.created_by_id !== user.id && user.role !== 'admin') {
+        return Response.json({ error: 'You cannot edit this assessment.' }, { status: 403 });
+      }
+      assessment = await base44.asServiceRole.entities.Assessment.update(assessmentId, assessmentPayload);
+    } else {
+      assessment = await base44.asServiceRole.entities.Assessment.create({
+        ...assessmentPayload,
+        created_by_id: user.id,
+        created_by_email: user.email,
+      });
     }
 
-    return Response.json({ success: true, assessment_id: assessment.id, task_count: normalizedTasks.length });
+    if (!assessmentId) {
+      if (normalizedTasks.length) {
+        await base44.asServiceRole.entities.AssessmentTask.bulkCreate(
+          normalizedTasks.map((task) => ({ ...task, assessment_id: assessment.id }))
+        );
+      }
+      return Response.json({ success: true, assessment_id: assessment.id, task_count: normalizedTasks.length });
+    }
+
+    // Editing: existing questions keep their record ids so in-progress candidate
+    // sessions and completed scorecards still line up with the questions.
+    const currentTasks = await base44.asServiceRole.entities.AssessmentTask.filter({ assessment_id: assessmentId });
+    const existingIds = new Set(currentTasks.map((task) => task.id));
+    const updates = [];
+    const creates = [];
+
+    normalizedTasks.forEach((task, index) => {
+      const id = taskIds[index];
+      if (id && existingIds.has(id)) updates.push({ id, ...task });
+      else creates.push({ ...task, assessment_id: assessmentId });
+    });
+
+    if (updates.length) await base44.asServiceRole.entities.AssessmentTask.bulkUpdate(updates);
+    if (creates.length) await base44.asServiceRole.entities.AssessmentTask.bulkCreate(creates);
+
+    const keptIds = new Set(updates.map((task) => task.id));
+    const removed = currentTasks.filter((task) => !keptIds.has(task.id)).map((task) => task.id);
+    if (removed.length) await base44.asServiceRole.entities.AssessmentTask.deleteMany({ id: { $in: removed } });
+
+    return Response.json({
+      success: true,
+      assessment_id: assessment.id,
+      task_count: normalizedTasks.length,
+      updated: true,
+    });
   } catch (error) {
     console.error('saveAssessment failed:', error);
     return Response.json({ error: error?.message || String(error) }, { status: 500 });

@@ -1,12 +1,20 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, Plus, Loader2, CheckCircle2, ListChecks, Shuffle, Send, Eye, ScrollText } from "lucide-react";
+import { ArrowLeft, Plus, Loader2, CheckCircle2, ListChecks, Shuffle, Send, Eye, ScrollText, Crosshair } from "lucide-react";
 import QuestionCard from "@/components/assessment/QuestionCard";
 import PromptGenerator from "@/components/assessment/PromptGenerator";
 import ThemeWeights from "@/components/assessment/ThemeWeights";
 import JobDescriptionIntake from "@/components/assessment/JobDescriptionIntake";
-import { createQuestion, validateQuestion, toTaskPayload, totalPoints, uniqueThemes } from "@/lib/assessmentQuestions";
+import {
+  createQuestion,
+  validateQuestion,
+  toTaskPayload,
+  totalPoints,
+  uniqueThemes,
+  questionFromTask,
+} from "@/lib/assessmentQuestions";
 
 const inputCls =
   "w-full bg-gray-900 border border-gray-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-red-600 transition-colors placeholder-gray-600";
@@ -19,6 +27,19 @@ const isBlankQuestion = (q) =>
   (q.matching_choices || []).every((c) => !String(c.text || "").trim());
 
 export default function ApplicationTestBuilder() {
+  const editId = new URLSearchParams(window.location.search).get("id");
+  const [hydrated, setHydrated] = useState(false);
+
+  const { data: existing } = useQuery({
+    queryKey: ["assessment-edit", editId],
+    queryFn: async () => {
+      const assessment = await base44.entities.Assessment.get(editId);
+      const tasks = await base44.entities.AssessmentTask.filter({ assessment_id: editId });
+      return { assessment, tasks: [...tasks].sort((a, b) => (a.order || 0) - (b.order || 0)) };
+    },
+    enabled: !!editId,
+  });
+
   const [form, setForm] = useState({
     position_title: "",
     company_name: "",
@@ -34,6 +55,24 @@ export default function ApplicationTestBuilder() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [createdId, setCreatedId] = useState(null);
+
+  // Edit mode: fill the builder from the saved assessment exactly once.
+  useEffect(() => {
+    if (!existing || hydrated) return;
+    const { assessment, tasks } = existing;
+    setForm({
+      position_title: assessment.position_title || "",
+      company_name: assessment.company_name || "",
+      duration_minutes: assessment.duration_minutes || 30,
+      pass_threshold: assessment.pass_threshold || 70,
+      scenario_narrative: assessment.scenario_narrative || "",
+      scenario_block: assessment.scenario_block || "",
+    });
+    setQuestions(tasks.length ? tasks.map(questionFromTask) : [createQuestion("mcq")]);
+    const savedThemes = Array.isArray(assessment.scoring_weights?.themes) ? assessment.scoring_weights.themes : [];
+    setWeights(Object.fromEntries(savedThemes.map((entry) => [entry.theme, Number(entry.weight) || 1])));
+    setHydrated(true);
+  }, [existing, hydrated]);
 
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -91,13 +130,14 @@ export default function ApplicationTestBuilder() {
     setSaving(true);
     try {
       const res = await base44.functions.invoke("saveAssessment", {
+        assessment_id: editId || undefined,
         assessmentData: {
           position_title: form.position_title.trim(),
           company_name: form.company_name.trim(),
-          assessment_type: "Custom",
+          assessment_type: existing?.assessment?.assessment_type || "Custom",
           assessment_kind: "application_test",
-          seniority_level: "intermediate",
-          difficulty: "Intermediate",
+          seniority_level: existing?.assessment?.seniority_level || "intermediate",
+          difficulty: existing?.assessment?.difficulty || "Intermediate",
           duration_minutes: Number(form.duration_minutes) || 30,
           pass_threshold: Number(form.pass_threshold) || 70,
           scenario_narrative: form.scenario_narrative.trim(),
@@ -105,8 +145,10 @@ export default function ApplicationTestBuilder() {
           scoring_weights: {
             themes: themes.map((theme) => ({ theme, weight: Number(weights[theme]) || 1 })),
           },
-          role_summary: "Application test",
-          status: "active",
+          role_summary: existing?.assessment?.role_summary || "Application test",
+          nice_category: existing?.assessment?.nice_category,
+          nice_work_role: existing?.assessment?.nice_work_role,
+          status: existing?.assessment?.status || "active",
           generated: false,
         },
         tasks: questions.map(toTaskPayload),
@@ -119,6 +161,14 @@ export default function ApplicationTestBuilder() {
     }
   };
 
+  if (editId && !hydrated) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+      </div>
+    );
+  }
+
   if (createdId) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-red-950/10">
@@ -128,7 +178,7 @@ export default function ApplicationTestBuilder() {
               <ArrowLeft className="h-4 w-4" /> Back
             </Link>
             <span className="text-gray-600">|</span>
-            <h1 className="text-white font-bold">Application Test Saved</h1>
+            <h1 className="text-white font-bold">{editId ? "Changes Saved" : "Application Test Saved"}</h1>
           </div>
         </div>
         <div className="max-w-3xl mx-auto px-6 py-16 text-center">
@@ -169,8 +219,12 @@ export default function ApplicationTestBuilder() {
             </Link>
             <span className="text-gray-600">|</span>
             <div>
-              <h1 className="text-white font-bold">New Application Test</h1>
-              <p className="text-gray-500 text-xs">Multiple choice and matching, auto-scored on submission</p>
+              <h1 className="text-white font-bold">{editId ? "Edit Application Test" : "New Application Test"}</h1>
+              <p className="text-gray-500 text-xs">
+                {editId
+                  ? "Update the details or any question — saved changes apply to the next candidate who opens it"
+                  : "Multiple choice, matching and hotspot, auto-scored on submission"}
+              </p>
             </div>
           </div>
           <span className="text-xs px-3 py-1.5 rounded-full bg-gray-900 border border-gray-700 text-gray-300 font-mono shrink-0">
@@ -295,6 +349,13 @@ export default function ApplicationTestBuilder() {
               >
                 <Shuffle className="h-3.5 w-3.5 text-purple-400" /> Matching
               </button>
+              <button
+                type="button"
+                onClick={() => setQuestions((qs) => [...qs, createQuestion("hotspot")])}
+                className="flex items-center gap-1.5 px-3 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 rounded-lg text-xs font-medium transition-colors"
+              >
+                <Crosshair className="h-3.5 w-3.5 text-emerald-400" /> Hotspot
+              </button>
             </div>
           </div>
 
@@ -334,7 +395,7 @@ export default function ApplicationTestBuilder() {
             disabled={saving}
             className="flex items-center gap-2 px-6 py-2.5 bg-red-700 hover:bg-red-600 disabled:opacity-50 text-white rounded-lg text-sm font-semibold transition-colors"
           >
-            {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</> : <>Save Application Test</>}
+            {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</> : <>{editId ? "Save Changes" : "Save Application Test"}</>}
           </button>
         </div>
       </div>

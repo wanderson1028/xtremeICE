@@ -383,7 +383,7 @@ export default function CandidatePortal() {
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-[10px] font-mono text-gray-500">QUESTION {currentTaskIndex + 1} / {sortedTasks.length}</span>
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-800 text-gray-400 border border-gray-700 capitalize">
-                    {currentTask?.question_type === "mcq" ? "Multiple choice" : currentTask?.question_type === "matching" ? "Matching" : currentTask?.task_type}
+                    {currentTask?.question_type === "mcq" ? "Multiple choice" : currentTask?.question_type === "matching" ? "Matching" : currentTask?.question_type === "hotspot" ? "Hotspot" : currentTask?.task_type}
                   </span>
                   <span className="ml-auto text-yellow-400 font-mono text-xs">{currentTask?.points} pts</span>
                 </div>

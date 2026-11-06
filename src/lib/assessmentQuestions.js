@@ -1,8 +1,11 @@
 export const QUESTION_TYPE_LABEL = {
   mcq: "Multiple Choice",
   matching: "Matching",
+  hotspot: "Hotspot",
   manual: "Written Answer",
 };
+
+export const EDITABLE_TYPES = ["mcq", "matching", "hotspot"];
 
 export const uid = () =>
   typeof crypto !== "undefined" && crypto.randomUUID
@@ -28,6 +31,15 @@ export function createQuestion(type) {
       ],
       correct_option_id: "",
       option_credits: {},
+    };
+  }
+
+  if (type === "hotspot") {
+    return {
+      ...base,
+      hotspot_image_url: "",
+      hotspot_regions: [],
+      correct_region_id: "",
     };
   }
 
@@ -117,6 +129,76 @@ export function fromGeneratedQuestions(list) {
   return (Array.isArray(list) ? list : []).map(fromGeneratedQuestion).filter(Boolean);
 }
 
+/**
+ * Convert an authored question to another format, keeping its wording, theme,
+ * points and stored record identity so saving updates the same question.
+ */
+export function convertQuestionType(question, type) {
+  if (question.question_type === type) return question;
+  const fresh = createQuestion(type);
+  return {
+    ...fresh,
+    key: question.key,
+    ...(question.id ? { id: question.id } : {}),
+    title: question.title || "",
+    description: question.description || "",
+    theme: question.theme || "",
+    points: Number(question.points) || 5,
+  };
+}
+
+/**
+ * A saved task → the editable question shape used by the builder.
+ */
+export function questionFromTask(task) {
+  const type = EDITABLE_TYPES.includes(task?.question_type) ? task.question_type : "manual";
+  const base = {
+    key: task?.id || uid(),
+    id: task?.id,
+    question_type: type,
+    title: task?.title || "",
+    description: task?.description || "",
+    theme: task?.theme || "",
+    points: Number(task?.points) || 5,
+  };
+
+  if (type === "mcq") {
+    return {
+      ...base,
+      options: (task.options || []).map((o) => ({ id: o.id, text: o.text || "" })),
+      correct_option_id: task.correct_option_id || "",
+      option_credits: task.option_credits || {},
+    };
+  }
+
+  if (type === "matching") {
+    return {
+      ...base,
+      matching_prompts: (task.matching_prompts || []).map((p) => ({ id: p.id, text: p.text || "" })),
+      matching_choices: (task.matching_choices || []).map((c) => ({ id: c.id, text: c.text || "" })),
+      matching_answer: task.matching_answer || {},
+    };
+  }
+
+  if (type === "hotspot") {
+    return {
+      ...base,
+      hotspot_image_url: task.hotspot_image_url || "",
+      hotspot_regions: (task.hotspot_regions || []).map((r) => ({
+        id: r.id,
+        label: r.label || "",
+        x: Number(r.x) || 0,
+        y: Number(r.y) || 0,
+        w: Number(r.w) || 0,
+        h: Number(r.h) || 0,
+      })),
+      correct_region_id: task.correct_region_id || "",
+    };
+  }
+
+  return base;
+}
+
 export function validateQuestion(question, index) {
   const label = `Question ${index + 1}`;
   if (!String(question.title || "").trim()) {
@@ -140,6 +222,18 @@ export function validateQuestion(question, index) {
       return Number.isFinite(value) && value >= 1;
     });
     if (invalidCredit) return `${label}: partial credit must be below 100%.`;
+    return null;
+  }
+
+  if (question.question_type === "hotspot") {
+    if (!String(question.hotspot_image_url || "").trim()) {
+      return `${label}: add the image candidates should click on.`;
+    }
+    const regions = (question.hotspot_regions || []).filter((r) => r && r.id);
+    if (regions.length < 2) return `${label}: draw at least two hotspot areas.`;
+    if (!regions.some((r) => r.id === question.correct_region_id)) {
+      return `${label}: mark the correct hotspot area.`;
+    }
     return null;
   }
 
@@ -174,7 +268,12 @@ export function toTaskPayload(question, index) {
     matching_choices: [],
     matching_answer: {},
     correct_option_id: "",
+    hotspot_image_url: "",
+    hotspot_regions: [],
+    correct_region_id: "",
   };
+
+  if (question.id) payload.id = question.id;
 
   if (question.question_type === "mcq") {
     payload.options = (question.options || [])
@@ -198,6 +297,21 @@ export function toTaskPayload(question, index) {
       .filter((c) => String(c.text || "").trim())
       .map((c) => ({ id: c.id, text: c.text.trim() }));
     payload.matching_answer = question.matching_answer || {};
+  }
+
+  if (question.question_type === "hotspot") {
+    payload.hotspot_image_url = String(question.hotspot_image_url || "").trim();
+    payload.hotspot_regions = (question.hotspot_regions || [])
+      .filter((r) => r && r.id)
+      .map((r) => ({
+        id: r.id,
+        label: String(r.label || "").trim(),
+        x: Number(r.x) || 0,
+        y: Number(r.y) || 0,
+        w: Number(r.w) || 0,
+        h: Number(r.h) || 0,
+      }));
+    payload.correct_region_id = question.correct_region_id || "";
   }
 
   return payload;

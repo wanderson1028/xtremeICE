@@ -1,4 +1,4 @@
-const QUESTION_TYPES = ['mcq', 'matching', 'manual'];
+const QUESTION_TYPES = ['mcq', 'matching', 'hotspot', 'manual'];
 const MAX_PARTIAL_CREDIT = 0.99;
 
 const round2 = (value) => Math.round(Number(value) * 100) / 100;
@@ -17,6 +17,27 @@ function sanitizePairs(list) {
   return (Array.isArray(list) ? list : [])
     .filter((entry) => entry && entry.id)
     .map((entry) => ({ id: String(entry.id), text: String(entry.text || '') }));
+}
+
+/**
+ * Clickable areas as geometry only — never which one is correct.
+ */
+function sanitizeRegions(list) {
+  return (Array.isArray(list) ? list : [])
+    .filter((entry) => entry && entry.id)
+    .map((entry) => ({
+      id: String(entry.id),
+      label: String(entry.label || ''),
+      x: Number(entry.x) || 0,
+      y: Number(entry.y) || 0,
+      w: Number(entry.w) || 0,
+      h: Number(entry.h) || 0,
+    }));
+}
+
+function regionLabel(regions, id) {
+  const hit = regions.find((region) => region.id === id);
+  return hit ? String(hit.label || '') : '';
 }
 
 /**
@@ -59,6 +80,8 @@ export function toPublicTask(task) {
     options: question_type === 'mcq' ? sanitizePairs(task.options) : [],
     matching_prompts: question_type === 'matching' ? sanitizePairs(task.matching_prompts) : [],
     matching_choices: question_type === 'matching' ? sanitizePairs(task.matching_choices) : [],
+    hotspot_image_url: question_type === 'hotspot' ? String(task.hotspot_image_url || '') : '',
+    hotspot_regions: question_type === 'hotspot' ? sanitizeRegions(task.hotspot_regions) : [],
   };
 }
 
@@ -106,6 +129,24 @@ export function scoreTask(task, submission) {
       partial: credit > 0 && !correct ? { credit: round2(credit) } : null,
       submitted_display: choiceText(task.options, chosen),
       correct_display: choiceText(task.options, expected),
+    };
+  }
+
+  if (type === 'hotspot') {
+    const regions = sanitizeRegions(task.hotspot_regions);
+    const chosen = String(submission?.answer || '');
+    const expected = String(task.correct_region_id || '');
+    const correct = Boolean(chosen) && Boolean(expected) && chosen === expected;
+
+    return {
+      graded: true,
+      type,
+      possible,
+      earned: correct ? possible : 0,
+      credit: correct ? 1 : 0,
+      correct,
+      submitted_display: regionLabel(regions, chosen),
+      correct_display: regionLabel(regions, expected),
     };
   }
 

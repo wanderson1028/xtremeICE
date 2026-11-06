@@ -23,10 +23,11 @@
       "enum": [
         "mcq",
         "matching",
+        "hotspot",
         "manual"
       ],
       "default": "manual",
-      "description": "Question format. Objective types (mcq, matching) are scored automatically using the stored answer key."
+      "description": "Question format. Objective types (mcq, matching, hotspot) are scored automatically using the stored answer key."
     },
     "options": {
       "type": "array",
@@ -42,6 +43,21 @@
     "option_credits": {
       "type": "object",
       "description": "Partial credit for multiple-choice options: option id \u2192 credit fraction (0\u20130.99). The fully correct option always earns 1."
+    },
+    "hotspot_image_url": {
+      "type": "string",
+      "description": "Image the candidate clicks on (screenshot, diagram or console capture)"
+    },
+    "hotspot_regions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Clickable areas on the image as { id, label, x, y, w, h } in percentages of the image box"
+    },
+    "correct_region_id": {
+      "type": "string",
+      "description": "Answer key for hotspot questions \u2014 the region id the candidate must click"
     },
     "matching_prompts": {
       "type": "array",

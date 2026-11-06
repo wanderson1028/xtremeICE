@@ -1,10 +1,15 @@
 import React from "react";
 import { CheckCircle2, Link2 } from "lucide-react";
+import HotspotQuestion from "@/components/assessment/HotspotQuestion";
 
 export default function CandidateQuestion({ task, value, onChange }) {
   const type = task?.question_type || "manual";
   const answer = value?.answer || "";
   const matches = value?.matches || {};
+
+  if (type === "hotspot") {
+    return <HotspotQuestion task={task} value={value} onChange={onChange} />;
+  }
 
   if (type === "mcq") {
     return (
@@ -83,6 +88,7 @@ export default function CandidateQuestion({ task, value, onChange }) {
 export function isAnswered(task, value) {
   const type = task?.question_type || "manual";
   if (type === "mcq") return Boolean(value?.answer);
+  if (type === "hotspot") return Boolean(value?.answer);
   if (type === "matching") {
     const prompts = task.matching_prompts || [];
     const matches = value?.matches || {};
