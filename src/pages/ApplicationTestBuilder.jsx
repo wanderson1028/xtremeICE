@@ -3,11 +3,18 @@ import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { ArrowLeft, Plus, Loader2, CheckCircle2, ListChecks, Shuffle, Send, Eye } from "lucide-react";
 import QuestionCard from "@/components/assessment/QuestionCard";
+import PromptGenerator from "@/components/assessment/PromptGenerator";
 import { createQuestion, validateQuestion, toTaskPayload, totalPoints } from "@/lib/assessmentQuestions";
 
 const inputCls =
   "w-full bg-gray-900 border border-gray-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-red-600 transition-colors placeholder-gray-600";
 const labelCls = "block text-sm font-medium text-gray-300 mb-1.5";
+
+const isBlankQuestion = (q) =>
+  !String(q.title || "").trim() &&
+  (q.options || []).every((o) => !String(o.text || "").trim()) &&
+  (q.matching_prompts || []).every((p) => !String(p.text || "").trim()) &&
+  (q.matching_choices || []).every((c) => !String(c.text || "").trim());
 
 export default function ApplicationTestBuilder() {
   const [form, setForm] = useState({
@@ -37,6 +44,10 @@ export default function ApplicationTestBuilder() {
       [next[index], next[target]] = [next[target], next[index]];
       return next;
     });
+  };
+
+  const addGeneratedQuestions = (generated) => {
+    setQuestions((qs) => [...qs.filter((q) => !isBlankQuestion(q)), ...generated]);
   };
 
   const handleSave = async () => {
@@ -203,6 +214,8 @@ export default function ApplicationTestBuilder() {
             />
           </div>
         </div>
+
+        <PromptGenerator onGenerated={addGeneratedQuestions} />
 
         <div className="space-y-4">
           <div className="flex items-center justify-between">

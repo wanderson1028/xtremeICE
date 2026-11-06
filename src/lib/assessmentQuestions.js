@@ -43,6 +43,75 @@ export function createQuestion(type) {
   };
 }
 
+export function fromGeneratedQuestion(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const title = String(raw.prompt || "").trim();
+  if (!title) return null;
+  const points = Number(raw.points) > 0 ? Math.round(Number(raw.points)) : 5;
+
+  if (raw.kind === "mcq") {
+    const options = [];
+    for (const choice of Array.isArray(raw.options) ? raw.options : []) {
+      const text = String(choice || "").trim();
+      if (!text) continue;
+      if (options.some((o) => o.text.toLowerCase() === text.toLowerCase())) continue;
+      options.push({ id: uid(), text });
+    }
+    if (options.length < 2) return null;
+    const idx = Number(raw.correct_index);
+    return {
+      key: uid(),
+      question_type: "mcq",
+      title,
+      description: "",
+      points,
+      options,
+      correct_option_id: Number.isInteger(idx) && idx >= 0 && idx < options.length ? options[idx].id : "",
+    };
+  }
+
+  if (raw.kind === "matching") {
+    const pairs = (Array.isArray(raw.pairs) ? raw.pairs : [])
+      .map((p) => ({ prompt: String(p?.prompt || "").trim(), answer: String(p?.answer || "").trim() }))
+      .filter((p) => p.prompt && p.answer);
+    if (!pairs.length) return null;
+
+    const choices = [];
+    const addChoice = (value) => {
+      const text = String(value || "").trim();
+      if (!text || choices.some((c) => c.text.toLowerCase() === text.toLowerCase())) return;
+      choices.push({ id: uid(), text });
+    };
+    pairs.forEach((p) => addChoice(p.answer));
+    (Array.isArray(raw.distractors) ? raw.distractors : []).forEach(addChoice);
+    if (choices.length < 2) return null;
+
+    const prompts = pairs.map((p) => ({ id: uid(), text: p.prompt }));
+    const matching_answer = {};
+    pairs.forEach((pair, i) => {
+      const match = choices.find((c) => c.text.toLowerCase() === pair.answer.toLowerCase());
+      if (match) matching_answer[prompts[i].id] = match.id;
+    });
+
+    return {
+      key: uid(),
+      question_type: "matching",
+      title,
+      description: "",
+      points,
+      matching_prompts: prompts,
+      matching_choices: choices,
+      matching_answer,
+    };
+  }
+
+  return null;
+}
+
+export function fromGeneratedQuestions(list) {
+  return (Array.isArray(list) ? list : []).map(fromGeneratedQuestion).filter(Boolean);
+}
+
 export function validateQuestion(question, index) {
   const label = `Question ${index + 1}`;
   if (!String(question.title || "").trim()) {
