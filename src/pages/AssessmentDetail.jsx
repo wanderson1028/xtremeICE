@@ -39,6 +39,11 @@ export default function AssessmentDetail() {
 
   const totalPoints = tasks.reduce((s, t) => s + (t.points || 10), 0);
 
+  // scoring_weights is stored as { themes: [{ theme, weight }] }
+  const themeWeights = (Array.isArray(assessment.scoring_weights?.themes) ? assessment.scoring_weights.themes : [])
+    .map((entry) => ({ theme: String(entry?.theme || "Untitled theme"), weight: Number(entry?.weight) || 0 }));
+  const maxThemeWeight = Math.max(1, ...themeWeights.map((w) => w.weight));
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-red-950/10">
       <div className="border-b border-gray-800 bg-black/50 px-6 py-4">
@@ -266,13 +271,19 @@ export default function AssessmentDetail() {
             <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-5">
               <h3 className="text-white font-semibold mb-4">Scoring Weights</h3>
               <div className="space-y-3">
-                {Object.entries(assessment.scoring_weights || {}).map(([key, val]) => (
-                  <div key={key} className="flex items-center gap-3">
-                    <span className="text-gray-400 text-xs capitalize w-48 shrink-0">{key.replace(/_/g, " ")}</span>
+                {themeWeights.length === 0 && (
+                  <p className="text-xs text-gray-500">No theme weights configured — all questions are weighted equally.</p>
+                )}
+                {themeWeights.map((entry, index) => (
+                  <div key={`${entry.theme}-${index}`} className="flex items-center gap-3">
+                    <span className="text-gray-400 text-xs capitalize w-48 shrink-0 truncate">{entry.theme}</span>
                     <div className="flex-1 h-2 bg-gray-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-red-600 rounded-full transition-all" style={{ width: `${val}%` }} />
+                      <div
+                        className="h-full bg-red-600 rounded-full transition-all"
+                        style={{ width: `${Math.round((entry.weight / maxThemeWeight) * 100)}%` }}
+                      />
                     </div>
-                    <span className="text-gray-300 text-xs font-mono w-8 text-right">{val}%</span>
+                    <span className="text-gray-300 text-xs font-mono w-8 text-right">{entry.weight}</span>
                   </div>
                 ))}
               </div>
