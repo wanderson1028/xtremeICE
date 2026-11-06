@@ -30,7 +30,7 @@ export default function ApplicationTestBuilder() {
   const editId = new URLSearchParams(window.location.search).get("id");
   const [hydrated, setHydrated] = useState(false);
 
-  const { data: existing } = useQuery({
+  const { data: existing, error: loadError } = useQuery({
     queryKey: ["assessment-edit", editId],
     queryFn: async () => {
       const assessment = await base44.entities.Assessment.get(editId);
@@ -164,7 +164,11 @@ export default function ApplicationTestBuilder() {
   if (editId && !hydrated) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+        {loadError ? (
+          <p className="text-sm text-gray-400">That assessment could not be loaded.</p>
+        ) : (
+          <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+        )}
       </div>
     );
   }
