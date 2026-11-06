@@ -21,6 +21,26 @@ function sanitizeSubmissions(raw) {
     .filter((entry) => entry.task_id);
 }
 
+// Grader output is free-form: a list field can come back as strings, objects, or
+// numbers. Stored lists must be plain text, otherwise saving the scorecard is
+// rejected and the candidate sees a bare server error.
+function stringList(value, limit = 8) {
+  return (Array.isArray(value) ? value : [])
+    .map((entry) => {
+      if (typeof entry === 'string') return entry.trim();
+      if (entry && typeof entry === 'object') {
+        return Object.values(entry)
+          .filter((part) => typeof part === 'string' || typeof part === 'number')
+          .map((part) => String(part).trim())
+          .filter(Boolean)
+          .join(' — ');
+      }
+      return entry == null ? '' : String(entry).trim();
+    })
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
 function buildSummary(candidateName, positionTitle, overallScore, earned, possible, scored) {
   const parts = [
     `${candidateName} scored ${overallScore}% (${earned} of ${possible} points) on ${positionTitle}.`,
@@ -248,13 +268,36 @@ Return JSON. "smart_summary" must be a 2-4 sentence synopsis of this candidate's
     const duration = Number(assessment.duration_minutes) || 0;
     const timePct = duration ? Math.max(0, Math.round(100 - (time_elapsed_minutes / duration) * 50)) : 100;
 
-    const categoryScores = narrative?.category_scores && Object.keys(narrative.category_scores).length
-      ? narrative.category_scores
+    const gradedCategories = narrative?.category_scores;
+    const categoryScores = gradedCategories &&
+      typeof gradedCategories === 'object' &&
+      !Array.isArray(gradedCategories) &&
+      Object.keys(gradedCategories).length
+      ? gradedCategories
       : {
           answer_accuracy: overallScore,
           completion: answeredPct,
           time_management: timePct,
         };
+
+    const derivedStrengths = correctResults.slice(0, 4).map((item) => `Answered correctly: ${item.title}`);
+    const derivedWeaknesses = wrongResults.slice(0, 4).map((item) => `Incorrect: ${item.title}`);
+    const derivedMissed = wrongResults.map(
+      (item) => `${item.title} — correct answer: ${item.correct_answer || 'see answer key'}`
+    );
+    const derivedSummary = buildSummary(
+      session.candidate_name,
+      assessment.position_title,
+      overallScore,
+      earned,
+      possible,
+      scored
+    );
+    const gradedStrengths = stringList(narrative?.strengths);
+    const gradedWeaknesses = stringList(narrative?.weaknesses);
+    const gradedMissed = stringList(narrative?.missed_steps, 20);
+    const gradedFollowUps = stringList(narrative?.follow_up_questions, 10);
+    const gradedSummary = typeof narrative?.smart_summary === 'string' ? narrative.smart_summary.trim() : '';
 
     await base44.asServiceRole.entities.CandidateSession.update(session_id, {
       status: 'submitted',
@@ -267,7 +310,7 @@ Return JSON. "smart_summary" must be a 2-4 sentence synopsis of this candidate's
       completed_at: new Date().toISOString(),
     });
 
-    const scorecard = await base44.asServiceRole.entities.Scorecard.create({
+    const scorecardPayload = {
       session_id,
       assessment_id: session.assessment_id,
       candidate_email: session.candidate_email,
@@ -279,19 +322,35 @@ Return JSON. "smart_summary" must be a 2-4 sentence synopsis of this candidate's
         : recommendationFor(overallScore),
       category_scores: categoryScores,
       task_results: results,
-      strengths: narrative?.strengths?.length
-        ? narrative.strengths
-        : correctResults.slice(0, 4).map((item) => `Answered correctly: ${item.title}`),
-      weaknesses: narrative?.weaknesses?.length
-        ? narrative.weaknesses
-        : wrongResults.slice(0, 4).map((item) => `Incorrect: ${item.title}`),
-      missed_steps: narrative?.missed_steps?.length
-        ? narrative.missed_steps
-        : wrongResults.map((item) => `${item.title} — correct answer: ${item.correct_answer || 'see answer key'}`),
-      follow_up_questions: Array.isArray(narrative?.follow_up_questions) ? narrative.follow_up_questions : [],
-      smart_summary: narrative?.smart_summary || buildSummary(session.candidate_name, assessment.position_title, overallScore, earned, possible, scored),
+      strengths: gradedStrengths.length ? gradedStrengths : derivedStrengths,
+      weaknesses: gradedWeaknesses.length ? gradedWeaknesses : derivedWeaknesses,
+      missed_steps: gradedMissed.length ? gradedMissed : derivedMissed,
+      follow_up_questions: gradedFollowUps,
+      smart_summary: gradedSummary || derivedSummary,
       generated_at: new Date().toISOString(),
-    });
+    };
+
+    // Never let a grader-shaped field cost the candidate their submission: fall
+    // back to the deterministic summary if the first save is rejected.
+    let scorecard;
+    try {
+      scorecard = await base44.asServiceRole.entities.Scorecard.create(scorecardPayload);
+    } catch (error) {
+      console.error('Scorecard save failed, retrying with computed values:', error);
+      scorecard = await base44.asServiceRole.entities.Scorecard.create({
+        ...scorecardPayload,
+        category_scores: {
+          answer_accuracy: overallScore,
+          completion: answeredPct,
+          time_management: timePct,
+        },
+        strengths: derivedStrengths,
+        weaknesses: derivedWeaknesses,
+        missed_steps: derivedMissed,
+        follow_up_questions: [],
+        smart_summary: derivedSummary,
+      });
+    }
 
     await base44.asServiceRole.entities.CandidateSession.update(session_id, { status: 'evaluated' });
 

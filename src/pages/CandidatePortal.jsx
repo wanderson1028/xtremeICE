@@ -118,7 +118,7 @@ export default function CandidatePortal() {
       await persist(nextAnswers, nextIndex);
       setCurrentTaskIndex(nextIndex);
     } catch (e) {
-      setError(e.message || "Could not save your answer.");
+      setError(e?.response?.data?.error || "Could not save your answer. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -146,7 +146,16 @@ export default function CandidatePortal() {
       });
       setSubmitted(true);
     } catch (e) {
-      setError(e.message || "Submission failed. Please try again.");
+      const status = e?.response?.status ?? e?.status;
+      const message = e?.response?.data?.error || "";
+      if (status === 410) {
+        setAlreadyTaken(true);
+        return;
+      }
+      setError(
+        message ||
+          "We could not submit your assessment just now. Your answers are saved — please press Submit again."
+      );
     } finally {
       setSubmitting(false);
     }
