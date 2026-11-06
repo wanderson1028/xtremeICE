@@ -65,6 +65,24 @@ Deno.serve(async (req) => {
         return Response.json({ error: 'This invitation has expired.' }, { status: 410 });
       }
 
+      // One attempt per candidate per assessment: a second invitation for the same
+      // address never reopens a test that has already been submitted.
+      const allSessions = await base44.asServiceRole.entities.CandidateSession.filter({
+        assessment_id: invitation.assessment_id,
+      });
+      const candidateEmail = String(invitation.candidate_email || '').toLowerCase();
+      const alreadyTaken = allSessions.some(
+        (entry) =>
+          String(entry.candidate_email || '').toLowerCase() === candidateEmail &&
+          (entry.status === 'submitted' || entry.status === 'evaluated')
+      );
+      if (alreadyTaken) {
+        return Response.json(
+          { error: 'This assessment has already been submitted and can only be taken once.' },
+          { status: 410 }
+        );
+      }
+
       const existing = await base44.asServiceRole.entities.CandidateSession.filter({ invitation_id: invitation.id });
       const open = existing.find((session) => session.status === 'in_progress' || session.status === 'not_started');
       if (open) {

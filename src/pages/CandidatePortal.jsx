@@ -241,6 +241,7 @@ export default function CandidatePortal() {
                 <li>• You cannot pause once started</li>
                 <li>• Your answers save as you go — you can refresh safely</li>
                 <li>• Answer every question before submitting</li>
+                <li>• Single attempt — you cannot retake this once submitted</li>
               </ul>
             </div>
 

@@ -55,19 +55,35 @@ Deno.serve(async (req) => {
     // Resume support: hand back the candidate's open session so a refresh never loses progress.
     const sessions = await base44.asServiceRole.entities.CandidateSession.filter({ invitation_id: invitation.id });
     const openSession = sessions.find((session) => session.status === 'in_progress' || session.status === 'not_started') || null;
-    const submittedSession = sessions.find((session) => session.status === 'submitted' || session.status === 'evaluated') || null;
+
+    // One attempt per candidate per assessment: once this candidate has submitted,
+    // the questions are never served again, even from another invitation link.
+    const attemptSessions = await base44.asServiceRole.entities.CandidateSession.filter({
+      assessment_id: invitation.assessment_id,
+    });
+    const candidateEmail = String(invitation.candidate_email || '').toLowerCase();
+    const alreadySubmitted =
+      invitation.status === 'completed' ||
+      attemptSessions.some(
+        (entry) =>
+          String(entry.candidate_email || '').toLowerCase() === candidateEmail &&
+          (entry.status === 'submitted' || entry.status === 'evaluated')
+      );
 
     return Response.json({
       invitation: { ...invitation, expired },
       assessment,
       // Answer keys are stripped server-side so they never reach the candidate's browser,
       // and the order is shuffled per candidate so no two candidates see the same sequence.
-      tasks: seededShuffle(
-        tasks.sort((a, b) => (a.order || 0) - (b.order || 0)).map(toPublicTask),
-        hashSeed(normalizedToken)
-      ).map((task, index) => ({ ...task, order: index + 1 })),
+      // A submitted candidate gets no questions at all.
+      tasks: alreadySubmitted
+        ? []
+        : seededShuffle(
+            tasks.sort((a, b) => (a.order || 0) - (b.order || 0)).map(toPublicTask),
+            hashSeed(normalizedToken)
+          ).map((task, index) => ({ ...task, order: index + 1 })),
       session: openSession,
-      already_submitted: Boolean(submittedSession) || invitation.status === 'completed',
+      already_submitted: alreadySubmitted,
     });
   } catch (error) {
     console.error('getCandidateAssessment failed:', error);
