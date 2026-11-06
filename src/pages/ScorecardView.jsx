@@ -80,7 +80,7 @@ export default function ScorecardView() {
 
         </div>
 
-        <div className="grid grid-cols-3 gap-6">
+        <div className="grid grid-cols-3 gap-6 items-start">
           {/* Category Scores */}
           <div className="col-span-2 space-y-6">
             <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-5">
@@ -107,24 +107,31 @@ export default function ScorecardView() {
             )}
           </div>
 
-          {/* Strengths / Weaknesses */}
-          <div className="space-y-4">
-            <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-4">
-              <h4 className="text-green-400 font-semibold text-sm mb-3 flex items-center gap-1.5"><TrendingUp className="h-3.5 w-3.5" />Strengths</h4>
-              <ul className="space-y-1.5">
-                {(scorecard.strengths || []).map((s, i) => (
-                  <li key={i} className="flex items-start gap-1.5 text-xs text-gray-300"><CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0 mt-0.5" />{s}</li>
-                ))}
-              </ul>
-            </div>
-            <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-4">
-              <h4 className="text-red-400 font-semibold text-sm mb-3 flex items-center gap-1.5"><AlertCircle className="h-3.5 w-3.5" />Weaknesses</h4>
-              <ul className="space-y-1.5">
-                {(scorecard.weaknesses || []).map((w, i) => (
-                  <li key={i} className="flex items-start gap-1.5 text-xs text-gray-300"><XCircle className="h-3.5 w-3.5 text-red-500 shrink-0 mt-0.5" />{w}</li>
-                ))}
-              </ul>
-            </div>
+          {/* Strengths / Weaknesses — one card so the column matches the left side */}
+          <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-5">
+            <h4 className="text-green-400 font-semibold text-sm mb-3 flex items-center gap-1.5">
+              <TrendingUp className="h-3.5 w-3.5" />Strengths
+            </h4>
+            <ul className="space-y-1.5">
+              {(scorecard.strengths || []).map((s, i) => (
+                <li key={i} className="flex items-start gap-1.5 text-xs text-gray-300 leading-snug">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0 mt-0.5" />{s}
+                </li>
+              ))}
+            </ul>
+
+            <div className="my-4 border-t border-gray-800" />
+
+            <h4 className="text-red-400 font-semibold text-sm mb-3 flex items-center gap-1.5">
+              <AlertCircle className="h-3.5 w-3.5" />Weaknesses
+            </h4>
+            <ul className="space-y-1.5">
+              {(scorecard.weaknesses || []).map((w, i) => (
+                <li key={i} className="flex items-start gap-1.5 text-xs text-gray-300 leading-snug">
+                  <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0 mt-0.5" />{w}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
 
