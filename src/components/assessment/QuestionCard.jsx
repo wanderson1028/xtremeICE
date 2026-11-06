@@ -155,9 +155,10 @@ export default function QuestionCard({ question, index, total, onChange, onRemov
                   onChange={() => patch({ correct_option_id: option.id })}
                   className="h-3.5 w-3.5 accent-green-500 shrink-0"
                 />
-                <input
-                  className="flex-1 bg-transparent text-white text-sm focus:outline-none placeholder-gray-600"
-                  placeholder="Choice text"
+                <textarea
+                  rows={Math.min(4, Math.max(1, String(option.text || "").split("\n").length))}
+                  className="flex-1 bg-transparent text-white text-sm font-mono leading-snug resize-none focus:outline-none placeholder-gray-600 placeholder:font-sans"
+                  placeholder="Choice text — commands, config lines or code are fine"
                   value={option.text}
                   onChange={(e) => updateOption(option.id, e.target.value)}
                 />

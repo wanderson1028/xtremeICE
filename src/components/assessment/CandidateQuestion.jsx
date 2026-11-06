@@ -29,7 +29,7 @@ export default function CandidateQuestion({ task, value, onChange }) {
               >
                 {selected && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
               </span>
-              <span className="text-sm text-gray-200">
+              <span className="text-sm text-gray-200 whitespace-pre-wrap break-words">
                 <span className="text-gray-500 font-mono mr-2">{String.fromCharCode(65 + index)}.</span>
                 {option.text}
               </span>
