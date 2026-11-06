@@ -182,10 +182,12 @@ function spreadAnswerPositions(questions) {
 }
 
 const RULES = [
-  'SEQUENCING — every question must stand on its own:',
-  '- The questions follow the scenario in order, but a question must never restate, hint at, or depend on the answer to an earlier question.',
+  'SEQUENCING AND PROGRESSION — the set reads as one continuous investigation:',
+  '- Anchor every question in named specifics from the scenario: the same hosts, users, VLANs, subnets, alerts, timestamps or tools. Never introduce a system, ticket, vendor or event the scenario does not mention.',
+  '- Order the questions along the scenario timeline, one stage each: first notice and triage, then scope and evidence gathering, then containment or corrective configuration, then verification and documentation. Each question sits at a later stage of the same incident and goes deeper and more specific than the one before it.',
+  '- Each question must stand on its own: it may treat earlier work as already done ("after the trunk was corrected..."), but it must never restate, hint at, or depend on the candidate having answered an earlier question correctly.',
   '- Never reuse an earlier question\'s correct answer, command or term in a later stem or option set.',
-  '- No chained wording such as "using the command from the previous question" or "following that fix".',
+  '- No chained wording such as "using the command from the previous question" or "following that fix" — state the situation, not a reference to an earlier answer.',
   'ANSWER INTEGRITY:',
   '- The stem states the situation only. It must never contain the wording of the correct answer.',
   '- Never write joke, absurd or placeholder options. No "all of the above", "none of the above", "A and C", or options that merely restate the stem.',
@@ -226,7 +228,7 @@ export default async function (req) {
       `Test brief from the hiring manager: "${topic}"`,
       scenarioInstruction,
       'The scenario is a realistic workplace situation in second person, 120-180 words, with concrete detail (systems, users, alerts, timings) that questions can refer back to.',
-      `Then write exactly ${mcqCount} multiple-choice question(s) and ${matchingCount} matching question(s), ${total} in total.`,
+      `Then write exactly ${mcqCount} multiple-choice question(s) and ${matchingCount} matching question(s), ${total} in total, already in scenario order from first notice to final verification.`,
       ...RULES,
       'For each multiple-choice question: give 4 distinct plausible options and set correct_index to the 0-based index of the one fully correct answer. Leave pairs and distractors empty.',
       'For each matching question: give 3 to 5 correct prompt/answer pairs, each item drawn from the scenario, plus exactly 2 additional choices that are plausible but are not the answer to any prompt. Leave options and correct_index empty.',
