@@ -7,13 +7,18 @@ const MAX_TOTAL = 20;
 const RESPONSE_SCHEMA = {
   type: 'object',
   properties: {
+    scenario: {
+      type: 'string',
+      description: 'The shared scenario every question follows (120-180 words)',
+    },
     questions: {
       type: 'array',
       items: {
         type: 'object',
         properties: {
           kind: { type: 'string', enum: ['mcq', 'matching'] },
-          prompt: { type: 'string', description: 'The question text' },
+          prompt: { type: 'string', description: 'The question text, tied to the scenario' },
+          theme: { type: 'string', description: 'Short competency theme, 2-4 words' },
           points: { type: 'number' },
           options: { type: 'array', items: { type: 'string' } },
           correct_index: { type: 'number', description: '0-based index into options of the correct answer' },
@@ -30,11 +35,11 @@ const RESPONSE_SCHEMA = {
           },
           distractors: { type: 'array', items: { type: 'string' } },
         },
-        required: ['kind', 'prompt', 'points'],
+        required: ['kind', 'prompt', 'points', 'theme'],
       },
     },
   },
-  required: ['questions'],
+  required: ['scenario', 'questions'],
 };
 
 function cleanText(value, max) {
@@ -68,7 +73,14 @@ function normalizeMcq(raw) {
   if (options.length < 2) return null;
   const idx = Number(raw && raw.correct_index);
   const correctIndex = Number.isInteger(idx) && idx >= 0 && idx < options.length ? idx : 0;
-  return { kind: 'mcq', prompt, points: normalizePoints(raw && raw.points), options, correct_index: correctIndex };
+  return {
+    kind: 'mcq',
+    prompt,
+    theme: cleanText(raw && raw.theme, 60),
+    points: normalizePoints(raw && raw.points),
+    options,
+    correct_index: correctIndex,
+  };
 }
 
 function normalizeMatching(raw) {
@@ -90,7 +102,14 @@ function normalizeMatching(raw) {
   const choices = [...answers, ...distractors].slice(0, 8);
   if (choices.length < 2) return null;
 
-  return { kind: 'matching', prompt, points: normalizePoints(raw && raw.points), pairs, choices };
+  return {
+    kind: 'matching',
+    prompt,
+    theme: cleanText(raw && raw.theme, 60),
+    points: normalizePoints(raw && raw.points),
+    pairs,
+    choices,
+  };
 }
 
 export default async function (req) {
@@ -103,6 +122,7 @@ export default async function (req) {
     const topic = cleanText(body.prompt, 2000);
     if (!topic) return Response.json({ error: 'Describe what the test should cover.' }, { status: 400 });
 
+    const existingScenario = cleanText(body.scenario, 3000);
     const mcqCount = Math.min(MAX_MCQ, Math.max(0, Math.round(Number(body.mcq_count) || 0)));
     const matchingCount = Math.min(MAX_MATCHING, Math.max(0, Math.round(Number(body.matching_count) || 0)));
     if (mcqCount + matchingCount < 1) {
@@ -110,13 +130,21 @@ export default async function (req) {
     }
     const total = Math.min(MAX_TOTAL, mcqCount + matchingCount);
 
+    const scenarioInstruction = existingScenario
+      ? `The assessment already has this shared scenario. Every question must follow it exactly:\n"""${existingScenario}"""`
+      : 'Write the shared scenario yourself, then base every question on it.';
+
     const instruction = [
-      'You write timed hiring tests for cybersecurity and IT roles.',
+      'You write scenario-driven hiring tests for cybersecurity and IT roles.',
       `Test brief from the hiring manager: "${topic}"`,
-      `Write exactly ${mcqCount} multiple-choice question(s) and ${matchingCount} matching question(s), ${total} question(s) in total.`,
-      'For each multiple-choice question: give 4 distinct, plausible options, exactly one technically correct, and set correct_index to the 0-based index of that correct option. Leave pairs and distractors empty.',
-      'For each matching question: give 3 to 5 correct prompt/answer pairs, and add exactly 2 additional choices that are plausible but are NOT the answer to any prompt. Leave options, correct_index empty.',
-      'Each prompt must be self-contained, unambiguous and answerable without extra context. Vary difficulty across the set. Never repeat a question.',
+      scenarioInstruction,
+      'The scenario is a realistic workplace situation written in second person, 120-180 words, with concrete detail (systems, users, alerts, timings) that the questions can refer back to.',
+      `Then write exactly ${mcqCount} multiple-choice question(s) and ${matchingCount} matching question(s), ${total} question(s) in total.`,
+      'Order the questions so they progressively follow the scenario: the first ones cover the opening situation, later ones depend on what was found or decided earlier. Each question must reference the scenario rather than stand alone.',
+      'Give each question a theme: a 2-4 word competency label such as "Alert Triage", "Identity & Access", "Network Routing" or "Incident Communication".',
+      'For each multiple-choice question: give 4 distinct, plausible options, exactly one fully correct, and set correct_index to the 0-based index of that option. Leave pairs and distractors empty.',
+      'For each matching question: give 3 to 5 correct prompt/answer pairs, and add exactly 2 additional choices that are plausible but are NOT the answer to any prompt. Leave options and correct_index empty.',
+      'Each question must be unambiguous and answerable from the scenario plus role knowledge. Never repeat a question.',
       'Points: 5 for a multiple-choice question, 10 for a matching question.',
     ].join('\n');
 
@@ -124,6 +152,11 @@ export default async function (req) {
       prompt: instruction,
       response_json_schema: RESPONSE_SCHEMA,
     });
+
+    const scenario = existingScenario || cleanText(llm && llm.scenario, 3000);
+    if (!scenario) {
+      return Response.json({ error: 'The generator returned no scenario. Try rephrasing the brief.' }, { status: 422 });
+    }
 
     const rawQuestions = Array.isArray(llm && llm.questions) ? llm.questions : [];
     const questions = [];
@@ -141,7 +174,7 @@ export default async function (req) {
       );
     }
 
-    return Response.json({ questions });
+    return Response.json({ scenario, questions });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

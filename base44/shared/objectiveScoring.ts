@@ -1,4 +1,5 @@
 const QUESTION_TYPES = ['mcq', 'matching', 'manual'];
+const MAX_PARTIAL_CREDIT = 0.99;
 
 const round2 = (value) => Math.round(Number(value) * 100) / 100;
 
@@ -19,6 +20,27 @@ function sanitizePairs(list) {
 }
 
 /**
+ * Theme weights stored on the assessment → lookup map (lowercased theme → weight).
+ */
+export function weightsMapFrom(scoringWeights) {
+  const list = scoringWeights && Array.isArray(scoringWeights.themes) ? scoringWeights.themes : [];
+  const map = {};
+  for (const entry of list) {
+    const key = String(entry?.theme || '').trim().toLowerCase();
+    const weight = Number(entry?.weight);
+    if (key && Number.isFinite(weight) && weight > 0) map[key] = weight;
+  }
+  return map;
+}
+
+export function weightFor(theme, weights) {
+  const key = String(theme || '').trim().toLowerCase();
+  const raw = key && weights ? weights[key] : undefined;
+  const weight = Number(raw);
+  return Number.isFinite(weight) && weight > 0 ? weight : 1;
+}
+
+/**
  * Strip the answer key before a task is handed to a candidate's browser.
  */
 export function toPublicTask(task) {
@@ -31,6 +53,7 @@ export function toPublicTask(task) {
     description: task.description,
     points: task.points,
     question_type,
+    theme: task.theme || '',
     task_type: task.task_type,
     hints: Array.isArray(task.hints) ? task.hints : [],
     options: question_type === 'mcq' ? sanitizePairs(task.options) : [],
@@ -41,7 +64,8 @@ export function toPublicTask(task) {
 
 /**
  * Deterministic scoring for one task against its stored answer key.
- * Manual (written) answers are never auto-graded.
+ * Multiple choice awards the credit configured for the chosen option,
+ * matching awards proportional credit per correct pair. Manual answers are never auto-graded.
  */
 export function scoreTask(task, submission) {
   const type = questionType(task);
@@ -53,6 +77,7 @@ export function scoreTask(task, submission) {
       type,
       possible,
       earned: 0,
+      credit: 0,
       correct: null,
       submitted_display: String(submission?.answer || ''),
       correct_display: '',
@@ -63,12 +88,22 @@ export function scoreTask(task, submission) {
     const chosen = String(submission?.answer || '');
     const expected = String(task.correct_option_id || '');
     const correct = Boolean(chosen) && Boolean(expected) && chosen === expected;
+    const credits = task.option_credits && typeof task.option_credits === 'object' ? task.option_credits : {};
+
+    let credit = correct ? 1 : 0;
+    if (!correct && chosen && Object.prototype.hasOwnProperty.call(credits, chosen)) {
+      const raw = Number(credits[chosen]);
+      if (Number.isFinite(raw) && raw > 0) credit = Math.min(MAX_PARTIAL_CREDIT, raw);
+    }
+
     return {
       graded: true,
       type,
       possible,
-      earned: correct ? possible : 0,
+      earned: Math.min(possible, round2(possible * credit)),
+      credit: round2(credit),
       correct,
+      partial: credit > 0 && !correct ? { credit: round2(credit) } : null,
       submitted_display: choiceText(task.options, chosen),
       correct_display: choiceText(task.options, expected),
     };
@@ -97,6 +132,7 @@ export function scoreTask(task, submission) {
     type,
     possible,
     earned: round2(possible * ratio),
+    credit: round2(ratio),
     correct: prompts.length > 0 && hits === prompts.length,
     partial: { correct: hits, total: prompts.length },
     submitted_display: details.map((detail) => `${detail.prompt}: ${detail.given || '—'}`).join(' · '),
@@ -106,9 +142,9 @@ export function scoreTask(task, submission) {
 }
 
 /**
- * Score every task and return scorecard-ready results plus totals.
+ * Score every task and return scorecard-ready results plus raw totals.
  */
-export function buildResults(tasks, submissions) {
+export function buildResults(tasks, submissions, weights) {
   const submissionMap = new Map(
     (Array.isArray(submissions) ? submissions : []).map((entry) => [String(entry.task_id || ''), entry])
   );
@@ -127,6 +163,7 @@ export function buildResults(tasks, submissions) {
   const results = ordered.map((task) => {
     const submission = submissionMap.get(String(task.id)) || {};
     const scored = scoreTask(task, submission);
+    const theme = String(task.theme || '');
 
     possible += scored.possible;
     earned += scored.earned;
@@ -142,10 +179,13 @@ export function buildResults(tasks, submissions) {
     return {
       task_id: task.id,
       title: task.title,
+      theme,
+      theme_weight: weightFor(theme, weights),
       question_type: scored.type,
       points_possible: scored.possible,
       points_earned: scored.earned,
       completion_percentage: scored.possible > 0 ? Math.round((scored.earned / scored.possible) * 100) : 0,
+      credit: scored.credit,
       submitted_answer: scored.submitted_display,
       correct_answer: scored.correct_display,
       correct: scored.correct,
@@ -166,6 +206,29 @@ export function buildResults(tasks, submissions) {
     answered,
     hasManual,
     total: results.length,
+    weighted: weightedTotals(results, weights),
+  };
+}
+
+/**
+ * Apply theme weights to scored results. A question's theme weight multiplies both
+ * the points it could earn and the points it was worth, so the score stays a
+ * percentage bounded by 0–100 regardless of the weights configured.
+ */
+export function weightedTotals(results, weights) {
+  let earned = 0;
+  let possible = 0;
+
+  for (const result of Array.isArray(results) ? results : []) {
+    const weight = weightFor(result?.theme, weights);
+    earned += (Number(result?.points_earned) || 0) * weight;
+    possible += (Number(result?.points_possible) || 0) * weight;
+  }
+
+  return {
+    earned: round2(earned),
+    possible: round2(possible),
+    score: possible > 0 ? Math.round((earned / possible) * 100) : 0,
   };
 }
 

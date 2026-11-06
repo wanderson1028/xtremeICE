@@ -9,6 +9,35 @@ const pairs = (list) =>
 
 const normalizeType = (value) => (QUESTION_TYPES.includes(String(value)) ? String(value) : 'manual');
 
+const normalizeWeights = (raw) => {
+  const list = raw && Array.isArray(raw.themes) ? raw.themes : [];
+  const seen = new Set();
+  const themes = [];
+  for (const entry of list) {
+    const theme = String(entry?.theme || '').trim().slice(0, 60);
+    const key = theme.toLowerCase();
+    if (!theme || seen.has(key)) continue;
+    const weight = Number(entry?.weight);
+    if (!Number.isFinite(weight) || weight <= 0) continue;
+    seen.add(key);
+    themes.push({ theme, weight: Math.min(10, Math.max(0.1, Math.round(weight * 100) / 100)) });
+  }
+  return { themes };
+};
+
+const normalizeCredits = (raw, options, correctId) => {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const credits = {};
+  for (const option of options) {
+    if (option.id === correctId) continue;
+    if (!Object.prototype.hasOwnProperty.call(source, option.id)) continue;
+    const value = Number(source[option.id]);
+    if (!Number.isFinite(value) || value <= 0) continue;
+    credits[option.id] = Math.min(0.99, Math.round(value * 100) / 100);
+  }
+  return credits;
+};
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -42,6 +71,7 @@ Deno.serve(async (req) => {
         order: Number(task.order) || index + 1,
         title,
         description: String(task.description || '').trim(),
+        theme: String(task.theme || '').trim().slice(0, 60),
         question_type,
         task_type: ['Knowledge Check', 'Investigation', 'Configuration', 'Analysis', 'Documentation', 'Remediation', 'Scripting', 'Verification'].includes(String(task.task_type))
           ? String(task.task_type)
@@ -55,6 +85,7 @@ Deno.serve(async (req) => {
         scoring_criteria: task.scoring_criteria && typeof task.scoring_criteria === 'object' ? task.scoring_criteria : {},
         options: [],
         correct_option_id: '',
+        option_credits: {},
         matching_prompts: [],
         matching_choices: [],
         matching_answer: {},
@@ -69,6 +100,7 @@ Deno.serve(async (req) => {
         }
         record.options = options;
         record.correct_option_id = correct;
+        record.option_credits = normalizeCredits(task.option_credits, options, correct);
       }
 
       if (question_type === 'matching') {
@@ -95,6 +127,8 @@ Deno.serve(async (req) => {
 
     const assessment = await base44.asServiceRole.entities.Assessment.create({
       ...assessmentData,
+      scenario_block: String(assessmentData.scenario_block || '').trim(),
+      scoring_weights: normalizeWeights(assessmentData.scoring_weights),
       created_by_id: user.id,
       created_by_email: user.email,
       assessment_kind: assessmentData.assessment_kind === 'application_test' ? 'application_test' : 'hands_on',

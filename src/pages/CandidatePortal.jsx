@@ -208,6 +208,13 @@ export default function CandidatePortal() {
             {assessment?.company_name && <p className="text-gray-400 text-lg">{assessment.company_name}</p>}
           </div>
 
+          {assessment?.scenario_block && (
+            <div className="bg-gray-900/80 border border-red-900/30 rounded-xl p-6 mb-6">
+              <p className="text-[10px] uppercase tracking-widest text-red-400 font-semibold mb-2">Scenario</p>
+              <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line">{assessment.scenario_block}</p>
+            </div>
+          )}
+
           <div className="bg-gray-900/80 border border-gray-800 rounded-2xl p-8 mb-6">
             <p className="text-white font-semibold text-lg mb-2">Hello, {invitation.candidate_name} 👋</p>
             <p className="text-gray-300 leading-relaxed mb-6">
@@ -323,6 +330,17 @@ export default function CandidatePortal() {
             </div>
           ) : (
             <div className="max-w-2xl mx-auto">
+              {assessment?.scenario_block && (
+                <details open className="mb-5 rounded-xl border border-red-900/30 bg-gray-900/70">
+                  <summary className="cursor-pointer px-4 py-2 text-[10px] uppercase tracking-widest text-red-400 font-semibold">
+                    Scenario
+                  </summary>
+                  <p className="px-4 pb-3 text-gray-300 text-xs leading-relaxed whitespace-pre-line max-h-40 overflow-y-auto">
+                    {assessment.scenario_block}
+                  </p>
+                </details>
+              )}
+
               <div className="mb-6">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-[10px] font-mono text-gray-500">QUESTION {currentTaskIndex + 1} / {sortedTasks.length}</span>

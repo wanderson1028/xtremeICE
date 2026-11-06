@@ -13,7 +13,7 @@ const EXAMPLES = [
   "Cloud security on AWS: IAM, S3 exposure, shared responsibility",
 ];
 
-export default function PromptGenerator({ onGenerated }) {
+export default function PromptGenerator({ onGenerated, scenario, onScenarioChange }) {
   const [prompt, setPrompt] = useState("");
   const [mcqCount, setMcqCount] = useState(5);
   const [matchingCount, setMatchingCount] = useState(2);
@@ -38,6 +38,7 @@ export default function PromptGenerator({ onGenerated }) {
     try {
       const res = await base44.functions.invoke("generateApplicationQuestions", {
         prompt: prompt.trim(),
+        scenario: String(scenario || "").trim(),
         mcq_count: Number(mcqCount) || 0,
         matching_count: Number(matchingCount) || 0,
       });
@@ -46,9 +47,12 @@ export default function PromptGenerator({ onGenerated }) {
         setError("No usable questions came back. Try a more specific brief.");
         return;
       }
+      const generatedScenario = String(res.data?.scenario || "").trim();
+      const adoptedScenario = Boolean(generatedScenario) && !String(scenario || "").trim();
+      if (adoptedScenario) onScenarioChange(generatedScenario);
       onGenerated(generated);
       setStatus(
-        `Added ${generated.length} question${generated.length === 1 ? "" : "s"} below — edit, reorder or remove any of them.`
+        `Added ${generated.length} question${generated.length === 1 ? "" : "s"} below${adoptedScenario ? " plus the scenario they follow" : ""} — edit, reorder or remove any of them.`
       );
     } catch (e) {
       setError(e?.response?.data?.error || e.message || "Question generation failed.");

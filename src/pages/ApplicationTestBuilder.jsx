@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, Plus, Loader2, CheckCircle2, ListChecks, Shuffle, Send, Eye } from "lucide-react";
+import { ArrowLeft, Plus, Loader2, CheckCircle2, ListChecks, Shuffle, Send, Eye, ScrollText } from "lucide-react";
 import QuestionCard from "@/components/assessment/QuestionCard";
 import PromptGenerator from "@/components/assessment/PromptGenerator";
-import { createQuestion, validateQuestion, toTaskPayload, totalPoints } from "@/lib/assessmentQuestions";
+import ThemeWeights from "@/components/assessment/ThemeWeights";
+import { createQuestion, validateQuestion, toTaskPayload, totalPoints, uniqueThemes } from "@/lib/assessmentQuestions";
 
 const inputCls =
   "w-full bg-gray-900 border border-gray-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-red-600 transition-colors placeholder-gray-600";
@@ -23,8 +24,11 @@ export default function ApplicationTestBuilder() {
     duration_minutes: 30,
     pass_threshold: 70,
     scenario_narrative: "",
+    scenario_block: "",
   });
   const [questions, setQuestions] = useState([createQuestion("mcq")]);
+  const [weights, setWeights] = useState({});
+  const themes = uniqueThemes(questions);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [createdId, setCreatedId] = useState(null);
@@ -81,6 +85,10 @@ export default function ApplicationTestBuilder() {
           duration_minutes: Number(form.duration_minutes) || 30,
           pass_threshold: Number(form.pass_threshold) || 70,
           scenario_narrative: form.scenario_narrative.trim(),
+          scenario_block: form.scenario_block.trim(),
+          scoring_weights: {
+            themes: themes.map((theme) => ({ theme, weight: Number(weights[theme]) || 1 })),
+          },
           role_summary: "Application test",
           status: "active",
           generated: false,
@@ -215,7 +223,39 @@ export default function ApplicationTestBuilder() {
           </div>
         </div>
 
-        <PromptGenerator onGenerated={addGeneratedQuestions} />
+        <div className="bg-gray-900/60 border border-red-900/40 rounded-xl p-6 space-y-3">
+          <div className="flex items-start gap-3">
+            <div className="icon-3d h-9 w-9 rounded-lg bg-red-950/60 border border-red-900/50 flex items-center justify-center shrink-0">
+              <ScrollText className="h-4 w-4 text-red-400" />
+            </div>
+            <div>
+              <h2 className="text-white font-semibold text-lg leading-tight">Shared Scenario</h2>
+              <p className="text-gray-500 text-xs mt-0.5">
+                Shown to candidates above every question. Generated questions are written to follow it.
+              </p>
+            </div>
+          </div>
+          <textarea
+            rows={6}
+            className={inputCls + " resize-none"}
+            placeholder="e.g. You are the Level 1 help desk technician at Northwind Logistics. A user calls because they cannot sign in to their workstation, and the error points to a trust relationship with the domain…"
+            value={form.scenario_block}
+            onChange={(e) => set("scenario_block", e.target.value)}
+          />
+          <p className="text-gray-600 text-xs">
+            {form.scenario_block.trim()
+              ? `${form.scenario_block.trim().split(/\s+/).length} words`
+              : "Optional — the generator writes one for you when this is empty."}
+          </p>
+        </div>
+
+        <PromptGenerator
+          scenario={form.scenario_block}
+          onScenarioChange={(value) => set("scenario_block", value)}
+          onGenerated={addGeneratedQuestions}
+        />
+
+        <ThemeWeights themes={themes} weights={weights} onChange={setWeights} />
 
         <div className="space-y-4">
           <div className="flex items-center justify-between">

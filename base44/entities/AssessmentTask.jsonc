@@ -14,6 +14,10 @@
     "description": {
       "type": "string"
     },
+    "theme": {
+      "type": "string",
+      "description": "Competency theme this question is scored against (e.g. Alert Triage). Theme weights are configured on the assessment."
+    },
     "question_type": {
       "type": "string",
       "enum": [
@@ -34,6 +38,10 @@
     "correct_option_id": {
       "type": "string",
       "description": "Answer key for multiple-choice questions"
+    },
+    "option_credits": {
+      "type": "object",
+      "description": "Partial credit for multiple-choice options: option id \u2192 credit fraction (0\u20130.99). The fully correct option always earns 1."
     },
     "matching_prompts": {
       "type": "array",

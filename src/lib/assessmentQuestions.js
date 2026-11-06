@@ -15,6 +15,7 @@ export function createQuestion(type) {
     question_type: type,
     title: "",
     description: "",
+    theme: "",
     points: 5,
   };
 
@@ -26,6 +27,7 @@ export function createQuestion(type) {
         { id: uid(), text: "" },
       ],
       correct_option_id: "",
+      option_credits: {},
     };
   }
 
@@ -64,9 +66,11 @@ export function fromGeneratedQuestion(raw) {
       question_type: "mcq",
       title,
       description: "",
+      theme: String(raw.theme || "").trim(),
       points,
       options,
       correct_option_id: Number.isInteger(idx) && idx >= 0 && idx < options.length ? options[idx].id : "",
+      option_credits: {},
     };
   }
 
@@ -98,6 +102,7 @@ export function fromGeneratedQuestion(raw) {
       question_type: "matching",
       title,
       description: "",
+      theme: String(raw.theme || "").trim(),
       points,
       matching_prompts: prompts,
       matching_choices: choices,
@@ -128,6 +133,13 @@ export function validateQuestion(question, index) {
     if (!options.some((o) => o.id === question.correct_option_id)) {
       return `${label}: the correct answer must be one of the choices.`;
     }
+    const credits = question.option_credits || {};
+    const invalidCredit = options.some((option) => {
+      if (option.id === question.correct_option_id) return false;
+      const value = Number(credits[option.id]);
+      return Number.isFinite(value) && value >= 1;
+    });
+    if (invalidCredit) return `${label}: partial credit must be below 100%.`;
     return null;
   }
 
@@ -155,6 +167,7 @@ export function toTaskPayload(question, index) {
     description: String(question.description || "").trim(),
     question_type: question.question_type,
     task_type: "Knowledge Check",
+    theme: String(question.theme || "").trim(),
     points: Number(question.points) || 5,
     options: [],
     matching_prompts: [],
@@ -168,6 +181,13 @@ export function toTaskPayload(question, index) {
       .filter((o) => String(o.text || "").trim())
       .map((o) => ({ id: o.id, text: o.text.trim() }));
     payload.correct_option_id = question.correct_option_id || "";
+    const credits = question.option_credits || {};
+    payload.option_credits = {};
+    for (const option of payload.options) {
+      if (option.id === payload.correct_option_id) continue;
+      const value = Number(credits[option.id]);
+      if (Number.isFinite(value) && value > 0) payload.option_credits[option.id] = Math.min(0.99, value);
+    }
   }
 
   if (question.question_type === "matching") {
@@ -181,6 +201,17 @@ export function toTaskPayload(question, index) {
   }
 
   return payload;
+}
+
+export function uniqueThemes(questions) {
+  const seen = new Map();
+  for (const question of questions || []) {
+    const theme = String(question.theme || "").trim();
+    if (!theme) continue;
+    const key = theme.toLowerCase();
+    if (!seen.has(key)) seen.set(key, theme);
+  }
+  return [...seen.values()];
 }
 
 export function totalPoints(questions) {

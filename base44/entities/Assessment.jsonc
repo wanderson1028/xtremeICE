@@ -95,6 +95,10 @@
     "scenario_narrative": {
       "type": "string"
     },
+    "scenario_block": {
+      "type": "string",
+      "description": "Shared scenario shown to the candidate above every question; the questions follow it."
+    },
     "objectives": {
       "type": "array",
       "items": {
@@ -106,7 +110,8 @@
       "default": 70
     },
     "scoring_weights": {
-      "type": "object"
+      "type": "object",
+      "description": "Theme scoring weights: { themes: [{ theme, weight }] }. Relative weights are normalized at scoring time."
     },
     "status": {
       "type": "string",

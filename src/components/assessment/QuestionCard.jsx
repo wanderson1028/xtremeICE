@@ -12,11 +12,22 @@ export default function QuestionCard({ question, index, total, onChange, onRemov
   const updateOption = (id, text) =>
     patch({ options: question.options.map((o) => (o.id === id ? { ...o, text } : o)) });
 
-  const removeOption = (id) =>
+  const removeOption = (id) => {
+    const credits = { ...(question.option_credits || {}) };
+    delete credits[id];
     patch({
       options: question.options.filter((o) => o.id !== id),
       correct_option_id: question.correct_option_id === id ? "" : question.correct_option_id,
+      option_credits: credits,
     });
+  };
+
+  const setCredit = (id, percent) => {
+    const credits = { ...(question.option_credits || {}) };
+    if (percent > 0) credits[id] = Math.min(95, percent) / 100;
+    else delete credits[id];
+    patch({ option_credits: credits });
+  };
 
   const updatePrompt = (id, text) =>
     patch({ matching_prompts: question.matching_prompts.map((p) => (p.id === id ? { ...p, text } : p)) });
@@ -93,7 +104,7 @@ export default function QuestionCard({ question, index, total, onChange, onRemov
         />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_110px] gap-3 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_180px_90px] gap-3 mb-4">
         <div>
           <label className={microLabel}>Instructions (optional)</label>
           <input
@@ -101,6 +112,15 @@ export default function QuestionCard({ question, index, total, onChange, onRemov
             placeholder="Optional context shown to the candidate"
             value={question.description}
             onChange={(e) => patch({ description: e.target.value })}
+          />
+        </div>
+        <div>
+          <label className={microLabel}>Theme</label>
+          <input
+            className={inputCls}
+            placeholder="e.g. Alert Triage"
+            value={question.theme || ""}
+            onChange={(e) => patch({ theme: e.target.value })}
           />
         </div>
         <div>
@@ -117,7 +137,7 @@ export default function QuestionCard({ question, index, total, onChange, onRemov
 
       {question.question_type === "mcq" && (
         <div>
-          <p className={microLabel}>Answer choices — select the correct one</p>
+          <p className={microLabel}>Answer choices — select the correct one, set partial credit on the rest</p>
           <div className="space-y-2">
             {question.options.map((option) => (
               <div
@@ -141,6 +161,24 @@ export default function QuestionCard({ question, index, total, onChange, onRemov
                   value={option.text}
                   onChange={(e) => updateOption(option.id, e.target.value)}
                 />
+                {question.correct_option_id === option.id ? (
+                  <span className="text-[10px] font-semibold text-green-400 bg-green-950/40 border border-green-800/50 rounded px-1.5 py-0.5 shrink-0">
+                    100%
+                  </span>
+                ) : (
+                  <div className="flex items-center gap-1 shrink-0" title="Partial credit if the candidate picks this answer">
+                    <input
+                      type="number"
+                      min="0"
+                      max="95"
+                      step="5"
+                      className="w-14 bg-gray-900 border border-gray-700 text-white rounded px-1.5 py-1 text-[11px] text-right focus:outline-none focus:border-amber-600"
+                      value={Math.round((Number((question.option_credits || {})[option.id]) || 0) * 100)}
+                      onChange={(e) => setCredit(option.id, Number(e.target.value) || 0)}
+                    />
+                    <span className="text-[10px] text-gray-500">%</span>
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => removeOption(option.id)}

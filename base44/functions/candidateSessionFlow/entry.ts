@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
-import { buildResults, percentage, recommendationFor } from '../../shared/objectiveScoring.ts';
+import { buildResults, weightsMapFrom, weightedTotals, recommendationFor } from '../../shared/objectiveScoring.ts';
 
 const ACTION_STATUS = {
   start: 'in_progress',
@@ -123,7 +123,8 @@ Deno.serve(async (req) => {
     const tasks = await base44.asServiceRole.entities.AssessmentTask.filter({ assessment_id: session.assessment_id });
     const assessment = await base44.asServiceRole.entities.Assessment.get(session.assessment_id);
 
-    const scored = buildResults(tasks, submissions);
+    const weights = weightsMapFrom(assessment.scoring_weights);
+    const scored = buildResults(tasks, submissions, weights);
     const results = scored.results;
 
     let narrative = null;
@@ -191,9 +192,12 @@ Award points for each written answer strictly against its maximum. Return JSON w
       }
     }
 
-    const earned = Math.round(results.reduce((sum, item) => sum + item.points_earned, 0) * 100) / 100;
-    const possible = scored.possible;
-    const overallScore = percentage(earned, possible);
+    // Theme weights scale each question's earned and possible points, so the
+    // overall score stays a bounded percentage of the weighted total.
+    const totals = weightedTotals(results, weights);
+    const earned = totals.earned;
+    const possible = totals.possible;
+    const overallScore = totals.score;
     const passed = overallScore >= (Number(assessment.pass_threshold) || 70);
 
     const correctResults = results.filter((item) => item.correct === true);
