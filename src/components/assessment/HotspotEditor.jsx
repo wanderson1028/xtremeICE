@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Upload, Loader2, Trash2, ImageIcon, Check } from "lucide-react";
 import { uid } from "@/lib/assessmentQuestions";
+import HotspotGenerator from "@/components/assessment/HotspotGenerator";
 
 const inputCls =
   "w-full bg-gray-950 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-600 transition-colors placeholder-gray-600";
@@ -96,6 +97,8 @@ export default function HotspotEditor({ question, onChange }) {
 
   return (
     <div className="space-y-3">
+      <HotspotGenerator question={question} onChange={onChange} />
+
       <div className="flex items-center justify-between">
         <p className="text-[10px] uppercase tracking-wider text-gray-500">
           Image — drag on it to draw each clickable area
