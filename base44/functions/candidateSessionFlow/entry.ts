@@ -163,26 +163,32 @@ Deno.serve(async (req) => {
     const scored = buildResults(tasks, submissions, weights);
     const results = scored.results;
 
-    let narrative = null;
-    if (scored.hasManual && results.some((item) => !item.auto_graded)) {
-      const manualAnswers = results
-        .filter((item) => !item.auto_graded)
-        .map((item) => `- ${item.title} (max ${item.points_possible} pts): ${String(item.submitted_answer || '').substring(0, 600)}`)
-        .join('\n');
+    // Every submission gets a written skillset synopsis, so give the reviewer a
+    // per-question digest of what the candidate got right and wrong.
+    const questionDigest = results
+      .map((item) => `- ${item.title} [${item.theme || 'General'}] ${item.points_earned}/${item.points_possible} pts${item.auto_graded ? (item.correct ? ', correct' : ', incorrect') : ', written answer'}`)
+      .join('\n');
+    const manualAnswers = results
+      .filter((item) => !item.auto_graded)
+      .map((item) => `- ${item.title} (max ${item.points_possible} pts): ${String(item.submitted_answer || '').substring(0, 600)}`)
+      .join('\n');
 
+    let narrative = null;
+    if (results.length) {
       try {
         narrative = await base44.asServiceRole.integrations.Core.InvokeLLM({
-          prompt: `You are a senior cybersecurity hiring manager grading the written answers of a candidate assessment.
+          prompt: `You are a senior cybersecurity hiring manager reviewing a candidate assessment.
 
 Assessment: ${assessment.position_title} (${assessment.assessment_type})
 Seniority Level: ${assessment.seniority_level}
 Candidate: ${session.candidate_name}
 Objective score already awarded automatically: ${scored.earned} of ${scored.possible} points
 
-Written answers to grade:
-${manualAnswers}
+Per-question results:
+${questionDigest}
+${manualAnswers ? `\nWritten answers to grade:\n${manualAnswers}\n\nAward points for each written answer strictly against its maximum.` : ''}
 
-Award points for each written answer strictly against its maximum. Return JSON with a "task_scores" array containing one entry per task_id above.`,
+Return JSON. "smart_summary" must be a 2-4 sentence synopsis of this candidate's demonstrated skillset: the strengths the results prove, the gaps they expose, and what that means for this role. Write plain prose for a hiring manager, never a list.`,
           response_json_schema: {
             type: 'object',
             properties: {

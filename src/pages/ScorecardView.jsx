@@ -2,7 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, CheckCircle2, XCircle, AlertCircle, TrendingUp, MessageSquare, Star, ChevronRight, BarChart2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, XCircle, AlertCircle, TrendingUp, MessageSquare, Star, ChevronRight, BarChart2, Sparkles } from "lucide-react";
 
 const HIRE_CONFIG = {
   strong_hire: { label: "Strong Hire", color: "text-green-400", bg: "bg-green-900/20 border-green-700/40" },
@@ -78,28 +78,33 @@ export default function ScorecardView() {
             </div>
           </div>
 
-          {scorecard.smart_summary && (
-            <div className="mt-5 p-4 bg-black/30 rounded-xl border border-gray-700/50">
-              <p className="text-gray-300 text-sm leading-relaxed">{scorecard.smart_summary}</p>
-            </div>
-          )}
         </div>
 
         <div className="grid grid-cols-3 gap-6">
           {/* Category Scores */}
-          <div className="col-span-2 bg-gray-900/60 border border-gray-800 rounded-xl p-5">
-            <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><BarChart2 className="h-4 w-4 text-blue-400" />Score Breakdown</h3>
-            <div className="space-y-3">
-              {Object.entries(catScores).map(([key, val]) => (
-                <div key={key} className="flex items-center gap-3">
-                  <span className="text-gray-400 text-xs capitalize w-48 shrink-0">{key.replace(/_/g, " ")}</span>
-                  <div className="flex-1 h-2.5 bg-gray-800 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full transition-all ${val >= 80 ? "bg-green-500" : val >= 60 ? "bg-yellow-500" : "bg-red-500"}`} style={{ width: `${val}%` }} />
+          <div className="col-span-2 space-y-6">
+            <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-5">
+              <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><BarChart2 className="h-4 w-4 text-blue-400" />Score Breakdown</h3>
+              <div className="space-y-3">
+                {Object.entries(catScores).map(([key, val]) => (
+                  <div key={key} className="flex items-center gap-3">
+                    <span className="text-gray-400 text-xs capitalize w-48 shrink-0">{key.replace(/_/g, " ")}</span>
+                    <div className="flex-1 h-2.5 bg-gray-800 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all ${val >= 80 ? "bg-green-500" : val >= 60 ? "bg-yellow-500" : "bg-red-500"}`} style={{ width: `${val}%` }} />
+                    </div>
+                    <span className={`text-xs font-bold w-10 text-right ${val >= 80 ? "text-green-400" : val >= 60 ? "text-yellow-400" : "text-red-400"}`}>{val}%</span>
                   </div>
-                  <span className={`text-xs font-bold w-10 text-right ${val >= 80 ? "text-green-400" : val >= 60 ? "text-yellow-400" : "text-red-400"}`}>{val}%</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
+
+            {/* Skillset synopsis written from this candidate's results */}
+            {scorecard.smart_summary && (
+              <div className="bg-gray-900/60 border border-red-900/30 rounded-xl p-5">
+                <h3 className="text-white font-semibold mb-3 flex items-center gap-2"><Sparkles className="h-4 w-4 text-red-400" />Skillset Synopsis</h3>
+                <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line">{scorecard.smart_summary}</p>
+              </div>
+            )}
           </div>
 
           {/* Strengths / Weaknesses */}
