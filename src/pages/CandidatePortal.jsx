@@ -16,6 +16,7 @@ export default function CandidatePortal() {
   const [startTime, setStartTime] = useState(null);
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState("");
+  const [alreadyTaken, setAlreadyTaken] = useState(false);
 
   useEffect(() => {
     if (startTime && !submitted) {
@@ -68,7 +69,15 @@ export default function CandidatePortal() {
         setAnswers(resumable);
       }
     } catch (e) {
-      setError(e.message || "Unable to start the assessment.");
+      const status = e?.response?.status ?? e?.status;
+      const message = e?.response?.data?.error || e?.message || "";
+      // A single-attempt test that is already submitted is a dead end, not an error
+      // the candidate can retry — send them to the closed screen instead.
+      if (status === 410 && !/expired/i.test(message)) {
+        setAlreadyTaken(true);
+        return;
+      }
+      setError(message || "Unable to start the assessment.");
     }
   };
 
@@ -180,7 +189,26 @@ export default function CandidatePortal() {
     );
   }
 
-  if (submitted || portalData?.already_submitted) {
+  if (alreadyTaken) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center p-6">
+        <div className="text-center max-w-md">
+          <AlertCircle className="h-20 w-20 text-orange-500 mx-auto mb-6" />
+          <h2 className="text-white text-3xl font-bold mb-3">Assessment Already Submitted</h2>
+          <p className="text-gray-300 mb-2">
+            This assessment can only be taken once, and your attempt has already been completed.
+          </p>
+          <p className="text-gray-400 text-sm leading-relaxed">
+            Your answers are with the hiring team. Please contact them if you believe this is a mistake.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // A completed invitation never shows the landing page again, even if the
+  // candidate opens an old tab and clicks Start.
+  if (submitted || portalData?.already_submitted || invitation.status === "completed") {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-6">
         <div className="text-center max-w-md">
