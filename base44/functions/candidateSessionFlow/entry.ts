@@ -7,6 +7,8 @@ const ACTION_STATUS = {
   submit: 'completed',
 };
 
+const RECOMMENDATIONS = ['strong_hire', 'hire', 'borderline', 'no_hire'];
+
 function sanitizeSubmissions(raw) {
   return (Array.isArray(raw) ? raw : [])
     .map((entry) => ({
@@ -51,7 +53,9 @@ Deno.serve(async (req) => {
     }
     const invitation = invitations[0];
 
-    if (invitation.status === 'completed') {
+    // A completed invitation can still be missing its scorecard after an
+    // interrupted submission, so only new starts and answer saves are blocked.
+    if (action !== 'submit' && invitation.status === 'completed') {
       return Response.json({ error: 'This assessment has already been completed.' }, { status: 410 });
     }
 
@@ -102,8 +106,22 @@ Deno.serve(async (req) => {
     if (!session || session.invitation_id !== invitation.id) {
       return Response.json({ error: 'Session not found.' }, { status: 404 });
     }
-    if (session.status === 'submitted' || session.status === 'evaluated') {
+    if (action === 'update' && (session.status === 'submitted' || session.status === 'evaluated')) {
       return Response.json({ error: 'This assessment has already been submitted.' }, { status: 410 });
+    }
+
+    // Submitting again finishes an interrupted run instead of failing. Scoring is
+    // deterministic, so the stored answers reproduce the same result.
+    const existingScorecards = await base44.asServiceRole.entities.Scorecard.filter({ session_id });
+    if (action === 'submit' && existingScorecards.length) {
+      const card = existingScorecards[0];
+      return Response.json({
+        success: true,
+        already_submitted: true,
+        overall_score: card.overall_score,
+        passed: card.passed,
+        scorecard_id: card.id,
+      });
     }
 
     const submissions = sanitizeSubmissions(payload.task_submissions);
@@ -232,7 +250,9 @@ Award points for each written answer strictly against its maximum. Return JSON w
       candidate_name: session.candidate_name,
       overall_score: overallScore,
       passed,
-      hiring_recommendation: narrative?.hiring_recommendation || recommendationFor(overallScore),
+      hiring_recommendation: RECOMMENDATIONS.includes(String(narrative?.hiring_recommendation || ''))
+        ? narrative.hiring_recommendation
+        : recommendationFor(overallScore),
       category_scores: categoryScores,
       task_results: results,
       strengths: narrative?.strengths?.length

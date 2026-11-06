@@ -303,7 +303,7 @@ export default function CandidatePortal() {
                 }`}
               >
                 {done ? <CheckCircle2 className="h-3 w-3 mt-0.5 shrink-0" /> : <span className={`h-3 w-3 mt-0.5 shrink-0 rounded-full border ${active ? "border-red-500 bg-red-700" : "border-gray-700"}`} />}
-                <span className="line-clamp-2">{t.title}</span>
+                <span className="line-clamp-2">{done || active ? t.title : `Question ${i + 1}`}</span>
               </button>
             );
           })}
