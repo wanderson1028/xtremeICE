@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+// Brief is controlled by the builder so a drafted brief can land here for review.
 import { base44 } from "@/api/base44Client";
 import { Sparkles, Loader2 } from "lucide-react";
 import { fromGeneratedQuestions } from "@/lib/assessmentQuestions";
@@ -13,8 +14,7 @@ const EXAMPLES = [
   "Cloud security on AWS: IAM, S3 exposure, shared responsibility",
 ];
 
-export default function PromptGenerator({ onGenerated, scenario, onScenarioChange }) {
-  const [prompt, setPrompt] = useState("");
+export default function PromptGenerator({ onGenerated, brief = "", onBriefChange, scenario, onScenarioChange }) {
   const [mcqCount, setMcqCount] = useState(5);
   const [matchingCount, setMatchingCount] = useState(2);
   const [busy, setBusy] = useState(false);
@@ -24,7 +24,7 @@ export default function PromptGenerator({ onGenerated, scenario, onScenarioChang
   const total = (Number(mcqCount) || 0) + (Number(matchingCount) || 0);
 
   const handleGenerate = async () => {
-    if (!prompt.trim()) {
+    if (!brief.trim()) {
       setError("Describe what the test should cover.");
       return;
     }
@@ -37,7 +37,7 @@ export default function PromptGenerator({ onGenerated, scenario, onScenarioChang
     setBusy(true);
     try {
       const res = await base44.functions.invoke("generateApplicationQuestions", {
-        prompt: prompt.trim(),
+        prompt: brief.trim(),
         scenario: String(scenario || "").trim(),
         mcq_count: Number(mcqCount) || 0,
         matching_count: Number(matchingCount) || 0,
@@ -81,15 +81,15 @@ export default function PromptGenerator({ onGenerated, scenario, onScenarioChang
           rows={4}
           className={inputCls + " resize-none"}
           placeholder="e.g. Entry-level SOC analyst — alert triage, Windows event logs, phishing analysis, MITRE ATT&CK tactics"
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
+          value={brief}
+          onChange={(e) => onBriefChange(e.target.value)}
         />
         <div className="flex flex-wrap gap-2 mt-2">
           {EXAMPLES.map((example) => (
             <button
               key={example}
               type="button"
-              onClick={() => setPrompt(example)}
+              onClick={() => onBriefChange(example)}
               className="text-[11px] px-2.5 py-1 rounded-full border border-gray-700 text-gray-400 hover:text-white hover:border-red-700 transition-colors"
             >
               {example.split(":")[0]}

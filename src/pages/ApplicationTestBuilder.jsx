@@ -5,6 +5,7 @@ import { ArrowLeft, Plus, Loader2, CheckCircle2, ListChecks, Shuffle, Send, Eye,
 import QuestionCard from "@/components/assessment/QuestionCard";
 import PromptGenerator from "@/components/assessment/PromptGenerator";
 import ThemeWeights from "@/components/assessment/ThemeWeights";
+import JobDescriptionIntake from "@/components/assessment/JobDescriptionIntake";
 import { createQuestion, validateQuestion, toTaskPayload, totalPoints, uniqueThemes } from "@/lib/assessmentQuestions";
 
 const inputCls =
@@ -26,6 +27,7 @@ export default function ApplicationTestBuilder() {
     scenario_narrative: "",
     scenario_block: "",
   });
+  const [brief, setBrief] = useState("");
   const [questions, setQuestions] = useState([createQuestion("mcq")]);
   const [weights, setWeights] = useState({});
   const themes = uniqueThemes(questions);
@@ -48,6 +50,20 @@ export default function ApplicationTestBuilder() {
       [next[index], next[target]] = [next[target], next[index]];
       return next;
     });
+  };
+
+  // Drafted intake fills the editable fields below; nothing is generated until the user confirms.
+  const applyDraft = (draft) => {
+    if (!draft) return;
+    setForm((f) => ({
+      ...f,
+      position_title: draft.position_title?.trim() || f.position_title,
+      company_name: draft.company_name?.trim() || f.company_name,
+      duration_minutes: draft.duration_minutes || f.duration_minutes,
+      scenario_narrative: draft.candidate_instructions?.trim() || f.scenario_narrative,
+      scenario_block: draft.scenario?.trim() || f.scenario_block,
+    }));
+    if (draft.brief?.trim()) setBrief(draft.brief.trim());
   };
 
   const addGeneratedQuestions = (generated) => {
@@ -168,6 +184,8 @@ export default function ApplicationTestBuilder() {
           <div className="p-3 bg-red-900/30 border border-red-700/50 rounded-lg text-red-300 text-sm">{error}</div>
         )}
 
+        <JobDescriptionIntake onDrafted={applyDraft} />
+
         <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-6 space-y-4">
           <h2 className="text-white font-semibold text-lg">Test Details</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -250,6 +268,8 @@ export default function ApplicationTestBuilder() {
         </div>
 
         <PromptGenerator
+          brief={brief}
+          onBriefChange={setBrief}
           scenario={form.scenario_block}
           onScenarioChange={(value) => set("scenario_block", value)}
           onGenerated={addGeneratedQuestions}
