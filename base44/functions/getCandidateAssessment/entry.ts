@@ -28,6 +28,27 @@ function seededShuffle(list, seed) {
   return out;
 }
 
+// Matching choices are authored (and often auto-generated) in the same order as the
+// prompts, which lets a candidate line them up positionally. Give every candidate a
+// seeded order instead, and never hand back an order that still mirrors the answers.
+function withShuffledChoices(task, token) {
+  if (String(task?.question_type || '') !== 'matching') return task;
+
+  const choices = Array.isArray(task.matching_choices) ? task.matching_choices : [];
+  if (choices.length < 2) return task;
+
+  let ordered = seededShuffle(choices, hashSeed(`${token}:${task.id}:choices`));
+
+  const prompts = Array.isArray(task.matching_prompts) ? task.matching_prompts : [];
+  const key = task.matching_answer && typeof task.matching_answer === 'object' ? task.matching_answer : {};
+  const mirrorsAnswers =
+    prompts.length === ordered.length &&
+    ordered.every((choice, index) => String(key[prompts[index]?.id] || '') === String(choice.id));
+  if (mirrorsAnswers) ordered = [...ordered.slice(1), ordered[0]];
+
+  return { ...task, matching_choices: ordered };
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -79,7 +100,10 @@ Deno.serve(async (req) => {
       tasks: alreadySubmitted
         ? []
         : seededShuffle(
-            tasks.sort((a, b) => (a.order || 0) - (b.order || 0)).map(toPublicTask),
+            tasks
+              .sort((a, b) => (a.order || 0) - (b.order || 0))
+              .map((task) => withShuffledChoices(task, normalizedToken))
+              .map(toPublicTask),
             hashSeed(normalizedToken)
           ).map((task, index) => ({ ...task, order: index + 1 })),
       session: openSession,
