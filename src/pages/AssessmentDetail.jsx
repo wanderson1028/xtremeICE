@@ -53,9 +53,14 @@ export default function AssessmentDetail() {
               {assessment.company_name && <p className="text-gray-500 text-xs">{assessment.company_name}</p>}
             </div>
           </div>
-          <Link to={`/invite-candidate?assessment_id=${id}`} className="flex items-center gap-2 px-4 py-2.5 bg-red-700 hover:bg-red-600 text-white rounded-lg text-sm font-semibold transition-colors">
-            <Send className="h-4 w-4" /> Invite Candidate
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link to={`/invite-candidate?assessment_id=${id}`} className="flex items-center gap-2 px-4 py-2.5 border border-gray-700 text-gray-200 hover:text-white rounded-lg text-sm font-semibold transition-colors">
+              <Send className="h-4 w-4" /> Invite One
+            </Link>
+            <Link to={`/bulk-invite?assessment_id=${id}`} className="flex items-center gap-2 px-4 py-2.5 bg-red-700 hover:bg-red-600 text-white rounded-lg text-sm font-semibold transition-colors">
+              <Users className="h-4 w-4" /> Invite Multiple
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -145,12 +150,51 @@ export default function AssessmentDetail() {
                     <span className="h-7 w-7 rounded-full bg-red-900/50 border border-red-700/50 text-red-400 text-xs flex items-center justify-center font-bold shrink-0">{task.order}</span>
                     <div>
                       <h3 className="text-white font-semibold">{task.title}</h3>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-800 border border-gray-700 text-gray-400">{task.task_type}</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-800 border border-gray-700 text-gray-400">
+                        {task.question_type === "mcq" ? "Multiple Choice" : task.question_type === "matching" ? "Matching" : task.task_type}
+                      </span>
+                      {task.question_type && task.question_type !== "manual" && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-900/30 border border-green-700/40 text-green-400">Auto-scored</span>
+                      )}
                     </div>
                   </div>
                   <span className="text-yellow-400 font-mono font-bold text-sm shrink-0">{task.points} pts</span>
                 </div>
                 <p className="text-gray-300 text-sm leading-relaxed mb-4">{task.description}</p>
+
+                {task.question_type === "mcq" && task.options?.length > 0 && (
+                  <div className="mb-4 space-y-1.5">
+                    {task.options.map((option) => (
+                      <div
+                        key={option.id}
+                        className={`flex items-center gap-2 text-xs rounded-lg px-3 py-1.5 border ${
+                          task.correct_option_id === option.id
+                            ? "border-green-700/40 bg-green-950/20 text-green-300"
+                            : "border-gray-800 bg-gray-950/40 text-gray-400"
+                        }`}
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-current" />
+                        {option.text}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {task.question_type === "matching" && task.matching_prompts?.length > 0 && (
+                  <div className="mb-4 space-y-1.5">
+                    {task.matching_prompts.map((prompt) => {
+                      const choiceId = (task.matching_answer || {})[prompt.id];
+                      const choice = (task.matching_choices || []).find((c) => c.id === choiceId);
+                      return (
+                        <div key={prompt.id} className="flex items-center gap-2 text-xs text-gray-400">
+                          <span className="text-gray-500 truncate max-w-[45%]">{prompt.text}</span>
+                          <span className="text-gray-600">→</span>
+                          <span className="text-green-400 truncate">{choice?.text || "—"}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
 
                 {task.expected_actions?.length > 0 && (
                   <div className="mb-3">

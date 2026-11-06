@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
-import { Plus, ClipboardList, Users, BarChart3, Eye, Trash2, Send, CheckCircle2, Clock, AlertCircle, Activity, TrendingUp, UserCheck, Hourglass, X } from "lucide-react";
+import { Plus, ClipboardList, Users, BarChart3, Eye, Trash2, Send, CheckCircle2, Clock, AlertCircle, Activity, TrendingUp, UserCheck, Hourglass, X, ListChecks } from "lucide-react";
 
 const STATUS_STYLE = {
   draft: "bg-gray-800 text-gray-400 border-gray-700",
@@ -200,13 +200,22 @@ export default function CandidateAssessments() {
             <h1 className="text-2xl font-semibold text-gray-100 tracking-tight">Candidate Assessments</h1>
             <p className="text-gray-400 text-sm mt-0.5">Smart hands-on technical evaluation platform</p>
           </div>
-          <Link
-            to="/create-assessment"
-            className="flex items-center gap-2 px-4 py-2.5 bg-red-700 hover:bg-red-600 text-white rounded-lg text-sm font-semibold transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-            Create Assessment
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/create-assessment"
+              className="flex items-center gap-2 px-4 py-2.5 border border-gray-700 text-gray-200 hover:text-white hover:border-gray-600 rounded-lg text-sm font-semibold transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              From Labs
+            </Link>
+            <Link
+              to="/application-test-builder"
+              className="flex items-center gap-2 px-4 py-2.5 bg-red-700 hover:bg-red-600 text-white rounded-lg text-sm font-semibold transition-colors"
+            >
+              <ListChecks className="h-4 w-4" />
+              New Application Test
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -426,6 +435,9 @@ export default function CandidateAssessments() {
                   <div className="flex items-center gap-3 mb-1 flex-wrap">
                     <h3 className="text-gray-200 font-normal truncate">{a.position_title}</h3>
                     <AssessmentStatusPill assessment={a} invitations={invitations} />
+                    {a.assessment_kind === "application_test" && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-900/30 border border-blue-700/40 text-blue-400">Application Test</span>
+                    )}
                     {a.generated && <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-900/30 border border-purple-700/40 text-purple-400">Auto-Generated</span>}
                     {aInvites.length > 0 && (
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -455,8 +467,11 @@ export default function CandidateAssessments() {
                   <Link to={`/assessment-detail?id=${a.id}`} className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors" title="View">
                     <Eye className="h-4 w-4" />
                   </Link>
-                  <Link to={`/invite-candidate?assessment_id=${a.id}`} className="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-800 rounded-lg transition-colors" title="Invite Candidate">
+                  <Link to={`/invite-candidate?assessment_id=${a.id}`} className="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-800 rounded-lg transition-colors" title="Invite one candidate">
                     <Send className="h-4 w-4" />
+                  </Link>
+                  <Link to={`/bulk-invite?assessment_id=${a.id}`} className="p-2 text-gray-400 hover:text-purple-400 hover:bg-gray-800 rounded-lg transition-colors" title="Invite multiple candidates">
+                    <Users className="h-4 w-4" />
                   </Link>
                   <button onClick={() => deleteAssessmentMutation.mutate(a.id)} className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-800 rounded-lg transition-colors" title="Delete">
                     <Trash2 className="h-4 w-4" />

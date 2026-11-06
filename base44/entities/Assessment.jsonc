@@ -11,6 +11,15 @@
     "position_title": {
       "type": "string"
     },
+    "assessment_kind": {
+      "type": "string",
+      "enum": [
+        "hands_on",
+        "application_test"
+      ],
+      "default": "hands_on",
+      "description": "hands_on labs use written task responses; application_test uses auto-scored multiple choice and matching questions."
+    },
     "organization_id": {
       "type": "string",
       "description": "Organization this assessment belongs to"

@@ -22,7 +22,11 @@ export default function ScorecardView() {
     queryFn: async () => {
       if (scorecardId) return base44.entities.Scorecard.get(scorecardId);
       if (invitationId) {
-        const results = await base44.entities.Scorecard.filter({ session_id: invitationId });
+        // The invitation id is not the scorecard session id — resolve the session first.
+        const sessions = await base44.entities.CandidateSession.filter({ invitation_id: invitationId });
+        const session = sessions[0];
+        if (!session) return null;
+        const results = await base44.entities.Scorecard.filter({ session_id: session.id });
         return results[0] || null;
       }
       return null;
@@ -130,8 +134,23 @@ export default function ScorecardView() {
                     {tr.validation_passed ? <CheckCircle2 className="h-4 w-4 text-green-400" /> : <XCircle className="h-4 w-4 text-red-400" />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm font-medium truncate">{tr.title}</p>
-                    {tr.submitted_answer && <p className="text-gray-500 text-xs truncate mt-0.5">{tr.submitted_answer.substring(0, 80)}...</p>}
+                    <div className="flex items-center gap-2">
+                      <p className="text-white text-sm font-medium truncate">{tr.title}</p>
+                      {tr.question_type && tr.question_type !== "manual" && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-gray-800 border border-gray-700 text-gray-400 uppercase tracking-wide shrink-0">
+                          {tr.question_type === "mcq" ? "Multiple choice" : "Matching"}
+                        </span>
+                      )}
+                      {tr.auto_graded === false && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-yellow-900/30 border border-yellow-700/40 text-yellow-400 shrink-0">
+                          Evaluated
+                        </span>
+                      )}
+                    </div>
+                    {tr.submitted_answer && <p className="text-gray-500 text-xs truncate mt-0.5">{tr.submitted_answer.substring(0, 90)}</p>}
+                    {tr.correct === false && tr.correct_answer && (
+                      <p className="text-green-500/80 text-xs truncate mt-0.5">Correct: {tr.correct_answer}</p>
+                    )}
                   </div>
                   <div className="text-right shrink-0">
                     <span className={`text-sm font-bold ${tr.completion_percentage >= 70 ? "text-green-400" : "text-red-400"}`}>{tr.points_earned}/{tr.points_possible}</span>

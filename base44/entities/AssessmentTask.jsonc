@@ -14,6 +14,45 @@
     "description": {
       "type": "string"
     },
+    "question_type": {
+      "type": "string",
+      "enum": [
+        "mcq",
+        "matching",
+        "manual"
+      ],
+      "default": "manual",
+      "description": "Question format. Objective types (mcq, matching) are scored automatically using the stored answer key."
+    },
+    "options": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Multiple-choice options as { id, text }"
+    },
+    "correct_option_id": {
+      "type": "string",
+      "description": "Answer key for multiple-choice questions"
+    },
+    "matching_prompts": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Items the candidate must match, as { id, text }"
+    },
+    "matching_choices": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Match options presented to the candidate, as { id, text }"
+    },
+    "matching_answer": {
+      "type": "object",
+      "description": "Answer key for matching questions: prompt id \u2192 choice id"
+    },
     "task_type": {
       "type": "string",
       "enum": [
@@ -23,7 +62,8 @@
         "Documentation",
         "Remediation",
         "Scripting",
-        "Verification"
+        "Verification",
+        "Knowledge Check"
       ]
     },
     "tools_required": {
