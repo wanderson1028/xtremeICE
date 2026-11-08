@@ -1,0 +1,156 @@
+{
+  "name": "MSSPSession",
+  "type": "object",
+  "properties": {
+    "scenario_id": {
+      "type": "string",
+      "description": "Seeded scenario identifier"
+    },
+    "scenario_name": {
+      "type": "string"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "guided",
+        "range",
+        "mssp"
+      ],
+      "default": "guided",
+      "description": "Practice mode: guided SOC scenario, interactive cyber range, or MSSP operations simulator"
+    },
+    "client_name": {
+      "type": "string",
+      "description": "Simulated client tenant for the MSSP operations mode"
+    },
+    "user_email": {
+      "type": "string"
+    },
+    "user_name": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "completed"
+      ],
+      "default": "active"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "duration_seconds": {
+      "type": "number"
+    },
+    "overall_score": {
+      "type": "number",
+      "description": "Weighted 0-100 capability score"
+    },
+    "grade": {
+      "type": "string"
+    },
+    "capability_scores": {
+      "type": "object",
+      "description": "Per capability area scores for triage, detection engineering/response, and incident lifecycle"
+    },
+    "alerts_triaged": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Per-alert disposition, attached evidence ids and correctness"
+    },
+    "detection_rule": {
+      "type": "object",
+      "description": "The detection the learner built and tested"
+    },
+    "detection_result": {
+      "type": "object"
+    },
+    "response_actions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "recovery_actions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "verification_checks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "findings": {
+      "type": "string",
+      "description": "Analyst findings / escalation note written during the session"
+    },
+    "feedback": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "lifecycle_stage": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "scenario_id",
+    "mode",
+    "user_email"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

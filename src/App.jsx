@@ -118,6 +118,8 @@ import LFAdministration from './pages/LFAdministration'
 import LabCreationWizard from './pages/LabCreationWizard'
 import LiveLabTopology from './pages/LiveLabTopology'
 import About from './pages/About'
+import MSSPSOC from './pages/MSSPSOC'
+import MSSPSession from './pages/MSSPSession'
 import { useEffect } from "react";
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
@@ -143,7 +145,8 @@ const AuthenticatedApp = () => {
       "/socsimulation", "/real-attack-drills", "/interactivevirtuallabs",
       "/coursedashboard", "/virtuallabs", "/ospflab", "/eigrplab", "/firewalllab",
       "/training-catalog", "/labcourses", "/lab-leaderboard-detail", "/studentdashboard",
-      "/livefire", "/live-lab-topology", "/candidate-assessment", "/tabletopexercises"
+      "/livefire", "/live-lab-topology", "/candidate-assessment", "/tabletopexercises",
+      "/mssp-soc"
     ].some((prefix) => path.startsWith(prefix));
     document.documentElement.classList.toggle("dark", isLabExperience);
     document.body.classList.toggle("lab-readable", isLabExperience);
@@ -313,6 +316,8 @@ const AuthenticatedApp = () => {
       <Route path="/lab-creation-wizard" element={<LayoutWrapper currentPageName="LabCreationWizard"><LabCreationWizard /></LayoutWrapper>} />
       <Route path="/live-lab-topology" element={<LayoutWrapper currentPageName="LiveLabTopology"><LiveLabTopology /></LayoutWrapper>} />
       <Route path="/about" element={<LayoutWrapper currentPageName="About"><About /></LayoutWrapper>} />
+      <Route path="/mssp-soc" element={<LayoutWrapper currentPageName="MSSPSOC"><MSSPSOC /></LayoutWrapper>} />
+      <Route path="/mssp-soc/session" element={<LayoutWrapper currentPageName="MSSPSession"><MSSPSession /></LayoutWrapper>} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { ChevronDown, Flame, PenTool, Sparkles, ClipboardCheck, Swords, LayoutDashboard, FolderOpen, Share2, Activity, LayoutTemplate, Server, ShoppingBag, Cloud, Settings, GraduationCap, FlaskConical, ShieldCheck, Bug, BookOpen, UserCheck, CircleDollarSign } from "lucide-react";
+import { ChevronDown, Flame, PenTool, Sparkles, ClipboardCheck, Swords, LayoutDashboard, FolderOpen, Share2, Activity, LayoutTemplate, Server, ShoppingBag, Cloud, Settings, GraduationCap, FlaskConical, ShieldCheck, Bug, BookOpen, UserCheck, CircleDollarSign, Radar } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useQuery } from "@tanstack/react-query";
@@ -239,7 +239,7 @@ function TrainingDropdown({ currentPageName, access }) {
   const [simOpen, setSimOpen] = useState(false);
   const [socOpen, setSocOpen] = useState(false);
   const ref = useRef(null);
-  const isActive = ["Labs", "VirtualLabs", "SOCSimulation", "SOCTraining", "RealAttackDrills", "SOCAssessments", "InteractiveVirtualLabs", "LabCourses", "TabletopExercises"].includes(currentPageName);
+  const isActive = ["Labs", "VirtualLabs", "SOCSimulation", "SOCTraining", "RealAttackDrills", "SOCAssessments", "InteractiveVirtualLabs", "LabCourses", "TabletopExercises", "MSSPSOC", "MSSPSession"].includes(currentPageName);
 
   useEffect(() => {
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -322,6 +322,13 @@ function TrainingDropdown({ currentPageName, access }) {
                       className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
                       <Bug className="h-4 w-4 shrink-0 icon-glow icon-glow-red" />
                       Real Attack Drills
+                    </Link>
+                  )}
+                  {access.hasSocTraining && (
+                    <Link to="/mssp-soc" onClick={() => setOpen(false)}
+                      className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
+                      <Radar className="h-4 w-4 shrink-0 icon-glow icon-glow-amber" />
+                      MSSP SOC &amp; SIEM
                     </Link>
                   )}
                 </>
