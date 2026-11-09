@@ -12,9 +12,7 @@ const isAppHost = (host) =>
   || host === 'xsirange.com'
   || host.endsWith('.xsirange.com')
   || host === 'xtremecandidate.com'
-  || host.endsWith('.xtremecandidate.com')
-  || host === 'design-xsirange.com'
-  || host.endsWith('.design-xsirange.com');
+  || host.endsWith('.xtremecandidate.com');
 
 const isUnshareableHost = (host) =>
   host === 'localhost'
