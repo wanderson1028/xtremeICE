@@ -4,6 +4,8 @@
     "npm:@aws-sdk/client-ec2@*": "3.1161.0",
     "npm:@aws-sdk/client-sts@*": "3.1161.0",
     "npm:@base44/sdk@0.8.31": "0.8.31",
+    "npm:@base44/sdk@~0.8.59": "0.8.59",
+    "npm:@base44/vite-plugin@^1.0.52": "1.0.52",
     "npm:@eslint/js@^9.19.0": "9.39.5",
     "npm:@hello-pangea/dnd@17": "17.0.0_react@18.3.1_react-dom@18.3.1_@types+react@18.3.31",
     "npm:@hookform/resolvers@^4.1.2": "4.1.3_react-hook-form@7.91.0_@types+react@18.3.31_react@18.3.1",
@@ -448,8 +450,8 @@
         "uuid"
       ]
     },
-    "@base44/sdk@0.8.57": {
-      "integrity": "sha512-/uBkC/zQa3C7nNWRyPUPT5Gxh4gE0nV3NjWMP2GMJjivY2Jm4sh3GA7cST3rMVRlsWxLyQhzAfEN3eWw8XqYKg==",
+    "@base44/sdk@0.8.59": {
+      "integrity": "sha512-saVs+Dx/YxxGH7PhqL3+SYAOp9ikmkK9t402vjskCT0bCvmQYLgCqDYoS6Lq3PaNXxLeL0yANUFMvim+6IONyA==",
       "dependencies": [
         "axios",
         "partysocket",
@@ -457,8 +459,8 @@
         "uuid"
       ]
     },
-    "@base44/vite-plugin@1.0.50": {
-      "integrity": "sha512-UFITG6AE94dqvAh7om9GRpOPi+UrVKwrMQ96sLG4+tAFrelVfbLA7PgQR3hVpkbrTRGduPWtaOkjruYMk9Xbew==",
+    "@base44/vite-plugin@1.0.52": {
+      "integrity": "sha512-DeCWJpkC7ppeN2FjpXcQq91Fyx7M+AT9dPqA9ocjKlTShIaY49cbhfYoQHMNmAwAmhyvXVZDRQFR5MNxTgzXhQ==",
       "dependencies": [
         "@babel/generator",
         "@babel/parser",
