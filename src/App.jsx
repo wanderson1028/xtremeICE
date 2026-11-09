@@ -21,6 +21,11 @@ import LabBuilderDashboard from './pages/LabBuilderDashboard'
 import LabTemplates from './pages/LabTemplates'
 import LabBuilder from './pages/LabBuilder'
 import LabInstances from './pages/LabInstances'
+import CloudLearnerPoc from './pages/CloudLearnerPoc'
+import LabAssignments from './pages/LabAssignments'
+import LifecycleDiagnostics from './pages/LifecycleDiagnostics'
+import OperatorAlerts from './pages/OperatorAlerts'
+import LearnerWorkspace from './pages/LearnerWorkspace'
 import LabEnvironments from './pages/LabEnvironments'
 import LabExports from './pages/LabExports'
 import NiceMapping from './pages/NiceMapping'
@@ -219,6 +224,11 @@ const AuthenticatedApp = () => {
       <Route path="/LabTemplates" element={<LayoutWrapper currentPageName="LabTemplates"><LabTemplates /></LayoutWrapper>} />
       <Route path="/LabBuilder" element={<LayoutWrapper currentPageName="LabBuilder"><LabBuilder /></LayoutWrapper>} />
       <Route path="/LabInstances" element={<LayoutWrapper currentPageName="LabInstances"><LabInstances /></LayoutWrapper>} />
+      <Route path="/CloudLearnerPoc" element={<LayoutWrapper currentPageName="CloudLearnerPoc"><CloudLearnerPoc /></LayoutWrapper>} />
+      <Route path="/LabAssignments" element={<LayoutWrapper currentPageName="LabAssignments"><LabAssignments /></LayoutWrapper>} />
+      <Route path="/OperatorAlerts" element={<LayoutWrapper currentPageName="OperatorAlerts"><OperatorAlerts /></LayoutWrapper>} />
+      <Route path="/LifecycleDiagnostics" element={<LayoutWrapper currentPageName="LifecycleDiagnostics"><LifecycleDiagnostics /></LayoutWrapper>} />
+      <Route path="/LearnerWorkspace" element={<LayoutWrapper currentPageName="LearnerWorkspace"><LearnerWorkspace /></LayoutWrapper>} />
       <Route path="/LabEnvironments" element={<LayoutWrapper currentPageName="LabEnvironments"><LabEnvironments /></LayoutWrapper>} />
       <Route path="/LabExports" element={<LayoutWrapper currentPageName="LabExports"><LabExports /></LayoutWrapper>} />
       <Route path="/NiceMapping" element={<LayoutWrapper currentPageName="NiceMapping"><NiceMapping /></LayoutWrapper>} />
