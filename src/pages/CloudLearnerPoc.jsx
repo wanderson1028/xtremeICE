@@ -61,7 +61,7 @@ export default function CloudLearnerPoc(){
  const cleanup=()=>{if(!window.confirm("Delete this learner stack, including its guest, disk and private endpoints? The reusable IAM setup stays in place."))return;perform(async()=>{const data=await call("cleanup",{run_id:run.id,ack:"DELETE_LEARNER_STACK"});await load();setNotice("Cleanup: "+data.status+". Refresh until terminated, then verify AWS removal.");});};
  const button="rounded bg-sky-800 px-4 py-2 disabled:opacity-40";
  return <div className="min-h-screen bg-gray-950 text-gray-100 p-6"><main className="max-w-4xl mx-auto space-y-5">
-  <Link to="/CloudCoursePoc" className="text-sky-300">← AWS course proof</Link>
+  <Link to="/LabAssignments" className="text-sky-300">← Lab assignments</Link>
   <h1 className="text-2xl font-semibold">AWS learner file task</h1>
   <OperatorAlertBanner enabled={user?.role==="admin"}/>
   <p className="text-sm text-sky-300">Learner account: 935838375949 · Region: us-east-1 · Dedicated learner credentials</p>
