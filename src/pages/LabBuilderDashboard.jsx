@@ -1,15 +1,20 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, Layers, Settings, FileText, Globe, Download, Network, Zap } from "lucide-react";
+import { BookOpen, Layers, Settings, FileText, Globe, Download, Network, Zap, Cloud } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 const modules = [
+  { name: "Operator alerts", icon: Cloud, path: "/OperatorAlerts", desc: "Review lab failures, delayed cleanup and expiry monitoring" },
+  { name: "Lab Assignments", icon: BookOpen, path: "/LabAssignments", desc: "Assign a reviewed AWS lab to an existing learner" },
+  { name: "Assigned Labs", icon: Layers, path: "/LearnerWorkspace", desc: "Start or resume your lab, practice and validate your work" },
   { name: "Lab Templates", icon: BookOpen, path: "/LabTemplates", desc: "Browse and manage reusable lab templates" },
   { name: "Lab Builder", icon: Layers, path: "/LabBuilder", desc: "Create new lab courses with a 4-step wizard + smart generator" },
   { name: "Lab Instances", icon: Settings, path: "/LabInstances", desc: "Monitor and manage deployed lab sessions" },
+  { name: "AWS Course Proof", icon: Cloud, path: "/CloudCoursePoc", desc: "Admin-only isolated cloud boot proof on this experimental branch" },
   { name: "Environments", icon: Globe, path: "/LabEnvironments", desc: "Configure Kasm workspace environments" },
   { name: "Exports", icon: Download, path: "/LabExports", desc: "Export lab configurations and bundles" },
   { name: "NICE Mapping", icon: FileText, path: "/NiceMapping", desc: "Map labs to NICE Framework work roles" },
+  { name: "AI → AWS Demo", icon: Cloud, path: "/QuickBuild?preset=aws-learner", desc: "Generate a Linux file-permissions lab, review it, deploy and validate" },
   { name: "Quick Build", icon: Zap, path: "/QuickBuild", desc: "Smart rapid lab scenario generation" },
   { name: "Network Lab Designer", icon: Network, path: "/NetworkLabDesigner", desc: "Design network-based lab topologies" },
 ];
