@@ -116,6 +116,12 @@ Deno.test("operator endpoint uses six bounded saved-record reads and no network"
  assert(output.workflow.available&&output.workflow.last_run_status==="success","saved heartbeat used");
  assert(output.scope===ALERT_SCOPE&&output.subject_id==="instructor"&&output.read_only&&!output.provider_checked&&output.acknowledgments==="this_browser_only","honest scope and limits");
 });
+Deno.test("heartbeat read failure remains unknown without hiding session results",async()=>{
+ const f=fixture();f.b.asServiceRole.entities.CloudLearnerExpiryHealth.filter=async()=>{throw Error("PRIVATE_DB_DETAIL");};
+ const output=await operatorAlerts(f.b,{id:"instructor",role:"admin"},req(),{clock:()=>TIME});
+ assert(output.workflow.available===false&&output.workflow.reason==="heartbeat_read_failed"&&codes(output).includes("monitor_unavailable"),"unknown status preserved");
+ assert(!JSON.stringify(output).includes("PRIVATE_DB_DETAIL"),"error detail redacted");
+});
 Deno.test("record read failures cannot become empty healthy snapshots",async()=>{
  const f=fixture();f.b.asServiceRole.entities.CloudPocRun.filter=async()=>{throw Error("DO_NOT_LEAK");};
  try{await operatorAlerts(f.b,{role:"admin"},req());throw Error("allowed");}catch(e:any){assert(e.name==="OPERATOR_ALERT_READ_FAILED"&&!e.message.includes("DO_NOT_LEAK"),"source outage remains a failure");}
