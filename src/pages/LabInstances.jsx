@@ -136,7 +136,8 @@ export default function LabInstances() {
                           </Button>
                         </a>
                       )}
-                      {["running", "provisioning", "paused"].includes(inst.status) && (
+                      {inst.provider === "aws" && <Link to="/LearnerWorkspace" className="text-sky-400 text-xs hover:underline">Open learner workspace</Link>}
+                      {inst.provider !== "aws" && ["running", "provisioning", "paused"].includes(inst.status) && (
                         <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-400 px-2"
                           onClick={() => terminateMutation.mutate(inst.id)}>
                           <StopCircle className="h-3.5 w-3.5" />
