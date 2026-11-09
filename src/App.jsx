@@ -125,11 +125,16 @@ import LiveLabTopology from './pages/LiveLabTopology'
 import About from './pages/About'
 import MSSPSOC from './pages/MSSPSOC'
 import MSSPSession from './pages/MSSPSession'
+import Login from '@/pages/Login'
+import Register from '@/pages/Register'
+import ForgotPassword from '@/pages/ForgotPassword'
+import ResetPassword from '@/pages/ResetPassword'
+import Mfa from '@/pages/Mfa'
+import ProtectedRoute from '@/components/ProtectedRoute'
 import { useEffect } from "react";
-import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
-import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -140,7 +145,7 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout ?
   : <>{children}</>;
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  const { isLoadingAuth, isLoadingPublicSettings } = useAuth();
   const location = useLocation();
 
   useEffect(() => {
@@ -170,165 +175,163 @@ const AuthenticatedApp = () => {
     );
   }
 
-  // Allow candidate assessment route to bypass auth gate — candidates self-register via the portal
-  const isCandidateRoute = window.location.pathname.startsWith('/candidate-assessment');
-
-  // Handle authentication errors
-  if (authError && !isCandidateRoute) {
-    if (authError.type === 'user_not_registered') {
-      return <UserNotRegisteredError />;
-    } else if (authError.type === 'auth_required') {
-      // Redirect to login automatically
-      navigateToLogin();
-      return null;
-    }
-  }
+  // Every app route is gated by ProtectedRoute below; signed-out visitors land on /login.
 
   // Render the main app
   return (
     <Routes>
-      <Route path="/" element={
-        <LayoutWrapper currentPageName={mainPageKey}>
-          <MainPage />
-        </LayoutWrapper>
-      } />
-      {Object.entries(Pages).map(([path, Page]) => (
-        <Route
-          key={path}
-          path={`/${path}`}
-          element={
-            <LayoutWrapper currentPageName={path}>
-              <Page />
-            </LayoutWrapper>
-          }
-        />
-      ))}
-      <Route path="/EventView/:id" element={<LayoutWrapper currentPageName="EventView"><EventView /></LayoutWrapper>} />
-      <Route path="/CyberCapitalDashboard" element={<LayoutWrapper currentPageName="CyberCapitalDashboard"><CyberCapitalDashboard /></LayoutWrapper>} />
-      <Route path="/CFRS" element={<LayoutWrapper currentPageName="CFRS"><FeatureGate flagKey="cci"><CCI /></FeatureGate></LayoutWrapper>} />
-      <Route path="/CFRS/new" element={<LayoutWrapper currentPageName="CFRS"><FeatureGate flagKey="cci"><CFRSNew /></FeatureGate></LayoutWrapper>} />
-      <Route path="/CFRS/organizations" element={<LayoutWrapper currentPageName="CFRS"><FeatureGate flagKey="cci"><CFRSOrganizations /></FeatureGate></LayoutWrapper>} />
-      <Route path="/CCI" element={<LayoutWrapper currentPageName="CFRS"><FeatureGate flagKey="cci"><CCI /></FeatureGate></LayoutWrapper>} />
-      <Route path="/VisualDesignEditor" element={<LayoutWrapper currentPageName="VisualDesignEditor"><FeatureGate flagKey="visual_design_editor"><VisualDesignEditor /></FeatureGate></LayoutWrapper>} />
-      <Route path="/VirtualLabs" element={<LayoutWrapper currentPageName="VirtualLabs"><VirtualLabs /></LayoutWrapper>} />
-      <Route path="/AdminPanel" element={<LayoutWrapper currentPageName="AdminPanel"><AdminPanel /></LayoutWrapper>} />
-      <Route path="/SOCSimulation" element={<LayoutWrapper currentPageName="SOCSimulation"><SOCSimulation /></LayoutWrapper>} />
-      <Route path="/soc-training" element={<LayoutWrapper currentPageName="SOCTraining"><FeatureGate flagKey="soc_training"><SOCTraining /></FeatureGate></LayoutWrapper>} />
-      <Route path="/real-attack-drills" element={<LayoutWrapper currentPageName="RealAttackDrills"><FeatureGate flagKey="real_attack_drills"><RealAttackDrills /></FeatureGate></LayoutWrapper>} />
-      <Route path="/EnvironmentHub" element={<LayoutWrapper currentPageName="EnvironmentHub"><EnvironmentHub /></LayoutWrapper>} />
-      <Route path="/demo" element={<LayoutWrapper currentPageName="DemoMode"><DemoMode /></LayoutWrapper>} />
-      <Route path="/Demo" element={<LayoutWrapper currentPageName="DemoMode"><DemoMode /></LayoutWrapper>} />
-      <Route path="/LiveFire" element={<LayoutWrapper currentPageName="LiveFire"><LiveFire /></LayoutWrapper>} />
-      <Route path="/OspfLab" element={<LayoutWrapper currentPageName="OspfLab"><OspfLab /></LayoutWrapper>} />
-      <Route path="/LabBuilderDashboard" element={<LayoutWrapper currentPageName="LabBuilderDashboard"><FeatureGate flagKey="course_lab_builder"><LabBuilderDashboard /></FeatureGate></LayoutWrapper>} />
-      <Route path="/LabTemplates" element={<LayoutWrapper currentPageName="LabTemplates"><LabTemplates /></LayoutWrapper>} />
-      <Route path="/LabBuilder" element={<LayoutWrapper currentPageName="LabBuilder"><LabBuilder /></LayoutWrapper>} />
-      <Route path="/LabInstances" element={<LayoutWrapper currentPageName="LabInstances"><LabInstances /></LayoutWrapper>} />
-      <Route path="/CloudLearnerPoc" element={<LayoutWrapper currentPageName="CloudLearnerPoc"><CloudLearnerPoc /></LayoutWrapper>} />
-      <Route path="/LabAssignments" element={<LayoutWrapper currentPageName="LabAssignments"><LabAssignments /></LayoutWrapper>} />
-      <Route path="/OperatorAlerts" element={<LayoutWrapper currentPageName="OperatorAlerts"><OperatorAlerts /></LayoutWrapper>} />
-      <Route path="/LifecycleDiagnostics" element={<LayoutWrapper currentPageName="LifecycleDiagnostics"><LifecycleDiagnostics /></LayoutWrapper>} />
-      <Route path="/LearnerWorkspace" element={<LayoutWrapper currentPageName="LearnerWorkspace"><LearnerWorkspace /></LayoutWrapper>} />
-      <Route path="/LabEnvironments" element={<LayoutWrapper currentPageName="LabEnvironments"><LabEnvironments /></LayoutWrapper>} />
-      <Route path="/LabExports" element={<LayoutWrapper currentPageName="LabExports"><LabExports /></LayoutWrapper>} />
-      <Route path="/NiceMapping" element={<LayoutWrapper currentPageName="NiceMapping"><NiceMapping /></LayoutWrapper>} />
-      <Route path="/QuickBuild" element={<LayoutWrapper currentPageName="QuickBuild"><QuickBuild /></LayoutWrapper>} />
-      <Route path="/NetworkLabDesigner" element={<LayoutWrapper currentPageName="NetworkLabDesigner"><FeatureGate flagKey="network_design_wizard"><NetworkLabDesigner /></FeatureGate></LayoutWrapper>} />
-      <Route path="/SmartDesign" element={<LayoutWrapper currentPageName="SmartDesign"><SmartDesign /></LayoutWrapper>} />
-      <Route path="/InteractiveVirtualLabs" element={<LayoutWrapper currentPageName="InteractiveVirtualLabs"><FeatureGate flagKey="lab_scenarios"><InteractiveVirtualLabs /></FeatureGate></LayoutWrapper>} />
-      <Route path="/labs/social-engineering" element={<LayoutWrapper currentPageName="LabSocialEngineering"><LabSocialEngineering /></LayoutWrapper>} />
-      <Route path="/labs/digital-forensics" element={<LayoutWrapper currentPageName="LabDigitalForensics"><LabDigitalForensics /></LayoutWrapper>} />
-      <Route path="/labs/cybersecurity-essentials" element={<LayoutWrapper currentPageName="LabCybersecurityEssentials"><LabCybersecurityEssentials /></LayoutWrapper>} />
-      <Route path="/labs/cryptography" element={<LayoutWrapper currentPageName="LabCryptography"><LabCryptography /></LayoutWrapper>} />
-      <Route path="/labs/password-attacks" element={<LayoutWrapper currentPageName="LabPasswordAttacks"><LabPasswordAttacks /></LayoutWrapper>} />
-      <Route path="/labs/web-app-pentest" element={<LayoutWrapper currentPageName="LabWebAppPentest"><LabWebAppPentest /></LayoutWrapper>} />
-      <Route path="/labs/network-traffic-analysis" element={<LayoutWrapper currentPageName="LabNetworkTrafficAnalysis"><LabNetworkTrafficAnalysis /></LayoutWrapper>} />
-      <Route path="/labs/network-security-monitoring" element={<LayoutWrapper currentPageName="LabNetworkSecurityMonitoring"><LabNetworkSecurityMonitoring /></LayoutWrapper>} />
-      <Route path="/labs/vulnerability-assessment" element={<LayoutWrapper currentPageName="LabVulnerabilityAssessment"><LabVulnerabilityAssessment /></LayoutWrapper>} />
-      <Route path="/labs/siem" element={<LayoutWrapper currentPageName="LabSIEM"><LabSIEM /></LayoutWrapper>} />
-      <Route path="/labs/firewall-evasion" element={<LayoutWrapper currentPageName="LabFirewallEvasion"><LabFirewallEvasion /></LayoutWrapper>} />
-      <Route path="/labs/endpoint-detection" element={<LayoutWrapper currentPageName="LabEndpointDetection"><LabEndpointDetection /></LayoutWrapper>} />
-      <Route path="/labs/cloud-incident-response" element={<LayoutWrapper currentPageName="LabCloudIncidentResponse"><LabCloudIncidentResponse /></LayoutWrapper>} />
-      <Route path="/labs/linux-hardening" element={<LayoutWrapper currentPageName="LabLinuxHardening"><LabLinuxHardening /></LayoutWrapper>} />
-      <Route path="/labs/devsecops" element={<LayoutWrapper currentPageName="LabDevSecOps"><LabDevSecOps /></LayoutWrapper>} />
-      <Route path="/labs/wireless-exploitation" element={<LayoutWrapper currentPageName="LabWirelessExploitation"><LabWirelessExploitation /></LayoutWrapper>} />
-      <Route path="/labs/log-correlation" element={<LayoutWrapper currentPageName="LabLogCorrelation"><LabLogCorrelation /></LayoutWrapper>} />
-      <Route path="/labs/bgp" element={<LayoutWrapper currentPageName="LabBGP"><LabBGP /></LayoutWrapper>} />
-      <Route path="/labs/zero-trust" element={<LayoutWrapper currentPageName="LabZeroTrust"><LabZeroTrust /></LayoutWrapper>} />
-      <Route path="/labs/aws-cloud-concepts" element={<LayoutWrapper currentPageName="LabAwsCloudConcepts"><LabAwsCloudConcepts /></LayoutWrapper>} />
-      <Route path="/labs/aws-security-compliance" element={<LayoutWrapper currentPageName="LabAwsSecurityCompliance"><LabAwsSecurityCompliance /></LayoutWrapper>} />
-      <Route path="/labs/aws-cloud-services" element={<LayoutWrapper currentPageName="LabAwsCloudServices"><LabAwsCloudServices /></LayoutWrapper>} />
-      <Route path="/labs/aws-billing-pricing" element={<LayoutWrapper currentPageName="LabAwsBillingPricing"><LabAwsBillingPricing /></LayoutWrapper>} />
-      <Route path="/labs/aif-ml-fundamentals" element={<LayoutWrapper currentPageName="LabAifMlFundamentals"><LabAifMlFundamentals /></LayoutWrapper>} />
-      <Route path="/labs/aif-gen-ml-fundamentals" element={<LayoutWrapper currentPageName="LabAifGenMlFundamentals"><LabAifGenMlFundamentals /></LayoutWrapper>} />
-      <Route path="/labs/aif-foundation-models" element={<LayoutWrapper currentPageName="LabAifFoundationModels"><LabAifFoundationModels /></LayoutWrapper>} />
-      <Route path="/labs/aif-responsible-ml" element={<LayoutWrapper currentPageName="LabAifResponsibleMl"><LabAifResponsibleMl /></LayoutWrapper>} />
-      <Route path="/labs/aif-security-governance" element={<LayoutWrapper currentPageName="LabAifSecurityGovernance"><LabAifSecurityGovernance /></LayoutWrapper>} />
-      <Route path="/labs/secplus-domain1" element={<LayoutWrapper currentPageName="LabSecPlusDomain1"><LabSecPlusDomain1 /></LayoutWrapper>} />
-      <Route path="/labs/secplus-domain2" element={<LayoutWrapper currentPageName="LabSecPlusDomain2"><LabSecPlusDomain2 /></LayoutWrapper>} />
-      <Route path="/labs/secplus-domain3" element={<LayoutWrapper currentPageName="LabSecPlusDomain3"><LabSecPlusDomain3 /></LayoutWrapper>} />
-      <Route path="/labs/secplus-domain4" element={<LayoutWrapper currentPageName="LabSecPlusDomain4"><LabSecPlusDomain4 /></LayoutWrapper>} />
-      <Route path="/labs/secplus-domain5" element={<LayoutWrapper currentPageName="LabSecPlusDomain5"><LabSecPlusDomain5 /></LayoutWrapper>} />
-      <Route path="/labs/netplus-domain1" element={<LayoutWrapper currentPageName="LabNetPlusDomain1"><LabNetPlusDomain1 /></LayoutWrapper>} />
-      <Route path="/labs/netplus-domain2" element={<LayoutWrapper currentPageName="LabNetPlusDomain2"><LabNetPlusDomain2 /></LayoutWrapper>} />
-      <Route path="/labs/netplus-domain3" element={<LayoutWrapper currentPageName="LabNetPlusDomain3"><LabNetPlusDomain3 /></LayoutWrapper>} />
-      <Route path="/labs/netplus-domain4" element={<LayoutWrapper currentPageName="LabNetPlusDomain4"><LabNetPlusDomain4 /></LayoutWrapper>} />
-      <Route path="/labs/netplus-domain5" element={<LayoutWrapper currentPageName="LabNetPlusDomain5"><LabNetPlusDomain5 /></LayoutWrapper>} />
-      <Route path="/labs/az900-domain1" element={<LayoutWrapper currentPageName="LabAz900Domain1"><LabAz900Domain1 /></LayoutWrapper>} />
-      <Route path="/labs/az900-domain2" element={<LayoutWrapper currentPageName="LabAz900Domain2"><LabAz900Domain2 /></LayoutWrapper>} />
-      <Route path="/labs/az900-domain3" element={<LayoutWrapper currentPageName="LabAz900Domain3"><LabAz900Domain3 /></LayoutWrapper>} />
-      <Route path="/labs/az900-domain4" element={<LayoutWrapper currentPageName="LabAz900Domain4"><LabAz900Domain4 /></LayoutWrapper>} />
-      <Route path="/labs/az900-domain5" element={<LayoutWrapper currentPageName="LabAz900Domain5"><LabAz900Domain5 /></LayoutWrapper>} />
-      <Route path="/labs/az900-dashboard" element={<Az900Dashboard />} />
-      <Route path="/CandidateAssessments" element={<LayoutWrapper currentPageName="CandidateAssessments"><FeatureGate flagKey="soc_assessments"><CandidateAssessments /></FeatureGate></LayoutWrapper>} />
-      <Route path="/create-assessment" element={<LayoutWrapper currentPageName="CreateAssessment"><CreateAssessment /></LayoutWrapper>} />
-      <Route path="/application-test-builder" element={<LayoutWrapper currentPageName="ApplicationTestBuilder"><ApplicationTestBuilder /></LayoutWrapper>} />
-      <Route path="/assessment-detail" element={<LayoutWrapper currentPageName="AssessmentDetail"><AssessmentDetail /></LayoutWrapper>} />
-      <Route path="/invite-candidate" element={<LayoutWrapper currentPageName="InviteCandidate"><InviteCandidate /></LayoutWrapper>} />
-      <Route path="/bulk-invite" element={<LayoutWrapper currentPageName="BulkInvite"><BulkInvite /></LayoutWrapper>} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/mfa" element={<Mfa />} />
+
+      {/* Tokenised candidate assessment links open without an account */}
       <Route path="/candidate-assessment" element={<CandidatePortal />} />
-      <Route path="/scorecard" element={<LayoutWrapper currentPageName="ScorecardView"><ScorecardView /></LayoutWrapper>} />
-      <Route path="/lab-leaderboard-detail" element={<LayoutWrapper currentPageName="LabLeaderboardDetail"><LabLeaderboardDetail /></LayoutWrapper>} />
-      <Route path="/candidate-dashboard" element={<LayoutWrapper currentPageName="CandidateDashboard"><CandidateDashboard /></LayoutWrapper>} />
-      <Route path="/linux-labs/filesystem" element={<LabFilesystem />} />
-      <Route path="/linux-labs/permissions" element={<LabPermissions />} />
-      <Route path="/linux-labs/packages" element={<LabPackages />} />
-      <Route path="/linux-labs/users" element={<LabUsers />} />
-      <Route path="/linux-labs/text" element={<LabText />} />
-      <Route path="/linux-labs/networking" element={<LabNetworking />} />
-      <Route path="/linux-labs/services" element={<LabServices />} />
-      <Route path="/linux-labs/scripting" element={<LabScripting />} />
-      <Route path="/linux-labs/sysadmin" element={<LabSysadmin />} />
-      <Route path="/linux-labs/ssh" element={<LabSSH />} />
-      <Route path="/windows-labs/ps-basics" element={<LabPSBasics />} />
-      <Route path="/windows-labs/ps-variables" element={<LabPSVariables />} />
-      <Route path="/windows-labs/ps-files" element={<LabPSFiles />} />
-      <Route path="/windows-labs/ps-processes" element={<LabPSProcesses />} />
-      <Route path="/windows-labs/ps-users" element={<LabPSUsers />} />
-      <Route path="/windows-labs/ps-scripting" element={<LabPSScripting />} />
-      <Route path="/windows-labs/ps-registry" element={<LabPSRegistry />} />
-      <Route path="/windows-labs/ps-eventlogs" element={<LabPSEventLogs />} />
-      <Route path="/windows-labs/ps-networking" element={<LabPSNetworking />} />
-      <Route path="/windows-labs/ps-remoting" element={<LabPSRemoting />} />
-      <Route path="/EigrpLab" element={<LayoutWrapper currentPageName="EigrpLab"><EigrpLab /></LayoutWrapper>} />
-      <Route path="/FirewallLab" element={<LayoutWrapper currentPageName="FirewallLab"><FirewallLab /></LayoutWrapper>} />
-      <Route path="/training-catalog" element={<LayoutWrapper currentPageName="TrainingCatalog"><TrainingCatalog /></LayoutWrapper>} />
-      {/* Live Fire Cyber Range Module */}
-      <Route path="/LiveFireDashboard" element={<LayoutWrapper currentPageName="LiveFireDashboard"><LiveFireDashboard /></LayoutWrapper>} />
-      <Route path="/my-labs" element={<LayoutWrapper currentPageName="MyLabs"><MyLabs /></LayoutWrapper>} />
-      <Route path="/shared-labs" element={<LayoutWrapper currentPageName="SharedLabs"><SharedLabs /></LayoutWrapper>} />
-      <Route path="/lf-templates" element={<LayoutWrapper currentPageName="LFTemplates"><LFTemplates /></LayoutWrapper>} />
-      <Route path="/running-labs" element={<LayoutWrapper currentPageName="RunningLabs"><RunningLabs /></LayoutWrapper>} />
-      <Route path="/image-repository" element={<LayoutWrapper currentPageName="ImageRepository"><ImageRepository /></LayoutWrapper>} />
-      <Route path="/marketplace" element={<LayoutWrapper currentPageName="MarketplacePage"><MarketplacePage /></LayoutWrapper>} />
-      <Route path="/cloud-resources" element={<LayoutWrapper currentPageName="CloudResources"><CloudResources /></LayoutWrapper>} />
-      <Route path="/lf-administration" element={<LayoutWrapper currentPageName="LFAdministration"><LFAdministration /></LayoutWrapper>} />
-      <Route path="/lab-creation-wizard" element={<LayoutWrapper currentPageName="LabCreationWizard"><LabCreationWizard /></LayoutWrapper>} />
-      <Route path="/live-lab-topology" element={<LayoutWrapper currentPageName="LiveLabTopology"><LiveLabTopology /></LayoutWrapper>} />
-      <Route path="/about" element={<LayoutWrapper currentPageName="About"><About /></LayoutWrapper>} />
-      <Route path="/mssp-soc" element={<LayoutWrapper currentPageName="MSSPSOC"><MSSPSOC /></LayoutWrapper>} />
-      <Route path="/mssp-soc/session" element={<LayoutWrapper currentPageName="MSSPSession"><MSSPSession /></LayoutWrapper>} />
-      <Route path="*" element={<PageNotFound />} />
+
+      <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
+        <Route path="/" element={
+          <LayoutWrapper currentPageName={mainPageKey}>
+            <MainPage />
+          </LayoutWrapper>
+        } />
+        {Object.entries(Pages).map(([path, Page]) => (
+          <Route
+            key={path}
+            path={`/${path}`}
+            element={
+              <LayoutWrapper currentPageName={path}>
+                <Page />
+              </LayoutWrapper>
+            }
+          />
+        ))}
+        <Route path="/EventView/:id" element={<LayoutWrapper currentPageName="EventView"><EventView /></LayoutWrapper>} />
+        <Route path="/CyberCapitalDashboard" element={<LayoutWrapper currentPageName="CyberCapitalDashboard"><CyberCapitalDashboard /></LayoutWrapper>} />
+        <Route path="/CFRS" element={<LayoutWrapper currentPageName="CFRS"><FeatureGate flagKey="cci"><CCI /></FeatureGate></LayoutWrapper>} />
+        <Route path="/CFRS/new" element={<LayoutWrapper currentPageName="CFRS"><FeatureGate flagKey="cci"><CFRSNew /></FeatureGate></LayoutWrapper>} />
+        <Route path="/CFRS/organizations" element={<LayoutWrapper currentPageName="CFRS"><FeatureGate flagKey="cci"><CFRSOrganizations /></FeatureGate></LayoutWrapper>} />
+        <Route path="/CCI" element={<LayoutWrapper currentPageName="CFRS"><FeatureGate flagKey="cci"><CCI /></FeatureGate></LayoutWrapper>} />
+        <Route path="/VisualDesignEditor" element={<LayoutWrapper currentPageName="VisualDesignEditor"><FeatureGate flagKey="visual_design_editor"><VisualDesignEditor /></FeatureGate></LayoutWrapper>} />
+        <Route path="/VirtualLabs" element={<LayoutWrapper currentPageName="VirtualLabs"><VirtualLabs /></LayoutWrapper>} />
+        <Route path="/AdminPanel" element={<LayoutWrapper currentPageName="AdminPanel"><AdminPanel /></LayoutWrapper>} />
+        <Route path="/SOCSimulation" element={<LayoutWrapper currentPageName="SOCSimulation"><SOCSimulation /></LayoutWrapper>} />
+        <Route path="/soc-training" element={<LayoutWrapper currentPageName="SOCTraining"><FeatureGate flagKey="soc_training"><SOCTraining /></FeatureGate></LayoutWrapper>} />
+        <Route path="/real-attack-drills" element={<LayoutWrapper currentPageName="RealAttackDrills"><FeatureGate flagKey="real_attack_drills"><RealAttackDrills /></FeatureGate></LayoutWrapper>} />
+        <Route path="/EnvironmentHub" element={<LayoutWrapper currentPageName="EnvironmentHub"><EnvironmentHub /></LayoutWrapper>} />
+        <Route path="/demo" element={<LayoutWrapper currentPageName="DemoMode"><DemoMode /></LayoutWrapper>} />
+        <Route path="/Demo" element={<LayoutWrapper currentPageName="DemoMode"><DemoMode /></LayoutWrapper>} />
+        <Route path="/LiveFire" element={<LayoutWrapper currentPageName="LiveFire"><LiveFire /></LayoutWrapper>} />
+        <Route path="/OspfLab" element={<LayoutWrapper currentPageName="OspfLab"><OspfLab /></LayoutWrapper>} />
+        <Route path="/LabBuilderDashboard" element={<LayoutWrapper currentPageName="LabBuilderDashboard"><FeatureGate flagKey="course_lab_builder"><LabBuilderDashboard /></FeatureGate></LayoutWrapper>} />
+        <Route path="/LabTemplates" element={<LayoutWrapper currentPageName="LabTemplates"><LabTemplates /></LayoutWrapper>} />
+        <Route path="/LabBuilder" element={<LayoutWrapper currentPageName="LabBuilder"><LabBuilder /></LayoutWrapper>} />
+        <Route path="/LabInstances" element={<LayoutWrapper currentPageName="LabInstances"><LabInstances /></LayoutWrapper>} />
+        <Route path="/CloudLearnerPoc" element={<LayoutWrapper currentPageName="CloudLearnerPoc"><CloudLearnerPoc /></LayoutWrapper>} />
+        <Route path="/LabAssignments" element={<LayoutWrapper currentPageName="LabAssignments"><LabAssignments /></LayoutWrapper>} />
+        <Route path="/OperatorAlerts" element={<LayoutWrapper currentPageName="OperatorAlerts"><OperatorAlerts /></LayoutWrapper>} />
+        <Route path="/LifecycleDiagnostics" element={<LayoutWrapper currentPageName="LifecycleDiagnostics"><LifecycleDiagnostics /></LayoutWrapper>} />
+        <Route path="/LearnerWorkspace" element={<LayoutWrapper currentPageName="LearnerWorkspace"><LearnerWorkspace /></LayoutWrapper>} />
+        <Route path="/LabEnvironments" element={<LayoutWrapper currentPageName="LabEnvironments"><LabEnvironments /></LayoutWrapper>} />
+        <Route path="/LabExports" element={<LayoutWrapper currentPageName="LabExports"><LabExports /></LayoutWrapper>} />
+        <Route path="/NiceMapping" element={<LayoutWrapper currentPageName="NiceMapping"><NiceMapping /></LayoutWrapper>} />
+        <Route path="/QuickBuild" element={<LayoutWrapper currentPageName="QuickBuild"><QuickBuild /></LayoutWrapper>} />
+        <Route path="/NetworkLabDesigner" element={<LayoutWrapper currentPageName="NetworkLabDesigner"><FeatureGate flagKey="network_design_wizard"><NetworkLabDesigner /></FeatureGate></LayoutWrapper>} />
+        <Route path="/SmartDesign" element={<LayoutWrapper currentPageName="SmartDesign"><SmartDesign /></LayoutWrapper>} />
+        <Route path="/InteractiveVirtualLabs" element={<LayoutWrapper currentPageName="InteractiveVirtualLabs"><FeatureGate flagKey="lab_scenarios"><InteractiveVirtualLabs /></FeatureGate></LayoutWrapper>} />
+        <Route path="/labs/social-engineering" element={<LayoutWrapper currentPageName="LabSocialEngineering"><LabSocialEngineering /></LayoutWrapper>} />
+        <Route path="/labs/digital-forensics" element={<LayoutWrapper currentPageName="LabDigitalForensics"><LabDigitalForensics /></LayoutWrapper>} />
+        <Route path="/labs/cybersecurity-essentials" element={<LayoutWrapper currentPageName="LabCybersecurityEssentials"><LabCybersecurityEssentials /></LayoutWrapper>} />
+        <Route path="/labs/cryptography" element={<LayoutWrapper currentPageName="LabCryptography"><LabCryptography /></LayoutWrapper>} />
+        <Route path="/labs/password-attacks" element={<LayoutWrapper currentPageName="LabPasswordAttacks"><LabPasswordAttacks /></LayoutWrapper>} />
+        <Route path="/labs/web-app-pentest" element={<LayoutWrapper currentPageName="LabWebAppPentest"><LabWebAppPentest /></LayoutWrapper>} />
+        <Route path="/labs/network-traffic-analysis" element={<LayoutWrapper currentPageName="LabNetworkTrafficAnalysis"><LabNetworkTrafficAnalysis /></LayoutWrapper>} />
+        <Route path="/labs/network-security-monitoring" element={<LayoutWrapper currentPageName="LabNetworkSecurityMonitoring"><LabNetworkSecurityMonitoring /></LayoutWrapper>} />
+        <Route path="/labs/vulnerability-assessment" element={<LayoutWrapper currentPageName="LabVulnerabilityAssessment"><LabVulnerabilityAssessment /></LayoutWrapper>} />
+        <Route path="/labs/siem" element={<LayoutWrapper currentPageName="LabSIEM"><LabSIEM /></LayoutWrapper>} />
+        <Route path="/labs/firewall-evasion" element={<LayoutWrapper currentPageName="LabFirewallEvasion"><LabFirewallEvasion /></LayoutWrapper>} />
+        <Route path="/labs/endpoint-detection" element={<LayoutWrapper currentPageName="LabEndpointDetection"><LabEndpointDetection /></LayoutWrapper>} />
+        <Route path="/labs/cloud-incident-response" element={<LayoutWrapper currentPageName="LabCloudIncidentResponse"><LabCloudIncidentResponse /></LayoutWrapper>} />
+        <Route path="/labs/linux-hardening" element={<LayoutWrapper currentPageName="LabLinuxHardening"><LabLinuxHardening /></LayoutWrapper>} />
+        <Route path="/labs/devsecops" element={<LayoutWrapper currentPageName="LabDevSecOps"><LabDevSecOps /></LayoutWrapper>} />
+        <Route path="/labs/wireless-exploitation" element={<LayoutWrapper currentPageName="LabWirelessExploitation"><LabWirelessExploitation /></LayoutWrapper>} />
+        <Route path="/labs/log-correlation" element={<LayoutWrapper currentPageName="LabLogCorrelation"><LabLogCorrelation /></LayoutWrapper>} />
+        <Route path="/labs/bgp" element={<LayoutWrapper currentPageName="LabBGP"><LabBGP /></LayoutWrapper>} />
+        <Route path="/labs/zero-trust" element={<LayoutWrapper currentPageName="LabZeroTrust"><LabZeroTrust /></LayoutWrapper>} />
+        <Route path="/labs/aws-cloud-concepts" element={<LayoutWrapper currentPageName="LabAwsCloudConcepts"><LabAwsCloudConcepts /></LayoutWrapper>} />
+        <Route path="/labs/aws-security-compliance" element={<LayoutWrapper currentPageName="LabAwsSecurityCompliance"><LabAwsSecurityCompliance /></LayoutWrapper>} />
+        <Route path="/labs/aws-cloud-services" element={<LayoutWrapper currentPageName="LabAwsCloudServices"><LabAwsCloudServices /></LayoutWrapper>} />
+        <Route path="/labs/aws-billing-pricing" element={<LayoutWrapper currentPageName="LabAwsBillingPricing"><LabAwsBillingPricing /></LayoutWrapper>} />
+        <Route path="/labs/aif-ml-fundamentals" element={<LayoutWrapper currentPageName="LabAifMlFundamentals"><LabAifMlFundamentals /></LayoutWrapper>} />
+        <Route path="/labs/aif-gen-ml-fundamentals" element={<LayoutWrapper currentPageName="LabAifGenMlFundamentals"><LabAifGenMlFundamentals /></LayoutWrapper>} />
+        <Route path="/labs/aif-foundation-models" element={<LayoutWrapper currentPageName="LabAifFoundationModels"><LabAifFoundationModels /></LayoutWrapper>} />
+        <Route path="/labs/aif-responsible-ml" element={<LayoutWrapper currentPageName="LabAifResponsibleMl"><LabAifResponsibleMl /></LayoutWrapper>} />
+        <Route path="/labs/aif-security-governance" element={<LayoutWrapper currentPageName="LabAifSecurityGovernance"><LabAifSecurityGovernance /></LayoutWrapper>} />
+        <Route path="/labs/secplus-domain1" element={<LayoutWrapper currentPageName="LabSecPlusDomain1"><LabSecPlusDomain1 /></LayoutWrapper>} />
+        <Route path="/labs/secplus-domain2" element={<LayoutWrapper currentPageName="LabSecPlusDomain2"><LabSecPlusDomain2 /></LayoutWrapper>} />
+        <Route path="/labs/secplus-domain3" element={<LayoutWrapper currentPageName="LabSecPlusDomain3"><LabSecPlusDomain3 /></LayoutWrapper>} />
+        <Route path="/labs/secplus-domain4" element={<LayoutWrapper currentPageName="LabSecPlusDomain4"><LabSecPlusDomain4 /></LayoutWrapper>} />
+        <Route path="/labs/secplus-domain5" element={<LayoutWrapper currentPageName="LabSecPlusDomain5"><LabSecPlusDomain5 /></LayoutWrapper>} />
+        <Route path="/labs/netplus-domain1" element={<LayoutWrapper currentPageName="LabNetPlusDomain1"><LabNetPlusDomain1 /></LayoutWrapper>} />
+        <Route path="/labs/netplus-domain2" element={<LayoutWrapper currentPageName="LabNetPlusDomain2"><LabNetPlusDomain2 /></LayoutWrapper>} />
+        <Route path="/labs/netplus-domain3" element={<LayoutWrapper currentPageName="LabNetPlusDomain3"><LabNetPlusDomain3 /></LayoutWrapper>} />
+        <Route path="/labs/netplus-domain4" element={<LayoutWrapper currentPageName="LabNetPlusDomain4"><LabNetPlusDomain4 /></LayoutWrapper>} />
+        <Route path="/labs/netplus-domain5" element={<LayoutWrapper currentPageName="LabNetPlusDomain5"><LabNetPlusDomain5 /></LayoutWrapper>} />
+        <Route path="/labs/az900-domain1" element={<LayoutWrapper currentPageName="LabAz900Domain1"><LabAz900Domain1 /></LayoutWrapper>} />
+        <Route path="/labs/az900-domain2" element={<LayoutWrapper currentPageName="LabAz900Domain2"><LabAz900Domain2 /></LayoutWrapper>} />
+        <Route path="/labs/az900-domain3" element={<LayoutWrapper currentPageName="LabAz900Domain3"><LabAz900Domain3 /></LayoutWrapper>} />
+        <Route path="/labs/az900-domain4" element={<LayoutWrapper currentPageName="LabAz900Domain4"><LabAz900Domain4 /></LayoutWrapper>} />
+        <Route path="/labs/az900-domain5" element={<LayoutWrapper currentPageName="LabAz900Domain5"><LabAz900Domain5 /></LayoutWrapper>} />
+        <Route path="/labs/az900-dashboard" element={<Az900Dashboard />} />
+        <Route path="/CandidateAssessments" element={<LayoutWrapper currentPageName="CandidateAssessments"><FeatureGate flagKey="soc_assessments"><CandidateAssessments /></FeatureGate></LayoutWrapper>} />
+        <Route path="/create-assessment" element={<LayoutWrapper currentPageName="CreateAssessment"><CreateAssessment /></LayoutWrapper>} />
+        <Route path="/application-test-builder" element={<LayoutWrapper currentPageName="ApplicationTestBuilder"><ApplicationTestBuilder /></LayoutWrapper>} />
+        <Route path="/assessment-detail" element={<LayoutWrapper currentPageName="AssessmentDetail"><AssessmentDetail /></LayoutWrapper>} />
+        <Route path="/invite-candidate" element={<LayoutWrapper currentPageName="InviteCandidate"><InviteCandidate /></LayoutWrapper>} />
+        <Route path="/bulk-invite" element={<LayoutWrapper currentPageName="BulkInvite"><BulkInvite /></LayoutWrapper>} />
+        <Route path="/scorecard" element={<LayoutWrapper currentPageName="ScorecardView"><ScorecardView /></LayoutWrapper>} />
+        <Route path="/lab-leaderboard-detail" element={<LayoutWrapper currentPageName="LabLeaderboardDetail"><LabLeaderboardDetail /></LayoutWrapper>} />
+        <Route path="/candidate-dashboard" element={<LayoutWrapper currentPageName="CandidateDashboard"><CandidateDashboard /></LayoutWrapper>} />
+        <Route path="/linux-labs/filesystem" element={<LabFilesystem />} />
+        <Route path="/linux-labs/permissions" element={<LabPermissions />} />
+        <Route path="/linux-labs/packages" element={<LabPackages />} />
+        <Route path="/linux-labs/users" element={<LabUsers />} />
+        <Route path="/linux-labs/text" element={<LabText />} />
+        <Route path="/linux-labs/networking" element={<LabNetworking />} />
+        <Route path="/linux-labs/services" element={<LabServices />} />
+        <Route path="/linux-labs/scripting" element={<LabScripting />} />
+        <Route path="/linux-labs/sysadmin" element={<LabSysadmin />} />
+        <Route path="/linux-labs/ssh" element={<LabSSH />} />
+        <Route path="/windows-labs/ps-basics" element={<LabPSBasics />} />
+        <Route path="/windows-labs/ps-variables" element={<LabPSVariables />} />
+        <Route path="/windows-labs/ps-files" element={<LabPSFiles />} />
+        <Route path="/windows-labs/ps-processes" element={<LabPSProcesses />} />
+        <Route path="/windows-labs/ps-users" element={<LabPSUsers />} />
+        <Route path="/windows-labs/ps-scripting" element={<LabPSScripting />} />
+        <Route path="/windows-labs/ps-registry" element={<LabPSRegistry />} />
+        <Route path="/windows-labs/ps-eventlogs" element={<LabPSEventLogs />} />
+        <Route path="/windows-labs/ps-networking" element={<LabPSNetworking />} />
+        <Route path="/windows-labs/ps-remoting" element={<LabPSRemoting />} />
+        <Route path="/EigrpLab" element={<LayoutWrapper currentPageName="EigrpLab"><EigrpLab /></LayoutWrapper>} />
+        <Route path="/FirewallLab" element={<LayoutWrapper currentPageName="FirewallLab"><FirewallLab /></LayoutWrapper>} />
+        <Route path="/training-catalog" element={<LayoutWrapper currentPageName="TrainingCatalog"><TrainingCatalog /></LayoutWrapper>} />
+        {/* Live Fire Cyber Range Module */}
+        <Route path="/LiveFireDashboard" element={<LayoutWrapper currentPageName="LiveFireDashboard"><LiveFireDashboard /></LayoutWrapper>} />
+        <Route path="/my-labs" element={<LayoutWrapper currentPageName="MyLabs"><MyLabs /></LayoutWrapper>} />
+        <Route path="/shared-labs" element={<LayoutWrapper currentPageName="SharedLabs"><SharedLabs /></LayoutWrapper>} />
+        <Route path="/lf-templates" element={<LayoutWrapper currentPageName="LFTemplates"><LFTemplates /></LayoutWrapper>} />
+        <Route path="/running-labs" element={<LayoutWrapper currentPageName="RunningLabs"><RunningLabs /></LayoutWrapper>} />
+        <Route path="/image-repository" element={<LayoutWrapper currentPageName="ImageRepository"><ImageRepository /></LayoutWrapper>} />
+        <Route path="/marketplace" element={<LayoutWrapper currentPageName="MarketplacePage"><MarketplacePage /></LayoutWrapper>} />
+        <Route path="/cloud-resources" element={<LayoutWrapper currentPageName="CloudResources"><CloudResources /></LayoutWrapper>} />
+        <Route path="/lf-administration" element={<LayoutWrapper currentPageName="LFAdministration"><LFAdministration /></LayoutWrapper>} />
+        <Route path="/lab-creation-wizard" element={<LayoutWrapper currentPageName="LabCreationWizard"><LabCreationWizard /></LayoutWrapper>} />
+        <Route path="/live-lab-topology" element={<LayoutWrapper currentPageName="LiveLabTopology"><LiveLabTopology /></LayoutWrapper>} />
+        <Route path="/about" element={<LayoutWrapper currentPageName="About"><About /></LayoutWrapper>} />
+        <Route path="/mssp-soc" element={<LayoutWrapper currentPageName="MSSPSOC"><MSSPSOC /></LayoutWrapper>} />
+        <Route path="/mssp-soc/session" element={<LayoutWrapper currentPageName="MSSPSession"><MSSPSession /></LayoutWrapper>} />
+        <Route path="*" element={<PageNotFound />} />
+      </Route>
     </Routes>
   );
 };
