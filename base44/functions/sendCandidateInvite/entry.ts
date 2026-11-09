@@ -216,7 +216,7 @@ Deno.serve(async (req) => {
       const assessmentLink = `${appOrigin}/candidate-assessment?token=${invite_token}`;
 
       try {
-        await base44.integrations.Core.SendEmail({
+        await base44.asServiceRole.integrations.Core.SendEmail({
           to: entry.candidate_email,
           subject: `${isTest ? 'Application Test Invitation' : 'Skills Assessment Invitation'} — ${position_title}${company_name ? ` at ${company_name}` : ''}`,
           body: buildEmail({
