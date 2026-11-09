@@ -1,7 +1,7 @@
 // Read-only operator monitoring. No AWS clients, resource actions, or entity mutations.
 export const ALERT_SCOPE="69a0a5a90473fac0aa3ea135:design-studio-integration";
 export const EXPIRY_WORKFLOW_ID="6aebf2f5f80221b22d139e5d";
-const APP_ID="69a0a5a90473fac0aa3ea135",LIMIT=50,RECENT=20,OPS=200;
+const LIMIT=50,RECENT=20,OPS=200;
 const EXPIRY_SIGNAL_KEY="cloud-learner-aws-expiry-v1";
 const minutes=(n:number)=>n*60000;
 const date=(v:any)=>typeof v==="string"&&Number.isFinite(Date.parse(v))?Date.parse(v):null;
@@ -63,10 +63,10 @@ export async function detectOperatorAlerts(data:any,time=Date.now()){
  await check("pilot","capacity_conflict",held>1,!data.truncated.active&&!data.truncated.legacy,{source_type:"pilot",run_id:null});
  await check("monitor","results_incomplete",Object.values(data.truncated).some(Boolean),true,{source_type:"monitor",run_id:null});
  const w=data.workflow,workflowExtra={source_type:"workflow",run_id:null};
- const workflowKnown=w.available&&w.accounting_available&&date(w.last_run_at)!==null&&date(w.last_run_at)!<=time+minutes(5)&&w.last_run_status!==null&&w.consecutive_failures!==null;
+ const workflowKnown=w.available&&w.accounting_available&&date(w.last_run_at)!==null&&date(w.last_run_at)!<=time+minutes(5)&&w.last_run_status!==null;
  await check("workflow","monitor_unavailable",!workflowKnown,true,workflowExtra);
- await check("workflow","expiry_disabled",w.available&&w.status!=="active",w.available,workflowExtra);
- await check("workflow","expiry_failed",workflowKnown&&(w.last_run_status==="failed"||w.last_run_status==="cancelled"||w.consecutive_failures>0),!!workflowKnown,workflowExtra);
+ await check("workflow","expiry_disabled",w.available&&w.status_known===true&&w.status!=="active",w.available&&w.status_known===true,workflowExtra);
+ await check("workflow","expiry_failed",workflowKnown&&(w.last_run_status==="failed"||w.last_run_status==="cancelled"||(Number.isInteger(w.consecutive_failures)&&w.consecutive_failures>0)),!!workflowKnown,workflowExtra);
  await check("workflow","expiry_stale",workflowKnown&&time-date(w.last_run_at)!>=minutes(15),!!workflowKnown,workflowExtra);
  return {alerts:[...new Map(alerts.map(a=>[a.key,a])).values()],cleared_keys:[...cleared]};
 }
@@ -83,7 +83,10 @@ export async function operatorAlerts(b:any,user:any,request:Request,deps:any={})
  ]);}catch{throw Object.assign(new Error("Saved session records could not be checked. Previous alerts must remain unverified."),{name:"OPERATOR_ALERT_READ_FAILED"});}
  const [active,recent,legacy,recentLegacy,operations]=rows;
  const truncated={active:active.length>LIMIT,recent:recent.length>RECENT,legacy:legacy.length>LIMIT,recent_legacy:recentLegacy.length>RECENT,operations:operations.length>OPS};
- const workflow=await workflowHealth(request,deps);
+ let heartbeat:any=null;
+ try{heartbeat=(await e.CloudLearnerExpiryHealth.filter({signal_key:EXPIRY_SIGNAL_KEY},"-checked_at",1))[0]??null;}
+ catch{heartbeat=null;}
+ const workflow=workflowHealth(heartbeat);
  const result=await detectOperatorAlerts({active:active.slice(0,LIMIT),recent:recent.slice(0,RECENT),legacy:legacy.slice(0,LIMIT),recentLegacy:recentLegacy.slice(0,RECENT),operations:operations.slice(0,OPS),truncated,workflow},time);
  return {subject_id:user.id,scope:ALERT_SCOPE,checked_at:new Date(time).toISOString(),...result,workflow,truncated,read_only:true,provider_checked:false,delivery:"in_app_while_open",acknowledgments:"this_browser_only",pilot:{guest_limit:1,ttl_minutes:110}};
 }
