@@ -160,18 +160,58 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'A valid candidate name, email, and assessment are required.' }, { status: 400 });
     }
 
-    const sendOne = async (entry) => {
-      const invite_token = newToken();
-      const invitation = await base44.asServiceRole.entities.CandidateInvitation.create({
+    // One invitation per candidate per assessment: re-inviting refreshes that row and clears
+    // any extra copies instead of stacking duplicate tracker entries.
+    const STATUS_RANK = { completed: 4, in_progress: 3, accepted: 2, pending: 1, expired: 0 };
+    const EXPIRES_AT = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    const refreshInvitation = async (entry) => {
+      const existing = await base44.asServiceRole.entities.CandidateInvitation.filter({
         assessment_id,
-        candidate_name: entry.candidate_name,
         candidate_email: entry.candidate_email,
-        invite_token,
-        status: 'pending',
+      });
+      if (!existing.length) return null;
+
+      const [keep, ...duplicates] = [...existing].sort(
+        (a, b) =>
+          (STATUS_RANK[b.status] ?? 0) - (STATUS_RANK[a.status] ?? 0) ||
+          String(b.created_date).localeCompare(String(a.created_date)),
+      );
+
+      if (duplicates.length) {
+        await Promise.all(
+          duplicates.map((row) => base44.asServiceRole.entities.CandidateInvitation.delete(row.id)),
+        );
+      }
+
+      // Keep the link while an attempt is open or finished so the candidate's session stays reachable;
+      // otherwise issue a fresh one so the re-sent email works.
+      const keepToken = ['in_progress', 'completed'].includes(keep.status) && keep.invite_token;
+
+      return base44.asServiceRole.entities.CandidateInvitation.update(keep.id, {
+        candidate_name: entry.candidate_name,
+        invite_token: keepToken ? keep.invite_token : newToken(),
+        status: keep.status === 'expired' ? 'pending' : keep.status,
         email_delivery_status: 'pending',
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        email_delivery_error: '',
+        expires_at: EXPIRES_AT,
         invited_by_id: user.id,
       });
+    };
+
+    const sendOne = async (entry) => {
+      const invitation = (await refreshInvitation(entry))
+        || await base44.asServiceRole.entities.CandidateInvitation.create({
+          assessment_id,
+          candidate_name: entry.candidate_name,
+          candidate_email: entry.candidate_email,
+          invite_token: newToken(),
+          status: 'pending',
+          email_delivery_status: 'pending',
+          expires_at: EXPIRES_AT,
+          invited_by_id: user.id,
+        });
+      const invite_token = invitation.invite_token;
 
       const assessmentLink = `${appOrigin}/candidate-assessment?token=${invite_token}`;
 
