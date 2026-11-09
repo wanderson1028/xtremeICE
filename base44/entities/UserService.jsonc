@@ -8,20 +8,7 @@
     },
     "service_key": {
       "type": "string",
-      "enum": [
-        "network_design_wizard",
-        "visual_design_editor",
-        "cyber_range",
-        "soc_training",
-        "soc_assessments",
-        "real_attack_drills",
-        "lab_scenarios",
-        "course_lab_builder",
-        "cci",
-        "demo_mode",
-        "tabletop_exercises"
-      ],
-      "description": "The service/feature assigned to the user"
+      "description": "The service/feature assigned to the user. Matches a FeatureFlag key."
     }
   },
   "required": [

@@ -103,6 +103,55 @@ export const FEATURES = [
 ];
 
 /**
+ * Labels and display metadata for the per-user switches in Admin → Feature Access.
+ * A feature flag whose key is listed here reuses this label; any other enabled
+ * flag falls back to its own display name.
+ */
+export const SERVICE_META = {
+  network_design_wizard: { label: "Network Design Wizard",       short: "NDW",  granular: false },
+  visual_design_editor:  { label: "Visual Design Editor",        short: "VDE",  granular: false },
+  cyber_range:           { label: "Cyber Range (Red vs. Blue)",  short: "RvB",  granular: false },
+  soc_training:          { label: "SOC Response Drills",         short: "SOCT", granular: true  },
+  soc_assessments:       { label: "SOC Assessments",             short: "SOCA", granular: true  },
+  real_attack_drills:    { label: "Real Attack Drills",          short: "RAD",  granular: false },
+  lab_scenarios:         { label: "Active Labs",                 short: "ALabs", granular: true },
+  course_lab_builder:    { label: "Course Lab Builder",          short: "CLB",  granular: false },
+  cci:                   { label: "Capital Intelligence — CFRS", short: "CFRS", granular: false },
+  demo_mode:             { label: "Xtreme I.C.E. Demo",          short: "Demo", granular: false },
+  tabletop_exercises:    { label: "Tabletop Exercises (TTX)",     short: "TTX",  granular: false },
+};
+
+/** Baseline services always offered, in a stable column order. */
+export const ALL_SERVICE_KEYS = Object.keys(SERVICE_META);
+
+const initials = (label) =>
+  label.replace(/[^A-Za-z0-9 ]/g, " ").split(/\s+/).filter(Boolean)
+    .map((w) => w[0]).join("").slice(0, 4).toUpperCase() || label.slice(0, 4);
+
+/**
+ * Build the Feature Access column list from the feature-flag registry, so turning
+ * a flag on makes its toggle appear without code changes.
+ */
+export function buildServiceList(flags = []) {
+  const byKey = Object.fromEntries(flags.map((f) => [f.key, f]));
+  const keys = [...ALL_SERVICE_KEYS];
+  flags.filter((f) => f.is_enabled).forEach((f) => {
+    if (f.key && !keys.includes(f.key)) keys.push(f.key);
+  });
+
+  return keys.map((key) => {
+    const meta = SERVICE_META[key] || {};
+    const label = meta.label || byKey[key]?.name || key;
+    return {
+      key,
+      label,
+      short: meta.short || initials(label),
+      granular: !!meta.granular,
+    };
+  });
+}
+
+/**
  * Derive nav access flags from a list of assigned service keys.
  * Add a new flag here when a new nav group is introduced.
  */
