@@ -16,9 +16,9 @@ export default function OperatorAlerts(){
   {snapshot&&<section className="rounded border border-sky-700 p-4 space-y-2">
    <p>{error?"Stale snapshot":"Last checked"}: {stamp(snapshot.checked_at)} · {open} unacknowledged · {active.length-open} acknowledged</p>
    <p className="text-sm">Pilot limit: {snapshot.pilot.guest_limit} guest · {snapshot.pilot.ttl_minutes}-minute sessions. Additional AWS launches and main deployment require approval.</p>
-   <p className="text-sm text-gray-300">Session alerts use saved records; they do not prove current AWS health or removal. Expiry workflow: {snapshot.workflow.available?snapshot.workflow.status:"not verified"} · Last recorded run: {stamp(snapshot.workflow.last_run_at)}</p>
+   <p className="text-sm text-gray-300">Session alerts use saved records; they do not prove current AWS health or removal. Expiry sweep heartbeat: {snapshot.workflow.available?snapshot.workflow.last_run_status:"not verified"} · Last recorded sweep: {stamp(snapshot.workflow.last_run_at)}. Workflow configuration is checked separately in Base44.</p>
   </section>}
-  {snapshot&&!snapshot.workflow.available&&<p className="text-sm text-amber-300">{snapshot.workflow.reason==="workflow_access_unavailable"?"This app login cannot read the platform workflow history. Review Expire AWS Learner Labs in Base44.":snapshot.workflow.reason==="authorization_unavailable"?"Workflow history is unavailable in this app session. Review Expire AWS Learner Labs in Base44.":"The platform workflow history could not be read. Review Expire AWS Learner Labs in Base44."}</p>}
+  {snapshot&&!snapshot.workflow.available&&<p className="text-sm text-amber-300">No valid expiry sweep heartbeat is available yet. Review Expire AWS Learner Labs in Base44; a successful scheduled run should record the next heartbeat.</p>}
   {(snapshot||active.length>0)&&<section className="space-y-3"><h2 className="text-xl font-semibold">Needs attention</h2>
    {!active.length&&!error&&<p>No current operator warnings in the checked records.</p>}
    {active.map(a=><article key={a.key} className={"rounded-xl border bg-gray-900 p-5 space-y-3 "+(a.severity==="high"?"border-red-700":"border-amber-700")}>
