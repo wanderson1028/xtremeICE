@@ -22,8 +22,6 @@ export async function handleExpiryRequest(base44:any,deps:any={}) {
   response=Response.json({error:"Expiry sweep failed",error_code:String(error?.name||"EXPIRY_SWEEP_FAILED").slice(0,80)},{status:502});
  }
  try{await (deps.saveHealth||saveExpiryHealth)(base44,observation,deps.clock||Date.now);}
- catch{
-  if(response.status===200)return Response.json({error:"Expiry sweep completed but monitoring could not be saved",error_code:"EXPIRY_HEALTH_WRITE_FAILED"},{status:502});
- }
+ catch{console.warn("Expiry heartbeat could not be saved");}
  return response;
 }
