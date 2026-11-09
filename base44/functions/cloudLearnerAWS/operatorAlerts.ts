@@ -20,7 +20,7 @@ const codes:Record<string,[string,string,string]>={
  expiry_disabled:["high","Automatic expiry cleanup is disabled","Inspect the Expire AWS Learner Labs workflow. New launches require approval."],
  expiry_failed:["high","The expiry workflow reported a failure","Inspect the workflow run and recovery overview; capacity remains reserved until removal is verified."],
  expiry_stale:["high","The expiry workflow has not run recently","Inspect the workflow schedule and its recent runs."],
- monitor_unavailable:["warning","Expiry workflow status could not be verified","An app owner or authorized editor should inspect the workflow in Base44. Session checks can still be reviewed."],
+ monitor_unavailable:["warning","Expiry sweep health could not be verified","An app owner or authorized editor should inspect the scheduled workflow and its saved heartbeat. Session checks can still be reviewed."],
  results_incomplete:["warning","Some monitoring results are incomplete","Inspect older records. An incomplete check cannot confirm that earlier alerts have cleared."],
 };
 async function sourceKey(source:string){const bytes=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(ALERT_SCOPE+":"+source));return Array.from(new Uint8Array(bytes)).map(v=>v.toString(16).padStart(2,"0")).join("").slice(0,32);}
@@ -83,10 +83,9 @@ export async function operatorAlerts(b:any,user:any,request:Request,deps:any={})
  ]);}catch{throw Object.assign(new Error("Saved session records could not be checked. Previous alerts must remain unverified."),{name:"OPERATOR_ALERT_READ_FAILED"});}
  const [active,recent,legacy,recentLegacy,operations]=rows;
  const truncated={active:active.length>LIMIT,recent:recent.length>RECENT,legacy:legacy.length>LIMIT,recent_legacy:recentLegacy.length>RECENT,operations:operations.length>OPS};
- let heartbeat:any=null;
- try{heartbeat=(await e.CloudLearnerExpiryHealth.filter({signal_key:EXPIRY_SIGNAL_KEY},"-checked_at",1))[0]??null;}
- catch{heartbeat=null;}
- const workflow=workflowHealth(heartbeat);
+ let workflow:any;
+ try{workflow=workflowHealth((await e.CloudLearnerExpiryHealth.filter({signal_key:EXPIRY_SIGNAL_KEY},"-checked_at",1))[0]??null);}
+ catch{workflow={available:false,reason:"heartbeat_read_failed",source:"app_heartbeat"};}
  const result=await detectOperatorAlerts({active:active.slice(0,LIMIT),recent:recent.slice(0,RECENT),legacy:legacy.slice(0,LIMIT),recentLegacy:recentLegacy.slice(0,RECENT),operations:operations.slice(0,OPS),truncated,workflow},time);
  return {subject_id:user.id,scope:ALERT_SCOPE,checked_at:new Date(time).toISOString(),...result,workflow,truncated,read_only:true,provider_checked:false,delivery:"in_app_while_open",acknowledgments:"this_browser_only",pilot:{guest_limit:1,ttl_minutes:110}};
 }
