@@ -1,16 +1,17 @@
-import { operatorAlerts,detectOperatorAlerts,workflowHealth,ALERT_SCOPE,EXPIRY_WORKFLOW_ID } from "./operatorAlerts.ts";
+import { operatorAlerts,detectOperatorAlerts,workflowHealth,ALERT_SCOPE } from "./operatorAlerts.ts";
 import {handleLearnerRequest} from "./handler.ts";
 const assert=(v:unknown,message:string)=>{if(!v)throw Error(message);};
 const TIME=Date.parse("2026-01-03T12:00:00Z"),iso=(offset=0)=>new Date(TIME+offset).toISOString();
 const row=(extra:any={})=>({id:"0123456789abcdef01234567",status:"ready",started_at:iso(-60000),expires_at:iso(60000),...extra});
-const health=(extra:any={})=>({available:true,accounting_available:true,status:"active",last_run_at:iso(-60000),last_run_status:"success",consecutive_failures:0,...extra});
+const health=(extra:any={})=>({available:true,accounting_available:true,status:"active",status_known:true,last_run_at:iso(-60000),last_run_status:"success",consecutive_failures:0,...extra});
+const heartbeat=(extra:any={})=>({signal_key:"cloud-learner-aws-expiry-v1",checked_at:iso(-60000),outcome:"success",scanned:0,pending:0,verified_terminated:0,...extra});
 const data=(extra:any={})=>({active:[],recent:[],legacy:[],recentLegacy:[],operations:[],truncated:{active:false,recent:false,legacy:false,recent_legacy:false,operations:false},workflow:health(),...extra});
 const codes=(d:any)=>d.alerts.map((a:any)=>a.code);
 const req=()=>new Request("https://test.invalid",{method:"POST",headers:{authorization:"Bearer TEST_ONLY_CREDENTIAL","Base44-Service-Authorization":"Bearer NEVER_FORWARD","Base44-State":"SIGNED_STATE"},body:JSON.stringify({action:"operatorAlerts",role:"admin",scope:"main"})});
 function fixture(){
  const calls:any[]=[];
- const entity=(name:string)=>({filter:async(q:any,sort:string,limit:number)=>{calls.push({name,q,sort,limit});return [];}});
- return {calls,b:{auth:{me:async()=>({id:"instructor",role:"admin"})},asServiceRole:{entities:{CloudLearnerRun:entity("CloudLearnerRun"),CloudPocRun:entity("CloudPocRun"),CloudGuestOperation:entity("CloudGuestOperation")}}}};
+ const entity=(name:string)=>({filter:async(q:any,sort:string,limit:number)=>{calls.push({name,q,sort,limit});return name==="CloudLearnerExpiryHealth"?[heartbeat()]:[];}});
+ return {calls,b:{auth:{me:async()=>({id:"instructor",role:"admin"})},asServiceRole:{entities:{CloudLearnerRun:entity("CloudLearnerRun"),CloudPocRun:entity("CloudPocRun"),CloudGuestOperation:entity("CloudGuestOperation"),CloudLearnerExpiryHealth:entity("CloudLearnerExpiryHealth")}}}};
 }
 Deno.test("operator alerts deny anonymous and distinct learner identities before privileged reads or fetch",async()=>{
  for(const user of [null,{id:"joe",role:"user"},{id:"radi",role:"user"}]){
