@@ -2,7 +2,7 @@
 export const ALERT_SCOPE="69a0a5a90473fac0aa3ea135:design-studio-integration";
 export const EXPIRY_WORKFLOW_ID="6aebf2f5f80221b22d139e5d";
 const APP_ID="69a0a5a90473fac0aa3ea135",LIMIT=50,RECENT=20,OPS=200;
-const WORKFLOW_URL="https://base44.app/api/apps/"+APP_ID+"/workflows/"+EXPIRY_WORKFLOW_ID;
+const EXPIRY_SIGNAL_KEY="cloud-learner-aws-expiry-v1";
 const minutes=(n:number)=>n*60000;
 const date=(v:any)=>typeof v==="string"&&Number.isFinite(Date.parse(v))?Date.parse(v):null;
 const codes:Record<string,[string,string,string]>={
@@ -24,19 +24,10 @@ const codes:Record<string,[string,string,string]>={
  results_incomplete:["warning","Some monitoring results are incomplete","Inspect older records. An incomplete check cannot confirm that earlier alerts have cleared."],
 };
 async function sourceKey(source:string){const bytes=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(ALERT_SCOPE+":"+source));return Array.from(new Uint8Array(bytes)).map(v=>v.toString(16).padStart(2,"0")).join("").slice(0,32);}
-export async function workflowHealth(request:Request, deps:any={}){
- const authorization=request.headers.get("authorization");
- if(!authorization||!/^Bearer [^\s]+$/.test(authorization))return {available:false,reason:"authorization_unavailable"};
- try{
-  const headers:Record<string,string>={authorization,"accept":"application/json"};
-  const state=request.headers.get("Base44-State");if(state)headers["Base44-State"]=state;
-  const response=await (deps.fetch||fetch)(WORKFLOW_URL,{method:"GET",headers,redirect:"error",signal:AbortSignal.timeout(8000)});
-  if(!response.ok)return {available:false,reason:response.status===401||response.status===403?"workflow_access_unavailable":"workflow_read_failed",status_code:response.status};
-  const raw=await response.text();if(raw.length>200000)return {available:false,reason:"workflow_response_invalid"};
-  const w=JSON.parse(raw);
-  if(w.id!==EXPIRY_WORKFLOW_ID||(w.app_id&&w.app_id!==APP_ID)||!["active","inactive","archived"].includes(w.status))return {available:false,reason:"workflow_response_invalid"};
-  return {available:true,status:w.status,accounting_available:w.run_accounting_available!==false,last_run_at:date(w.last_run_at)===null?null:new Date(w.last_run_at).toISOString(),last_run_status:["success","failed","cancelled"].includes(w.last_run_status)?w.last_run_status:null,consecutive_failures:Number.isInteger(w.consecutive_failures)&&w.consecutive_failures>=0?w.consecutive_failures:null};
- }catch{return {available:false,reason:"workflow_read_unavailable"};}
+export function workflowHealth(record:any){
+ if(!record)return {available:false,reason:"heartbeat_missing",source:"app_heartbeat"};
+ if(record.signal_key!==EXPIRY_SIGNAL_KEY||date(record.checked_at)===null||!["success","failed"].includes(record.outcome))return {available:false,reason:"heartbeat_invalid",source:"app_heartbeat"};
+ return {available:true,source:"app_heartbeat",status:null,status_known:false,accounting_available:true,last_run_at:new Date(record.checked_at).toISOString(),last_run_status:record.outcome,consecutive_failures:null,scanned:Number.isInteger(record.scanned)?record.scanned:null};
 }
 export async function detectOperatorAlerts(data:any,time=Date.now()){
  const alerts:any[]=[],cleared=new Set<string>();
