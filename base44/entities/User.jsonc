@@ -13,11 +13,11 @@
     },
     "organization_id": {
       "type": "string",
-      "description": "Reference to the Organization this user belongs to (null = individual user)",
+      "description": "Reference to the Organization this user belongs to (null = individual user). Locked: only app admins can change it; everyone else is assigned by admin action.",
       "rls": {
         "update": {
           "user_condition": {
-            "collaborator_role": "editor"
+            "role": "admin"
           }
         }
       }
