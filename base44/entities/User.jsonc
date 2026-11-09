@@ -13,7 +13,14 @@
     },
     "organization_id": {
       "type": "string",
-      "description": "Reference to the Organization this user belongs to (null = individual user)"
+      "description": "Reference to the Organization this user belongs to (null = individual user)",
+      "rls": {
+        "update": {
+          "user_condition": {
+            "collaborator_role": "editor"
+          }
+        }
+      }
     },
     "org_role": {
       "type": "string",

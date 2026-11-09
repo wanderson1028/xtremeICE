@@ -61,15 +61,17 @@ export default function UserManager({ selectedOrgId, onOrgChange, isPlatformAdmi
   const orgName = (orgId) => orgs.find((o) => o.id === orgId)?.name || "—";
   const orgColor = (orgId) => orgs.find((o) => o.id === orgId)?.primary_color || "#0ea5e9";
 
-  const handleMoveOrg = (userId, newOrgId) => {
-    updateUserMutation.mutate({
-      id: userId,
-      data: {
-        organization_id: newOrgId === "__none__" ? null : newOrgId,
-        is_individual: newOrgId === "__none__",
-        org_role: newOrgId === "__none__" ? null : "member",
-      },
-    });
+  const handleMoveOrg = async (userId, newOrgId) => {
+    setMovingUserId(userId);
+    try {
+      await base44.functions.invoke("assignUserOrganization", {
+        user_id: userId,
+        organization_id: newOrgId === "__none__" ? "" : newOrgId,
+      });
+      queryClient.invalidateQueries({ queryKey: ["all-users"] });
+    } finally {
+      setMovingUserId(null);
+    }
   };
 
   const handleSetOrgRole = (userId, role) => {

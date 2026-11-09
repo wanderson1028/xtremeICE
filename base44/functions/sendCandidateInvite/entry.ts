@@ -78,10 +78,25 @@ Deno.serve(async (req) => {
     const company_name = String(assessment.company_name || '').trim();
     const isTest = assessment.assessment_kind === 'application_test';
 
-    let appOrigin = '';
+    // The invitation link origin is resolved server-side. The caller's app_url is only
+    // honoured when it is the app's own configured URL or a *.base44.app host, so this
+    // endpoint can never be pointed at a site the caller controls.
+    const configuredOrigin = (() => {
+      try {
+        const configured = new URL(String(Deno.env.get('BASE44_APP_URL') || ''));
+        return configured.protocol === 'https:' ? configured.origin : '';
+      } catch {
+        return '';
+      }
+    })();
+    let appOrigin = configuredOrigin;
     try {
       const requested = new URL(String(payload.app_url || ''));
-      if (requested.protocol === 'https:' || requested.hostname === 'localhost') {
+      const isOwnOrigin = Boolean(configuredOrigin) && requested.origin === configuredOrigin;
+      const isPlatformHost = requested.protocol === 'https:' && /(^|\.)base44\.app$/i.test(requested.hostname);
+      if (requested.protocol === 'https:' && (isOwnOrigin || isPlatformHost)) {
+        appOrigin = requested.origin;
+      } else if (!appOrigin && requested.hostname === 'localhost') {
         appOrigin = requested.origin;
       }
     } catch {
@@ -89,6 +104,19 @@ Deno.serve(async (req) => {
     }
     if (!appOrigin) {
       return Response.json({ error: 'Unable to determine the application URL. Refresh the page and try again.' }, { status: 400 });
+    }
+
+    // Volume guard so a single caller cannot use this endpoint as an open mail relay.
+    const HOURLY_INVITE_CAP = 300;
+    const sentByCallerLastHour = await base44.asServiceRole.entities.CandidateInvitation.filter({
+      invited_by_id: user.id,
+      created_date: { $gte: new Date(Date.now() - 60 * 60 * 1000).toISOString() },
+    });
+    if (sentByCallerLastHour.length >= HOURLY_INVITE_CAP) {
+      return Response.json(
+        { error: 'Invitation limit reached for this hour. Please try again later.' },
+        { status: 429 },
+      );
     }
 
     // Validate and de-duplicate before sending anything.

@@ -206,7 +206,7 @@ const HistoryReport = ({ history, current }) => {
                 <div className="sg-micro">Source reports</div>
                 <p className="mt-1 text-xs" style={{ color: "#404040" }}>Open the original documents when you need the full technical evidence.</p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {selected.report_files?.filter(f => f.file_url).length ? selected.report_files.filter(f => f.file_url).map((file, index) => (
+                  {selected.report_files?.filter(f => f.file_url && /^https?:\/\//i.test(f.file_url)).length ? selected.report_files.filter(f => f.file_url && /^https?:\/\//i.test(f.file_url)).map((file, index) => (
                     <a key={`${file.category}-${index}`} href={file.file_url} target="_blank" rel="noreferrer" className="sg-btn px-3 py-2 text-xs font-semibold" style={{ color: "#b91c1c" }}>View {file.name || String(file.category || "report").replaceAll("_", " ")} ↗</a>
                   )) : <span className="text-sm" style={{ color: "#404040" }}>{selected._documentStatus || "No source reports are available for this archived assessment."}</span>}
                 </div>
