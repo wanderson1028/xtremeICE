@@ -1,5 +1,9 @@
 # Operator alerts: integration-branch pilot
 
+## November 9 workflow-health update
+
+The old app-session read of Base44 workflow metadata is superseded by a server-owned CloudLearnerExpiryHealth heartbeat. Main's five-minute expiry wrapper records the latest sanitized sweep result in one admin-only entity row; the integration-branch instructor page reads it. A missing, invalid, unreadable or stale heartbeat remains an alert. The page shows sweep evidence, not platform workflow configuration or fresh AWS resource absence. A heartbeat write failure does not change the cleanup result. Live scheduled runs wrote and then updated the same row at 20:35:32 and 20:40:50 UTC on November 9; a separate platform read confirmed the workflow active and successful. The branch alert page displayed the current heartbeat and zero current warnings. No guest was launched or frontend published. The November 5 observations below are historical.
+
 Verified November 5, 2026. App Extreme ICE (69a0a5a90473fac0aa3ea135), branch design-studio-integration (6adc042dc1759e6183863750). This is an in-app instructor alerting pass, not an unattended notification service.
 
 ## Open and review
