@@ -24,9 +24,9 @@ Deno.test("malformed results and invocation errors remain scheduler failures",as
  const saved:any[]=[];const r=await handleExpiryRequest(admin(async()=>{throw Object.assign(Error("sensitive detail"),{name:"ProviderUnavailable"})}),{saveHealth:async(_b:any,o:any)=>saved.push(o)});
  const b=await r.json();check(r.status===502&&b.error_code==="ProviderUnavailable"&&saved[0].error_code==="EXPIRY_SWEEP_FAILED"&&!JSON.stringify(saved).includes("sensitive"),"bounded failure response");
 });
-Deno.test("missing heartbeat write fails a successful schedule instead of claiming healthy",async()=>{
+Deno.test("missing heartbeat does not interrupt successful expiry cleanup",async()=>{
  const r=await handleExpiryRequest(admin(async()=>({data:{scanned:0,errors:[]}})),{saveHealth:async()=>{throw Error("PRIVATE_DB_DETAIL")}});
- const b=await r.json();check(r.status===502&&b.error_code==="EXPIRY_HEALTH_WRITE_FAILED"&&!JSON.stringify(b).includes("PRIVATE"),"monitoring failure visible");
+ const b=await r.json();check(r.status===200&&b.scanned===0&&!JSON.stringify(b).includes("PRIVATE"),"cleanup remains authoritative; missing heartbeat becomes stale");
 });
 Deno.test("heartbeat write failure does not conceal a failed sweep",async()=>{
  const r=await handleExpiryRequest(admin(async()=>{throw Error("PRIVATE_PROVIDER_DETAIL")}),{saveHealth:async()=>{throw Error("PRIVATE_DB_DETAIL")}});
