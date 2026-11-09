@@ -18,8 +18,8 @@ const codes:Record<string,[string,string,string]>={
  operation_overdue:["warning","A guest action needs review","Review the pending action and its deadline."],
  capacity_conflict:["high","Multiple session records hold pilot capacity","Inspect the session records. This count does not prove multiple AWS guests exist."],
  expiry_disabled:["high","Automatic expiry cleanup is disabled","Inspect the Expire AWS Learner Labs workflow. New launches require approval."],
- expiry_failed:["high","The expiry workflow reported a failure","Inspect the workflow run and recovery overview; capacity remains reserved until removal is verified."],
- expiry_stale:["high","The expiry workflow has not run recently","Inspect the workflow schedule and its recent runs."],
+ expiry_failed:["high","The expiry sweep reported a failure","Inspect the workflow run and recovery overview; capacity remains reserved until removal is verified."],
+ expiry_stale:["high","No recent expiry sweep heartbeat","Inspect the workflow schedule and its recent runs."],
  monitor_unavailable:["warning","Expiry sweep health could not be verified","An app owner or authorized editor should inspect the scheduled workflow and its saved heartbeat. Session checks can still be reviewed."],
  results_incomplete:["warning","Some monitoring results are incomplete","Inspect older records. An incomplete check cannot confirm that earlier alerts have cleared."],
 };
