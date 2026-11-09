@@ -2,7 +2,7 @@
 
 November 9 update: the shared admin-only heartbeat entity and main expiry-wrapper writer were implemented and live-verified after the user asked to continue the workflow-health fix. The branch alert reader now displays the saved sweep result. The plan below is historical for those completed steps. Durable incident storage, external delivery and frontend publication remain separate work; no AWS guest was launched or branch merged.
 
-Reviewable plan only. No deployment, schema, scheduled job, AWS launch or notification activation is authorized by this document.
+Historical November 5 proposal below. It did not itself authorize deployment, schema changes, AWS launches or notification activation.
 
 ## Problem to resolve
 
