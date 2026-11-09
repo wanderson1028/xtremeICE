@@ -92,11 +92,16 @@ Deno.serve(async (req) => {
     let appOrigin = configuredOrigin;
     try {
       const requested = new URL(String(payload.app_url || ''));
+      const host = requested.hostname.toLowerCase();
       const isOwnOrigin = Boolean(configuredOrigin) && requested.origin === configuredOrigin;
-      const isPlatformHost = requested.protocol === 'https:' && /(^|\.)base44\.app$/i.test(requested.hostname);
-      if (requested.protocol === 'https:' && (isOwnOrigin || isPlatformHost)) {
+      const isOwnHost = host === 'xtreme-i-c-e.base44.app'
+        || host === 'xsirange.com'
+        || host.endsWith('.xsirange.com')
+        || host === 'xtremecandidate.com'
+        || host.endsWith('.xtremecandidate.com');
+      if (requested.protocol === 'https:' && (isOwnOrigin || isOwnHost)) {
         appOrigin = requested.origin;
-      } else if (!appOrigin && requested.hostname === 'localhost') {
+      } else if (!appOrigin && host === 'localhost') {
         appOrigin = requested.origin;
       }
     } catch {
