@@ -1,0 +1,59 @@
+{
+  "name": "CloudLearnerExpiryHealth",
+  "type": "object",
+  "properties": {
+    "signal_key": {
+      "type": "string"
+    },
+    "checked_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "success",
+        "failed"
+      ]
+    },
+    "scanned": {
+      "type": "integer"
+    },
+    "pending": {
+      "type": "integer"
+    },
+    "verified_terminated": {
+      "type": "integer"
+    },
+    "error_code": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "signal_key",
+    "checked_at",
+    "outcome"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
