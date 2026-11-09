@@ -18,7 +18,7 @@ export default function OperatorAlerts(){
    <p className="text-sm">Pilot limit: {snapshot.pilot.guest_limit} guest · {snapshot.pilot.ttl_minutes}-minute sessions. Additional AWS launches and main deployment require approval.</p>
    <p className="text-sm text-gray-300">Session alerts use saved records; they do not prove current AWS health or removal. Expiry sweep heartbeat: {snapshot.workflow.available?snapshot.workflow.last_run_status:"not verified"} · Last recorded sweep: {stamp(snapshot.workflow.last_run_at)}. Workflow configuration is checked separately in Base44.</p>
   </section>}
-  {snapshot&&!snapshot.workflow.available&&<p className="text-sm text-amber-300">No valid expiry sweep heartbeat is available yet. Review Expire AWS Learner Labs in Base44; a successful scheduled run should record the next heartbeat.</p>}
+  {snapshot&&!snapshot.workflow.available&&<p className="text-sm text-amber-300">{snapshot.workflow.reason==="heartbeat_missing"?"No valid expiry sweep heartbeat is available yet.":"Expiry sweep heartbeat could not be verified."} Review Expire AWS Learner Labs in Base44; a successful scheduled run should record the next heartbeat.</p>}
   {(snapshot||active.length>0)&&<section className="space-y-3"><h2 className="text-xl font-semibold">Needs attention</h2>
    {!active.length&&!error&&<p>No current operator warnings in the checked records.</p>}
    {active.map(a=><article key={a.key} className={"rounded-xl border bg-gray-900 p-5 space-y-3 "+(a.severity==="high"?"border-red-700":"border-amber-700")}>
