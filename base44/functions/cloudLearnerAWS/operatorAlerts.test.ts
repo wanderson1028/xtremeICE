@@ -92,29 +92,28 @@ Deno.test("invalid or future workflow timestamps are unknown rather than healthy
   assert(codes(r).includes("monitor_unavailable"),"bad workflow clock detected");
  }
 });
-Deno.test("workflow reader is a fixed bounded GET using only caller authorization and allowlist proof",async()=>{
- const seen:any[]=[];
- const w=await workflowHealth(req(),{fetch:async(url:any,options:any)=>{seen.push({url,options});return Response.json({id:EXPIRY_WORKFLOW_ID,app_id:"69a0a5a90473fac0aa3ea135",status:"active",last_run_at:iso(),last_run_status:"success",consecutive_failures:0,definition:{secret:"NEVER_RETURN"}});}});
- assert(w.available&&seen.length===1&&seen[0].url.startsWith("https://base44.app/api/apps/69a0a5a90473fac0aa3ea135/workflows/"),"fixed same-service metadata endpoint");
- assert(seen[0].options.method==="GET"&&seen[0].options.redirect==="error"&&seen[0].options.signal instanceof AbortSignal,"bounded read, redirects forbidden");
- assert(Object.keys(seen[0].options.headers).sort().join(",")==="Base44-State,accept,authorization","never forwards service-role auth");
- assert(!JSON.stringify(w).includes("NEVER_RETURN")&&!JSON.stringify(w).includes("TEST_ONLY_CREDENTIAL"),"DTO omits definition and auth");
+Deno.test("heartbeat reader exposes only sanitized sweep evidence, not workflow status or private record fields",()=>{
+ const w=workflowHealth(heartbeat({contract:{secret:"NEVER_RETURN"},owner_email:"PRIVATE_EMAIL"}));
+ assert(w.available&&w.source==="app_heartbeat"&&w.status===null&&w.status_known===false&&w.last_run_status==="success","honest heartbeat semantics");
+ assert(!JSON.stringify(w).includes("NEVER_RETURN")&&!JSON.stringify(w).includes("PRIVATE_EMAIL"),"whitelisted DTO");
 });
-Deno.test("workflow permission denial, HTML, invalid binding and outages produce sanitized unknown status",async()=>{
- for(const response of [new Response("DO_NOT_LEAK",{status:403}),new Response("<html>DO_NOT_LEAK</html>"),Response.json({id:"wrong",status:"active"})]){
-  const w=await workflowHealth(req(),{fetch:async()=>response});assert(!w.available&&!JSON.stringify(w).includes("DO_NOT_LEAK"),"sanitized read failure");
+Deno.test("missing, foreign, corrupt and future heartbeats never imply healthy workflow",async()=>{
+ for(const record of [null,heartbeat({signal_key:"foreign"}),heartbeat({checked_at:"invalid"}),heartbeat({outcome:"unknown"}),heartbeat({checked_at:iso(6*60000)})]){
+  const w=workflowHealth(record),result=await detectOperatorAlerts(data({workflow:w}),TIME);
+  assert(codes(result).includes("monitor_unavailable"),"unknown heartbeat is not healthy");
  }
- const w=await workflowHealth(req(),{fetch:async()=>{throw Error("DO_NOT_LEAK");}});assert(!w.available&&!JSON.stringify(w).includes("DO_NOT_LEAK"),"sanitized outage");
 });
-Deno.test("missing user authorization does not attempt a platform read",async()=>{
- let calls=0;const w=await workflowHealth(new Request("https://test.invalid"),{fetch:async()=>{calls++;throw Error();}});
- assert(!w.available&&calls===0,"no alternate credential fallback");
+Deno.test("recorded sweep failure and stale heartbeat produce actionable alerts",async()=>{
+ const failed=await detectOperatorAlerts(data({workflow:workflowHealth(heartbeat({outcome:"failed"}))}),TIME);
+ const stale=await detectOperatorAlerts(data({workflow:workflowHealth(heartbeat({checked_at:iso(-16*60000)}))}),TIME);
+ assert(codes(failed).includes("expiry_failed")&&codes(stale).includes("expiry_stale"),"failure and staleness detected");
+ assert(!failed.cleared_keys.some((k:string)=>k.endsWith(".expiry_disabled")),"heartbeat cannot assert platform status");
 });
-Deno.test("operator endpoint is bounded read-only and returns only whitelisted alert metadata",async()=>{
- const f=fixture(),net:any[]=[];
- const output=await operatorAlerts(f.b,{id:"instructor",role:"admin"},req(),{clock:()=>TIME,fetch:async(url:any)=>{net.push(url);return Response.json({id:EXPIRY_WORKFLOW_ID,status:"active",last_run_at:iso(-60000),last_run_status:"success",consecutive_failures:0});}});
- assert(f.calls.length===5&&f.calls.every(c=>c.limit>0&&c.limit<=201),"bounded entity reads");
- assert(net.length===1&&net.every(u=>new URL(u).hostname==="base44.app"),"no AWS or third-party calls");
+Deno.test("operator endpoint uses six bounded saved-record reads and no network",async()=>{
+ const f=fixture();
+ const output=await operatorAlerts(f.b,{id:"instructor",role:"admin"},req(),{clock:()=>TIME});
+ assert(f.calls.length===6&&f.calls.every(c=>c.limit>0&&c.limit<=201),"bounded entity reads");
+ assert(output.workflow.available&&output.workflow.last_run_status==="success","saved heartbeat used");
  assert(output.scope===ALERT_SCOPE&&output.subject_id==="instructor"&&output.read_only&&!output.provider_checked&&output.acknowledgments==="this_browser_only","honest scope and limits");
 });
 Deno.test("record read failures cannot become empty healthy snapshots",async()=>{
