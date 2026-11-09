@@ -3,11 +3,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
 import {
-  Cloud, Search, Plus, ArrowLeft, CheckCircle2, XCircle,
-  Settings, BarChart3, HardDrive, Cpu, Globe, Trash2,
+  Cloud, Search, Plus, ArrowLeft,
+  Settings, Trash2,
   Network, AlertTriangle, ChevronDown, ChevronRight,
-  Wifi, Shield, ExternalLink, RefreshCw, Filter,
-  Server, Play, Square, StopCircle, Power, Terminal, Check, Lock
+  Wifi, ExternalLink, RefreshCw,
+  Server, Play, Square, Terminal, Check, Lock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,7 +50,7 @@ export default function CloudResources() {
   const [copiedRdp, setCopiedRdp] = useState(null);
 
   // ── Instances query ──
-  const { data: instancesData, isLoading: instLoading, refetch: refetchInstances } = useQuery({
+  const { data: instancesData, isLoading: instLoading, isError: instError, refetch: refetchInstances } = useQuery({
     queryKey: ["all-region-instances"],
     queryFn: async () => {
       const res = await base44.functions.invoke("cloudProviderAWS", {
@@ -78,7 +78,7 @@ export default function CloudResources() {
   });
 
   // ── VPCs query ──
-  const { data: vpcData, isLoading: vpcsLoading, refetch: refetchVpcs } = useQuery({
+  const { data: vpcData, isLoading: vpcsLoading, isError: vpcsError, refetch: refetchVpcs } = useQuery({
     queryKey: ["all-region-vpcs"],
     queryFn: async () => {
       const res = await base44.functions.invoke("cloudProviderAWS", {
@@ -97,7 +97,7 @@ export default function CloudResources() {
     queryFn: () => base44.entities.LiveFireCloudAccount.list("-updated_date", 50),
   });
 
-  const { data: deployments = [] } = useQuery({
+  const { data: deployments = [], isLoading: deploymentsLoading } = useQuery({
     queryKey: ["livefire-deployments"],
     queryFn: () => base44.entities.LiveFireDeployment.list("-updated_date", 50),
   });
@@ -217,11 +217,24 @@ export default function CloudResources() {
 
   // ── VPC data ──
   const vpcs = vpcData?.vpcs || [];
-  const vpcRegions = instancesData?.regions || vpcData?.regions || [];
-  const activeRegions = vpcRegions.filter(r => r.count > 0 || r.vpcCount > 0).length;
-  const totalRegions = vpcRegions.length;
+  const instanceRegions = instancesData?.regions || [];
+  const vpcRegions = vpcData?.regions || [];
+  const activeRegions = instanceRegions.filter(r => r.count > 0).length;
+  const totalRegions = instanceRegions.length;
+  const instanceScanFailures = instanceRegions.filter(r => r.error).length;
+  const vpcScanFailures = vpcRegions.filter(r => r.error).length;
+  const scansFinished = !instLoading && !vpcsLoading;
+  const inventoryIncomplete = scansFinished && (
+    instError || vpcsError || !instanceRegions.length || !vpcRegions.length ||
+    instanceScanFailures > 0 || vpcScanFailures > 0
+  );
   const orphanCount = vpcs.filter(v => v.isOrphaned).length;
   const inUseCount = vpcs.filter(v => !v.isOrphaned && !v.isDefault).length;
+  const vpcScanComplete = !vpcsLoading && !vpcsError && vpcRegions.length > 0 && vpcScanFailures === 0;
+  const currentVpcIds = new Set(vpcs.map(v => v.vpcId));
+  const deploymentRecordsToReview = vpcScanComplete && !deploymentsLoading
+    ? deployments.filter(d => d.provider === "aws" && ["running", "provisioning"].includes(d.status) && d.vpc_id && !currentVpcIds.has(d.vpc_id))
+    : [];
 
   const filteredVpcs = vpcs.filter(v => {
     if (!search) return true;
@@ -262,7 +275,7 @@ export default function CloudResources() {
           </Link>
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-white">Cloud Resources</h1>
-            <p className="text-sm text-gray-400 font-mono">Manage instances, VPCs, and infrastructure</p>
+            <p className="text-sm text-gray-400 font-mono">Live Fire-tagged instances and account VPCs; other AWS instances may not appear in the instance count.</p>
           </div>
           <Button
             onClick={() => { refetchInstances(); refetchVpcs(); }}
@@ -276,7 +289,7 @@ export default function CloudResources() {
         {/* Stats Bar */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
           <div className="bg-gray-900/80 border border-gray-800 rounded-xl p-3.5">
-            <p className="text-[10px] font-mono text-gray-500 uppercase mb-1">Instances</p>
+            <p className="text-[10px] font-mono text-gray-500 uppercase mb-1">Managed instances</p>
             <p className="text-xl font-bold text-white">{enrichedInstances.length}</p>
           </div>
           <div className="bg-gray-900/80 border border-green-800/30 rounded-xl p-3.5">
@@ -296,10 +309,28 @@ export default function CloudResources() {
             <p className="text-xl font-bold text-amber-400">{orphanCount}</p>
           </div>
           <div className="bg-gray-900/80 border border-blue-800/30 rounded-xl p-3.5">
-            <p className="text-[10px] font-mono text-gray-500 uppercase mb-1">Regions</p>
+            <p className="text-[10px] font-mono text-gray-500 uppercase mb-1">Regions with instances</p>
             <p className="text-lg font-bold text-blue-400 font-mono">{activeRegions}<span className="text-sm text-gray-600">/{totalRegions}</span></p>
           </div>
         </div>
+
+        {inventoryIncomplete && (
+          <div role="alert" className="mb-6 rounded-xl border border-amber-700/50 bg-amber-950/40 p-4 text-sm text-amber-200">
+            <p className="font-semibold">AWS inventory is incomplete — zero counts are not proof that resources are gone.</p>
+            <p className="mt-1 text-xs text-amber-100/80">
+              Instance scan: {instanceRegions.length - instanceScanFailures}/{instanceRegions.length || "?"} regions succeeded.
+              {" "}VPC scan: {vpcRegions.length - vpcScanFailures}/{vpcRegions.length || "?"} regions succeeded.
+              Recheck provider access before reconciling or deleting lab records.
+            </p>
+          </div>
+        )}
+
+        {deploymentRecordsToReview.length > 0 && (
+          <div role="status" className="mb-6 rounded-xl border border-blue-700/40 bg-blue-950/30 p-4 text-sm text-blue-100">
+            <p className="font-semibold">{deploymentRecordsToReview.length} active-labeled deployment record{deploymentRecordsToReview.length === 1 ? "" : "s"} need reconciliation.</p>
+            <p className="mt-1 text-xs text-blue-100/80">Their stored VPC IDs were not found in this account scan. No records or AWS resources were changed; verify the historical account and exact EC2 IDs before cleanup.</p>
+          </div>
+        )}
 
         {/* Search */}
         <div className="flex items-center gap-3 mb-4">
