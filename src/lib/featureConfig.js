@@ -130,16 +130,19 @@ const initials = (label) =>
 
 /**
  * Build the Feature Access column list from the feature-flag registry, so turning
- * a flag on makes its toggle appear without code changes.
+ * a flag on makes its toggle appear and turning it off removes it.
+ * A service with no flag record at all is still shown, so it stays assignable.
  */
 export function buildServiceList(flags = []) {
   const byKey = Object.fromEntries(flags.map((f) => [f.key, f]));
+  const managed = new Set(flags.map((f) => f.key));
+  const enabled = new Set(flags.filter((f) => f.is_enabled).map((f) => f.key));
   const keys = [...ALL_SERVICE_KEYS];
   flags.filter((f) => f.is_enabled).forEach((f) => {
     if (f.key && !keys.includes(f.key)) keys.push(f.key);
   });
 
-  return keys.map((key) => {
+  return keys.filter((key) => !managed.has(key) || enabled.has(key)).map((key) => {
     const meta = SERVICE_META[key] || {};
     const label = meta.label || byKey[key]?.name || key;
     return {
