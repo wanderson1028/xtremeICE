@@ -4,6 +4,36 @@ const MAX_CANDIDATES = 100;
 const BATCH_SIZE = 4;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Candidate links must always point at a live, shareable app host.
+const CANONICAL_APP_ORIGIN = 'https://xtreme-i-c-e.base44.app';
+
+const isAppHost = (host) =>
+  host === 'xtreme-i-c-e.base44.app'
+  || host === 'xsirange.com'
+  || host.endsWith('.xsirange.com')
+  || host === 'xtremecandidate.com'
+  || host.endsWith('.xtremecandidate.com');
+
+const isUnshareableHost = (host) =>
+  host === 'localhost'
+  || host.endsWith('.local')
+  || host.includes('preview')
+  || host.includes('--dev')
+  || host.endsWith('.base44.dev');
+
+// Returns an https origin on the app's own hosts, or '' when the value is unusable.
+const toShareableOrigin = (value) => {
+  try {
+    const url = new URL(String(value || ''));
+    if (url.protocol !== 'https:') return '';
+    const host = url.hostname.toLowerCase();
+    if (isUnshareableHost(host) || !isAppHost(host)) return '';
+    return url.origin;
+  } catch {
+    return '';
+  }
+};
+
 const escapeHtml = (value = '') =>
   String(value)
     .replaceAll('&', '&amp;')
@@ -78,38 +108,14 @@ Deno.serve(async (req) => {
     const company_name = String(assessment.company_name || '').trim();
     const isTest = assessment.assessment_kind === 'application_test';
 
-    // The invitation link origin is resolved server-side. The caller's app_url is only
-    // honoured when it is the app's own configured URL or a *.base44.app host, so this
-    // endpoint can never be pointed at a site the caller controls.
-    const configuredOrigin = (() => {
-      try {
-        const configured = new URL(String(Deno.env.get('BASE44_APP_URL') || ''));
-        return configured.protocol === 'https:' ? configured.origin : '';
-      } catch {
-        return '';
-      }
-    })();
-    let appOrigin = configuredOrigin;
-    try {
-      const requested = new URL(String(payload.app_url || ''));
-      const host = requested.hostname.toLowerCase();
-      const isOwnOrigin = Boolean(configuredOrigin) && requested.origin === configuredOrigin;
-      const isOwnHost = host === 'xtreme-i-c-e.base44.app'
-        || host === 'xsirange.com'
-        || host.endsWith('.xsirange.com')
-        || host === 'xtremecandidate.com'
-        || host.endsWith('.xtremecandidate.com');
-      if (requested.protocol === 'https:' && (isOwnOrigin || isOwnHost)) {
-        appOrigin = requested.origin;
-      } else if (!appOrigin && host === 'localhost') {
-        appOrigin = requested.origin;
-      }
-    } catch {
-      // Handled below.
-    }
-    if (!appOrigin) {
-      return Response.json({ error: 'Unable to determine the application URL. Refresh the page and try again.' }, { status: 400 });
-    }
+    // The invitation link origin is resolved server-side and must be a live app host:
+    // the server-set app URL header, the caller's origin, the configured app URL, or the
+    // published origin. Preview and localhost origins are rejected so a candidate never
+    // receives a link that cannot be opened.
+    const appOrigin = toShareableOrigin(req.headers.get('x-base44-app-url'))
+      || toShareableOrigin(payload.app_url)
+      || toShareableOrigin(Deno.env.get('BASE44_APP_URL'))
+      || CANONICAL_APP_ORIGIN;
 
     // Volume guard so a single caller cannot use this endpoint as an open mail relay.
     const HOURLY_INVITE_CAP = 300;
