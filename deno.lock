@@ -58,6 +58,7 @@
     "npm:eslint-plugin-react@^7.37.4": "7.37.5_eslint@9.39.5",
     "npm:eslint-plugin-unused-imports@^4.3.0": "4.4.1_eslint@9.39.5",
     "npm:eslint@^9.19.0": "9.39.5",
+    "npm:fast-xml-parser@*": "5.12.0",
     "npm:fast-xml-parser@^5.11.2": "5.12.0",
     "npm:framer-motion@^11.16.4": "11.18.2_react@18.3.1_react-dom@18.3.1",
     "npm:globals@^15.14.0": "15.15.0",
