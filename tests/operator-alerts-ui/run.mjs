@@ -205,10 +205,10 @@ try{
   const cache=components.reconcileAlerts(components.parseAlertCache(null),current);
   assert.equal(cache.entries[config.alertCandidates[0].key].status,"open");
  });
- await test("platform workflow access limits are explained without claiming successful monitoring",async()=>{
-  config.workflowOverride={available:false,reason:"workflow_access_unavailable"};
+ await test("missing expiry heartbeat is explained without claiming successful monitoring",async()=>{
+  config.workflowOverride={available:false,reason:"heartbeat_missing"};
   config.alertCandidates=[{key:"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.monitor_unavailable",code:"monitor_unavailable",severity:"warning",title:"Expiry workflow status could not be verified",next_step:"Review Base44 workflow history.",source_type:"workflow",run_id:null}];
-  await mount("OperatorAlerts");assert.match(body(),/This app login cannot read the platform workflow history/);assert.match(body(),/not verified/);assert.doesNotMatch(body(),/No current operator warnings/);
+  await mount("OperatorAlerts");assert.match(body(),/No valid expiry sweep heartbeat is available yet/);assert.match(body(),/not verified/);assert.doesNotMatch(body(),/No current operator warnings/);
  });
  const report={simulated:true,network_attempts:networkAttempts,passed:results.filter(r=>r.status==="passed").length,failed:results.filter(r=>r.status==="failed").length,results};
  console.log(JSON.stringify(report,null,2));if(process.env.RECOVERY_TEST_REPORT)fs.writeFileSync(process.env.RECOVERY_TEST_REPORT,JSON.stringify(report,null,2)+"\n");
