@@ -1,4 +1,4 @@
-/** Power BI — report canvas, filters pane and scored tasks (fictitious data). */
+/** Power BI — report canvas, filters pane, dialogs and scored tasks (fictitious data). */
 
 export const VISUAL_MENU = [
   { id: "copy-visual", label: "Copy visual" },
@@ -7,6 +7,44 @@ export const VISUAL_MENU = [
   { id: "exclude", label: "Exclude" },
 ];
 
+export const POWERBI_DIALOGS = {
+  "pbi-sql": {
+    title: "SQL Server database",
+    description: "Connect the report model to the database server shown below.",
+    input: { label: "Server", value: "NORTHWIND-SQL01" },
+    confirm: "Connect",
+  },
+};
+
+/** Applies any committed operation to the report state. */
+export function reducePowerBi(state, action) {
+  const next = { ...state };
+  const target = action.targetId || null;
+
+  if (action.type === "option") {
+    if (action.controlId === "publish") next.published = action.optionId;
+    if (action.controlId === "get-data") next.connector = action.optionId;
+  }
+  if (action.type === "control") {
+    if (action.controlId === "refresh") next.refreshed = true;
+    if (action.controlId === "new-page") next.pages = state.pages + 1;
+    if (action.controlId === "text-box") next.textBox = true;
+    if (action.controlId === "new-visual") next.newVisual = true;
+    if (action.controlId === "switch-theme") next.theme = true;
+  }
+  if (action.type === "click") {
+    if (target === "pbi-filter-emea") next.region = "EMEA";
+    if (target === "pbi-filter-amer") next.region = "AMER";
+    if (target === "pbi-filter-apac") next.region = "APAC";
+    if (target === "pbi-filter-all") next.region = "all";
+  }
+  if (action.type === "menu" && action.itemId === "see-records") next.recordsFor = target;
+  if (action.type === "confirm" && action.dialogId === "pbi-sql" && action.value) {
+    next.connectedServer = action.value;
+  }
+  return next;
+}
+
 export const powerbiApp = {
   id: "powerbi",
   name: "Power BI",
@@ -14,17 +52,19 @@ export const powerbiApp = {
   titleInk: "#201f1e",
   windowTitle: "Security Posture Report — Power BI Desktop",
   variant: "report",
+  reduce: reducePowerBi,
+  dialogs: POWERBI_DIALOGS,
   tabs: [
     {
       id: "home",
       label: "Home",
       groups: [
         { id: "data", label: "Data", controls: [
-          { id: "refresh", label: "Refresh", size: "lg" },
+          { id: "refresh", label: "Refresh", size: "lg", commits: true },
           { id: "get-data", label: "Get data", menu: [
-            { id: "sql-server", label: "SQL Server" },
-            { id: "excel-workbook", label: "Excel workbook" },
-            { id: "sharepoint-folder", label: "SharePoint folder" },
+            { id: "sql-server", label: "SQL Server", opens: "pbi-sql" },
+            { id: "excel-workbook", label: "Excel workbook", opens: true },
+            { id: "sharepoint-folder", label: "SharePoint folder", opens: true },
           ] },
         ] },
         { id: "insert-group", label: "Insert", controls: [
@@ -59,7 +99,7 @@ export const powerbiApp = {
       label: "Modeling",
       groups: [
         { id: "relationships", label: "Relationships", controls: [
-          { id: "manage-relationships", label: "Manage relationships" },
+          { id: "manage-relationships", label: "Manage relationships", opens: true },
         ] },
         { id: "calculations", label: "Calculations", controls: [
           { id: "new-measure", label: "New measure" },
@@ -72,10 +112,10 @@ export const powerbiApp = {
       groups: [
         { id: "show", label: "Show", controls: [
           { id: "filters-pane", label: "Filters", ui: "filtersPane" },
-          { id: "bookmarks", label: "Bookmarks" },
+          { id: "bookmarks", label: "Bookmarks", ui: "bookmarks" },
         ] },
         { id: "page", label: "Page", controls: [
-          { id: "new-page", label: "New page" },
+          { id: "new-page", label: "New page", commits: true },
         ] },
         { id: "themes", label: "Themes", controls: [
           { id: "switch-theme", label: "Switch theme" },
@@ -94,77 +134,61 @@ export const powerbiApp = {
     },
   ],
   defaults: {
-    published: false,
+    published: null,
     refreshed: false,
     filtersPane: false,
     region: "all",
-    page2: false,
-    records: false,
-    sqlConnected: false,
-    notice: "",
+    pages: 1,
+    recordsFor: null,
+    connector: null,
+    connectedServer: null,
   },
   questions: [
     {
       id: "powerbi-q1",
       task: "Publish the report to the Security Operations workspace so the team can open it.",
-      steps: [
-        { do: "control", control: "publish" },
-        { do: "option", control: "publish", option: "security-workspace" },
-      ],
-      effect: { published: true, notice: "Published to Security Operations workspace" },
+      answers: [{ kind: "option", control: "publish", option: "security-workspace" }],
+      verify: (state) => state.published === "security-workspace",
       explanation:
         "Publish opens the workspace picker; the destination workspace must be chosen before the report is sent.",
     },
     {
       id: "powerbi-q2",
       task: "The overnight data load has finished. Bring the newest figures into the report model.",
-      steps: [{ do: "control", control: "refresh" }],
-      effect: { refreshed: true, notice: "Model refreshed just now" },
+      answers: [{ kind: "control", control: "refresh" }],
+      verify: (state) => state.refreshed === true,
       explanation: "Refresh re-runs the model queries and loads the latest data into the existing visuals.",
     },
     {
       id: "powerbi-q3",
       task: "Show the filters pane, then limit the report to the EMEA region only.",
-      steps: [
-        { do: "tab", tab: "view" },
-        { do: "control", control: "filters-pane" },
-        { do: "click", target: "pbi-filter-emea" },
-      ],
-      effect: { filtersPane: true, region: "EMEA", notice: "Report filtered to EMEA" },
+      answers: [{ kind: "click", target: "pbi-filter-emea" }],
+      verify: (state) => state.region === "EMEA",
       explanation:
         "The Filters pane is toggled from the View tab; the region checkbox inside the pane scopes every visual on the page.",
     },
     {
       id: "powerbi-q4",
       task: "Add a second page to the report for the regional breakdown.",
-      steps: [
-        { do: "tab", tab: "view" },
-        { do: "control", control: "new-page" },
-      ],
-      effect: { page2: true, notice: "Page 2 added" },
+      answers: [{ kind: "control", control: "new-page" }],
+      verify: (state) => state.pages === 2,
       explanation: "New page on the View tab adds a blank report page after the current one.",
     },
     {
       id: "powerbi-q5",
       task: "An auditor asks which findings make up the tallest bar. Open the underlying rows of that chart.",
-      steps: [
-        { do: "context", target: "pbi-visual-1" },
-        { do: "menu", target: "pbi-visual-1", item: "see-records" },
-      ],
-      effect: { records: true, notice: "Records view open for Findings by region" },
+      answers: [{ kind: "menu", target: "pbi-visual-1", item: "see-records" }],
+      verify: (state) => state.recordsFor === "pbi-visual-1",
       explanation:
         "See records on a visual lists the rows behind it, which is how a number is traced back to its source.",
     },
     {
       id: "powerbi-q6",
-      task: "The source moved to a new database server. Connect the report to a SQL Server source.",
-      steps: [
-        { do: "control", control: "get-data" },
-        { do: "option", control: "get-data", option: "sql-server" },
-      ],
-      effect: { sqlConnected: true, notice: "SQL Server · NORTHWIND-SQL01 connected" },
+      task: "The source moved to a new database server. Connect the report to the SQL Server source NORTHWIND-SQL01.",
+      answers: [{ kind: "confirm", dialog: "pbi-sql", value: "NORTHWIND-SQL01" }],
+      verify: (state) => state.connectedServer === "NORTHWIND-SQL01",
       explanation:
-        "Get data opens the connector list; SQL Server is the connector used to point the model at the new database.",
+        "Get data opens the connector list, and the connection is made inside the connector dialog with the server name.",
     },
   ],
 };

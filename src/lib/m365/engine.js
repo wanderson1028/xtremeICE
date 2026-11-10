@@ -1,31 +1,22 @@
 /** Pure scoring rules for the Microsoft 365 point-and-click assessment. */
-import { stepMatches } from "./index.js";
+import { isCommit, answerMatches } from "./actions.js";
 
 /**
- * Classify one committed action against the current step.
- * Returns "match" (step completed), "wrong" (task failed) or "ignored" (preparation, not an answer).
+ * Score one candidate action against a task.
+ *
+ * - Navigation (tabs, menu opens, dialogs, context menus, selections) is
+ *   "ignored": it never awards credit and never ends the task.
+ * - A commit is scored. It only counts as "correct" when it is one of the
+ *   task's accepted operations AND the simulation state it produced passes the
+ *   task's own verification. Anything else is "wrong".
+ *
+ * `resolved` marks a task that already has an answer, so repeated clicks can
+ * never score twice.
  */
-export function resolveAction(step, action) {
-  if (!step || !action) return "ignored";
-  // Selecting an item before opening its context menu is preparation.
-  if (action.type === "click" && step.do === "context" && action.targetId === step.target) return "ignored";
-  // Re-opening the menu of the command already chosen is preparation too.
-  if (action.type === "control" && step.do === "option" && action.controlId === step.control) return "ignored";
-  return stepMatches(step, action) ? "match" : "wrong";
-}
-
-/**
- * Advance one task by one action.
- * state: { stepIndex, result } where result is null | "correct" | "wrong".
- * A resolved task ignores every later action, so repeated clicks cannot score twice.
- */
-export function applyAction(state, question, action) {
-  if (state.result) return state;
-  const outcome = resolveAction(question.steps[state.stepIndex], action);
-  if (outcome === "ignored") return state;
-  if (outcome === "wrong") return { stepIndex: state.stepIndex, result: "wrong" };
-  if (state.stepIndex + 1 < question.steps.length) {
-    return { stepIndex: state.stepIndex + 1, result: null };
-  }
-  return { stepIndex: state.stepIndex, result: "correct" };
+export function applyAction({ question, state, action, resolved = false }) {
+  if (resolved || !isCommit(action)) return { outcome: "ignored", state };
+  const next = question.reduce(state, action);
+  const accepted = question.answers.some((answer) => answerMatches(answer, action));
+  const outcome = accepted && question.verify(next) ? "correct" : "wrong";
+  return { outcome, state: next };
 }

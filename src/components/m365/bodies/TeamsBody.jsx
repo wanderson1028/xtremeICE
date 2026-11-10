@@ -29,18 +29,22 @@ const POSTS = [
 ];
 
 const FILES = [
-  { name: "Q4_Security_Policy.docx", by: "Dana Whitfield", when: "Nov 8" },
-  { name: "Incident_Response_Plan.pptx", by: "Marcus Lee", when: "Nov 6" },
-  { name: "Vendor_Renewal_Tracker.xlsx", by: "Priya Raman", when: "Nov 5" },
+  { id: "teams-file-policy", name: "Q4_Security_Policy.docx", by: "Dana Whitfield", when: "Nov 8" },
+  { id: "teams-file-ir-plan", name: "Incident_Response_Plan.pptx", by: "Marcus Lee", when: "Nov 6" },
+  { id: "teams-file-q4-evidence", name: "Q4_Evidence_Log.xlsx", by: "Priya Raman", when: "Nov 5" },
 ];
 
 export default function TeamsBody({ state, selectedId, click, context, press }) {
   const [activeChannel, setActiveChannel] = useState("teams-channel-general");
+  const [showFiles, setShowFiles] = useState(false);
 
-  const channels = [...BASE_CHANNELS];
-  if (state.addedChannel) {
-    channels.push({ id: "teams-channel-incident-2026-11", name: "Incident 2026-11" });
-  }
+  const channels = [
+    ...BASE_CHANNELS,
+    ...(state.channels || []).map((name, index) => ({
+      id: `teams-channel-added-${index}`,
+      name,
+    })),
+  ];
   const channel = channels.find((item) => item.id === activeChannel) || channels[0];
 
   return (
@@ -89,7 +93,7 @@ export default function TeamsBody({ state, selectedId, click, context, press }) 
             >
               <Hash className="h-2.5 w-2.5 shrink-0 text-[#8a8886]" />
               <span className="truncate">{item.name}</span>
-              {state.muted && item.id === "teams-channel-threat-intel" ? (
+              {state.muted === item.id ? (
                 <BellOff className="ml-auto h-2.5 w-2.5 shrink-0 text-[#8a8886]" />
               ) : null}
             </Hit>
@@ -117,8 +121,11 @@ export default function TeamsBody({ state, selectedId, click, context, press }) 
             </span>
             <Hit
               id="teams-tab-files"
-              click={click}
-              selected={state.filesTab || selectedId === "teams-tab-files"}
+              click={() => {
+                setShowFiles(true);
+                click("teams-tab-files");
+              }}
+              selected={showFiles}
               className="cursor-pointer pb-[2px]"
             >
               Files
@@ -144,23 +151,33 @@ export default function TeamsBody({ state, selectedId, click, context, press }) 
         </div>
 
         <div className="min-h-0 flex-1 overflow-hidden px-2 py-1.5">
-          {state.filesTab ? (
+          {showFiles ? (
             <div>
               <div className="mb-1 text-[8px] uppercase tracking-wide text-[#8a8886]">
                 Files shared in {channel.name}
               </div>
               {FILES.map((file) => (
-                <div
-                  key={file.name}
-                  className="flex items-center gap-1.5 border-b border-[#f3f2f1] py-[4px] text-[9px] text-[#3b3a39]"
+                <Hit
+                  key={file.id}
+                  id={file.id}
+                  click={click}
+                  commit
+                  selected={state.openedFile === file.id}
+                  className="flex cursor-pointer items-center gap-1.5 border-b border-[#f3f2f1] py-[4px] text-[9px] text-[#3b3a39]"
+                  title="Open this document"
                 >
                   <FolderOpen className="h-2.5 w-2.5 shrink-0 text-[#4b53bc]" />
                   <span className="truncate">{file.name}</span>
                   <span className="ml-auto shrink-0 text-[8px] text-[#8a8886]">
                     {file.by} · {file.when}
                   </span>
-                </div>
+                </Hit>
               ))}
+              {state.openedFile ? (
+                <div className="mt-1 rounded border border-[#4b53bc]/40 bg-[#f2f2fd] px-1.5 py-1 text-[8px] text-[#3b3a39]">
+                  Open in {FILES.find((f) => f.id === state.openedFile)?.name}
+                </div>
+              ) : null}
             </div>
           ) : (
             <div className="space-y-1">

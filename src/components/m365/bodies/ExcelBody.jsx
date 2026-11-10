@@ -26,18 +26,22 @@ const GRID = "grid grid-cols-[26px_repeat(5,minmax(0,1fr))] items-stretch";
 export default function ExcelBody({ state, selectedId, click, context }) {
   const rows = [];
   DEPARTMENTS.forEach((dept) => {
-    if (state.insertedRow && dept.id === "excel-row-marketing") {
+    if (state.insertedRowAbove === dept.id) {
       rows.push({ id: "excel-row-new", label: "", values: null });
     }
     rows.push(dept);
   });
+  const currencyOn = state.currencyColumn === "E" && state.currencyFormat === "currency-usd";
 
   const totals = [0, 1, 2, 3].map((col) =>
     DEPARTMENTS.reduce((sum, dept) => sum + dept.values[col], 0)
   );
 
   const cellClass = "border-b border-r border-[#e1dfdd] px-1.5 py-[3px] text-[9px] text-[#201f1e]";
-  const frozenMark = state.frozen ? "border-b-2 border-b-[#217346]" : "border-b border-b-[#c8c6c4]";
+  const frozen = state.frozen === "freeze-top";
+  const merged = state.merged === "excel-cell-a1";
+  const autosum = state.autosumColumn === "excel-col-d";
+  const frozenMark = frozen ? "border-b-2 border-b-[#217346]" : "border-b border-b-[#c8c6c4]";
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-white">
@@ -65,7 +69,7 @@ export default function ExcelBody({ state, selectedId, click, context }) {
           <div className="border-b border-r border-[#d0cecc] bg-[#f3f2f1] py-[3px] text-center text-[9px] text-[#605e5c]">
             1
           </div>
-          {state.merged ? (
+          {merged ? (
             <Hit
               id="excel-cell-a1"
               click={click}
@@ -99,7 +103,7 @@ export default function ExcelBody({ state, selectedId, click, context }) {
           {HEADERS.map((header) => (
             <div
               key={header}
-              className={`${cellClass} ${frozenMark} font-semibold ${state.frozen ? "bg-[#e4f2e8]" : ""}`}
+              className={`${cellClass} ${frozenMark} font-semibold ${frozen ? "bg-[#e4f2e8]" : ""}`}
             >
               {header}
             </div>
@@ -124,7 +128,7 @@ export default function ExcelBody({ state, selectedId, click, context }) {
                 <div className={`${cellClass} truncate`}>{row.label}</div>
                 {row.values.map((value, col) => (
                   <div key={col} className={`${cellClass} truncate text-right tabular-nums`}>
-                    {state.currency && col === 3 ? money(value) : plain(value)}
+                    {currencyOn && col === 3 ? money(value) : plain(value)}
                   </div>
                 ))}
               </>
@@ -137,7 +141,7 @@ export default function ExcelBody({ state, selectedId, click, context }) {
         ))}
 
         {/* AutoSum total row */}
-        {state.autosum ? (
+        {autosum ? (
           <div className={`${GRID} shrink-0 bg-[#e4f2e8]`}>
             <div className="border-b border-r border-[#d0cecc] py-[3px] text-center text-[9px] font-semibold text-[#3b3a39]">
               {rows.length + 3}
@@ -150,7 +154,7 @@ export default function ExcelBody({ state, selectedId, click, context }) {
                   col === 2 ? "bg-[#217346]/15 text-[#0f5132]" : ""
                 }`}
               >
-                {state.currency && col === 3 ? money(total) : plain(total)}
+                {currencyOn && col === 3 ? money(total) : plain(total)}
               </div>
             ))}
           </div>
@@ -202,8 +206,8 @@ export default function ExcelBody({ state, selectedId, click, context }) {
       </div>
 
       <BodyStatus
-        left={`Ready · ${state.frozen ? "2 rows frozen" : "no frozen panes"}`}
-        right={`${state.currency ? "$ English (United States)" : "General"} · 100%`}
+        left={`Ready · ${frozen ? "2 rows frozen" : "no frozen panes"}`}
+        right={`${currencyOn ? "$ English (United States)" : "General"} · 100%`}
       />
     </div>
   );

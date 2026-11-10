@@ -1,7 +1,8 @@
 import React, { useRef, useState } from "react";
-import { findControl } from "@/lib/m365";
+import { menuItemAction } from "@/lib/m365/actions";
 import { MenuList } from "./M365Menu";
 import M365MenuButton from "./M365MenuButton";
+import M365Dialog from "./M365Dialog";
 import M365RibbonBar from "./M365RibbonBar";
 import WordBody from "./bodies/WordBody";
 import ExcelBody from "./bodies/ExcelBody";
@@ -19,28 +20,38 @@ const BODIES = {
   report: PowerBiBody,
 };
 
-/** Simulated application window: title bar, ribbon, body, and right-click menus. */
+/**
+ * Simulated application window: title bar, ribbon, body, dialogs and context
+ * menus. Every interaction is reported with the current selection and whether
+ * it is a commit (an operation) or navigation (opening UI).
+ */
 export default function M365Window({ app, state, locked, onAction }) {
   const [activeTabId, setActiveTabId] = useState(app.defaultTab || app.tabs?.[0]?.id || null);
   const [selected, setSelected] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
   const [uiFlags, setUiFlags] = useState({});
+  const [dialog, setDialog] = useState(null);
   const shellRef = useRef(null);
 
   const emit = (action) => {
     if (locked) return;
     if (action.type === "control") {
-      const control = findControl(app, action.controlId);
-      if (control?.ui) {
-        setUiFlags((prev) => ({ ...prev, [control.ui]: !prev[control.ui] }));
-      }
+      const control = (app.tabs || [])
+        .flatMap((tab) => tab.groups.flatMap((group) => group.controls))
+        .concat(app.commandBar || [], app.titleActions || [], app.controls || [])
+        .find((item) => item.id === action.controlId);
+      if (control?.ui) setUiFlags((prev) => ({ ...prev, [control.ui]: !prev[control.ui] }));
+    }
+    if (action.dialog) {
+      const definition = app.dialogs?.[action.dialog];
+      if (definition) setDialog({ id: action.dialog, definition });
     }
     onAction(action);
   };
 
-  const click = (targetId) => {
+  const click = (targetId, extra) => {
     setSelected(targetId);
-    emit({ type: "click", targetId });
+    emit({ type: "click", targetId, commit: Boolean(extra?.commit) });
   };
 
   const context = (targetId, items, event) => {
@@ -60,8 +71,9 @@ export default function M365Window({ app, state, locked, onAction }) {
   };
 
   const choose = (targetId, itemId) => {
+    const item = contextMenu?.items?.find((entry) => entry.id === itemId) || { id: itemId };
     setContextMenu(null);
-    emit({ type: "menu", targetId, itemId });
+    emit(menuItemAction({ type: "menu", targetId, itemId }, item));
   };
 
   const pressTab = (tabId) => {
@@ -94,9 +106,16 @@ export default function M365Window({ app, state, locked, onAction }) {
               items={action.menu}
               align="right"
               buttonClassName="text-white/90 hover:bg-white/20"
-              onPress={() => emit({ type: "control", controlId: action.id })}
+              onPress={() =>
+                emit({ type: "control", controlId: action.id, commit: false, targetId: selected })
+              }
               onChoose={(item) =>
-                emit({ type: "option", controlId: action.id, optionId: item.id })
+                emit(
+                  menuItemAction(
+                    { type: "option", controlId: action.id, targetId: selected },
+                    item
+                  )
+                )
               }
               title={action.label}
             />
@@ -109,7 +128,13 @@ export default function M365Window({ app, state, locked, onAction }) {
         </div>
       </div>
 
-      <M365RibbonBar app={app} activeTabId={activeTabId} onTab={pressTab} onAction={emit} />
+      <M365RibbonBar
+        app={app}
+        activeTabId={activeTabId}
+        selected={selected}
+        onTab={pressTab}
+        onAction={emit}
+      />
 
       <div className="flex min-h-0 flex-1 flex-col">
         <Body
@@ -122,16 +147,6 @@ export default function M365Window({ app, state, locked, onAction }) {
           press={emit}
         />
       </div>
-
-      {state.notice ? (
-        <div
-          className="flex shrink-0 items-center gap-1.5 border-t px-2.5 py-[3px] text-[8.5px]"
-          style={{ borderColor: `${app.accent}40`, backgroundColor: `${app.accent}14`, color: "#3b3a39" }}
-        >
-          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: app.accent }} />
-          <span className="truncate">{state.notice}</span>
-        </div>
-      ) : null}
 
       {contextMenu ? (
         <>
@@ -154,6 +169,18 @@ export default function M365Window({ app, state, locked, onAction }) {
             />
           </div>
         </>
+      ) : null}
+
+      {dialog ? (
+        <M365Dialog
+          dialog={dialog.definition}
+          onCancel={() => setDialog(null)}
+          onConfirm={(value) => {
+            const dialogId = dialog.id;
+            setDialog(null);
+            emit({ type: "confirm", dialogId, value, targetId: selected, commit: true });
+          }}
+        />
       ) : null}
     </div>
   );

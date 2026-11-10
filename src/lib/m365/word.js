@@ -4,6 +4,50 @@ import {
   BookOpen, MessageSquarePlus, Check, X, ZoomIn,
 } from "lucide-react";
 
+/** Paragraph labels used by the document and the comment pane. */
+export const WORD_PARAGRAPHS = {
+  "word-title": "Title",
+  "word-para-2": "2. Liability",
+  "word-para-3": "3. Control list",
+};
+
+export const PARA_MENU = [
+  { id: "new-comment", label: "New Comment" },
+  { id: "reply-comment", label: "Reply to Comment" },
+  { id: "track-changes", label: "Track Changes" },
+  { id: "font", label: "Font…", opens: true },
+  { id: "paragraph", label: "Paragraph…", opens: true },
+];
+
+/** Applies any committed operation to the document state. */
+export function reduceWord(state, action) {
+  const next = { ...state };
+  const target = action.targetId || null;
+
+  if (action.type === "control") {
+    if (action.controlId === "heading1" && target) next.headingTarget = target;
+    if (action.controlId === "bold" && target) next.boldParagraph = target;
+    if (action.controlId === "accept" || action.controlId === "reject") next.changesAccepted = true;
+  }
+  if (action.type === "option") {
+    if (action.controlId === "orientation") next.orientation = action.optionId;
+    if (action.controlId === "margins") next.margin = action.optionId;
+    if (action.controlId === "size") next.pageSize = action.optionId;
+    if (action.controlId === "columns") next.columns = action.optionId;
+    if (action.controlId === "track-changes") next.trackChanges = action.optionId === "track-on";
+    if (action.controlId === "zoom") next.zoom = action.optionId;
+    if (action.controlId === "table-of-contents") {
+      if (action.optionId === "toc-custom") next.toc = "custom";
+      else next.toc = action.optionId === "toc-auto2" ? "auto2" : "auto1";
+    }
+  }
+  if (action.type === "menu") {
+    if (action.itemId === "new-comment") next.commentTarget = target;
+    if (action.itemId === "track-changes") next.trackChanges = true;
+  }
+  return next;
+}
+
 export const wordApp = {
   id: "word",
   name: "Word",
@@ -11,14 +55,16 @@ export const wordApp = {
   windowTitle: "Q4_Security_Policy.docx — Word",
   variant: "word",
   defaultTab: "home",
+  reduce: reduceWord,
   defaults: {
     orientation: "portrait",
-    heading1: false,
+    margin: "margin-normal",
+    pageSize: "size-letter",
+    headingTarget: null,
+    boldParagraph: null,
     trackChanges: false,
-    toc: false,
-    comment: false,
-    bold: false,
-    notice: "",
+    toc: null,
+    commentTarget: null,
   },
   tabs: [
     {
@@ -37,7 +83,7 @@ export const wordApp = {
       groups: [
         { id: "clipboard", label: "Clipboard", controls: [{ id: "paste", label: "Paste", icon: ClipboardPaste, size: "lg" }] },
         { id: "font", label: "Font", controls: [
-          { id: "bold", label: "Bold", icon: Bold },
+          { id: "bold", label: "Bold", icon: Bold, commits: true },
           { id: "italic", label: "Italic", icon: Italic },
         ] },
         { id: "paragraph", label: "Paragraph", controls: [
@@ -45,9 +91,9 @@ export const wordApp = {
           { id: "numbering", label: "Numbering", icon: ListOrdered },
         ] },
         { id: "styles", label: "Styles", controls: [
-          { id: "heading1", label: "Heading 1", gallery: true },
-          { id: "normal", label: "Normal", gallery: true },
-          { id: "quote", label: "Quote", gallery: true },
+          { id: "heading1", label: "Heading 1", gallery: true, commits: true },
+          { id: "normal", label: "Normal", gallery: true, commits: true },
+          { id: "quote", label: "Quote", gallery: true, commits: true },
         ] },
       ],
     },
@@ -98,7 +144,7 @@ export const wordApp = {
           { id: "table-of-contents", label: "Table of Contents", icon: BookOpen, menu: [
             { id: "toc-auto1", label: "Automatic Table 1" },
             { id: "toc-auto2", label: "Automatic Table 2" },
-            { id: "toc-custom", label: "Custom Table of Contents…" },
+            { id: "toc-custom", label: "Custom Table of Contents…", opens: true },
           ] },
           { id: "footnote", label: "Insert Footnote" },
         ] },
@@ -151,65 +197,55 @@ export const wordApp = {
     {
       id: "word-q1",
       task: "Make sure the policy prints in landscape rather than portrait orientation.",
-      steps: [
-        { do: "tab", tab: "layout" },
-        { do: "control", control: "orientation" },
-        { do: "option", control: "orientation", option: "landscape" },
-      ],
-      effect: { orientation: "landscape", notice: "Page setup applied: Landscape 11 × 8.5 in" },
+      answers: [{ kind: "option", control: "orientation", option: "landscape" }],
+      verify: (state) => state.orientation === "landscape",
       explanation:
-        "Orientation is a Page Setup command on the Layout tab. Choosing Layout alone does nothing; the option inside the Orientation menu is what applies the page size.",
+        "Orientation is a Page Setup command on the Layout tab. The option inside the Orientation menu is what applies the page size.",
     },
     {
       id: "word-q2",
       task: "Add a generated table of contents at the start of the document.",
-      steps: [
-        { do: "tab", tab: "references" },
-        { do: "control", control: "table-of-contents" },
-        { do: "option", control: "table-of-contents", option: "toc-auto1" },
+      answers: [
+        { kind: "option", control: "table-of-contents", option: "toc-auto1" },
+        { kind: "option", control: "table-of-contents", option: "toc-auto2" },
       ],
-      effect: { toc: true, notice: "Table of Contents inserted with 3 entries" },
+      verify: (state) => state.toc === "auto1" || state.toc === "auto2",
       explanation:
         "The Table of Contents menu on the References tab inserts a generated, automatically updating outline.",
     },
     {
       id: "word-q3",
       task: "Legal must see every edit before it is accepted. Turn change tracking on.",
-      steps: [
-        { do: "tab", tab: "review" },
-        { do: "control", control: "track-changes" },
-        { do: "option", control: "track-changes", option: "track-on" },
+      answers: [
+        { kind: "option", control: "track-changes", option: "track-on" },
+        { kind: "menu", item: "track-changes" },
       ],
-      effect: { trackChanges: true, notice: "Track Changes: All Markup on" },
-      explanation: "Change tracking is switched on from the Track Changes menu on the Review tab.",
+      verify: (state) => state.trackChanges === true,
+      explanation: "Change tracking is switched on from the Track Changes command on the Review tab.",
     },
     {
       id: "word-q4",
-      task: "The document title must use the built-in Heading 1 style so the table of contents can find it.",
-      steps: [{ do: "control", control: "heading1" }],
-      effect: { heading1: true, notice: "Title styled with Heading 1" },
-      explanation: "The Styles gallery on the Home tab applies built-in styles such as Heading 1.",
+      task: "Select the document title, then restyle it with the built-in Heading 1 style so the table of contents can find it.",
+      answers: [{ kind: "control", control: "heading1", target: "word-title" }],
+      verify: (state) => state.headingTarget === "word-title",
+      explanation:
+        "The Styles gallery on the Home tab restyles the paragraph you are working in, so the title must be selected first.",
     },
     {
       id: "word-q5",
-      task: "Ask Legal a question about the liability paragraph: start a comment thread attached to that paragraph.",
-      steps: [
-        { do: "context", target: "word-para-2" },
-        { do: "menu", target: "word-para-2", item: "new-comment" },
-      ],
-      effect: { comment: true, notice: "Comment thread added to the liability paragraph" },
+      task: "Ask Legal a question about the liability paragraph: anchor a new comment to that paragraph.",
+      answers: [{ kind: "menu", target: "word-para-2", item: "new-comment" }],
+      verify: (state) => state.commentTarget === "word-para-2",
       explanation:
         "Right-clicking text opens the document context menu, where New Comment anchors a review comment to that paragraph.",
     },
     {
       id: "word-q6",
       task: "Emphasise the three control statements by making that paragraph bold.",
-      steps: [
-        { do: "click", target: "word-para-3" },
-        { do: "control", control: "bold" },
-      ],
-      effect: { bold: true, notice: "Control list paragraph formatted bold" },
-      explanation: "Formatting applies to the selected text, so the paragraph is selected first, then Bold is used on Home.",
+      answers: [{ kind: "control", control: "bold", target: "word-para-3" }],
+      verify: (state) => state.boldParagraph === "word-para-3",
+      explanation:
+        "Formatting applies to the selected text, so the control-list paragraph is selected before Bold is used on Home.",
     },
   ],
 };

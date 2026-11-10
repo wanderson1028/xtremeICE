@@ -54,8 +54,7 @@ const NAV = [
 export default function OutlookBody({ state, selectedId, click, context }) {
   let messages = MESSAGES.filter(
     (message) =>
-      !(state.moved && message.id === "ol-msg-vendor") &&
-      !(state.deleted && message.id === "ol-msg-phish")
+      state.movedMessage !== message.id && state.deletedMessage !== message.id
   );
   if (state.filter === "unread") messages = messages.filter((message) => message.unread);
 
@@ -88,9 +87,9 @@ export default function OutlookBody({ state, selectedId, click, context }) {
         </div>
         {[
           { label: "Inbox", count: unread },
-          { label: "Vendors", count: state.moved ? 1 : 0 },
+          { label: "Vendors", count: state.movedMessage ? 1 : 0 },
           { label: "Archive", count: 0 },
-          { label: "Deleted Items", count: state.deleted ? 1 : 0 },
+          { label: "Deleted Items", count: state.deletedMessage ? 1 : 0 },
         ].map((folder) => (
           <div
             key={folder.label}
@@ -175,18 +174,25 @@ export default function OutlookBody({ state, selectedId, click, context }) {
               )}
             </div>
 
-            {state.replying ? (
+            {state.replyDraftFor || state.forwardOf ? (
               <div className="shrink-0 border-t border-[#e1dfdd] bg-[#faf9f8] px-2 py-1.5">
                 <div className="flex items-center gap-2 text-[8px] text-[#605e5c]">
                   <span className="rounded bg-white px-1.5 py-[1px] font-semibold text-[#0f6cbd]">
-                    {state.replying === "forward" ? "Forward" : "Reply"}
+                    {state.forwardOf ? "Forward" : "Reply"}
                   </span>
                   <span>
-                    {state.replying === "forward" ? "To: manager@northwind.example" : "To: Dana Whitfield"}
+                    {state.forwardOf
+                      ? "To: manager@northwind.example"
+                      : "To: Dana Whitfield"}
+                  </span>
+                  <span className="ml-auto truncate font-mono text-[7px] text-[#8a8886]">
+                    {MESSAGES.find(
+                      (m) => m.id === (state.forwardOf || state.replyDraftFor)
+                    )?.subject || ""}
                   </span>
                 </div>
                 <div className="mt-1 rounded-sm border border-[#c8c6c4] bg-white px-2 py-1 text-[9px] text-[#3b3a39]">
-                  {state.replying === "forward"
+                  {state.forwardOf
                     ? "FYI — please review the renewal before Friday."
                     : "Thanks Dana — filed for review."}
                 </div>

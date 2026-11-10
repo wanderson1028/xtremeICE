@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { menuItemAction } from "@/lib/m365/actions";
 import { MenuList } from "./M365Menu";
 
 function RibbonControl({ control, open, onPress, onChoose, onToggle }) {
@@ -46,7 +47,7 @@ function RibbonControl({ control, open, onPress, onChoose, onToggle }) {
 }
 
 /** Tab strip plus ribbon (or the SharePoint command bar) for one simulated app. */
-export default function M365RibbonBar({ app, activeTabId, onTab, onAction }) {
+export default function M365RibbonBar({ app, activeTabId, selected, onTab, onAction }) {
   const [openControl, setOpenControl] = useState(null);
   const barRef = useRef(null);
 
@@ -59,9 +60,22 @@ export default function M365RibbonBar({ app, activeTabId, onTab, onAction }) {
     return () => document.removeEventListener("click", close);
   }, [openControl]);
 
-  const press = (control) => onAction({ type: "control", controlId: control.id });
+  /* A command only commits when it performs an operation; menu buttons and
+     panel toggles are navigation and can never score. */
+  const press = (control) =>
+    onAction({
+      type: "control",
+      controlId: control.id,
+      commit: Boolean(control.commits),
+      targetId: selected || null,
+    });
   const choose = (control, item) =>
-    onAction({ type: "option", controlId: control.id, optionId: item.id });
+    onAction(
+      menuItemAction(
+        { type: "option", controlId: control.id, targetId: selected || null },
+        item
+      )
+    );
 
   if (app.commandBar) {
     return (

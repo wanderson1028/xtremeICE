@@ -1,6 +1,10 @@
 import React from "react";
 
-/** One simulated UI element that reports clicks (and optional right-clicks) to the lab engine. */
+/**
+ * One simulated UI element that reports interactions to the lab engine.
+ * A plain click is a selection (navigation); `commit` marks an element that
+ * performs an operation, such as a send button or a filter checkbox.
+ */
 export default function Hit({
   id,
   className = "",
@@ -9,6 +13,7 @@ export default function Hit({
   click,
   context,
   menu,
+  commit = false,
   title,
 }) {
   return (
@@ -16,7 +21,7 @@ export default function Hit({
       title={title}
       onClick={(event) => {
         event.stopPropagation();
-        if (click) click(id);
+        if (click) click(id, { commit });
       }}
       onContextMenu={
         menu

@@ -42,28 +42,28 @@ const BASE_FILES = [
 export default function SharePointBody({ state, selectedId, click, context, choose }) {
   const [sortMenu, setSortMenu] = useState(false);
 
-  let items = [...BASE_FILES];
-  if (state.uploaded) {
-    items.unshift({
-      id: "sp-row-upload",
-      name: "Q4_Report.pdf",
-      icon: FileText,
-      modified: "just now",
-      by: "You",
-      stamp: 99,
-    });
-  }
-  if (state.folder) {
-    items.unshift({
-      id: "sp-row-folder",
-      name: "Q4 Evidence",
-      icon: FolderOpen,
-      modified: "just now",
-      by: "You",
-      stamp: 98,
-    });
-  }
-  if (state.sorting === "newest") items = items.sort((a, b) => b.stamp - a.stamp);
+  const uploaded = (state.uploadedFiles || []).map((name, index) => ({
+    id: `sp-upload-${name}`,
+    name,
+    icon: FileText,
+    modified: "just now",
+    by: "You",
+    stamp: 99 - index,
+  }));
+  const folders = (state.folders || []).map((name, index) => ({
+    id: `sp-folder-${name}`,
+    name,
+    icon: FolderOpen,
+    modified: "just now",
+    by: "You",
+    stamp: 96 - index,
+  }));
+  const all = [...uploaded, ...folders, ...BASE_FILES];
+  const nameOf = (id) => all.find((item) => item.id === id)?.name || "";
+
+  let items = all;
+  if (state.sorting === "newest") items = [...all].sort((a, b) => b.stamp - a.stamp);
+  if (state.sorting === "name") items = [...all].sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <div className="flex min-h-0 flex-1">
@@ -71,7 +71,7 @@ export default function SharePointBody({ state, selectedId, click, context, choo
         <div className="font-semibold uppercase tracking-wide text-[#605e5c]">Quick access</div>
         <div className="rounded px-1.5 py-[3px] hover:bg-white">Security Operations</div>
         {state.pinned ? (
-          <div className="rounded bg-white px-1.5 py-[3px] shadow-sm">Vendor_Renewal_Tracker.xlsx</div>
+          <div className="rounded bg-white px-1.5 py-[3px] shadow-sm">{nameOf(state.pinned)}</div>
         ) : null}
         <div className="mt-2 font-semibold uppercase tracking-wide text-[#605e5c]">Recent</div>
         <div className="px-1.5 py-[3px]">Q4_Security_Policy.docx</div>
@@ -102,7 +102,7 @@ export default function SharePointBody({ state, selectedId, click, context, choo
                 className="cursor-pointer"
                 title="Click to sort"
               >
-                Modified {state.sorting === "newest" ? "▼" : ""}
+                Modified {state.sorting === "newest" ? "▼" : state.sorting === "oldest" ? "▲" : ""}
               </Hit>
               {sortMenu ? (
                 <MenuList
@@ -132,6 +132,11 @@ export default function SharePointBody({ state, selectedId, click, context, choo
                 <div className="flex items-center gap-1.5 px-3 py-[5px]">
                   <Icon className="h-3 w-3 shrink-0 text-[#036c70]" />
                   <span className="truncate">{item.name}</span>
+                  {state.pinned === item.id ? (
+                    <span className="ml-1 rounded-sm bg-[#036c70]/15 px-1 text-[7px] uppercase text-[#036c70]">
+                      pinned
+                    </span>
+                  ) : null}
                 </div>
                 <div className="truncate border-l border-[#f3f2f1] px-3 py-[5px] text-[#605e5c]">
                   {item.modified}
@@ -145,35 +150,41 @@ export default function SharePointBody({ state, selectedId, click, context, choo
         </div>
 
         <BodyStatus
-          left={`${items.length} items · sorted by ${state.sorting === "newest" ? "Modified (newest first)" : "Name"}`}
+          left={`${items.length} items · sorted by ${
+            state.sorting === "newest"
+              ? "Modified (newest first)"
+              : state.sorting === "oldest"
+              ? "Modified (oldest first)"
+              : state.sorting === "name"
+              ? "Name"
+              : "Name"
+          }`}
           right="Documents · SharePoint"
         />
       </div>
 
-      {state.sharing ? (
+      {state.sharedItem ? (
         <aside className="hidden w-[26%] shrink-0 border-l border-[#e1dfdd] bg-white px-2.5 py-2 md:block">
           <div className="text-[10px] font-semibold text-[#201f1e]">Manage access</div>
-          <div className="mt-1 text-[9px] text-[#605e5c]">Q4_Security_Policy.docx</div>
+          <div className="mt-1 text-[9px] text-[#605e5c]">{nameOf(state.sharedItem)}</div>
           <div className="mt-2 space-y-1 text-[9px]">
-            <div className="flex items-center justify-between rounded border border-[#e1dfdd] px-1.5 py-1">
-              <span>Audit Team</span>
-              <span className="text-[#605e5c]">Can view</span>
-            </div>
-            <div className="flex items-center justify-between rounded border border-[#e1dfdd] px-1.5 py-1">
-              <span>Priya Raman</span>
-              <span className="text-[#605e5c]">Can edit</span>
-            </div>
+            {(state.sharedWith || []).map((who) => (
+              <div
+                key={who}
+                className="flex items-center justify-between rounded border border-[#e1dfdd] px-1.5 py-1"
+              >
+                <span>{who}</span>
+                <span className="text-[#605e5c]">Can view</span>
+              </div>
+            ))}
           </div>
-          <button type="button" className="mt-2 w-full rounded bg-[#036c70] py-1 text-[9px] font-semibold text-white">
-            Send
-          </button>
         </aside>
       ) : null}
 
-      {state.versions ? (
+      {state.versionsFor ? (
         <aside className="hidden w-[26%] shrink-0 border-l border-[#e1dfdd] bg-white px-2.5 py-2 md:block">
           <div className="text-[10px] font-semibold text-[#201f1e]">Version history</div>
-          <div className="mt-1 text-[9px] text-[#605e5c]">Incident_Response_Plan.pptx</div>
+          <div className="mt-1 text-[9px] text-[#605e5c]">{nameOf(state.versionsFor)}</div>
           {[
             { v: "2.0", when: "Nov 6, 16:02 · Marcus Lee" },
             { v: "1.0", when: "Oct 24, 10:41 · Dana Whitfield" },

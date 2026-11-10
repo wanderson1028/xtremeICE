@@ -8,12 +8,19 @@ import { powerbiApp } from "./powerbi.js";
 
 export const M365_APPS = [wordApp, excelApp, sharepointApp, outlookApp, teamsApp, powerbiApp];
 
+/** Each task carries its app's reducer so scoring can verify the resulting state. */
 export const M365_QUESTIONS = M365_APPS.flatMap((app) =>
-  app.questions.map((q) => ({ ...q, appId: app.id, appName: app.name, accent: app.accent }))
+  app.questions.map((question) => ({
+    ...question,
+    appId: app.id,
+    appName: app.name,
+    accent: app.accent,
+    reduce: app.reduce,
+    verify: question.verify,
+  }))
 );
 
 export const TOTAL_QUESTIONS = M365_QUESTIONS.length;
-export const QUESTIONS_PER_APP = 6;
 export const PASS_MARK = 70;
 export const LAB_TITLE = "Microsoft 365 Point & Click Assessment";
 
@@ -32,30 +39,20 @@ export function findControl(app, controlId) {
   return controls.find((control) => control.id === controlId);
 }
 
+/** All commands of an app, including the ones rendered outside the ribbon. */
+export function allControls(app) {
+  const groups = [];
+  (app.tabs || []).forEach((tab) => groups.push(...tab.groups));
+  return [
+    ...groups.flatMap((group) => group.controls),
+    ...(app.commandBar || []),
+    ...(app.titleActions || []),
+    ...(app.controls || []),
+  ];
+}
 
 export const initialAppState = () =>
   Object.fromEntries(M365_APPS.map((app) => [app.id, { ...app.defaults }]));
-
-/** True when an emitted action completes the expected step. */
-export function stepMatches(step, action) {
-  if (!step || !action) return false;
-  switch (step.do) {
-    case "tab":
-      return action.type === "tab" && action.tabId === step.tab;
-    case "control":
-      return action.type === "control" && action.controlId === step.control;
-    case "option":
-      return action.type === "option" && action.optionId === step.option;
-    case "click":
-      return action.type === "click" && action.targetId === step.target;
-    case "context":
-      return action.type === "context" && action.targetId === step.target;
-    case "menu":
-      return action.type === "menu" && action.targetId === step.target && action.itemId === step.item;
-    default:
-      return false;
-  }
-}
 
 export const correctCount = (answers) =>
   M365_QUESTIONS.filter((q) => answers[q.id]?.correct).length;
