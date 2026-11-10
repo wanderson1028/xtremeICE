@@ -179,6 +179,103 @@ Deno.serve(async (req) => {
     const tasks = await base44.asServiceRole.entities.AssessmentTask.filter({ assessment_id: session.assessment_id });
     const assessment = await base44.asServiceRole.entities.Assessment.get(session.assessment_id);
 
+    /* Lab-based assessments carry no written questions: the lab runs in the
+       candidate's browser and reports every task it scored, so the scorecard is
+       built from that result instead of an answer key. */
+    const labResult = payload?.lab_result && typeof payload.lab_result === 'object' && Array.isArray(payload.lab_result.questions)
+      ? payload.lab_result
+      : null;
+
+    if (!tasks.length && labResult) {
+      const labQuestions = labResult.questions.slice(0, 200).map((entry, index) => ({
+        id: String(entry?.id || `task-${index + 1}`),
+        title: String(entry?.title || `Task ${index + 1}`).slice(0, 300),
+        app: String(entry?.app || '').slice(0, 80),
+        correct: entry?.correct === true,
+      }));
+      const total = labQuestions.length;
+      const correct = labQuestions.filter((entry) => entry.correct).length;
+      const overallScore = total ? Math.round((correct / total) * 100) : 0;
+      const passed = overallScore >= (Number(assessment.pass_threshold) || 70);
+      const labTitle = String(labResult.lab_title || assessment.position_title || 'Lab assessment').slice(0, 200);
+
+      const results = labQuestions.map((entry) => ({
+        task_id: `lab:${entry.id}`,
+        title: entry.title,
+        theme: entry.app || labTitle,
+        theme_weight: 1,
+        question_type: 'objective',
+        points_possible: 1,
+        points_earned: entry.correct ? 1 : 0,
+        completion_percentage: entry.correct ? 100 : 0,
+        credit: entry.correct ? 1 : 0,
+        submitted_answer: entry.correct ? 'Completed correctly' : 'Not completed correctly',
+        correct_answer: '',
+        correct: entry.correct,
+        partial: null,
+        auto_graded: true,
+        validation_passed: entry.correct,
+        evaluator_feedback: '',
+        time_spent_minutes: 0,
+      }));
+
+      const appScores = (Array.isArray(labResult.apps) ? labResult.apps : []).slice(0, 20);
+      const categoryScores = appScores.length
+        ? Object.fromEntries(appScores.map((entry) => [
+            String(entry?.name || 'Application').slice(0, 80),
+            Number(entry?.total) ? Math.round((Number(entry?.correct) || 0) / Number(entry.total) * 100) : 0,
+          ]))
+        : { answer_accuracy: overallScore };
+
+      const summary = `${session.candidate_name} scored ${overallScore}% on the ${labTitle} assessment, completing ${correct} of ${total} simulated tasks correctly in a hands-on lab that is scored on the operations actually performed.`;
+
+      await base44.asServiceRole.entities.CandidateSession.update(session_id, {
+        status: 'submitted',
+        submitted_at: new Date().toISOString(),
+        time_elapsed_minutes,
+        task_submissions: results.map((result) => ({
+          task_id: result.task_id,
+          answer: result.submitted_answer,
+          matches: {},
+          time_spent: 0,
+          submitted_at: new Date().toISOString(),
+        })),
+      });
+      await base44.asServiceRole.entities.CandidateInvitation.update(invitation.id, {
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+      });
+
+      const scorecard = await base44.asServiceRole.entities.Scorecard.create({
+        session_id,
+        assessment_id: session.assessment_id,
+        candidate_email: session.candidate_email,
+        candidate_name: session.candidate_name,
+        overall_score: overallScore,
+        passed,
+        hiring_recommendation: recommendationFor(overallScore),
+        category_scores: categoryScores,
+        task_results: results,
+        strengths: results.filter((result) => result.correct).slice(0, 4).map((result) => `Completed correctly: ${result.title}`),
+        weaknesses: results.filter((result) => !result.correct).slice(0, 4).map((result) => `Not completed correctly: ${result.title}`),
+        missed_steps: results.filter((result) => !result.correct).map((result) => result.title),
+        follow_up_questions: [],
+        smart_summary: summary,
+        generated_at: new Date().toISOString(),
+      });
+
+      await base44.asServiceRole.entities.CandidateSession.update(session_id, { status: 'evaluated' });
+
+      return Response.json({
+        success: true,
+        overall_score: overallScore,
+        passed,
+        earned: correct,
+        possible: total,
+        scorecard_id: scorecard.id,
+      });
+    }
+
     const weights = weightsMapFrom(assessment.scoring_weights);
     const scored = buildResults(tasks, submissions, weights);
     const results = scored.results;

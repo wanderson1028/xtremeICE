@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Shield, Clock, CheckCircle2, ChevronRight, Loader2, Send, AlertCircle } from "lucide-react";
+import { Shield, CheckCircle2, ChevronRight, Loader2, Send, AlertCircle } from "lucide-react";
 import CandidateQuestion, { isAnswered } from "@/components/assessment/CandidateQuestion";
+import CandidateLabRunner from "@/components/assessment/CandidateLabRunner";
+import { assessmentLabs } from "@/lib/candidateLabs";
 
 export default function CandidatePortal() {
   const params = new URLSearchParams(window.location.search);
@@ -17,6 +19,8 @@ export default function CandidatePortal() {
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState("");
   const [alreadyTaken, setAlreadyTaken] = useState(false);
+  const [labResult, setLabResult] = useState(null);
+  const [labSubmitError, setLabSubmitError] = useState("");
 
   useEffect(() => {
     if (startTime && !submitted) {
@@ -40,6 +44,10 @@ export default function CandidatePortal() {
   const assessment = portalData?.assessment;
   const tasks = portalData?.tasks || [];
   const sortedTasks = [...tasks].sort((a, b) => a.order - b.order);
+  /* Assessments built from a lab carry no written questions — the invite opens
+     the lab itself so the candidate never lands on an empty answer form. */
+  const labs = assessmentLabs(assessment);
+  const labAssessment = sortedTasks.length === 0 && labs.length > 0;
 
   // Resume an in-progress attempt so a refresh never loses answers.
   useEffect(() => {
@@ -161,6 +169,39 @@ export default function CandidatePortal() {
     }
   };
 
+  /* Lab attempts are scored inside the lab itself; the invitation flow turns that
+     result into the candidate's scorecard. */
+  const submitLab = async (result) => {
+    if (!session) return;
+    setSubmitting(true);
+    setLabSubmitError("");
+    try {
+      await base44.functions.invoke("candidateSessionFlow", {
+        action: "submit",
+        token,
+        session_id: session.id,
+        lab_result: result,
+        time_elapsed_minutes: Math.floor((Date.now() - (startTime || Date.now())) / 60000),
+      });
+      setSubmitted(true);
+    } catch (e) {
+      const status = e?.response?.status ?? e?.status;
+      const message = e?.response?.data?.error || "";
+      if (status === 410) {
+        setAlreadyTaken(true);
+        return;
+      }
+      setLabSubmitError(message || "We could not save your result. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleLabComplete = (result) => {
+    setLabResult(result);
+    submitLab(result);
+  };
+
   const fmtTime = (secs) => {
     const m = Math.floor(secs / 60);
     const s = secs % 60;
@@ -260,7 +301,14 @@ export default function CandidatePortal() {
 
             <div className="grid grid-cols-3 gap-4 mb-6">
               {[
-                { label: assessment?.assessment_kind === "application_test" ? "Questions" : "Tasks", value: sortedTasks.length },
+                {
+                  label: labAssessment
+                    ? "Lab"
+                    : assessment?.assessment_kind === "application_test"
+                    ? "Questions"
+                    : "Tasks",
+                  value: labAssessment ? labs[0]?.title || "1" : sortedTasks.length,
+                },
                 { label: "Duration", value: `${assessment?.duration_minutes} min` },
                 { label: "Pass Score", value: `${assessment?.pass_threshold || 70}%` },
               ].map((s) => (
@@ -291,6 +339,29 @@ export default function CandidatePortal() {
         </div>
       </div>
     );
+  }
+
+  /* A lab assessment runs the lab itself, not a written-answer form. */
+  if (labAssessment) {
+    if (labSubmitError) {
+      return (
+        <div className="min-h-screen bg-black flex items-center justify-center p-6">
+          <div className="max-w-md text-center">
+            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-white text-xl font-bold mb-2">Result not saved yet</h2>
+            <p className="text-gray-400 text-sm leading-relaxed mb-6">{labSubmitError}</p>
+            <button
+              onClick={() => submitLab(labResult)}
+              disabled={submitting || !labResult}
+              className="px-6 py-3 bg-red-700 hover:bg-red-600 disabled:opacity-50 text-white rounded-xl font-bold transition-colors"
+            >
+              {submitting ? "Saving..." : "Save my result again"}
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return <CandidateLabRunner lab={labs[0]} onComplete={handleLabComplete} />;
   }
 
   const answeredCount = sortedTasks.filter((task) => isAnswered(task, answers[task.id])).length;

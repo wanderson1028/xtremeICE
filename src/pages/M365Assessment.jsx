@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, ChevronRight, Clock, MousePointerClick, Trophy } from "lucide-react";
+import { ArrowLeft, ChevronRight, Clock, Loader2, MousePointerClick, Trophy } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import {
   M365_APPS, M365_QUESTIONS, TOTAL_QUESTIONS, LAB_TITLE, PASS_MARK,
@@ -20,7 +20,7 @@ import M365AppSwitcher from "@/components/m365/M365AppSwitcher";
 
 const ADVANCE_MS = 950;
 
-export default function M365Assessment() {
+export default function M365Assessment({ candidateMode = false, onComplete }) {
   const [started, setStarted] = useState(false);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState({});
@@ -95,6 +95,30 @@ export default function M365Assessment() {
     setSaving(true);
     const snapshot = answersRef.current;
     const correct = correctCount(snapshot);
+    if (candidateMode) {
+      /* A candidate is not signed in and has no training score to store: hand the
+         full result to the invitation flow, which builds their scorecard. */
+      setSaving(false);
+      setFinished(true);
+      onComplete?.({
+        lab_id: "microsoft-365",
+        lab_title: LAB_TITLE,
+        correct,
+        total: TOTAL_QUESTIONS,
+        apps: M365_APPS.map((a) => ({
+          name: a.name,
+          correct: a.questions.filter((q) => snapshot[q.id]?.correct).length,
+          total: a.questions.length,
+        })),
+        questions: M365_QUESTIONS.map((q) => ({
+          id: q.id,
+          title: q.task,
+          app: appById(q.appId).name,
+          correct: Boolean(snapshot[q.id]?.correct),
+        })),
+      });
+      return;
+    }
     try {
       const user = await base44.auth.me();
       await base44.entities.LabScore.create({
@@ -125,7 +149,7 @@ export default function M365Assessment() {
     }
     setSaving(false);
     setFinished(true);
-  }, []);
+  }, [candidateMode, onComplete]);
 
   /* Inside an application the next task opens by itself. Because any application
      can be opened at any time, the hand-off screen only appears when the next
@@ -226,18 +250,30 @@ export default function M365Assessment() {
     setStarted(true);
   };
 
-  if (finished) return <M365Summary answers={answers} onRetry={retake} />;
+  if (finished) {
+    if (candidateMode) {
+      return (
+        <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-black px-6 text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-sky-400" />
+          <p className="font-mono text-sm text-gray-300">Submitting your results…</p>
+        </div>
+      );
+    }
+    return <M365Summary answers={answers} onRetry={retake} />;
+  }
 
   if (!started) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-sky-950/20 px-4 py-12">
         <div className="mx-auto max-w-3xl">
-          <Link
-            to="/InteractiveVirtualLabs"
-            className="mb-6 inline-flex items-center gap-1.5 font-mono text-xs text-gray-400 transition-colors hover:text-white"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" /> Training labs
-          </Link>
+          {!candidateMode && (
+            <Link
+              to="/InteractiveVirtualLabs"
+              className="mb-6 inline-flex items-center gap-1.5 font-mono text-xs text-gray-400 transition-colors hover:text-white"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" /> Training labs
+            </Link>
+          )}
 
           <h1 className="text-4xl font-bold tracking-tight text-white">
             Microsoft 365 <span className="text-sky-400">Point &amp; Click</span>
@@ -302,13 +338,17 @@ export default function M365Assessment() {
     <div className="flex min-h-screen flex-col bg-gradient-to-br from-black via-gray-950 to-sky-950/20">
       <div className="flex shrink-0 items-center justify-between border-b border-gray-800 bg-black/60 px-4 py-3">
         <div className="flex items-center gap-3">
-          <Link
-            to="/InteractiveVirtualLabs"
-            className="flex items-center gap-1.5 font-mono text-xs text-gray-400 transition-colors hover:text-white"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" /> Training labs
-          </Link>
-          <span className="text-gray-600">|</span>
+          {!candidateMode && (
+            <>
+              <Link
+                to="/InteractiveVirtualLabs"
+                className="flex items-center gap-1.5 font-mono text-xs text-gray-400 transition-colors hover:text-white"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" /> Training labs
+              </Link>
+              <span className="text-gray-600">|</span>
+            </>
+          )}
           <span className="font-mono text-sm font-bold text-white">
             Microsoft 365 Point &amp; Click
           </span>
