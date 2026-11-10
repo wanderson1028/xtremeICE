@@ -380,10 +380,10 @@ export default function CandidateAssessments() {
                         )}
                         <button
                           onClick={() => setPendingDelete({ kind: "invitation", id: inv.id, label: inv.candidate_name })}
-                          className="p-1 text-gray-600 hover:text-red-400 transition-colors"
+                          className="p-1.5 bg-red-950/60 border border-red-700/70 text-red-300 hover:bg-red-800 hover:text-white rounded-md transition-colors"
                           title="Delete invite"
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     </div>
@@ -460,10 +460,11 @@ export default function CandidateAssessments() {
                   </Link>
                   <button
                     onClick={() => setPendingDelete({ kind: "assessment", id: a.id, label: a.position_title })}
-                    className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-800 rounded-lg transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-2 bg-red-950/60 border border-red-700/70 text-red-300 hover:bg-red-800 hover:text-white rounded-lg text-xs font-semibold transition-colors card-3d"
                     title="Delete assessment"
                   >
                     <Trash2 className="h-4 w-4" />
+                    <span className="hidden sm:inline">Delete</span>
                   </button>
                 </div>
               </div>
@@ -522,7 +523,7 @@ export default function CandidateAssessments() {
                     )}
                     <button
                       onClick={() => setPendingDelete({ kind: "invitation", id: inv.id, label: inv.candidate_name })}
-                      className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-gray-800 rounded-lg transition-colors"
+                      className="p-1.5 bg-red-950/60 border border-red-700/70 text-red-300 hover:bg-red-800 hover:text-white rounded-lg transition-colors"
                       title="Delete invite"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
