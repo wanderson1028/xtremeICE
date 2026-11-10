@@ -5,6 +5,12 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.54';
 // Child cleanup runs under the service role because candidates own those records
 // and a recruiter cannot delete them directly.
 
+// filter() without options returns an array; with options it returns { items }.
+function asList(result) {
+  if (Array.isArray(result)) return result;
+  return result?.items || [];
+}
+
 function chunk(list, size) {
   const out = [];
   for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
@@ -15,7 +21,7 @@ async function deleteSessionsAndScorecards(sr, sessionIds) {
   if (!sessionIds.length) return;
   for (const batch of chunk(sessionIds, 20)) {
     const scorecards = await sr.entities.Scorecard.filter({ session_id: { $in: batch } });
-    await Promise.allSettled(scorecards.items.map((sc) => sr.entities.Scorecard.delete(sc.id)));
+    await Promise.allSettled(asList(scorecards).map((sc) => sr.entities.Scorecard.delete(sc.id)));
   }
   for (const batch of chunk(sessionIds, 20)) {
     await Promise.allSettled(batch.map((id) => sr.entities.CandidateSession.delete(id)));
@@ -43,7 +49,7 @@ export default async function (req) {
         return Response.json({ error: 'Forbidden' }, { status: 403 });
       }
       const sessions = await base44.entities.CandidateSession.filter({ invitation_id: id });
-      await deleteSessionsAndScorecards(base44.asServiceRole, sessions.items.map((s) => s.id));
+      await deleteSessionsAndScorecards(base44.asServiceRole, asList(sessions).map((s) => s.id));
       await base44.entities.CandidateInvitation.delete(id);
       return Response.json({ success: true });
     }
@@ -59,9 +65,9 @@ export default async function (req) {
     const invitations = await sr.entities.CandidateInvitation.filter({ assessment_id: id });
     const sessions = await sr.entities.CandidateSession.filter({ assessment_id: id });
 
-    await deleteSessionsAndScorecards(sr, sessions.items.map((s) => s.id));
-    await Promise.allSettled(invitations.items.map((inv) => sr.entities.CandidateInvitation.delete(inv.id)));
-    await Promise.allSettled(tasks.items.map((task) => sr.entities.AssessmentTask.delete(task.id)));
+    await deleteSessionsAndScorecards(sr, asList(sessions).map((s) => s.id));
+    await Promise.allSettled(asList(invitations).map((inv) => sr.entities.CandidateInvitation.delete(inv.id)));
+    await Promise.allSettled(asList(tasks).map((task) => sr.entities.AssessmentTask.delete(task.id)));
     await base44.entities.Assessment.delete(id);
 
     return Response.json({ success: true });
