@@ -8,7 +8,9 @@ import React, { useState } from "react";
 export default function M365Dialog({ dialog, onCancel, onConfirm }) {
   const [choice, setChoice] = useState(null);
   const [text, setText] = useState(dialog.input?.value || "");
-  const value = dialog.items ? choice : text.trim();
+  /* A dialog with nothing to fill in (a single on/off action) is confirmable
+     straight away; the label itself is the value it commits. */
+  const value = dialog.items ? choice : dialog.input ? text.trim() : dialog.confirm;
 
   return (
     <div

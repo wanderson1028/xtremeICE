@@ -1,13 +1,9 @@
 import React from "react";
 import { Database, Check } from "lucide-react";
 import Hit, { BodyStatus } from "./Hit";
-import { VISUAL_MENU } from "@/lib/m365/powerbi";
+import { PBI_FILTER_TARGETS, PBI_REGIONS, VISUAL_MENU } from "@/lib/m365/powerbi";
 
-const REGIONS = [
-  { id: "pbi-filter-amer", label: "AMER", value: 38 },
-  { id: "pbi-filter-emea", label: "EMEA", value: 24 },
-  { id: "pbi-filter-apac", label: "APAC", value: 17 },
-];
+const REGIONS = PBI_REGIONS;
 
 const RECORDS = [
   { region: "AMER", control: "MFA coverage below target", findings: 14 },
@@ -43,10 +39,10 @@ export default function PowerBiBody({ state, ui = {}, selectedId, click, context
           Published to Security Operations workspace · 10:12 AM
         </div>
       ) : null}
-      {state.sqlConnected ? (
+      {state.connectedServer ? (
         <div className="flex shrink-0 items-center gap-1 border-b border-[#e1dfdd] bg-white px-2 py-[3px] text-[8px] text-[#3b3a39]">
           <Database className="h-2.5 w-2.5 text-[#605e5c]" />
-          SQL Server · NORTHWIND-SQL01 · Connected
+          SQL Server · {state.connectedServer} · Connected
         </div>
       ) : null}
 
@@ -93,7 +89,7 @@ export default function PowerBiBody({ state, ui = {}, selectedId, click, context
             </div>
           </div>
 
-          {state.records ? (
+          {state.recordsFor ? (
             <div className="absolute inset-x-2 bottom-2 top-2 z-10 overflow-hidden rounded-sm border border-[#c8c6c4] bg-white shadow-[0_8px_22px_rgba(0,0,0,0.25)]">
               <div className="flex items-center border-b border-[#e1dfdd] px-2 py-1">
                 <span className="text-[9px] font-semibold text-[#201f1e]">See records — Findings by region</span>
@@ -127,6 +123,7 @@ export default function PowerBiBody({ state, ui = {}, selectedId, click, context
                 key={region.id}
                 id={region.id}
                 click={click}
+                commit={PBI_FILTER_TARGETS.includes(region.id)}
                 selected={state.region === region.label}
                 className="mt-[2px] flex cursor-default items-center gap-1 rounded px-1 py-[2px] text-[9px] text-[#3b3a39]"
               >
@@ -150,7 +147,7 @@ export default function PowerBiBody({ state, ui = {}, selectedId, click, context
         <span className="rounded-t-sm border border-[#c8c6c4] border-b-0 bg-white px-2 py-[1px] font-semibold text-[#201f1e]">
           Page 1
         </span>
-        {state.page2 ? (
+        {state.pages > 1 ? (
           <span className="rounded-t-sm border border-transparent px-2 py-[1px] text-[#605e5c]">Page 2</span>
         ) : null}
         <span className="px-1 text-[#605e5c]">＋</span>

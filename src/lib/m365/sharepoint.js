@@ -62,7 +62,9 @@ export function reduceSharePoint(state, action) {
     }
     if (action.dialogId === "sp-share" && action.value) {
       next.sharedItem = target;
-      next.sharedWith = [...new Set([...state.sharedWith, action.value])];
+      next.sharedWith = state.sharedWith.includes(action.value)
+        ? state.sharedWith
+        : [...state.sharedWith, action.value];
     }
   }
   if (action.type === "menu") {

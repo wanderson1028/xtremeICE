@@ -5,7 +5,10 @@ import {
 } from "lucide-react";
 import Hit, { BodyStatus } from "./Hit";
 import M365MenuButton from "../M365MenuButton";
-import { ATTACH_MENU, CHANNEL_MENU, MEET_MENU, TEAM_MENU } from "@/lib/m365/teams";
+import { menuItemAction } from "@/lib/m365/actions";
+import {
+  ATTACH_MENU, CHANNEL_MENU, MEET_MENU, TEAM_MENU, TEAMS_CLICK_COMMITS, TEAMS_FILES,
+} from "@/lib/m365/teams";
 
 const RAIL = [
   { id: "activity", label: "Activity", icon: Activity },
@@ -28,15 +31,13 @@ const POSTS = [
   { from: "Dana Whitfield", time: "9:20 AM", text: "Reminder: the quarterly access review closes Friday." },
 ];
 
-const FILES = [
-  { id: "teams-file-policy", name: "Q4_Security_Policy.docx", by: "Dana Whitfield", when: "Nov 8" },
-  { id: "teams-file-ir-plan", name: "Incident_Response_Plan.pptx", by: "Marcus Lee", when: "Nov 6" },
-  { id: "teams-file-q4-evidence", name: "Q4_Evidence_Log.xlsx", by: "Priya Raman", when: "Nov 5" },
-];
-
 export default function TeamsBody({ state, selectedId, click, context, press }) {
   const [activeChannel, setActiveChannel] = useState("teams-channel-general");
   const [showFiles, setShowFiles] = useState(false);
+
+  /* Menu items that only open a dialog stay navigation; the rest commit. */
+  const chooseFrom = (controlId) => (item) =>
+    press(menuItemAction({ type: "option", controlId, optionId: item.id }, item));
 
   const channels = [
     ...BASE_CHANNELS,
@@ -75,7 +76,7 @@ export default function TeamsBody({ state, selectedId, click, context, press }) 
             items={TEAM_MENU}
             className="ml-auto"
             onPress={() => press({ type: "control", controlId: "more" })}
-            onChoose={(item) => press({ type: "option", controlId: "more", optionId: item.id })}
+            onChoose={chooseFrom("more")}
             title="More options"
           />
         </div>
@@ -137,13 +138,13 @@ export default function TeamsBody({ state, selectedId, click, context, press }) 
               icon={Video}
               items={MEET_MENU}
               onPress={() => press({ type: "control", controlId: "meet" })}
-              onChoose={(item) => press({ type: "option", controlId: "meet", optionId: item.id })}
+              onChoose={chooseFrom("meet")}
             />
             <M365MenuButton
               label="⋯"
               items={TEAM_MENU}
               onPress={() => press({ type: "control", controlId: "more" })}
-              onChoose={(item) => press({ type: "option", controlId: "more", optionId: item.id })}
+              onChoose={chooseFrom("more")}
               align="right"
               title="More options"
             />
@@ -156,12 +157,12 @@ export default function TeamsBody({ state, selectedId, click, context, press }) 
               <div className="mb-1 text-[8px] uppercase tracking-wide text-[#8a8886]">
                 Files shared in {channel.name}
               </div>
-              {FILES.map((file) => (
+              {TEAMS_FILES.map((file) => (
                 <Hit
                   key={file.id}
                   id={file.id}
                   click={click}
-                  commit
+                  commit={TEAMS_CLICK_COMMITS.includes(file.id)}
                   selected={state.openedFile === file.id}
                   className="flex cursor-pointer items-center gap-1.5 border-b border-[#f3f2f1] py-[4px] text-[9px] text-[#3b3a39]"
                   title="Open this document"
@@ -175,7 +176,7 @@ export default function TeamsBody({ state, selectedId, click, context, press }) 
               ))}
               {state.openedFile ? (
                 <div className="mt-1 rounded border border-[#4b53bc]/40 bg-[#f2f2fd] px-1.5 py-1 text-[8px] text-[#3b3a39]">
-                  Open in {FILES.find((f) => f.id === state.openedFile)?.name}
+                  Open in {TEAMS_FILES.find((f) => f.id === state.openedFile)?.name}
                 </div>
               ) : null}
             </div>
@@ -190,7 +191,7 @@ export default function TeamsBody({ state, selectedId, click, context, press }) 
                   <div className="text-[9px] leading-relaxed text-[#3b3a39]">{post.text}</div>
                 </div>
               ))}
-              {state.sent ? (
+              {state.postedChannel ? (
                 <div className="rounded border border-[#4b53bc]/40 bg-[#f2f2fd] px-1.5 py-1">
                   <div className="flex items-baseline gap-1">
                     <span className="text-[9px] font-semibold text-[#201f1e]">You</span>
@@ -223,12 +224,13 @@ export default function TeamsBody({ state, selectedId, click, context, press }) 
               placement="up"
               align="right"
               onPress={() => press({ type: "control", controlId: "attach" })}
-              onChoose={(item) => press({ type: "option", controlId: "attach", optionId: item.id })}
+              onChoose={chooseFrom("attach")}
               title="Attach"
             />
             <Hit
               id="teams-send"
               click={click}
+              commit
               selected={selectedId === "teams-send"}
               className="cursor-pointer rounded p-0.5 text-[#4b53bc] hover:bg-black/5"
               title="Send"

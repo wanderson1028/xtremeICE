@@ -7,6 +7,16 @@ export const VISUAL_MENU = [
   { id: "exclude", label: "Exclude" },
 ];
 
+/** Region filter values rendered inside the filters pane. */
+export const PBI_REGIONS = [
+  { id: "pbi-filter-amer", label: "AMER", value: 38 },
+  { id: "pbi-filter-emea", label: "EMEA", value: 24 },
+  { id: "pbi-filter-apac", label: "APAC", value: 17 },
+];
+
+/** Filter checkboxes whose click applies a filter — the only clicks that can score. */
+export const PBI_FILTER_TARGETS = PBI_REGIONS.map((region) => region.id);
+
 export const POWERBI_DIALOGS = {
   "pbi-sql": {
     title: "SQL Server database",

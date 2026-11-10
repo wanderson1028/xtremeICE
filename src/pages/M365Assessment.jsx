@@ -6,7 +6,7 @@ import {
   M365_APPS, M365_QUESTIONS, TOTAL_QUESTIONS, LAB_TITLE, PASS_MARK,
   appById, initialAppState, correctCount,
 } from "@/lib/m365";
-import { applyAction } from "@/lib/m365/engine";
+import { applyTaskAction } from "@/lib/m365/session";
 import M365Window from "@/components/m365/M365Window";
 import M365Rail from "@/components/m365/M365Rail";
 import M365Summary from "@/components/m365/M365Summary";
@@ -17,7 +17,6 @@ const ADVANCE_MS = 950;
 export default function M365Assessment() {
   const [started, setStarted] = useState(false);
   const [index, setIndex] = useState(0);
-  const [stepIndex, setStepIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [appState, setAppState] = useState(initialAppState);
   const [submitted, setSubmitted] = useState(false);
@@ -33,7 +32,6 @@ export default function M365Assessment() {
   const answeredCount = M365_QUESTIONS.filter((q) => answers[q.id]).length;
 
   useEffect(() => {
-    setStepIndex(0);
     setSubmitted(false);
     advancedRef.current = false;
   }, [index]);
@@ -87,22 +85,21 @@ export default function M365Assessment() {
     return () => clearTimeout(timer);
   }, [submitted, index, finish]);
 
-  const commit = (correct) => {
-    if (answersRef.current[question.id]) return;
-    const next = { ...answersRef.current, [question.id]: { correct } };
-    answersRef.current = next;
-    setAnswers(next);
-    if (correct && question.effect) {
-      setAppState((prev) => ({ ...prev, [app.id]: { ...prev[app.id], ...question.effect } }));
-    }
-    setSubmitted(true);
-  };
-
+  /* Navigation is ignored by the validator; the first commit that changes the
+     document closes the task, and the answer is kept for the final score. */
   const handleAction = (action) => {
     if (submitted || answersRef.current[question.id]) return;
-    const next = applyAction({ stepIndex, result: null }, question, action);
-    if (next.stepIndex !== stepIndex) setStepIndex(next.stepIndex);
-    if (next.result) commit(next.result === "correct");
+    const result = applyTaskAction({
+      question,
+      answers: answersRef.current,
+      states: appState,
+      action,
+    });
+    if (result.outcome === "ignored") return;
+    answersRef.current = result.answers;
+    setAnswers(result.answers);
+    setAppState(result.states);
+    setSubmitted(true);
   };
 
   const retake = () => {
@@ -112,7 +109,6 @@ export default function M365Assessment() {
     setAnswers({});
     setAppState(initialAppState());
     setIndex(0);
-    setStepIndex(0);
     setSubmitted(false);
     setSaving(false);
     setFinished(false);
@@ -255,6 +251,7 @@ export default function M365Assessment() {
               total={TOTAL_QUESTIONS}
               submitted={submitted}
               saving={saving}
+              isLast={index + 1 >= TOTAL_QUESTIONS}
             />
           </div>
         </div>

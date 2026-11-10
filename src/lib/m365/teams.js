@@ -25,6 +25,16 @@ export const ATTACH_MENU = [
   { id: "attach-approval", label: "Approval" },
 ];
 
+/** Documents shared in the channel's Files tab. */
+export const TEAMS_FILES = [
+  { id: "teams-file-policy", name: "Q4_Security_Policy.docx", by: "Dana Whitfield", when: "Nov 8" },
+  { id: "teams-file-ir-plan", name: "Incident_Response_Plan.pptx", by: "Marcus Lee", when: "Nov 6" },
+  { id: "teams-file-q4-evidence", name: "Q4_Evidence_Log.xlsx", by: "Priya Raman", when: "Nov 5" },
+];
+
+/** Body elements whose click performs an operation — the only clicks that can score. */
+export const TEAMS_CLICK_COMMITS = ["teams-send", ...TEAMS_FILES.map((file) => file.id)];
+
 export const TEAMS_DIALOGS = {
   "teams-attach": {
     title: "Share a file",
