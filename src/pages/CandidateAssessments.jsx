@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
 import { Plus, ClipboardList, Users, BarChart3, Eye, Trash2, Send, CheckCircle2, Clock, AlertCircle, Activity, TrendingUp, UserCheck, Hourglass, X, ListChecks } from "lucide-react";
+import DeleteConfirmDialog from "@/components/assessments/DeleteConfirmDialog";
+import { useToast } from "@/components/ui/use-toast";
 
 const STATUS_STYLE = {
   draft: "bg-gray-800 text-gray-400 border-gray-700",
@@ -105,6 +107,7 @@ const HIRE_LABEL = {
 
 export default function CandidateAssessments() {
   const qc = useQueryClient();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("tracker");
 
   const { data: assessments = [], isLoading } = useQuery({
@@ -127,45 +130,23 @@ export default function CandidateAssessments() {
     queryFn: () => base44.entities.CandidateSession.list("-created_date", 200),
   });
 
-  const deleteAssessmentMutation = useMutation({
-    mutationFn: async (assessmentId) => {
-      // Find all related invitations
-      const relatedInvites = invitations.filter(i => i.assessment_id === assessmentId);
-      // For each invitation, delete related sessions and scorecards
-      for (const inv of relatedInvites) {
-        const relatedSessions = sessions.filter(s => s.invitation_id === inv.id);
-        for (const session of relatedSessions) {
-          const relatedScorecards = scorecards.filter(sc => sc.session_id === session.id);
-          for (const sc of relatedScorecards) await base44.entities.Scorecard.delete(sc.id);
-          await base44.entities.CandidateSession.delete(session.id);
-        }
-        await base44.entities.CandidateInvitation.delete(inv.id);
-      }
-      await base44.entities.Assessment.delete(assessmentId);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["my-assessments"] });
-      qc.invalidateQueries({ queryKey: ["my-invitations"] });
-      qc.invalidateQueries({ queryKey: ["my-sessions"] });
-      qc.invalidateQueries({ queryKey: ["my-scorecards"] });
-    },
-  });
+  const [pendingDelete, setPendingDelete] = useState(null);
 
-  const deleteInvitationMutation = useMutation({
-    mutationFn: async (invId) => {
-      const relatedSessions = sessions.filter(s => s.invitation_id === invId);
-      for (const session of relatedSessions) {
-        const relatedScorecards = scorecards.filter(sc => sc.session_id === session.id);
-        for (const sc of relatedScorecards) await base44.entities.Scorecard.delete(sc.id);
-        await base44.entities.CandidateSession.delete(session.id);
-      }
-      await base44.entities.CandidateInvitation.delete(invId);
-    },
+  const deleteMutation = useMutation({
+    mutationFn: (target) => base44.functions.invoke("deleteCandidateRecord", { kind: target.kind, id: target.id }),
     onSuccess: () => {
+      setPendingDelete(null);
       qc.invalidateQueries({ queryKey: ["my-assessments"] });
       qc.invalidateQueries({ queryKey: ["my-invitations"] });
       qc.invalidateQueries({ queryKey: ["my-sessions"] });
       qc.invalidateQueries({ queryKey: ["my-scorecards"] });
+    },
+    onError: (err) => {
+      toast({
+        title: "Delete failed",
+        description: err?.response?.data?.error || err.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -397,7 +378,11 @@ export default function CandidateAssessments() {
                             Resend
                           </Link>
                         )}
-                        <button onClick={() => deleteInvitationMutation.mutate(inv.id)} className="p-1 text-gray-600 hover:text-red-400 transition-colors" title="Delete">
+                        <button
+                          onClick={() => setPendingDelete({ kind: "invitation", id: inv.id, label: inv.candidate_name })}
+                          className="p-1 text-gray-600 hover:text-red-400 transition-colors"
+                          title="Delete invite"
+                        >
                           <Trash2 className="h-3 w-3" />
                         </button>
                       </div>
@@ -473,7 +458,11 @@ export default function CandidateAssessments() {
                   <Link to={`/bulk-invite?assessment_id=${a.id}`} className="p-2 text-gray-400 hover:text-purple-400 hover:bg-gray-800 rounded-lg transition-colors" title="Invite multiple candidates">
                     <Users className="h-4 w-4" />
                   </Link>
-                  <button onClick={() => deleteAssessmentMutation.mutate(a.id)} className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-800 rounded-lg transition-colors" title="Delete">
+                  <button
+                    onClick={() => setPendingDelete({ kind: "assessment", id: a.id, label: a.position_title })}
+                    className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-800 rounded-lg transition-colors"
+                    title="Delete assessment"
+                  >
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
@@ -531,7 +520,11 @@ export default function CandidateAssessments() {
                         Resend
                       </Link>
                     )}
-                    <button onClick={() => deleteInvitationMutation.mutate(inv.id)} className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-gray-800 rounded-lg transition-colors" title="Delete candidate">
+                    <button
+                      onClick={() => setPendingDelete({ kind: "invitation", id: inv.id, label: inv.candidate_name })}
+                      className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-gray-800 rounded-lg transition-colors"
+                      title="Delete invite"
+                    >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -573,6 +566,19 @@ export default function CandidateAssessments() {
           </div>
         )}
       </div>
+
+      <DeleteConfirmDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => { if (!open && !deleteMutation.isPending) setPendingDelete(null); }}
+        busy={deleteMutation.isPending}
+        title={pendingDelete?.kind === "assessment" ? "Delete this assessment?" : "Delete this invite?"}
+        description={
+          pendingDelete?.kind === "assessment"
+            ? `"${pendingDelete?.label}" and all of its questions, candidate invites, sessions and results will be permanently removed.`
+            : `${pendingDelete?.label || "This candidate"}'s invite, any session in progress and its results will be permanently removed.`
+        }
+        onConfirm={() => deleteMutation.mutate(pendingDelete)}
+      />
     </div>
   );
 }
