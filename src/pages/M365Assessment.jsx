@@ -306,7 +306,7 @@ export default function M365Assessment() {
         />
 
         <div className="min-w-0 flex-1 overflow-y-auto p-4 lg:p-6">
-          <div className="mx-auto max-w-3xl">
+          <div className="mx-auto max-w-5xl">
             {transition ? (
               <M365SectionTransition
                 fromApp={transition.from}
@@ -332,7 +332,7 @@ export default function M365Assessment() {
                   </span>
                 </div>
 
-                <div className="h-[clamp(360px,56vh,600px)] w-full">
+                <div className="h-[clamp(380px,58vh,640px)] w-full">
                   <M365Window
                     key={question.id}
                     app={app}

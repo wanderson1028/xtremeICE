@@ -30,8 +30,8 @@ const MARKER = {
  */
 export default function M365Rail({ apps, currentAppId, currentQuestionId, answers }) {
   return (
-    <aside className="hidden w-60 shrink-0 overflow-y-auto border-r border-gray-800 bg-black/30 p-3 lg:block">
-      <div className="mb-2 px-1 font-mono text-[10px] uppercase tracking-wider text-gray-500">
+    <aside className="hidden w-72 shrink-0 overflow-y-auto border-r border-gray-800 bg-black/30 p-4 lg:block xl:w-80">
+      <div className="mb-3 px-1 font-mono text-[11px] uppercase tracking-wider text-gray-500">
         Applications
       </div>
 
@@ -41,13 +41,13 @@ export default function M365Rail({ apps, currentAppId, currentQuestionId, answer
         return (
           <div
             key={app.id}
-            className={`mb-2 rounded-lg border px-2.5 py-2 ${
+            className={`mb-2.5 rounded-lg border px-3 py-2.5 ${
               active ? "border-sky-700/60 bg-sky-950/30" : "border-gray-800/70"
             }`}
           >
             <div className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: app.accent }} />
-              <span className={`text-xs font-medium ${active ? "text-white" : "text-gray-300"}`}>
+              <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: app.accent }} />
+              <span className={`text-sm font-medium ${active ? "text-white" : "text-gray-300"}`}>
                 {app.name}
               </span>
               {result.passed ? (
@@ -61,7 +61,7 @@ export default function M365Rail({ apps, currentAppId, currentQuestionId, answer
               ) : null}
             </div>
 
-            <div className="mt-1.5 space-y-0.5 font-mono text-[10px] tabular-nums">
+            <div className="mt-2 space-y-1 font-mono text-[11px] tabular-nums">
               <div className="text-gray-300">
                 Answered: {result.answered}/{result.total}
               </div>
@@ -73,7 +73,7 @@ export default function M365Rail({ apps, currentAppId, currentQuestionId, answer
               </div>
             </div>
 
-            <div className="mt-1.5 flex gap-1">
+            <div className="mt-2 flex gap-1.5">
               {app.questions.map((question, i) => {
                 const { label, className, Icon } = MARKER[result.statuses[i]];
                 const current = question.id === currentQuestionId;
@@ -83,11 +83,11 @@ export default function M365Rail({ apps, currentAppId, currentQuestionId, answer
                     role="img"
                     aria-label={`${app.name} task ${i + 1}: ${label}`}
                     title={`${app.name} task ${i + 1}: ${label}`}
-                    className={`flex h-4 flex-1 items-center justify-center rounded-[3px] border ${className} ${
+                    className={`flex h-5 flex-1 items-center justify-center rounded-[3px] border ${className} ${
                       current ? "ring-2 ring-sky-500/70 ring-offset-1 ring-offset-gray-950" : ""
                     }`}
                   >
-                    <Icon className="h-2.5 w-2.5" strokeWidth={3} />
+                    <Icon className="h-3 w-3" strokeWidth={3} />
                   </span>
                 );
               })}
@@ -96,15 +96,15 @@ export default function M365Rail({ apps, currentAppId, currentQuestionId, answer
         );
       })}
 
-      <div className="mt-3 space-y-1 border-t border-gray-800 px-1 pt-2 font-mono text-[10px] text-gray-500">
+      <div className="mt-4 space-y-1.5 border-t border-gray-800 px-1 pt-3 font-mono text-[11px] text-gray-500">
         {[QUESTION_CORRECT, QUESTION_WRONG, QUESTION_UNANSWERED].map((status) => {
           const { label, className, Icon } = MARKER[status];
           return (
-            <div key={status} className="flex items-center gap-1.5">
+            <div key={status} className="flex items-center gap-2">
               <span
-                className={`flex h-3.5 w-3.5 items-center justify-center rounded-[3px] border ${className}`}
+                className={`flex h-4 w-4 items-center justify-center rounded-[3px] border ${className}`}
               >
-                <Icon className="h-2 w-2" strokeWidth={3} />
+                <Icon className="h-2.5 w-2.5" strokeWidth={3} />
               </span>
               {label}
             </div>
@@ -112,7 +112,7 @@ export default function M365Rail({ apps, currentAppId, currentQuestionId, answer
         })}
       </div>
 
-      <p className="mt-2 px-1 font-mono text-[10px] leading-relaxed text-gray-600">
+      <p className="mt-3 px-1 font-mono text-[11px] leading-relaxed text-gray-600">
         Progress counts answered tasks. Your score appears at the end.
       </p>
     </aside>
