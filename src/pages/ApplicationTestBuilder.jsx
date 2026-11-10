@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { ArrowLeft, Plus, Loader2, CheckCircle2, ListChecks, Shuffle, Send, Eye, ScrollText, Crosshair } from "lucide-react";
 import QuestionCard from "@/components/assessment/QuestionCard";
 import PromptGenerator from "@/components/assessment/PromptGenerator";
+import PromptEditor from "@/components/assessment/PromptEditor";
 import ThemeWeights from "@/components/assessment/ThemeWeights";
 import JobDescriptionIntake from "@/components/assessment/JobDescriptionIntake";
 import {
@@ -107,6 +108,21 @@ export default function ApplicationTestBuilder() {
 
   const addGeneratedQuestions = (generated) => {
     setQuestions((qs) => [...qs.filter((q) => !isBlankQuestion(q)), ...generated]);
+  };
+
+  // A prompt edit replaces the details and the objective questions; nothing is saved until Save.
+  const applyRefined = ({ details, questions: nextQuestions }) => {
+    setForm((f) => ({
+      ...f,
+      position_title: details.position_title ?? f.position_title,
+      company_name: details.company_name ?? f.company_name,
+      duration_minutes: details.duration_minutes ?? f.duration_minutes,
+      pass_threshold: details.pass_threshold ?? f.pass_threshold,
+      scenario_narrative: details.scenario_narrative ?? f.scenario_narrative,
+      scenario_block: details.scenario_block ?? f.scenario_block,
+    }));
+    setQuestions(nextQuestions);
+    setError("");
   };
 
   const handleSave = async () => {
@@ -332,6 +348,8 @@ export default function ApplicationTestBuilder() {
           onScenarioChange={(value) => set("scenario_block", value)}
           onGenerated={addGeneratedQuestions}
         />
+
+        <PromptEditor details={form} questions={questions} onRefined={applyRefined} />
 
         <ThemeWeights themes={themes} weights={weights} onChange={setWeights} />
 
