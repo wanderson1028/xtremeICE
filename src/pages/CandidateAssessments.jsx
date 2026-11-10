@@ -107,7 +107,7 @@ const HIRE_LABEL = {
 
 export default function CandidateAssessments() {
   const qc = useQueryClient();
-  const { toast } = useToast();
+  const { toast, dismiss } = useToast();
   const [activeTab, setActiveTab] = useState("tracker");
 
   const { data: assessments = [], isLoading } = useQuery({
@@ -173,10 +173,12 @@ export default function CandidateAssessments() {
       qc.invalidateQueries({ queryKey: ["my-invitations"] });
       qc.invalidateQueries({ queryKey: ["my-sessions"] });
       qc.invalidateQueries({ queryKey: ["my-scorecards"] });
-      toast({
+      const resetToast = toast({
         title: "Attempt reset",
         description: "A fresh invitation email has been sent to the candidate.",
       });
+      // Auto-dismiss after a few seconds; the close button still works.
+      setTimeout(() => dismiss(resetToast.id), 4000);
     },
     onError: (err) => {
       toast({
