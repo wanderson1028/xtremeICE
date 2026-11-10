@@ -17,7 +17,7 @@ export default function M365Summary({ answers, onRetry }) {
           </div>
           <h1 className="text-2xl font-bold text-white">{passed ? "Assessment complete" : "Assessment finished"}</h1>
           <p className="mt-1 font-mono text-xs text-gray-400">
-            {correct} of {TOTAL_QUESTIONS} hotspots correct · {pct}%
+            {correct} of {TOTAL_QUESTIONS} questions correct · {pct}%
           </p>
         </div>
 

@@ -1,5 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { appTargets } from "@/lib/m365Assessment";
+import M365ContextMenu from "./M365ContextMenu";
+import M365Ribbon from "./M365Ribbon";
 import {
   DocumentBody, SheetBody, LibraryBody, MailBody, ChatBody, ReportBody,
 } from "./M365Bodies";
@@ -13,6 +15,7 @@ const BODIES = {
   report: ReportBody,
 };
 
+const BARE = new Set(["row", "rowhead", "column", "visual"]);
 const BASE = "absolute flex items-center justify-center gap-1 overflow-hidden text-[10px] leading-none";
 
 function targetClass(target) {
@@ -29,12 +32,22 @@ function targetClass(target) {
       return `${BASE} justify-start rounded-full border border-[#c8c6c4] bg-white px-2 text-[#8a8886]`;
     case "pane":
       return `${BASE} flex-col items-start justify-start gap-[5px] border-l border-[#e1dfdd] bg-white px-2 pt-2 text-[#3b3a39]`;
+    case "rowhead":
+      return `${BASE} hover:bg-sky-500/25`;
+    case "column":
+      return `${BASE} hover:bg-sky-500/15`;
+    case "row":
+      return `${BASE} hover:bg-sky-500/10`;
+    case "visual":
+      return `${BASE} hover:bg-sky-500/5 hover:outline hover:outline-1 hover:outline-sky-400`;
     default:
       return BASE;
   }
 }
 
 function TargetContent({ target }) {
+  if (BARE.has(target.kind)) return null;
+
   if (target.kind === "pane") {
     return (
       <>
@@ -45,6 +58,7 @@ function TargetContent({ target }) {
       </>
     );
   }
+
   const Icon = target.icon;
   return (
     <>
@@ -70,31 +84,63 @@ function hitTest(targets, x, y) {
   return hits.sort((a, b) => a.w * a.h - b.w * b.h)[0];
 }
 
-export default function M365Screen({ app, selectedId, correctId, revealed, onPick }) {
+export default function M365Screen({ app, revealId, wrongId, revealed, flash, onAction }) {
   const targets = appTargets(app);
+  const [menu, setMenu] = useState(null);
+  const [selected, setSelected] = useState(null);
+
   const hasTabs = app.tabs.length > 0;
   const showRibbon = hasTabs && app.ribbon !== false;
+  const showCommandBar = hasTabs && app.ribbon === false;
   const bodyTop = !hasTabs ? 7.5 : showRibbon ? 25.8 : 21;
   const Body = BODIES[app.variant] || DocumentBody;
 
-  const handleClick = (event) => {
+  const pointFromEvent = (event) => {
     const rect = event.currentTarget.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
-    const x = ((event.clientX - rect.left) / rect.width) * 100;
-    const y = ((event.clientY - rect.top) / rect.height) * 100;
-    const hit = hitTest(targets, x, y);
-    onPick(hit ? hit.id : null);
+    if (!rect.width || !rect.height) return null;
+    return {
+      x: ((event.clientX - rect.left) / rect.width) * 100,
+      y: ((event.clientY - rect.top) / rect.height) * 100,
+    };
   };
 
-  const correctRect = revealed ? targets.find((t) => t.id === correctId) : null;
-  const wrongRect = revealed && selectedId && selectedId !== correctId
-    ? targets.find((t) => t.id === selectedId)
-    : null;
+  const handleClick = (event) => {
+    const point = pointFromEvent(event);
+    if (!point) return;
+    const hit = hitTest(targets, point.x, point.y);
+    if (hit?.selectable) setSelected(hit.id);
+    onAction({ type: "click", targetId: hit ? hit.id : null });
+  };
+
+  const handleContextMenu = (event) => {
+    event.preventDefault();
+    const point = pointFromEvent(event);
+    if (!point) return;
+    const hit = hitTest(targets, point.x, point.y);
+    if (!hit?.menu) {
+      setMenu(null);
+      return;
+    }
+    if (hit.selectable) setSelected(hit.id);
+    setMenu({
+      title: hit.label,
+      items: hit.menu,
+      targetId: hit.id,
+      x: Math.min(point.x, 66),
+      y: Math.min(point.y, 72),
+    });
+    onAction({ type: "context", targetId: hit.id });
+  };
+
+  const selectedTarget = selected ? targets.find((t) => t.id === selected) : null;
+  const correctRect = revealed ? targets.find((t) => t.id === revealId) : null;
+  const wrongRect = revealed && wrongId && wrongId !== revealId ? targets.find((t) => t.id === wrongId) : null;
 
   return (
     <div
       onClick={handleClick}
-      className="relative w-full aspect-[16/10] cursor-crosshair select-none overflow-hidden rounded-xl border border-gray-700 bg-white"
+      onContextMenu={handleContextMenu}
+      className="relative aspect-[16/10] w-full cursor-default select-none overflow-hidden rounded-xl border border-gray-700 bg-white"
     >
       {/* Title bar */}
       <div
@@ -110,27 +156,88 @@ export default function M365Screen({ app, selectedId, correctId, revealed, onPic
       </div>
 
       {/* Tab strip */}
-      {hasTabs && (
-        <div className="absolute inset-x-0 bg-[#f3f2f1]" style={{ top: "7%", height: "6.2%" }} />
-      )}
+      {hasTabs && <div className="absolute inset-x-0 bg-[#f3f2f1]" style={{ top: "7%", height: "6.2%" }} />}
 
-      {/* Ribbon */}
+      {/* Ribbon or command bar */}
       {showRibbon && (
-        <div className="absolute inset-x-0 border-b border-[#e1dfdd] bg-white" style={{ top: "13.2%", height: `${bodyTop - 13.2}%` }} />
+        <div
+          className="absolute inset-x-0 border-b border-[#e1dfdd] bg-white"
+          style={{ top: "13.2%", height: `${bodyTop - 13.2}%` }}
+        />
+      )}
+      {showCommandBar && (
+        <div
+          className="absolute inset-x-0 border-b border-[#e1dfdd] bg-white"
+          style={{ top: "13.2%", height: `${bodyTop - 13.2}%` }}
+        />
       )}
 
       <Body top={bodyTop} app={app} />
+      {showRibbon && <M365Ribbon app={app} />}
 
       {targets.map((target) => (
-        <div key={target.id} className={targetClass(target)} style={{
-          left: `${target.x}%`, top: `${target.y}%`, width: `${target.w}%`, height: `${target.h}%`,
-        }}>
+        <div
+          key={target.id}
+          className={targetClass(target)}
+          style={{
+            left: `${target.x}%`,
+            top: `${target.y}%`,
+            width: `${target.w}%`,
+            height: `${target.h}%`,
+          }}
+        >
           <TargetContent target={target} />
         </div>
       ))}
 
+      {selectedTarget?.band && (
+        <div
+          className="pointer-events-none absolute border-y border-sky-500/70 bg-sky-500/15"
+          style={{
+            left: `${selectedTarget.band.x}%`,
+            width: `${selectedTarget.band.w}%`,
+            top: `${selectedTarget.y}%`,
+            height: `${selectedTarget.h}%`,
+          }}
+        />
+      )}
+      {selectedTarget && (
+        <div
+          className="pointer-events-none absolute rounded-sm border-2 border-sky-500/80"
+          style={{
+            left: `${selectedTarget.x}%`,
+            top: `${selectedTarget.y}%`,
+            width: `${selectedTarget.w}%`,
+            height: `${selectedTarget.h}%`,
+          }}
+        />
+      )}
+
       {correctRect && <Ring rect={correctRect} tone="correct" />}
       {wrongRect && <Ring rect={wrongRect} tone="wrong" />}
+
+      {menu && (
+        <M365ContextMenu
+          menu={menu}
+          onClose={() => setMenu(null)}
+          onSelect={(item) => {
+            setMenu(null);
+            onAction({ type: "menu", itemId: item.id, targetId: menu.targetId });
+          }}
+        />
+      )}
+
+      {flash && (
+        <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
+          <div
+            className={`rounded-lg px-5 py-2.5 text-sm font-bold text-white shadow-xl ${
+              flash === "correct" ? "bg-emerald-600" : "bg-red-600"
+            }`}
+          >
+            {flash === "correct" ? "Task complete" : "Not quite"}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -518,9 +518,9 @@ export const M365_LABS = [
     route: "/labs/microsoft-365",
     title: "Microsoft 365 Point & Click Assessment",
     description:
-      "Work through realistic Word, Excel, SharePoint, Outlook, Teams and Power BI interfaces. Four hotspot questions per application test whether you can find the exact control for everyday workflows.",
+      "Work through realistic Word, Excel, SharePoint, Outlook, Teams and Power BI interfaces with a live mouse pointer. Select rows and text, right-click for context menus, and complete multi-step tasks such as inserting a row in Excel. Six questions per application.",
     difficulty: "Beginner",
-    duration: 35,
+    duration: 45,
     category: "Microsoft 365",
     tags: ["Microsoft 365", "Word", "Excel", "SharePoint", "Outlook", "Teams", "Power BI"],
   },
