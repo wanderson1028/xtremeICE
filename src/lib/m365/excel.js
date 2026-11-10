@@ -666,7 +666,7 @@ export const excelApp = {
       id: "excel-q1",
       /* Insert tab, Column gallery, Clustered Column. */
       minClicks: 3,
-      task: "The quarterly totals need to be compared visually rather than as rows of numbers.",
+      task: "The quarterly totals need to be compared visually rather than as rows of numbers, so reviewers can see how the quarters rank against each other.",
       answers: [{ kind: "option", control: "column-chart", option: "cluster" }],
       verify: (state) => state.chart === "cluster",
       explanation:
@@ -676,7 +676,7 @@ export const excelApp = {
       id: "excel-q2",
       /* Right-click the Marketing row header, then Insert. */
       minClicks: 2,
-      task: "A new department is joining the budget and needs its own line directly above Marketing.",
+      task: "A new department is joining the budget and needs its own line directly above Marketing, with the existing rows left intact.",
       answers: [{ kind: "menu", target: "excel-row-marketing", item: "insert-rows" }],
       verify: (state) => state.insertedRowAbove === "excel-row-marketing",
       explanation:
@@ -686,7 +686,7 @@ export const excelApp = {
       id: "excel-q3",
       /* Select column E, Currency gallery (Home), $ English (US). */
       minClicks: 3,
-      task: "The Q4 figures are still plain numbers and should read as US currency instead.",
+      task: "The Q4 figures are still plain numbers and should read as US currency so finance can read the budget without converting anything.",
       answers: [
         { kind: "option", control: "currency", option: "currency-usd", target: "excel-col-e" },
       ],
@@ -698,7 +698,7 @@ export const excelApp = {
       id: "excel-q4",
       /* View tab, Freeze Panes menu, Freeze Top Row. */
       minClicks: 3,
-      task: "The department names disappear when the sheet is scrolled down and must stay in view.",
+      task: "The department names disappear when the sheet is scrolled down and must stay in view, so every row stays readable further down the sheet.",
       answers: [{ kind: "option", control: "freeze", option: "freeze-top" }],
       verify: (state) => state.frozen === "freeze-top",
       explanation: "Freeze Panes sits on the View tab; Freeze Top Row pins the header row in place.",
@@ -707,7 +707,7 @@ export const excelApp = {
       id: "excel-q5",
       /* Select the title cell, then Merge & Center (Home). */
       minClicks: 2,
-      task: "The report title is squeezed into the first column and should sit across the full width of the table.",
+      task: "The report title is squeezed into the first column and should sit across the full width of the table as one heading.",
       answers: [{ kind: "control", control: "merge", target: "excel-cell-a1" }],
       verify: (state) => state.merged === "excel-cell-a1",
       explanation:
@@ -717,7 +717,7 @@ export const excelApp = {
       id: "excel-q6",
       /* Select column D, Formulas tab, AutoSum. */
       minClicks: 3,
-      task: "The Q3 column needs a total that stays correct if the figures above it change.",
+      task: "The Q3 column needs a total that stays correct if the figures above it change, rather than one typed in by hand.",
       answers: [{ kind: "control", control: "autosum", target: "excel-col-d" }],
       verify: (state) => state.autosumColumn === "excel-col-d",
       explanation:
