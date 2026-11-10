@@ -354,9 +354,9 @@ export default function ApplicationTestBuilder() {
         <ThemeWeights themes={themes} weights={weights} onChange={setWeights} />
 
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-white font-semibold text-lg">Questions</h2>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => setQuestions((qs) => [...qs, createQuestion("mcq")])}
@@ -376,7 +376,7 @@ export default function ApplicationTestBuilder() {
                 onClick={() => setQuestions((qs) => [...qs, createQuestion("hotspot")])}
                 className="flex items-center gap-1.5 px-3 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 rounded-lg text-xs font-medium transition-colors"
               >
-                <Crosshair className="h-3.5 w-3.5 text-emerald-400" /> Hotspot
+                <Crosshair className="h-3.5 w-3.5 text-emerald-400" /> Point &amp; Click
               </button>
             </div>
           </div>

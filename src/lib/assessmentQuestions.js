@@ -1,7 +1,7 @@
 export const QUESTION_TYPE_LABEL = {
   mcq: "Multiple Choice",
   matching: "Matching",
-  hotspot: "Hotspot",
+  hotspot: "Point & Click",
   manual: "Written Answer",
 };
 

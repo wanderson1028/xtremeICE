@@ -27,7 +27,7 @@ Deno.test("Assignment rehearsal: instructor controls, non-admin start, one guest
  const draft:any=buildAiGuidedTemplate(narrative);draft.lab_content.tasks=normalizeTasks(draft.lab_content.tasks);
  draft.id="0123456789abcdef01234567";tables.LabTemplate=[draft];tables.User=[{id:"owner-id",email:"owner@example.invalid",role:"user"},{id:"other-id",email:"other@example.invalid",role:"user"}];
  const commands=new Map<string,any>();const observed:string[]=[];
- let account="935838375949",stackState="CREATE_COMPLETE";
+ let account="935838375949",stackState="CREATE_COMPLETE",cleanupDuringStackRead=false;
  const instance="i-0123456789abcdef0",vpc="vpc-0123456789abcdef0",stack="arn:aws:cloudformation:us-east-1:935838375949:stack/ExtremeICE-DesignStudio-Learner-Pilot/test-id";
  const target=directory+"/fixture/proof.txt";await Deno.mkdir(directory+"/fixture");await Deno.writeTextFile(target,"initial");await Deno.chmod(target,0o644);
  const xml=(action:string,body:string)=>new Response("<"+action+"Response>"+body+"</"+action+"Response>");
@@ -47,6 +47,7 @@ Deno.test("Assignment rehearsal: instructor controls, non-admin start, one guest
    }
    if(action==="DescribeStacks"){
     const run=tables.CloudLearnerRun?.[0];check(run,"fake run exists");
+    if(cleanupDuringStackRead){run.cleanup_requested_at=new Date().toISOString();cleanupDuringStackRead=false;}
     return xml(action,"<DescribeStacksResult><Stacks><member><StackId>"+stack+"</StackId><StackStatus>"+stackState+"</StackStatus><Tags><member><Key>ManagedBy</Key><Value>ExtremeICE-DesignStudio-Learner</Value></member><member><Key>LearnerRunId</Key><Value>"+run.id+"</Value></member></Tags><Outputs><member><OutputKey>InstanceId</OutputKey><OutputValue>"+instance+"</OutputValue></member><member><OutputKey>VpcId</OutputKey><OutputValue>"+vpc+"</OutputValue></member></Outputs></member></Stacks></DescribeStacksResult>");
    }
    if(action==="SendCommand"){
@@ -109,17 +110,28 @@ Deno.test("Assignment rehearsal: instructor controls, non-admin start, one guest
   user={id:"owner-id",email:"owner@example.invalid",role:"user"};
   draft.lab_content.tasks[0].instructions="Edited after provisioning";check(run.contract.template_snapshot.lab_content.tasks[0].instructions==="Reviewed revision","run snapshot immutable");
   check((await api("refresh",{run_id:runId})).body.run.status==="ready","SSM ready");
+  cleanupDuringStackRead=true;
+  const commandsBeforeCleanupRace=observed.filter(a=>a==="SendCommand").length;
+  check((await api("startOperation",{run_id:runId,kind:"read"})).status===403,"cleanup intent during stack read blocks dispatch");
+  check(observed.filter(a=>a==="SendCommand").length===commandsBeforeCleanupRace,"cleanup race never sends a guest command");
+  delete run.cleanup_requested_at;
   const count=observed.length;user={id:"other-id",email:"other@example.invalid",role:"user"};
   check((await api("startOperation",{run_id:runId,kind:"read"})).status===403,"another learner denied");
   check(observed.length===count,"owner denial precedes AWS dispatch");
   user={id:"owner-id",email:"owner@example.invalid",role:"user"};
+  const preRevocationRead=await api("startOperation",{run_id:runId,kind:"read"});check(preRevocationRead.status===200,"owner starts read before revocation");
   const savedAssignment=clone(tables.UserLabAssignment.find(a=>a.id===assignmentId));
   check((await api("revokeAssignment",{assignment_id:assignmentId})).status===403,"learner cannot revoke");
   user={id:"instructor-id",email:"teacher@example.invalid",role:"admin"};
   check((await api("revokeAssignment",{assignment_id:assignmentId})).body.revoked,"instructor revokes");
   user={id:"owner-id",email:"owner@example.invalid",role:"user"};
   check((await api("startOperation",{run_id:runId,kind:"read"})).status===403,"revoked assignment cannot dispatch guest commands");
+  const revokedPolls=observed.filter(a=>a==="GetCommandInvocation").length;
+  check((await api("pollOperation",{run_id:runId,operation_id:preRevocationRead.body.operation_id})).status===403,"revoked assignment blocks an in-flight read result");
+  check(observed.filter(a=>a==="GetCommandInvocation").length===revokedPolls,"revoked poll never reads guest output");
   tables.UserLabAssignment.push(savedAssignment);
+  await api("pollOperation",{run_id:runId,operation_id:preRevocationRead.body.operation_id});
+  check((await api("pollOperation",{run_id:runId,operation_id:preRevocationRead.body.operation_id})).body.status==="completed","restored assignment can finish its own pending read");
   const operate=async(kind:string,content?:string,mode?:string)=>{
    const started=await api("startOperation",{run_id:runId,kind,content,mode});check(started.status===200,"owner operation start");
    const state=(await api("workspaceState",{run_id:runId})).body;
@@ -138,6 +150,16 @@ Deno.test("Assignment rehearsal: instructor controls, non-admin start, one guest
   const completedAt=tables.CloudLearnerRun[0].contract.learning.completed_at;
   await operate("write","Reverted","644");check((await operate("validate")).passed===false,"new validation fails after revert");
   const history=(await api("validationHistory",{run_id:runId})).body.checks;check(history.length===3&&history[0].passed===false&&history[1].passed===true&&history[2].passed===false,"stored fail-pass-fail history");
+  const inFlightRead=await api("startOperation",{run_id:runId,kind:"read"});check(inFlightRead.status===200,"owner starts read before lifecycle change");
+  const originalExpiry=run.expires_at;
+  run.cleanup_requested_at=new Date().toISOString();
+  check((await api("pollOperation",{run_id:runId,operation_id:inFlightRead.body.operation_id})).status===403,"cleanup intent blocks in-flight guest output");
+  delete run.cleanup_requested_at;
+  run.expires_at="2000-01-01T00:00:00Z";
+  check((await api("pollOperation",{run_id:runId,operation_id:inFlightRead.body.operation_id})).status===403,"run expiry blocks in-flight guest output");
+  run.expires_at=originalExpiry;
+  await api("pollOperation",{run_id:runId,operation_id:inFlightRead.body.operation_id});
+  check((await api("pollOperation",{run_id:runId,operation_id:inFlightRead.body.operation_id})).body.status==="completed","valid session resumes pending read");
   const expiredStart=await api("startOperation",{run_id:runId,kind:"validate"});const op=tables.CloudGuestOperation.find(x=>x.id===expiredStart.body.operation_id);op.expires_at="2000-01-01T00:00:00Z";
   check((await api("pollOperation",{run_id:runId,operation_id:op.id})).body.status==="expired","late result rejected");
   check(tables.RuntimeValidationAttempt.length===3,"expired evidence not recorded");
