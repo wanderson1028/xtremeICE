@@ -31,6 +31,15 @@ async function schemaReady(b:any){
 function publicRun(run:any){
  return {id:run.id,status:run.status,stack_status:run.stack_status,instance_id:run.instance_id,expires_at:run.expires_at,contract:run.contract,owner_user_id:run.owner_user_id,template_id:run.template_id,last_error_code:run.last_error_code||null,cleanup_requested_at:run.cleanup_requested_at||null};
 }
+async function currentPollAccess(b:any,user:any,run:any){
+ const current=(await b.asServiceRole.entities.CloudLearnerRun.filter({id:run.id}))[0];
+ if(!current||current.contract?.learning?.finished_at||!canOperate(current,user))return null;
+ if(current.contract.assignment_id){
+   const access=await assignedLab(b,user,current.contract.assignment_id,false);
+   if(access.assignment.lab_id!==current.template_id)return null;
+ }
+ return current;
+}
 export async function handleLearnerRequest(req:Request,b:any){
  const user=await b.auth.me().catch(()=>null);
  if(!user)return reply({error:"Sign in required"},401);
@@ -149,6 +158,8 @@ export async function handleLearnerRequest(req:Request,b:any){
  }
  if(action==="pollOperation"){
    if(!owns(run,user))return reply({error:"Guest operation access denied"},403);
+   run=await currentPollAccess(b,user,run);
+   if(!run)return reply({error:"Guest operation access ended"},403);
    if(typeof input.operation_id!=="string"||!/^[a-f0-9]{16,32}$/i.test(input.operation_id))return reply({error:"Invalid operation"},400);
    const op=(await b.asServiceRole.entities.CloudGuestOperation.filter({id:input.operation_id,run_id:run.id,owner_user_id:user.id}))[0];if(!op)return reply({error:"Operation not found"},404);
    if(op.status!=="pending")return reply({status:op.status,result:op.result||null,error_code:op.error_code||null});
@@ -157,6 +168,8 @@ export async function handleLearnerRequest(req:Request,b:any){
    let command;
    try{command=await aws("ssm","GetCommandInvocation",{CommandId:op.command_id,InstanceId:run.instance_id});}catch(e:any){if(e.name==="InvocationDoesNotExist")return reply({status:"pending"});throw e;}
    if(["Pending","InProgress","Delayed"].includes(command.Status))return reply({status:"pending"});
+   run=await currentPollAccess(b,user,run);
+   if(!run)return reply({error:"Guest operation access ended"},403);
    if(command.Status!=="Success"||command.ResponseCode!==0){await b.asServiceRole.entities.CloudGuestOperation.update(op.id,{status:"failed",error_code:"GUEST_COMMAND_FAILED"});return reply({status:"failed",error_code:"GUEST_COMMAND_FAILED"});}
    let result;
    try{result=parseOutput(op.kind,op.binding,command.StandardOutputContent||"");}catch{await b.asServiceRole.entities.CloudGuestOperation.update(op.id,{status:"failed",error_code:"INVALID_GUEST_OUTPUT"});return reply({status:"failed",error_code:"INVALID_GUEST_OUTPUT"});}
