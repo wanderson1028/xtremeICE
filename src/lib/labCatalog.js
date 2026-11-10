@@ -512,5 +512,19 @@ export const AZURE_LABS = [
   },
 ];
 
+export const M365_LABS = [
+  {
+    id: "microsoft-365",
+    route: "/labs/microsoft-365",
+    title: "Microsoft 365 Point & Click Assessment",
+    description:
+      "Work through realistic Word, Excel, SharePoint, Outlook, Teams and Power BI interfaces. Four hotspot questions per application test whether you can find the exact control for everyday workflows.",
+    difficulty: "Beginner",
+    duration: 35,
+    category: "Microsoft 365",
+    tags: ["Microsoft 365", "Word", "Excel", "SharePoint", "Outlook", "Teams", "Power BI"],
+  },
+];
+
 export { LINUX_LABS } from "./linuxLabData";
 export { POWERSHELL_LABS } from "./powershellLabData";

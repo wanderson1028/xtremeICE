@@ -125,6 +125,7 @@ import LiveLabTopology from './pages/LiveLabTopology'
 import About from './pages/About'
 import MSSPSOC from './pages/MSSPSOC'
 import MSSPSession from './pages/MSSPSession'
+import M365Assessment from './pages/M365Assessment'
 import Login from '@/pages/Login'
 import Register from '@/pages/Register'
 import ForgotPassword from '@/pages/ForgotPassword'
@@ -258,6 +259,7 @@ const AuthenticatedApp = () => {
         <Route path="/labs/log-correlation" element={<LayoutWrapper currentPageName="LabLogCorrelation"><LabLogCorrelation /></LayoutWrapper>} />
         <Route path="/labs/bgp" element={<LayoutWrapper currentPageName="LabBGP"><LabBGP /></LayoutWrapper>} />
         <Route path="/labs/zero-trust" element={<LayoutWrapper currentPageName="LabZeroTrust"><LabZeroTrust /></LayoutWrapper>} />
+        <Route path="/labs/microsoft-365" element={<LayoutWrapper currentPageName="M365Assessment"><M365Assessment /></LayoutWrapper>} />
         <Route path="/labs/aws-cloud-concepts" element={<LayoutWrapper currentPageName="LabAwsCloudConcepts"><LabAwsCloudConcepts /></LayoutWrapper>} />
         <Route path="/labs/aws-security-compliance" element={<LayoutWrapper currentPageName="LabAwsSecurityCompliance"><LabAwsSecurityCompliance /></LayoutWrapper>} />
         <Route path="/labs/aws-cloud-services" element={<LayoutWrapper currentPageName="LabAwsCloudServices"><LabAwsCloudServices /></LayoutWrapper>} />
