@@ -4,8 +4,10 @@
  * These tests drive a window simulator, not hand-written answer payloads: every
  * physical press goes through the same builders the components use (tab press,
  * ribbon/command press, menu item, context menu, dialog pick and confirm, body
- * click) and is fed to the session with the click tally, exactly as the page
- * does. A click that hits nothing is dispatched as a click with no action.
+ * click) and is fed to the flow and session the page uses, in the order a
+ * browser dispatches one press: capture counts, the pressed control's action is
+ * applied, and only then does the deferred budget decision run. A click that hits
+ * nothing is dispatched as a click with no action.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -23,7 +25,8 @@ import {
 import {
   bodyClick, contextChoice, dialogConfirm, menuChoice, ribbonPress,
 } from "../src/lib/m365/actions.js";
-import { applyTaskAction } from "../src/lib/m365/session.js";
+import { applyTaskAction, expireTask } from "../src/lib/m365/session.js";
+import { createTaskPointerFlow } from "../src/lib/m365/pointerFlow.js";
 import {
   CLICK_MULTIPLIER, clickBudget, countsAsClick, createClickTally,
 } from "../src/lib/m365/clicks.js";
@@ -79,7 +82,7 @@ function dialogMenuControl(app, dialogId) {
  * component emits for that press.
  */
 class WindowSim {
-  constructor(question, { answers = {}, states = initialAppState(), used = 0 } = {}) {
+  constructor(question, { answers = {}, states = initialAppState() } = {}) {
     this.question = question;
     this.app = appOf(question);
     this.answers = answers;
@@ -90,10 +93,28 @@ class WindowSim {
     this.dialog = null;
     this.ui = {};
     this.limit = clickBudget(question.minClicks);
-    this.used = used;
+    this.used = 0;
     this.locked = false;
     this.outcomes = [];
     this.last = null;
+    this.armed = [];
+
+    /* The flow the page uses: the capture phase counts and arms a budget
+       decision, which is only run once the press has finished dispatching. */
+    this.flow = createTaskPointerFlow({
+      limit: this.limit,
+      isResolved: () => Boolean(this.answers[this.question.id]),
+      onCount: (used) => {
+        this.used = used;
+      },
+      expire: () => this.expire(),
+      defer: (decide) => {
+        this.armed.push(decide);
+        return () => {
+          this.armed = this.armed.filter((entry) => entry !== decide);
+        };
+      },
+    });
   }
 
   get remaining() {
@@ -104,11 +125,21 @@ class WindowSim {
     return this.outcomes[this.outcomes.length - 1] ?? null;
   }
 
-  /** A press inside the window: counted once, then dispatched. */
+  /** One physical press in dispatch order: capture counts, the control's own
+      handler commits, then the budget decision armed by the count runs. */
   press(build = null) {
     if (this.locked) return null;
-    this.used += 1;
-    return this.dispatch(build ? build() : null);
+    this.flow.press("click");
+    const result = this.dispatch(build ? build() : null);
+    this.settle();
+    return result;
+  }
+
+  /** Runs the budget decisions armed by presses that have finished dispatching. */
+  settle() {
+    const armed = this.armed;
+    this.armed = [];
+    armed.forEach((decide) => decide());
   }
 
   dispatch(action) {
@@ -117,15 +148,26 @@ class WindowSim {
       answers: this.answers,
       states: this.states,
       action,
-      clicks: this.used,
-      budget: this.limit,
     });
     this.answers = result.answers;
     this.states = result.states;
     this.last = result;
     this.outcomes.push(result.outcome);
-    if (result.outcome === "correct" || result.outcome === "exhausted") this.locked = true;
+    if (result.outcome === "correct") this.locked = true;
     return result;
+  }
+
+  expire() {
+    const result = expireTask({
+      question: this.question,
+      answers: this.answers,
+      states: this.states,
+    });
+    this.answers = result.answers;
+    this.states = result.states;
+    this.last = result;
+    this.outcomes.push(result.outcome);
+    if (result.outcome === "exhausted") this.locked = true;
   }
 
   pressTab(tabId) {
@@ -463,7 +505,6 @@ test("rapid clicks cannot resolve a task twice", () => {
     answers: sim.answers,
     states: sim.states,
     action: bodyClick("teams-send", true),
-    clicks: 2,
   });
   assert.equal(again.outcome, "ignored");
   assert.equal(again.answers, sim.answers, "the recorded answer is untouched");

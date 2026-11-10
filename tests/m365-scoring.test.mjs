@@ -26,7 +26,7 @@ import { applyAction } from "../src/lib/m365/engine.js";
 import {
   bodyClick, contextChoice, dialogConfirm, isCommit, menuChoice, menuItemAction, ribbonPress,
 } from "../src/lib/m365/actions.js";
-import { applyTaskAction } from "../src/lib/m365/session.js";
+import { applyTaskAction, expireTask } from "../src/lib/m365/session.js";
 
 const DATA_MODULES = {
   word: wordData,
@@ -467,7 +467,7 @@ test("the engine ignores repeated commits even without a resolved flag", () => {
   });
 });
 
-test("a wrong command leaves the task open; the click budget closes it", () => {
+test("a wrong command leaves the task open; only expiry closes it", () => {
   const question = M365_QUESTIONS.find((item) => item.id === "word-q1");
   const margins = findControl(appOf(question), "margins");
   const wrong = applyTaskAction({
@@ -475,7 +475,6 @@ test("a wrong command leaves the task open; the click budget closes it", () => {
     answers: {},
     states: initialAppState(),
     action: menuChoice("margins", margins.menu.find((entry) => entry.id === "margin-narrow")),
-    clicks: 3,
   });
   assert.equal(wrong.outcome, "explore", "a wrong operation is not fatal");
   assert.equal(wrong.answers["word-q1"], undefined, "the task stays open");
@@ -485,27 +484,33 @@ test("a wrong command leaves the task open; the click budget closes it", () => {
     answers: wrong.answers,
     states: wrong.states,
     action: actionFor(question),
-    clicks: 4,
   });
   assert.equal(later.outcome, "correct");
   assert.equal(later.answers["word-q1"].correct, true, "the correction is what scores");
 
-  const spent = applyTaskAction({
+  /* Applying an operation never looks at the budget: the last allowed click is
+     still applied and verified, and expiry is decided separately afterwards. */
+  const lastAllowed = applyTaskAction({
     question,
     answers: wrong.answers,
     states: wrong.states,
-    action: null,
-    clicks: 12,
+    action: actionFor(question),
   });
+  assert.equal(lastAllowed.outcome, "correct", "the action never expires itself");
+
+  const spent = expireTask({ question, answers: wrong.answers, states: wrong.states });
   assert.equal(spent.outcome, "exhausted", "only a spent budget closes the task as wrong");
   assert.equal(spent.answers["word-q1"].correct, false);
+
+  const again = expireTask({ question, answers: spent.answers, states: spent.states });
+  assert.equal(again.outcome, "ignored", "a task expires once");
+  assert.equal(again.answers, spent.answers);
 
   const after = applyTaskAction({
     question,
     answers: spent.answers,
     states: spent.states,
     action: actionFor(question),
-    clicks: 13,
   });
   assert.equal(after.outcome, "ignored", "a closed task cannot be rescued or re-scored");
   assert.equal(after.answers["word-q1"].correct, false);
