@@ -229,7 +229,7 @@ export const powerbiApp = {
       id: "powerbi-q1",
       /* Publish (Home), then the Security Operations workspace. */
       minClicks: 2,
-      task: "The report has to reach the team, who work in the Security Operations workspace.",
+      task: "The finished report has to reach the team, who work in the Security Operations workspace, so they can open it from their own area.",
       answers: [{ kind: "option", control: "publish", option: "security-workspace" }],
       verify: (state) => state.published === "security-workspace",
       explanation:
@@ -239,7 +239,7 @@ export const powerbiApp = {
       id: "powerbi-q2",
       /* Refresh, already on the Home tab. */
       minClicks: 1,
-      task: "The overnight data load has finished and the visuals still show yesterday's figures.",
+      task: "The overnight data load has finished and the visuals still show yesterday's figures, but the page should reflect the new numbers.",
       answers: [{ kind: "control", control: "refresh" }],
       verify: (state) => state.refreshed === true,
       explanation: "Refresh re-runs the model queries and loads the latest data into the existing visuals.",
@@ -249,7 +249,7 @@ export const powerbiApp = {
       /* View tab, Filters toggle, then the EMEA checkbox in the pane. */
       prep: [{ tab: "view" }, { control: "filters-pane" }],
       minClicks: 3,
-      task: "Only the EMEA region's numbers should be left on this page.",
+      task: "Only the EMEA region's numbers should be left on this page, with every other region excluded from the view.",
       answers: [{ kind: "click", target: "pbi-filter-emea" }],
       verify: (state) => state.region === "EMEA",
       explanation:
@@ -259,7 +259,7 @@ export const powerbiApp = {
       id: "powerbi-q4",
       /* View tab, then New page. */
       minClicks: 2,
-      task: "The regional breakdown needs a page of its own instead of sharing this one.",
+      task: "The regional breakdown needs a page of its own in this report instead of sharing the current page, so each region can be reviewed separately.",
       answers: [{ kind: "control", control: "new-page" }],
       verify: (state) => state.pages === 2,
       explanation: "New page on the View tab adds a blank report page after the current one.",
@@ -268,7 +268,7 @@ export const powerbiApp = {
       id: "powerbi-q5",
       /* Right-click the visual, then See records. */
       minClicks: 2,
-      task: "An auditor asks which findings make up the tallest bar of the chart.",
+      task: "An auditor asks which findings make up the tallest bar of the chart, and the report should be able to show exactly that set.",
       answers: [{ kind: "menu", target: "pbi-visual-1", item: "see-records" }],
       verify: (state) => state.recordsFor === "pbi-visual-1",
       explanation:
@@ -278,7 +278,7 @@ export const powerbiApp = {
       id: "powerbi-q6",
       /* Get data, SQL Server, Connect (the server is pre-filled). */
       minClicks: 3,
-      task: "The source moved to a new database server. Point the report at NORTHWIND-SQL01 again.",
+      task: "The source moved to a new database server. The report needs to read from NORTHWIND-SQL01 again so its visuals stay current.",
       answers: [{ kind: "confirm", dialog: "pbi-sql", value: "NORTHWIND-SQL01" }],
       verify: (state) => state.connectedServer === "NORTHWIND-SQL01",
       explanation:

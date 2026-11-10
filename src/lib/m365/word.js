@@ -689,7 +689,7 @@ export const wordApp = {
       id: "word-q1",
       /* Minimum physical clicks: Layout tab, Orientation menu, Landscape. */
       minClicks: 3,
-      task: "This policy has to print side-on so the control tables fit on the page.",
+      task: "This policy has to print side-on so the control tables fit on the page when the document is sent to a printer.",
       answers: [{ kind: "option", control: "orientation", option: "landscape" }],
       verify: (state) => isLandscape(state),
       explanation:
@@ -699,7 +699,7 @@ export const wordApp = {
       id: "word-q2",
       /* References tab, Table of Contents menu, Automatic Table 1. */
       minClicks: 3,
-      task: "Readers need a navigable outline of the sections at the front of the policy.",
+      task: "Readers need a navigable outline of the sections at the front of the policy, so any section can be jumped to directly.",
       answers: [
         { kind: "option", control: "table-of-contents", option: "toc-auto1" },
         { kind: "option", control: "table-of-contents", option: "toc-auto2" },
@@ -712,7 +712,7 @@ export const wordApp = {
       id: "word-q3",
       /* Review tab, Track Changes menu, All Markup: On. */
       minClicks: 3,
-      task: "Legal must be able to see every edit before anyone accepts it.",
+      task: "Legal must be able to see every edit before anyone accepts it, and nothing should be applied on their behalf.",
       answers: [
         { kind: "option", control: "track-changes", option: "track-on" },
         { kind: "menu", item: "track-changes" },
@@ -724,7 +724,7 @@ export const wordApp = {
       id: "word-q4",
       /* Select the title, then Heading 1 (Home is already open). */
       minClicks: 2,
-      task: "The document title is still ordinary body text and never appears in the outline.",
+      task: "The document title is still ordinary body text and never appears in the outline, so it has to be treated as a heading.",
       answers: [{ kind: "control", control: "heading1", target: "word-title" }],
       verify: (state) => state.headingTarget === "word-title",
       explanation:
@@ -734,7 +734,7 @@ export const wordApp = {
       id: "word-q5",
       /* Right-click the paragraph, then New Comment. */
       minClicks: 2,
-      task: "You have a question for Legal about the liability clause, and it must stay attached to that clause.",
+      task: "You have a question for Legal about the liability clause, and it must stay attached to that clause wherever the text moves.",
       answers: [{ kind: "menu", target: "word-para-2", item: "new-comment" }],
       verify: (state) => state.commentTarget === "word-para-2",
       explanation:
@@ -744,7 +744,7 @@ export const wordApp = {
       id: "word-q6",
       /* Select the paragraph, then Bold (Home is already open). */
       minClicks: 2,
-      task: "The three control statements need to stand out from the surrounding policy text.",
+      task: "The three control statements need to stand out from the surrounding policy text so they are not skimmed past.",
       answers: [{ kind: "control", control: "bold", target: "word-para-3" }],
       verify: (state) => state.boldParagraph === "word-para-3",
       explanation:

@@ -179,7 +179,7 @@ export const sharepointApp = {
       id: "sharepoint-q1",
       /* Upload, Files, choose Q4_Report.pdf, Upload. */
       minClicks: 4,
-      task: "Q4_Report.pdf is on your laptop and has to end up in this library.",
+      task: "Q4_Report.pdf is on your laptop and has to end up in this library, so the team works from the shared copy rather than local files.",
       answers: [{ kind: "confirm", dialog: "sp-upload", value: "Q4_Report.pdf" }],
       verify: (state) => state.uploadedFiles.includes("Q4_Report.pdf"),
       explanation:
@@ -189,7 +189,7 @@ export const sharepointApp = {
       id: "sharepoint-q2",
       /* New, Folder, Create (the name is typed, which is not a click). */
       minClicks: 3,
-      task: "The evidence you are about to collect needs a place of its own, named “Q4 Evidence”.",
+      task: "The evidence you are about to collect needs a place of its own in this library, named “Q4 Evidence”, so it stays separate from day-to-day files.",
       answers: [{ kind: "confirm", dialog: "sp-folder", value: "Q4 Evidence" }],
       verify: (state) => state.folders.includes("Q4 Evidence"),
       explanation:
@@ -199,7 +199,7 @@ export const sharepointApp = {
       id: "sharepoint-q3",
       /* Select the document, Share, Manage access, Audit Team, Send. */
       minClicks: 5,
-      task: "The audit team needs to be able to open Q4_Security_Policy.docx.",
+      task: "The audit team needs to be able to open Q4_Security_Policy.docx, so access to that document has to reach beyond the current group.",
       answers: [
         { kind: "confirm", dialog: "sp-share", value: "Audit Team", target: "sp-row-policy" },
       ],
@@ -211,7 +211,7 @@ export const sharepointApp = {
       id: "sharepoint-q4",
       /* Right-click the Modified header, then Sort newest first. */
       minClicks: 2,
-      task: "The library still lists files by name, and the most recently edited ones should come first.",
+      task: "The library still lists files by name, and the most recently edited ones should come first so recent work is easy to find.",
       answers: [{ kind: "menu", target: "sp-col-modified", item: "sort-newest" }],
       verify: (state) => state.sorting === "newest",
       explanation:
@@ -221,7 +221,7 @@ export const sharepointApp = {
       id: "sharepoint-q5",
       /* Right-click the plan, then Version history. */
       minClicks: 2,
-      task: "You need the revision of the incident response plan that existed before last week's edit.",
+      task: "You need the revision of the incident response plan that existed before last week's edit, so the earlier version has to be recoverable from this library.",
       answers: [{ kind: "menu", target: "sp-row-ir-plan", item: "version-history" }],
       verify: (state) => state.versionsFor === "sp-row-ir-plan",
       explanation:
@@ -231,7 +231,7 @@ export const sharepointApp = {
       id: "sharepoint-q6",
       /* Right-click the tracker, then Pin to Quick access. */
       minClicks: 2,
-      task: "The vendor renewal tracker must be reachable in one click from Quick access.",
+      task: "The vendor renewal tracker must be reachable in one click from Quick access, without hunting through the library each time.",
       answers: [
         { kind: "menu", target: "sp-row-vendor", item: "pin" },
         { kind: "option", control: "more", option: "pin", target: "sp-row-vendor" },

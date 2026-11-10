@@ -262,7 +262,7 @@ export const outlookApp = {
       id: "outlook-q1",
       /* Select the message, then Reply (Home is already open). */
       minClicks: 2,
-      task: "Dana Whitfield needs an answer to her Q4 vendor renewal message, and the conversation must stay in one thread.",
+      task: "Dana Whitfield needs an answer to her Q4 vendor renewal message, and the conversation must stay together as one thread rather than splitting off into a new one.",
       answers: [{ kind: "control", control: "reply", target: "ol-msg-vendor" }],
       verify: (state) => state.replyDraftFor === "ol-msg-vendor",
       explanation:
@@ -272,7 +272,7 @@ export const outlookApp = {
       id: "outlook-q2",
       /* Select the message, Move menu, Vendors. */
       minClicks: 3,
-      task: "The vendor renewal message does not belong in the inbox; it should sit with the other vendor mail.",
+      task: "The vendor renewal message does not belong in the inbox; it should sit with the rest of the vendor correspondence so the inbox stays focused on new work.",
       answers: [{ kind: "option", control: "move", option: "vendors", target: "ol-msg-vendor" }],
       verify: (state) => state.movedMessage === "ol-msg-vendor",
       explanation:
@@ -282,7 +282,7 @@ export const outlookApp = {
       id: "outlook-q3",
       /* Right-click the message, then Forward. */
       minClicks: 2,
-      task: "Your manager wants the original vendor renewal message passed on unchanged.",
+      task: "Your manager wants the original vendor renewal message passed on unchanged, with its content and attachments intact.",
       answers: [{ kind: "menu", target: "ol-msg-vendor", item: "forward" }],
       verify: (state) => state.forwardOf === "ol-msg-vendor",
       explanation:
@@ -292,7 +292,7 @@ export const outlookApp = {
       id: "outlook-q4",
       /* Select the message, then Delete (Home is already open). */
       minClicks: 2,
-      task: "The “Unusual sign-in attempt” message is a confirmed phishing lure and must leave the mailbox.",
+      task: "The “Unusual sign-in attempt” message is a confirmed phishing lure and must leave the mailbox for good, not just be hidden from view.",
       answers: [{ kind: "control", control: "delete", target: "ol-msg-phish" }],
       verify: (state) => state.deletedMessage === "ol-msg-phish",
       explanation: "Delete on the Home tab moves the selected message to Deleted Items.",
@@ -301,7 +301,7 @@ export const outlookApp = {
       id: "outlook-q5",
       /* Filter menu (Home), then Unread. */
       minClicks: 2,
-      task: "The inbox should show only the messages you have not read yet.",
+      task: "The inbox should show only the messages you have not read yet, so outstanding items are obvious at a glance.",
       answers: [{ kind: "option", control: "filter", option: "unread" }],
       verify: (state) => state.filter === "unread",
       explanation: "The Filter menu on the Home tab narrows the message list; Unread shows only unread mail.",
@@ -310,7 +310,7 @@ export const outlookApp = {
       id: "outlook-q6",
       /* Title-bar Settings, Automatic replies, Turn on. */
       minClicks: 3,
-      task: "You are on call next week and people outside the team need to know before they write.",
+      task: "You are on call next week and people outside the team need to know before they write, without having to check with you first.",
       answers: [{ kind: "confirm", dialog: "ol-auto-replies" }],
       verify: (state) => state.autoReplies === true,
       explanation:

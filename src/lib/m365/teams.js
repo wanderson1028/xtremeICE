@@ -131,7 +131,7 @@ export const teamsApp = {
       id: "teams-q1",
       /* Meet in the channel header, then Meet now. */
       minClicks: 2,
-      task: "The channel needs an unscheduled face-to-face call right now.",
+      task: "The channel needs an unscheduled face-to-face call right now, so the on-call group can talk it through together.",
       answers: [{ kind: "option", control: "meet", option: "meet-now" }],
       verify: (state) => state.meeting === true,
       explanation:
@@ -141,7 +141,7 @@ export const teamsApp = {
       id: "teams-q2",
       /* Attach, Files, choose the workbook, Attach. */
       minClicks: 4,
-      task: "The reply needs the Q4 evidence workbook attached before it is posted.",
+      task: "The reply needs the Q4 evidence workbook attached before it is posted, so the channel has the evidence alongside the note.",
       answers: [{ kind: "confirm", dialog: "teams-attach", value: "Q4_Evidence_Log.xlsx" }],
       verify: (state) => state.attachment === "Q4_Evidence_Log.xlsx",
       explanation:
@@ -151,7 +151,7 @@ export const teamsApp = {
       id: "teams-q3",
       /* Right-click the channel, then Mute channel. */
       minClicks: 2,
-      task: "The Threat Intel channel is posting too often, but it still has to stay in the list.",
+      task: "The Threat Intel channel is posting too often, but it still has to stay in the list and remain reachable.",
       answers: [{ kind: "menu", target: "teams-channel-threat-intel", item: "mute" }],
       verify: (state) => state.muted === "teams-channel-threat-intel",
       explanation:
@@ -161,7 +161,7 @@ export const teamsApp = {
       id: "teams-q4",
       /* The send arrow. */
       minClicks: 1,
-      task: "The update typed in the compose box still has to reach the channel conversation.",
+      task: "The update typed in the compose box still has to reach the channel conversation, so it must not be lost when you leave the box.",
       answers: [{ kind: "click", target: "teams-send" }],
       verify: (state) => state.postedChannel === "General",
       explanation: "The send arrow at the right of the compose box posts the message to the channel.",
@@ -170,7 +170,7 @@ export const teamsApp = {
       id: "teams-q5",
       /* ⋯ more options, Add channel, Create (the name is typed). */
       minClicks: 3,
-      task: "This month's work needs a channel of its own, named “Incident 2026-11”.",
+      task: "This month's work needs a channel of its own in the team, named “Incident 2026-11”, so it does not clutter the existing channels.",
       answers: [{ kind: "confirm", dialog: "teams-add-channel", value: "Incident 2026-11" }],
       verify: (state) => state.channels.includes("Incident 2026-11"),
       explanation:
@@ -181,7 +181,7 @@ export const teamsApp = {
       /* The Files tab, then the spreadsheet in it. */
       prep: [{ select: "teams-tab-files" }],
       minClicks: 2,
-      task: "Open Q4_Evidence_Log.xlsx, the evidence log this channel shares.",
+      task: "Open Q4_Evidence_Log.xlsx, the evidence log this channel shares, so the current entries are on screen for review.",
       answers: [{ kind: "click", target: "teams-file-q4-evidence" }],
       verify: (state) => state.openedFile === "teams-file-q4-evidence",
       explanation:
