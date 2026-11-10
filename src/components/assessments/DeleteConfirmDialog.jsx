@@ -10,7 +10,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-export default function DeleteConfirmDialog({ open, onOpenChange, title, description, onConfirm, busy }) {
+export default function DeleteConfirmDialog({
+  open, onOpenChange, title, description, onConfirm, busy,
+  confirmLabel = "Delete", busyLabel = "Deleting...",
+}) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent className="bg-gray-950 border-gray-800 text-gray-100">
@@ -27,7 +30,7 @@ export default function DeleteConfirmDialog({ open, onOpenChange, title, descrip
             onClick={(e) => { e.preventDefault(); onConfirm(); }}
             className="bg-red-700 text-white hover:bg-red-600"
           >
-            {busy ? "Deleting..." : "Delete"}
+            {busy ? busyLabel : confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

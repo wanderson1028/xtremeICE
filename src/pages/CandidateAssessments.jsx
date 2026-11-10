@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
-import { Plus, ClipboardList, Users, BarChart3, Eye, Trash2, Send, CheckCircle2, Clock, AlertCircle, Activity, TrendingUp, UserCheck, Hourglass, X, ListChecks } from "lucide-react";
+import { Plus, ClipboardList, Users, BarChart3, Eye, Trash2, Send, CheckCircle2, Clock, AlertCircle, Activity, TrendingUp, UserCheck, Hourglass, X, ListChecks, RotateCcw } from "lucide-react";
 import DeleteConfirmDialog from "@/components/assessments/DeleteConfirmDialog";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -131,6 +131,7 @@ export default function CandidateAssessments() {
   });
 
   const [pendingDelete, setPendingDelete] = useState(null);
+  const [pendingReset, setPendingReset] = useState(null);
 
   const deleteMutation = useMutation({
     mutationFn: (target) => base44.functions.invoke("deleteCandidateRecord", { kind: target.kind, id: target.id }),
@@ -144,6 +145,42 @@ export default function CandidateAssessments() {
     onError: (err) => {
       toast({
         title: "Delete failed",
+        description: err?.response?.data?.error || err.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  /* Reset clears the candidate's attempt (answers, progress and result) so the
+     assessment can be taken again, then re-sends the invitation email. */
+  const resetMutation = useMutation({
+    mutationFn: async (row) => {
+      await base44.functions.invoke("resetCandidateAttempt", { invitation_id: row.inv.id });
+      const res = await base44.functions.invoke("sendCandidateInvite", {
+        assessment_id: row.inv.assessment_id,
+        candidate_name: row.inv.candidate_name,
+        candidate_email: row.inv.candidate_email,
+        app_url: window.location.origin,
+      });
+      if (res?.data?.emailSent !== true) {
+        throw new Error(res?.data?.emailFailReason || "The invitation email could not be sent.");
+      }
+      return res.data;
+    },
+    onSuccess: () => {
+      setPendingReset(null);
+      qc.invalidateQueries({ queryKey: ["my-assessments"] });
+      qc.invalidateQueries({ queryKey: ["my-invitations"] });
+      qc.invalidateQueries({ queryKey: ["my-sessions"] });
+      qc.invalidateQueries({ queryKey: ["my-scorecards"] });
+      toast({
+        title: "Attempt reset",
+        description: "A fresh invitation email has been sent to the candidate.",
+      });
+    },
+    onError: (err) => {
+      toast({
+        title: "Reset failed",
         description: err?.response?.data?.error || err.message,
         variant: "destructive",
       });
@@ -269,9 +306,9 @@ export default function CandidateAssessments() {
                   <div className="col-span-2">Candidate</div>
                   <div className="col-span-2">Assessment</div>
                   <div className="col-span-2">Status / Date</div>
-                  <div className="col-span-3">Progress</div>
+                  <div className="col-span-2">Progress</div>
                   <div className="col-span-2 text-center">Score</div>
-                  <div className="col-span-1 text-center">Action</div>
+                  <div className="col-span-2 text-center">Action</div>
                 </div>
 
                 {trackerRows.map(({ inv, assessment, session, scorecard }) => {
@@ -336,7 +373,7 @@ export default function CandidateAssessments() {
                       </div>
 
                       {/* Progress */}
-                      <div className="col-span-3">
+                      <div className="col-span-2">
                         {session?.started_at ? (
                           <div>
                             <div className="flex justify-between text-[10px] text-gray-200 mb-1">
@@ -368,7 +405,14 @@ export default function CandidateAssessments() {
                       </div>
 
                       {/* Action */}
-                      <div className="col-span-1 flex justify-center items-center gap-1">
+                      <div className="col-span-2 flex justify-center items-center gap-1">
+                        <button
+                          onClick={() => setPendingReset({ inv })}
+                          className="p-1.5 bg-gray-800 border border-gray-700 text-gray-300 hover:text-white hover:border-gray-600 rounded-md transition-colors"
+                          title="Reset attempt & resend invite"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        </button>
                         {scorecard ? (
                           <Link to={`/scorecard?scorecard_id=${scorecard.id}`} className="text-[10px] px-2 py-1 bg-green-900/30 border border-green-700/40 text-green-400 rounded-lg hover:bg-green-900/50 transition-colors whitespace-nowrap">
                             Report
@@ -579,6 +623,17 @@ export default function CandidateAssessments() {
             : `${pendingDelete?.label || "This candidate"}'s invite, any session in progress and its results will be permanently removed.`
         }
         onConfirm={() => deleteMutation.mutate(pendingDelete)}
+      />
+
+      <DeleteConfirmDialog
+        open={!!pendingReset}
+        onOpenChange={(open) => { if (!open && !resetMutation.isPending) setPendingReset(null); }}
+        busy={resetMutation.isPending}
+        confirmLabel="Reset & resend"
+        busyLabel="Resetting..."
+        title="Reset this candidate's attempt?"
+        description={`${pendingReset?.inv?.candidate_name || "This candidate"}'s answers, progress and result will be cleared, and a fresh invitation email will be sent so they can take the assessment again.`}
+        onConfirm={() => resetMutation.mutate(pendingReset)}
       />
     </div>
   );
