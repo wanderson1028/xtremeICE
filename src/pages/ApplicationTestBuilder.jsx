@@ -243,7 +243,7 @@ export default function ApplicationTestBuilder() {
               <p className="text-gray-500 text-xs">
                 {editId
                   ? "Update the details or any question — saved changes apply to the next candidate who opens it"
-                  : "Multiple choice, matching and hotspot, auto-scored on submission"}
+                  : "Multiple choice, matching and point & click, auto-scored on submission"}
               </p>
             </div>
           </div>
