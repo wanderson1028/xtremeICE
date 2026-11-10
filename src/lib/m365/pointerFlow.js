@@ -19,8 +19,10 @@ export function createTaskPointerFlow({
   onCount,
   expire,
   defer = deferUntilAfterDispatch,
+  used = 0,
 }) {
   const tally = createClickTally(limit);
+  tally.restore(used);
   let armed = null;
   let disposed = false;
 

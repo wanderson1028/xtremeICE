@@ -9,7 +9,7 @@
     "lint": "eslint . --quiet",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
-    "test": "node --test tests/m365-scoring.test.mjs tests/m365-ui-payloads.test.mjs tests/m365-clicks.test.mjs tests/m365-event-order.test.mjs tests/m365-feedback.test.mjs",
+    "test": "node --test tests/m365-scoring.test.mjs tests/m365-ui-payloads.test.mjs tests/m365-clicks.test.mjs tests/m365-event-order.test.mjs tests/m365-feedback.test.mjs tests/m365-app-switching.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

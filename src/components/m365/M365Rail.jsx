@@ -27,8 +27,13 @@ const MARKER = {
  * operation was verified correct; a red cross means the task closed wrong (its
  * click limit ran out); a dash means it has not been answered yet. Counts are
  * true outcomes, so "Answered" never stands in for "Correct".
+ *
+ * Every application can be opened at any time: selecting one goes straight to
+ * its first unfinished task and nothing already done is lost.
  */
-export default function M365Rail({ apps, currentAppId, currentQuestionId, answers }) {
+export default function M365Rail({
+  apps, currentAppId, currentQuestionId, answers, onSelectApp,
+}) {
   return (
     <aside className="hidden w-72 shrink-0 overflow-y-auto border-r border-gray-800 bg-black/30 p-4 lg:block xl:w-80">
       <div className="mb-3 px-1 font-mono text-[11px] uppercase tracking-wider text-gray-500">
@@ -39,10 +44,16 @@ export default function M365Rail({ apps, currentAppId, currentQuestionId, answer
         const active = app.id === currentAppId;
         const result = sectionResult(app, answers);
         return (
-          <div
+          <button
             key={app.id}
-            className={`mb-2.5 rounded-lg border px-3 py-2.5 ${
-              active ? "border-sky-700/60 bg-sky-950/30" : "border-gray-800/70"
+            type="button"
+            onClick={() => onSelectApp?.(app.id)}
+            aria-current={active ? "true" : undefined}
+            aria-label={`Open ${app.name}`}
+            className={`mb-2.5 block w-full rounded-lg border px-3 py-2.5 text-left transition-colors ${
+              active
+                ? "border-sky-700/60 bg-sky-950/30"
+                : "border-gray-800/70 hover:border-sky-700/60 hover:bg-sky-950/20"
             }`}
           >
             <div className="flex items-center gap-2">
@@ -92,7 +103,7 @@ export default function M365Rail({ apps, currentAppId, currentQuestionId, answer
                 );
               })}
             </div>
-          </div>
+          </button>
         );
       })}
 
@@ -113,7 +124,8 @@ export default function M365Rail({ apps, currentAppId, currentQuestionId, answer
       </div>
 
       <p className="mt-3 px-1 font-mono text-[11px] leading-relaxed text-gray-600">
-        Progress counts answered tasks. Your score appears at the end.
+        Select any application to work on it. Progress counts answered tasks, and
+        your score appears once every task is answered.
       </p>
     </aside>
   );

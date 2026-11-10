@@ -28,3 +28,22 @@ export function afterTask(index) {
   }
   return { kind: "task", index: index + 1 };
 }
+
+/** Index of the first task belonging to `appId`. */
+export const firstIndexOfApp = (appId) =>
+  M365_QUESTIONS.findIndex((question) => question.appId === appId);
+
+/**
+ * The first task still unanswered after `index`, wrapping around to the start.
+ * Applications can be opened in any order, so this is what keeps the attempt
+ * moving and what makes the score appear only once every task is answered.
+ * Returns `null` when nothing is left open.
+ */
+export function nextOpenTask(answers, index = -1) {
+  const total = M365_QUESTIONS.length;
+  for (let step = 1; step <= total; step += 1) {
+    const at = (index + step + total) % total;
+    if (!answers?.[M365_QUESTIONS[at].id]) return at;
+  }
+  return null;
+}

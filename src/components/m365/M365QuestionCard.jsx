@@ -9,14 +9,16 @@ import { CheckCircle2, Loader2, Lock, MousePointerClick, XCircle } from "lucide-
  */
 export default function M365QuestionCard({
   question, app, submitted, saving, index, total, isLast,
-  clicks = 0, limit = 0, outcome = null,
+  clicks = 0, limit = 0, outcome = null, reopened = false,
 }) {
   const remaining = Math.max(0, limit - clicks);
   const wrong = outcome === "wrong";
   const correct = outcome === "correct";
-  const progress = isLast
-    ? "All tasks answered — preparing your score…"
-    : "The next task opens automatically.";
+  const progress = reopened
+    ? "Already answered — switch to another application to keep going."
+    : isLast
+      ? "All tasks answered — preparing your score…"
+      : "The next task opens automatically.";
 
   const status = () => {
     if (!submitted) {

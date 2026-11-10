@@ -8,7 +8,7 @@ import {
 } from "@/lib/m365";
 import { clickBudget } from "@/lib/m365/clicks";
 import { createTaskPointerFlow } from "@/lib/m365/pointerFlow";
-import { afterTask } from "@/lib/m365/progress";
+import { afterTask, firstIndexOfApp, nextOpenTask } from "@/lib/m365/progress";
 import { applyTaskAction, expireTask } from "@/lib/m365/session";
 import { tally } from "@/lib/m365/outcome";
 import M365Window from "@/components/m365/M365Window";
@@ -16,6 +16,7 @@ import M365Rail from "@/components/m365/M365Rail";
 import M365Summary from "@/components/m365/M365Summary";
 import M365QuestionCard from "@/components/m365/M365QuestionCard";
 import M365SectionTransition from "@/components/m365/M365SectionTransition";
+import M365AppSwitcher from "@/components/m365/M365AppSwitcher";
 
 const ADVANCE_MS = 950;
 
@@ -32,6 +33,7 @@ export default function M365Assessment() {
 
   const answersRef = useRef({});
   const statesRef = useRef(appState);
+  const spentRef = useRef({});
   const flowRef = useRef(null);
   const savedRef = useRef(false);
   const advancedRef = useRef(false);
@@ -44,22 +46,32 @@ export default function M365Assessment() {
      stored outcome, so a task closed by its click budget shows as wrong. */
   const overall = tally(M365_QUESTIONS, answers);
   const currentAnswer = answers[question.id] || null;
+  /* A task already answered stays closed when its application is reopened. */
+  const closed = submitted || Boolean(currentAnswer);
 
-  /* A task opens with a fresh budget. Presses are counted at the window boundary
-     and an expiry is only armed there; it is decided once the press has finished
-     dispatching (see pointerFlow), so the operation on the final allowed click is
-     applied and verified instead of being pre-empted by its own click. */
+  /* A task opens with the budget it has left — an application can be left and
+     reopened, and the presses already spent stay spent. Presses are counted at
+     the window boundary and an expiry is only armed there; it is decided once the
+     press has finished dispatching (see pointerFlow), so the operation on the
+     final allowed click is applied and verified instead of being pre-empted by
+     its own click. */
   useEffect(() => {
     setSubmitted(false);
     advancedRef.current = false;
     continuingRef.current = false;
-    setClicks(0);
 
     const task = M365_QUESTIONS[index];
+    const restored = spentRef.current[task.id] || 0;
+    setClicks(restored);
+
     const flow = createTaskPointerFlow({
       limit: clickBudget(task.minClicks),
+      used: restored,
       isResolved: () => Boolean(answersRef.current[task.id]),
-      onCount: setClicks,
+      onCount: (value) => {
+        spentRef.current[task.id] = value;
+        setClicks(value);
+      },
       expire: () => {
         const result = expireTask({
           question: task,
@@ -115,19 +127,26 @@ export default function M365Assessment() {
     setFinished(true);
   }, []);
 
-  /* Inside an application the next task opens by itself; at the end of an
-     application the hand-off screen is shown instead, and the last application
-     goes straight to the score. */
+  /* Inside an application the next task opens by itself. Because any application
+     can be opened at any time, the hand-off screen only appears when the next
+     application still has open work; otherwise the attempt moves on to the next
+     unanswered task, and the score appears only once none is left. */
   useEffect(() => {
     if (!submitted) return undefined;
     const timer = setTimeout(() => {
       if (advancedRef.current) return;
       advancedRef.current = true;
       const step = afterTask(index);
-      if (step.kind === "results") finish();
-      else if (step.kind === "section") {
-        setTransition({ from: step.from, to: step.to, index: step.index });
-      } else setIndex(step.index);
+      const open = nextOpenTask(answersRef.current, index);
+      if (open === null) {
+        finish();
+        return;
+      }
+      if (step.kind === "section" && step.to && step.to.id === M365_QUESTIONS[open].appId) {
+        setTransition({ from: step.from, to: step.to, index: open });
+      } else {
+        setIndex(open);
+      }
     }, ADVANCE_MS);
     return () => clearTimeout(timer);
   }, [submitted, index, finish]);
@@ -170,10 +189,28 @@ export default function M365Assessment() {
     setIndex(next);
   };
 
+  /* Switching applications keeps everything already done: answers and the
+     simulated documents live above the task, so only the open task changes. The
+     selected application opens at its first unfinished task. */
+  const openApp = (appId) => {
+    const target = appById(appId);
+    if (!target || target.id === question.appId) return;
+    const indexes = target.questions.map((entry) =>
+      M365_QUESTIONS.findIndex((item) => item.id === entry.id)
+    );
+    const open = indexes.find((at) => !answersRef.current[M365_QUESTIONS[at].id]);
+    advancedRef.current = false;
+    continuingRef.current = false;
+    setSubmitted(false);
+    setTransition(null);
+    setIndex(open ?? indexes[indexes.length - 1] ?? firstIndexOfApp(appId));
+  };
+
   const retake = () => {
     const fresh = initialAppState();
     answersRef.current = {};
     statesRef.current = fresh;
+    spentRef.current = {};
     flowRef.current?.dispose();
     savedRef.current = false;
     advancedRef.current = false;
@@ -208,7 +245,9 @@ export default function M365Assessment() {
           <p className="mt-3 max-w-2xl leading-relaxed text-gray-300">
             A scored assessment across six Microsoft 365 applications. Every ribbon tab, menu and
             context menu in the window is live: pick the tab, open the command and choose the option
-            that performs the task. Some tasks also need a selection or a right-click first.
+            that performs the task. Some tasks also need a selection or a right-click first. You can
+            open the six applications in any order: selecting one in the list on the left keeps every
+            task you have already done, so you can switch away, come back and finish.
           </p>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-500">
             Each task is marked correct or wrong as it closes, with no hints and no solutions. The
@@ -303,10 +342,17 @@ export default function M365Assessment() {
           currentAppId={app.id}
           currentQuestionId={transition ? null : question.id}
           answers={answers}
+          onSelectApp={openApp}
         />
 
         <div className="min-w-0 flex-1 overflow-y-auto p-4 lg:p-6">
           <div className="mx-auto max-w-5xl">
+            <M365AppSwitcher
+              apps={M365_APPS}
+              currentAppId={app.id}
+              answers={answers}
+              onSelect={openApp}
+            />
             {transition ? (
               <M365SectionTransition
                 fromApp={transition.from}
@@ -337,7 +383,7 @@ export default function M365Assessment() {
                     key={question.id}
                     app={app}
                     state={appState[app.id]}
-                    locked={submitted}
+                    locked={closed}
                     onPointer={handlePointer}
                     onAction={handleAction}
                   />
@@ -348,9 +394,10 @@ export default function M365Assessment() {
                   app={app}
                   index={index}
                   total={TOTAL_QUESTIONS}
-                  submitted={submitted}
+                  submitted={closed}
                   saving={saving}
                   isLast={index + 1 >= TOTAL_QUESTIONS}
+                  reopened={!submitted && Boolean(currentAnswer)}
                   clicks={clicks}
                   limit={limit}
                   outcome={

@@ -57,6 +57,10 @@ export function createClickTally(limit) {
       if (countsAsClick(eventType) && used < max) used += 1;
       return used;
     },
+    /** Reopen a task that keeps the presses it already spent. */
+    restore(value) {
+      used = Math.min(max, Math.max(0, Math.round(Number(value) || 0)));
+    },
     reset() {
       used = 0;
     },
