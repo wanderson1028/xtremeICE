@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { menuItemAction } from "@/lib/m365/actions";
+import { menuChoice, ribbonPress } from "@/lib/m365/actions";
 import { MenuList } from "./M365Menu";
 
 function RibbonControl({ control, open, onPress, onChoose, onToggle }) {
@@ -62,20 +62,8 @@ export default function M365RibbonBar({ app, activeTabId, selected, onTab, onAct
 
   /* A command only commits when it performs an operation; menu buttons and
      panel toggles are navigation and can never score. */
-  const press = (control) =>
-    onAction({
-      type: "control",
-      controlId: control.id,
-      commit: Boolean(control.commits),
-      targetId: selected || null,
-    });
-  const choose = (control, item) =>
-    onAction(
-      menuItemAction(
-        { type: "option", controlId: control.id, targetId: selected || null },
-        item
-      )
-    );
+  const press = (control) => onAction(ribbonPress(control, selected));
+  const choose = (control, item) => onAction(menuChoice(control.id, item, selected));
 
   if (app.commandBar) {
     return (

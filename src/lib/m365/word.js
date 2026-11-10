@@ -11,6 +11,9 @@ export const WORD_PARAGRAPHS = {
   "word-para-3": "3. Control list",
 };
 
+/** Page orientation as the document and its status bar render it. */
+export const isLandscape = (state) => state.orientation === "landscape";
+
 export const PARA_MENU = [
   { id: "new-comment", label: "New Comment" },
   { id: "reply-comment", label: "Reply to Comment" },
@@ -198,7 +201,7 @@ export const wordApp = {
       id: "word-q1",
       task: "Make sure the policy prints in landscape rather than portrait orientation.",
       answers: [{ kind: "option", control: "orientation", option: "landscape" }],
-      verify: (state) => state.orientation === "landscape",
+      verify: (state) => isLandscape(state),
       explanation:
         "Orientation is a Page Setup command on the Layout tab. The option inside the Orientation menu is what applies the page size.",
     },

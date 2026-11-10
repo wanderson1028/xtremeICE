@@ -1,11 +1,11 @@
 import React from "react";
 import Hit, { BodyStatus } from "./Hit";
-import { PARA_MENU, WORD_PARAGRAPHS } from "@/lib/m365/word";
+import { PARA_MENU, WORD_PARAGRAPHS, isLandscape } from "@/lib/m365/word";
 
 const TOC_ENTRIES = ["1. Purpose", "2. Liability", "3. Control list"];
 
 export default function WordBody({ state, selectedId, click, context }) {
-  const landscape = state.orientation === "landscape";
+  const landscape = isLandscape(state);
   const titleStyled = state.headingTarget === "word-title";
   const boldPara = state.boldParagraph === "word-para-3";
   const commentOn = WORD_PARAGRAPHS[state.commentTarget] || null;

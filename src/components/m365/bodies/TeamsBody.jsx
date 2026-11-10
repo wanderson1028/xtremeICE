@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import Hit, { BodyStatus } from "./Hit";
 import M365MenuButton from "../M365MenuButton";
-import { menuItemAction } from "@/lib/m365/actions";
+import { menuChoice } from "@/lib/m365/actions";
 import {
   ATTACH_MENU, CHANNEL_MENU, MEET_MENU, TEAM_MENU, TEAMS_CLICK_COMMITS, TEAMS_FILES,
 } from "@/lib/m365/teams";
@@ -36,8 +36,7 @@ export default function TeamsBody({ state, selectedId, click, context, press }) 
   const [showFiles, setShowFiles] = useState(false);
 
   /* Menu items that only open a dialog stay navigation; the rest commit. */
-  const chooseFrom = (controlId) => (item) =>
-    press(menuItemAction({ type: "option", controlId, optionId: item.id }, item));
+  const chooseFrom = (controlId) => (item) => press(menuChoice(controlId, item, selectedId));
 
   const channels = [
     ...BASE_CHANNELS,

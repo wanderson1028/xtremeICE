@@ -23,7 +23,9 @@ import {
   findControl, initialAppState, correctCount, scorePercent,
 } from "../src/lib/m365/index.js";
 import { applyAction } from "../src/lib/m365/engine.js";
-import { isCommit, menuItemAction } from "../src/lib/m365/actions.js";
+import {
+  bodyClick, contextChoice, dialogConfirm, isCommit, menuChoice, menuItemAction, ribbonPress,
+} from "../src/lib/m365/actions.js";
 import { applyTaskAction } from "../src/lib/m365/session.js";
 
 const DATA_MODULES = {
@@ -82,14 +84,14 @@ const WRONG_VALUES = {
   "powerbi-q6": "NORTHWIND-FILE02",
 };
 
-/** Right command, wrong option: a partly-correct operation must still be wrong. */
+/** Right command, wrong option: a partly-correct operation must still be wrong.
+    (Word's third table-of-contents option only opens a dialog, so it cannot commit.) */
 const PARTIAL_CASES = {
-  "word-q2": { type: "option", controlId: "table-of-contents", optionId: "toc-custom" },
-  "excel-q1": { type: "option", controlId: "column-chart", optionId: "stacked" },
-  "excel-q3": { type: "option", controlId: "currency", optionId: "currency-eur", targetId: "excel-col-e" },
-  "excel-q4": { type: "option", controlId: "freeze", optionId: "unfreeze" },
-  "outlook-q5": { type: "option", controlId: "filter", optionId: "flagged" },
-  "powerbi-q1": { type: "option", controlId: "publish", optionId: "my-workspace" },
+  "excel-q1": { control: "column-chart", option: "stacked" },
+  "excel-q3": { control: "currency", option: "currency-eur", target: "excel-col-e" },
+  "excel-q4": { control: "freeze", option: "unfreeze" },
+  "outlook-q5": { control: "filter", option: "flagged" },
+  "powerbi-q1": { control: "publish", option: "my-workspace" },
 };
 
 const appOf = (question) => M365_APPS.find((app) => app.id === question.appId);
@@ -126,33 +128,29 @@ const dialogMenuControl = (app, dialogId) =>
  */
 function actionFor(question, answer = question.answers[0]) {
   const app = appOf(question);
-  const base = { targetId: answer.target };
 
   switch (answer.kind) {
-    case "option": {
-      const control = findControl(app, answer.control);
-      const item = control.menu.find((entry) => entry.id === answer.option);
-      return menuItemAction(
-        { type: "option", controlId: answer.control, optionId: answer.option, ...base },
-        item
+    case "option":
+      return menuChoice(
+        answer.control,
+        findControl(app, answer.control).menu.find((entry) => entry.id === answer.option),
+        answer.target
       );
-    }
-    case "menu": {
-      const item = menuItems(question.appId).find((entry) => entry.id === answer.item);
-      return menuItemAction({ type: "menu", itemId: answer.item, ...base }, item);
-    }
+    case "menu":
+      return contextChoice(
+        answer.target,
+        menuItems(question.appId).find((entry) => entry.id === answer.item)
+      );
     case "confirm":
-      return {
-        type: "confirm",
-        dialogId: answer.dialog,
-        value: answer.value ?? app.dialogs[answer.dialog].confirm,
-        ...base,
-        commit: true,
-      };
+      return dialogConfirm(
+        answer.dialog,
+        answer.value ?? app.dialogs[answer.dialog].confirm,
+        answer.target
+      );
     case "click":
-      return { type: "click", ...base, commit: true };
+      return bodyClick(answer.target, CLICK_COMMITS[app.id]?.includes(answer.target));
     default:
-      return { type: "control", controlId: answer.control, ...base, commit: true };
+      return ribbonPress(findControl(app, answer.control), answer.target);
   }
 }
 
@@ -160,14 +158,11 @@ function actionFor(question, answer = question.answers[0]) {
 function openingAction(question, answer = question.answers[0]) {
   const app = appOf(question);
   if (answer.kind === "menu") return { type: "context", targetId: answer.target };
-  if (answer.kind === "option") {
-    return { type: "control", controlId: answer.control, targetId: answer.target, commit: false };
-  }
+  if (answer.kind === "option") return ribbonPress(findControl(app, answer.control), answer.target);
   if (answer.kind === "confirm") {
-    const control = dialogMenuControl(app, answer.dialog);
-    return { type: "control", controlId: control.id, targetId: answer.target, commit: false };
+    return ribbonPress(dialogMenuControl(app, answer.dialog), answer.target);
   }
-  return { type: "click", targetId: answer.target, commit: false };
+  return bodyClick(answer.target);
 }
 
 /* ------------------------------------------------------------------ shape --- */
@@ -392,10 +387,7 @@ test("a different option in the same command is never correct", () => {
         control.menu
           .filter((item) => !accepted.includes(item.id))
           .forEach((item) => {
-            const action = menuItemAction(
-              { type: "option", controlId: answer.control, optionId: item.id, targetId: answer.target },
-              item
-            );
+            const action = menuChoice(answer.control, item, answer.target);
             const result = applyAction({ question, state: freshState(question), action });
             assert.notEqual(result.outcome, "correct", `${question.id} option ${item.id}`);
           });
@@ -404,9 +396,11 @@ test("a different option in the same command is never correct", () => {
 });
 
 test("a partly correct operation is scored wrong", () => {
-  Object.entries(PARTIAL_CASES).forEach(([id, action]) => {
+  Object.entries(PARTIAL_CASES).forEach(([id, { control, option, target }]) => {
     const question = M365_QUESTIONS.find((item) => item.id === id);
-    const result = applyAction({ question, state: freshState(question), action: { ...action, commit: true } });
+    const item = findControl(appOf(question), control).menu.find((entry) => entry.id === option);
+    const action = menuChoice(control, item, target);
+    const result = applyAction({ question, state: freshState(question), action });
     assert.equal(result.outcome, "wrong", `${id} partial operation`);
   });
 });
@@ -426,7 +420,7 @@ test("a command with nothing to act on leaves the task open", () => {
   const result = applyAction({
     question,
     state,
-    action: { type: "control", controlId: "bold", targetId: null, commit: true },
+    action: ribbonPress(findControl(appOf(question), "bold"), null),
   });
   assert.equal(result.outcome, "ignored");
   assert.equal(result.state, state);
@@ -456,7 +450,7 @@ test("an answered task ignores further commits and stays answered", () => {
       question,
       answers: first.answers,
       states: first.states,
-      action: { type: "click", targetId: "not-a-real-control", commit: true },
+      action: bodyClick("not-a-real-control", true),
     });
     assert.equal(stray.outcome, "ignored", `${question.id} stray commit`);
     assert.deepEqual(stray.answers, first.answers);
@@ -475,11 +469,12 @@ test("the engine ignores repeated commits even without a resolved flag", () => {
 
 test("the first commit decides the task", () => {
   const question = M365_QUESTIONS.find((item) => item.id === "word-q1");
+  const margins = findControl(appOf(question), "margins");
   const wrong = applyTaskAction({
     question,
     answers: {},
     states: initialAppState(),
-    action: { type: "option", controlId: "margins", optionId: "margin-narrow", commit: true },
+    action: menuChoice("margins", margins.menu.find((entry) => entry.id === "margin-narrow")),
   });
   assert.equal(wrong.outcome, "wrong");
   assert.equal(wrong.answers["word-q1"].correct, false);

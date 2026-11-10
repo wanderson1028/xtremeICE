@@ -1,5 +1,7 @@
 import React, { useRef, useState } from "react";
-import { menuItemAction } from "@/lib/m365/actions";
+import {
+  bodyClick, contextChoice, dialogConfirm, menuChoice, ribbonPress,
+} from "@/lib/m365/actions";
 import { MenuList } from "./M365Menu";
 import M365MenuButton from "./M365MenuButton";
 import M365Dialog from "./M365Dialog";
@@ -51,7 +53,7 @@ export default function M365Window({ app, state, locked, onAction }) {
 
   const click = (targetId, extra) => {
     setSelected(targetId);
-    emit({ type: "click", targetId, commit: Boolean(extra?.commit) });
+    emit(bodyClick(targetId, extra?.commit));
   };
 
   const context = (targetId, items, event) => {
@@ -73,7 +75,7 @@ export default function M365Window({ app, state, locked, onAction }) {
   const choose = (targetId, itemId) => {
     const item = contextMenu?.items?.find((entry) => entry.id === itemId) || { id: itemId };
     setContextMenu(null);
-    emit(menuItemAction({ type: "menu", targetId, itemId }, item));
+    emit(contextChoice(targetId, item));
   };
 
   const pressTab = (tabId) => {
@@ -106,17 +108,8 @@ export default function M365Window({ app, state, locked, onAction }) {
               items={action.menu}
               align="right"
               buttonClassName="text-white/90 hover:bg-white/20"
-              onPress={() =>
-                emit({ type: "control", controlId: action.id, commit: false, targetId: selected })
-              }
-              onChoose={(item) =>
-                emit(
-                  menuItemAction(
-                    { type: "option", controlId: action.id, targetId: selected },
-                    item
-                  )
-                )
-              }
+              onPress={() => emit(ribbonPress(action, selected))}
+              onChoose={(item) => emit(menuChoice(action.id, item, selected))}
               title={action.label}
             />
           ))}
@@ -178,7 +171,7 @@ export default function M365Window({ app, state, locked, onAction }) {
           onConfirm={(value) => {
             const dialogId = dialog.id;
             setDialog(null);
-            emit({ type: "confirm", dialogId, value, targetId: selected, commit: true });
+            emit(dialogConfirm(dialogId, value, selected));
           }}
         />
       ) : null}
