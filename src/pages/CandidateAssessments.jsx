@@ -408,10 +408,11 @@ export default function CandidateAssessments() {
                       <div className="col-span-2 flex justify-center items-center gap-1">
                         <button
                           onClick={() => setPendingReset({ inv })}
-                          className="p-1.5 bg-gray-800 border border-gray-700 text-gray-300 hover:text-white hover:border-gray-600 rounded-md transition-colors"
+                          className="flex items-center gap-1 text-[10px] px-2 py-1 bg-gray-800 border border-gray-700 text-gray-300 hover:text-white hover:border-gray-600 rounded-lg transition-colors whitespace-nowrap"
                           title="Reset attempt & resend invite"
                         >
-                          <RotateCcw className="h-3.5 w-3.5" />
+                          <RotateCcw className="h-3 w-3" />
+                          Reset
                         </button>
                         {scorecard ? (
                           <Link to={`/scorecard?scorecard_id=${scorecard.id}`} className="text-[10px] px-2 py-1 bg-green-900/30 border border-green-700/40 text-green-400 rounded-lg hover:bg-green-900/50 transition-colors whitespace-nowrap">
