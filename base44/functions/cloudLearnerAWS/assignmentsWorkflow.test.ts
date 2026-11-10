@@ -27,7 +27,7 @@ Deno.test("Assignment rehearsal: instructor controls, non-admin start, one guest
  const draft:any=buildAiGuidedTemplate(narrative);draft.lab_content.tasks=normalizeTasks(draft.lab_content.tasks);
  draft.id="0123456789abcdef01234567";tables.LabTemplate=[draft];tables.User=[{id:"owner-id",email:"owner@example.invalid",role:"user"},{id:"other-id",email:"other@example.invalid",role:"user"}];
  const commands=new Map<string,any>();const observed:string[]=[];
- let account="935838375949",stackState="CREATE_COMPLETE";
+ let account="935838375949",stackState="CREATE_COMPLETE",cleanupDuringStackRead=false;
  const instance="i-0123456789abcdef0",vpc="vpc-0123456789abcdef0",stack="arn:aws:cloudformation:us-east-1:935838375949:stack/ExtremeICE-DesignStudio-Learner-Pilot/test-id";
  const target=directory+"/fixture/proof.txt";await Deno.mkdir(directory+"/fixture");await Deno.writeTextFile(target,"initial");await Deno.chmod(target,0o644);
  const xml=(action:string,body:string)=>new Response("<"+action+"Response>"+body+"</"+action+"Response>");
@@ -47,6 +47,7 @@ Deno.test("Assignment rehearsal: instructor controls, non-admin start, one guest
    }
    if(action==="DescribeStacks"){
     const run=tables.CloudLearnerRun?.[0];check(run,"fake run exists");
+    if(cleanupDuringStackRead){run.cleanup_requested_at=new Date().toISOString();cleanupDuringStackRead=false;}
     return xml(action,"<DescribeStacksResult><Stacks><member><StackId>"+stack+"</StackId><StackStatus>"+stackState+"</StackStatus><Tags><member><Key>ManagedBy</Key><Value>ExtremeICE-DesignStudio-Learner</Value></member><member><Key>LearnerRunId</Key><Value>"+run.id+"</Value></member></Tags><Outputs><member><OutputKey>InstanceId</OutputKey><OutputValue>"+instance+"</OutputValue></member><member><OutputKey>VpcId</OutputKey><OutputValue>"+vpc+"</OutputValue></member></Outputs></member></Stacks></DescribeStacksResult>");
    }
    if(action==="SendCommand"){
@@ -109,6 +110,11 @@ Deno.test("Assignment rehearsal: instructor controls, non-admin start, one guest
   user={id:"owner-id",email:"owner@example.invalid",role:"user"};
   draft.lab_content.tasks[0].instructions="Edited after provisioning";check(run.contract.template_snapshot.lab_content.tasks[0].instructions==="Reviewed revision","run snapshot immutable");
   check((await api("refresh",{run_id:runId})).body.run.status==="ready","SSM ready");
+  cleanupDuringStackRead=true;
+  const commandsBeforeCleanupRace=observed.filter(a=>a==="SendCommand").length;
+  check((await api("startOperation",{run_id:runId,kind:"read"})).status===403,"cleanup intent during stack read blocks dispatch");
+  check(observed.filter(a=>a==="SendCommand").length===commandsBeforeCleanupRace,"cleanup race never sends a guest command");
+  delete run.cleanup_requested_at;
   const count=observed.length;user={id:"other-id",email:"other@example.invalid",role:"user"};
   check((await api("startOperation",{run_id:runId,kind:"read"})).status===403,"another learner denied");
   check(observed.length===count,"owner denial precedes AWS dispatch");
