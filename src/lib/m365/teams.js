@@ -1,28 +1,47 @@
 /** Microsoft Teams — channel chrome, compose box, dialogs and scored tasks (fictitious data). */
 
 export const CHANNEL_MENU = [
+  { id: "open-channel", label: "Open channel" },
   { id: "pin", label: "Pin channel" },
   { id: "hide", label: "Hide channel" },
   { id: "mute", label: "Mute channel" },
   { id: "manage", label: "Manage channel", opens: true },
+  { id: "copy-link", label: "Get link to channel" },
+  { id: "channel-notifications", label: "Channel notifications", opens: true },
   { id: "leave", label: "Leave channel" },
 ];
 
 export const TEAM_MENU = [
   { id: "add-channel", label: "Add channel", opens: "teams-add-channel" },
+  { id: "add-member", label: "Add member", opens: true },
   { id: "manage-team", label: "Manage team", opens: true },
+  { id: "team-settings", label: "Team settings", opens: true },
+  { id: "archived-channels", label: "Archived channels", opens: true },
   { id: "leave-team", label: "Leave team" },
 ];
 
 export const MEET_MENU = [
   { id: "meet-now", label: "Meet now" },
   { id: "schedule-meeting", label: "Schedule meeting", opens: true },
+  { id: "meeting-options", label: "Meeting options", opens: true },
 ];
 
 export const ATTACH_MENU = [
   { id: "attach-files", label: "Files", opens: "teams-attach" },
   { id: "attach-loop", label: "Loop component" },
-  { id: "attach-approval", label: "Approval" },
+  { id: "attach-approval", label: "Approval", opens: true },
+  { id: "attach-poll", label: "Poll", opens: true },
+  { id: "attach-list", label: "List", opens: true },
+  { id: "attach-praise", label: "Praise", opens: true },
+];
+
+/** The compose box's formatting and delivery options. */
+export const COMPOSE_MENU = [
+  { id: "compose-format", label: "Format", opens: true },
+  { id: "compose-important", label: "Mark as important", opens: true },
+  { id: "compose-urgent", label: "Mark as urgent", opens: true },
+  { id: "compose-schedule", label: "Schedule message", opens: true },
+  { id: "compose-subject", label: "Add subject", opens: true },
 ];
 
 /** Documents shared in the channel's Files tab. */
@@ -64,6 +83,8 @@ export function reduceTeams(state, action) {
     if (action.controlId === "more" && action.optionId === "leave-team") next.leftTeam = true;
   }
   if (action.type === "menu" && action.itemId === "mute") next.muted = target;
+  if (action.type === "menu" && action.itemId === "pin") next.pinnedChannel = target;
+  if (action.type === "menu" && action.itemId === "hide") next.hiddenChannel = target;
   if (action.type === "confirm" && action.dialogId === "teams-attach" && action.value) {
     next.attachment = action.value;
   }
@@ -93,6 +114,7 @@ export const teamsApp = {
     { id: "meet", label: "Meet", menu: MEET_MENU },
     { id: "more", label: "More options", menu: TEAM_MENU },
     { id: "attach", label: "Attach", menu: ATTACH_MENU },
+    { id: "compose-more", label: "Format", menu: COMPOSE_MENU },
   ],
   defaults: {
     meeting: false,
@@ -101,13 +123,15 @@ export const teamsApp = {
     postedChannel: null,
     channels: [],
     openedFile: null,
+    pinnedChannel: null,
+    hiddenChannel: null,
   },
   questions: [
     {
       id: "teams-q1",
       /* Meet in the channel header, then Meet now. */
       minClicks: 2,
-      task: "The channel needs an unscheduled face-to-face call right now. Start it from the channel header.",
+      task: "The channel needs an unscheduled face-to-face call right now.",
       answers: [{ kind: "option", control: "meet", option: "meet-now" }],
       verify: (state) => state.meeting === true,
       explanation:
@@ -117,7 +141,7 @@ export const teamsApp = {
       id: "teams-q2",
       /* Attach, Files, choose the workbook, Attach. */
       minClicks: 4,
-      task: "Share the Q4 evidence spreadsheet in your reply: attach Q4_Evidence_Log.xlsx before you post it.",
+      task: "The reply needs the Q4 evidence workbook attached before it is posted.",
       answers: [{ kind: "confirm", dialog: "teams-attach", value: "Q4_Evidence_Log.xlsx" }],
       verify: (state) => state.attachment === "Q4_Evidence_Log.xlsx",
       explanation:
@@ -127,7 +151,7 @@ export const teamsApp = {
       id: "teams-q3",
       /* Right-click the channel, then Mute channel. */
       minClicks: 2,
-      task: "The Threat Intel channel is posting too often. Stop its notifications without leaving it.",
+      task: "The Threat Intel channel is posting too often, but it still has to stay in the list.",
       answers: [{ kind: "menu", target: "teams-channel-threat-intel", item: "mute" }],
       verify: (state) => state.muted === "teams-channel-threat-intel",
       explanation:
@@ -137,7 +161,7 @@ export const teamsApp = {
       id: "teams-q4",
       /* The send arrow. */
       minClicks: 1,
-      task: "Post the update already typed in the compose box to the channel conversation.",
+      task: "The update typed in the compose box still has to reach the channel conversation.",
       answers: [{ kind: "click", target: "teams-send" }],
       verify: (state) => state.postedChannel === "General",
       explanation: "The send arrow at the right of the compose box posts the message to the channel.",
@@ -146,7 +170,7 @@ export const teamsApp = {
       id: "teams-q5",
       /* ⋯ more options, Add channel, Create (the name is typed). */
       minClicks: 3,
-      task: "Create a new channel named “Incident 2026-11” so this month's work has its own thread.",
+      task: "This month's work needs a channel of its own, named “Incident 2026-11”.",
       answers: [{ kind: "confirm", dialog: "teams-add-channel", value: "Incident 2026-11" }],
       verify: (state) => state.channels.includes("Incident 2026-11"),
       explanation:
@@ -157,7 +181,7 @@ export const teamsApp = {
       /* The Files tab, then the spreadsheet in it. */
       prep: [{ select: "teams-tab-files" }],
       minClicks: 2,
-      task: "Open the evidence log that is shared in this channel: go to the channel's files and open Q4_Evidence_Log.xlsx.",
+      task: "Open Q4_Evidence_Log.xlsx, the evidence log this channel shares.",
       answers: [{ kind: "click", target: "teams-file-q4-evidence" }],
       verify: (state) => state.openedFile === "teams-file-q4-evidence",
       explanation:

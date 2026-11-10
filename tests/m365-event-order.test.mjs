@@ -1,7 +1,7 @@
 /**
  * Event-ordering regression for the Microsoft 365 point-and-click assessment.
  *
- * Reported from a real browser session: on the first task (budget 12), one Bold
+ * Reported from a real browser session: on the first task (budget 9), one Bold
  * click, eight Home clicks, Layout, Orientation and finally Landscape left the
  * document in Portrait and closed the task as "click limit reached" — the final
  * allowed click never performed its action.
@@ -128,26 +128,26 @@ test("the reported sequence: the twelfth click still performs Landscape and scor
   const landscape = orientation.menu.find((item) => item.id === "landscape");
 
   const sim = openTask(question);
-  assert.equal(sim.flow.limit, 12);
+  assert.equal(sim.flow.limit, 9);
 
   press(sim, ribbonPress(bold, null));
   assert.equal(sim.used, 1, "1 · Bold");
 
-  for (let index = 0; index < 8; index += 1) press(sim, tab("home"));
-  assert.equal(sim.used, 9, "2-9 · Home pressed eight times");
+  for (let index = 0; index < 5; index += 1) press(sim, tab("home"));
+  assert.equal(sim.used, 6, "2-6 · Home pressed five times");
 
   press(sim, tab("layout"));
-  assert.equal(sim.used, 10, "10 · Layout");
+  assert.equal(sim.used, 7, "7 · Layout");
 
   press(sim, ribbonPress(orientation, null));
-  assert.equal(sim.used, 11, "11 · Orientation");
-  assert.equal(sim.answers["word-q1"], undefined, "eleven clicks leaves the task open");
+  assert.equal(sim.used, 8, "8 · Orientation");
+  assert.equal(sim.answers["word-q1"], undefined, "eight clicks leaves the task open");
   assert.equal(sim.locked, false);
 
-  /* 12 · the final allowed click. Counting it must not close the task: the
+  /* 9 · the final allowed click. Counting it must not close the task: the
      Landscape operation has not been dispatched yet. */
   count(sim);
-  assert.equal(sim.used, 12, "the twelfth click is counted");
+  assert.equal(sim.used, 9, "the ninth click is counted");
   assert.equal(sim.locked, false, "counting the last click never locks the window");
   assert.equal(sim.answers["word-q1"], undefined, "and never records an answer");
   assert.equal(sim.exhausted, false, "nor expires the task before its operation runs");
@@ -167,12 +167,12 @@ test("a blank final click expires the task, once, after it has dispatched", () =
   const question = questionById("word-q1");
   const sim = openTask(question);
 
-  for (let index = 0; index < 11; index += 1) press(sim, null);
-  assert.equal(sim.used, 11);
-  assert.equal(sim.answers["word-q1"], undefined, "eleven blank clicks is not the limit");
+  for (let index = 0; index < 8; index += 1) press(sim, null);
+  assert.equal(sim.used, 8);
+  assert.equal(sim.answers["word-q1"], undefined, "eight blank clicks is not the limit");
 
   count(sim);
-  assert.equal(sim.used, 12);
+  assert.equal(sim.used, 9);
   assert.equal(sim.answers["word-q1"], undefined, "the count itself records nothing");
 
   act(sim, null); // the click hit nothing
@@ -193,12 +193,12 @@ test("a right-click that spends the last click expires after its own dispatch", 
   const question = questionById("word-q1");
   const sim = openTask(question);
 
-  for (let index = 0; index < 11; index += 1) press(sim, null);
+  for (let index = 0; index < 8; index += 1) press(sim, null);
 
-  /* The twelfth press is a right-click: opening the context menu is navigation,
+  /* The ninth press is a right-click: opening the context menu is navigation,
      so the menu choice that follows arrives at an already spent budget. */
   count(sim, "contextmenu");
-  assert.equal(sim.used, 12);
+  assert.equal(sim.used, 9);
   act(sim, { type: "context", targetId: "word-para-2" });
   assert.equal(sim.exhausted, false, "the menu opening itself does not decide it");
   finishPress(sim);
@@ -234,8 +234,8 @@ test("the budget decision cannot run between the capture count and the bubble", 
     },
   });
 
-  for (let index = 0; index < 11; index += 1) flow.press("click");
-  assert.equal(flow.used, 11);
+  for (let index = 0; index < 8; index += 1) flow.press("click");
+  assert.equal(flow.used, 8);
 
   flow.press("click");
   assert.equal(flow.spent, true);
@@ -268,7 +268,7 @@ test("the budget decision cannot run between the capture count and the bubble", 
       idle.expiries += 1;
     },
   });
-  for (let index = 0; index < 12; index += 1) idleFlow.press("click");
+  for (let index = 0; index < 9; index += 1) idleFlow.press("click");
   await new Promise((resolve) => setTimeout(resolve, 10));
   assert.equal(idle.expiries, 1, "a spent budget closes a task that was not solved");
 });
@@ -279,7 +279,7 @@ test("one press arms one decision, and a disposed flow cannot close the next tas
   const question = questionById("word-q1");
 
   const sim = openTask(question);
-  for (let index = 0; index < 12; index += 1) count(sim);
+  for (let index = 0; index < 9; index += 1) count(sim);
   assert.equal(sim.armed.length, 1, "only one decision is ever armed");
   finishPress(sim);
   assert.equal(sim.expiries, 1);
@@ -287,13 +287,13 @@ test("one press arms one decision, and a disposed flow cannot close the next tas
   count(sim);
   count(sim);
   assert.equal(sim.armed.length, 0, "presses past the limit arm nothing");
-  assert.equal(sim.used, 12, "the tally never overruns the budget");
+  assert.equal(sim.used, 9, "the tally never overruns the budget");
   assert.equal(sim.expiries, 1, "and never expire twice");
 
   /* A task change disposes the task's flow: its pending decision must not reach
      the next task. */
   const stale = openTask(question);
-  for (let index = 0; index < 12; index += 1) count(stale);
+  for (let index = 0; index < 9; index += 1) count(stale);
   assert.equal(stale.armed.length, 1);
   stale.flow.dispose();
   assert.equal(stale.armed.length, 0, "disposing cancels the armed decision");

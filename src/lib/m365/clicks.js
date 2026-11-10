@@ -1,15 +1,15 @@
 /**
  * Click budget for the Microsoft 365 point-and-click assessment.
  *
- * Every task allows four times the number of physical clicks its shortest valid
+ * Every task allows three times the number of physical clicks its shortest valid
  * solution needs, so a candidate can explore, hit the wrong control and correct
  * themselves before the task closes. Only clicks inside the simulated window are
  * counted: one per physical press, taken once at the window boundary.
  */
 
-export const CLICK_MULTIPLIER = 4;
+export const CLICK_MULTIPLIER = 3;
 
-/** The clicks a task allows: four times its audited minimum. */
+/** The clicks a task allows: three times its audited minimum. */
 export const clickBudget = (minClicks) =>
   Math.max(1, Math.round(Number(minClicks) || 1)) * CLICK_MULTIPLIER;
 

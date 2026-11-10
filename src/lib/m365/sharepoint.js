@@ -2,10 +2,16 @@
 
 export const ITEM_MENU = [
   { id: "open", label: "Open in app" },
-  { id: "download", label: "Download" },
+  { id: "share", label: "Share", opens: "sp-share" },
   { id: "copy-link", label: "Copy link" },
+  { id: "download", label: "Download" },
+  { id: "rename", label: "Rename", opens: true },
+  { id: "move-to", label: "Move to", opens: true },
+  { id: "copy-to", label: "Copy to", opens: true },
   { id: "version-history", label: "Version history" },
   { id: "pin", label: "Pin to Quick access" },
+  { id: "alert-me", label: "Alert me" },
+  { id: "details", label: "Details" },
   { id: "delete", label: "Delete" },
 ];
 
@@ -13,6 +19,8 @@ export const SORT_MENU = [
   { id: "sort-newest", label: "Sort newest first" },
   { id: "sort-oldest", label: "Sort oldest first" },
   { id: "sort-name", label: "Sort by name (A → Z)" },
+  { id: "sort-name-desc", label: "Sort by name (Z → A)" },
+  { id: "sort-size", label: "Sort by size" },
 ];
 
 export const SHAREPOINT_DIALOGS = {
@@ -79,9 +87,12 @@ export function reduceSharePoint(state, action) {
     if (action.controlId === "more" && action.optionId === "pin") next.pinned = target;
     if (action.controlId === "more" && action.optionId === "version-history") next.versionsFor = target;
     if (action.controlId === "more" && action.optionId === "delete-item") next.deletedItem = target;
+    if (action.controlId === "more" && action.optionId === "alert-me") next.alerted = target;
     if (action.controlId === "new" && action.optionId === "new-docx") next.createdFile = "Document.docx";
     if (action.controlId === "new" && action.optionId === "new-xlsx") next.createdFile = "Workbook.xlsx";
     if (action.controlId === "sync") next.synced = true;
+    if (action.controlId === "automate") next.automated = action.optionId;
+    if (action.controlId === "export") next.exported = action.optionId;
   }
   return next;
 }
@@ -100,20 +111,51 @@ export const sharepointApp = {
       { id: "new-folder", label: "Folder", opens: "sp-folder" },
       { id: "new-docx", label: "Word document" },
       { id: "new-xlsx", label: "Excel workbook" },
+      { id: "new-pptx", label: "PowerPoint presentation" },
+      { id: "new-onenote", label: "OneNote notebook" },
+      { id: "new-link", label: "Link" },
     ] },
     { id: "upload", label: "Upload", menu: [
       { id: "upload-files", label: "Files", opens: "sp-upload" },
       { id: "upload-folder", label: "Folder", opens: true },
+      { id: "upload-template", label: "Template", opens: true },
+    ] },
+    { id: "create", label: "Create", menu: [
+      { id: "create-list", label: "List", opens: true },
+      { id: "create-library", label: "Document library", opens: true },
+      { id: "create-page", label: "Site page", opens: true },
+      { id: "create-app", label: "App", opens: true },
     ] },
     { id: "share", label: "Share", menu: [
       { id: "manage-access", label: "Manage access", opens: "sp-share" },
       { id: "copy-link", label: "Copy link" },
-      { id: "email-link", label: "Email link" },
+      { id: "email-link", label: "Email link", opens: true },
+      { id: "share-teams", label: "Share in Teams" },
+    ] },
+    { id: "copy-to", label: "Copy to", menu: [
+      { id: "copy-to-library", label: "Copy to…", opens: true },
+      { id: "move-to-library", label: "Move to…", opens: true },
+    ] },
+    { id: "automate", label: "Automate", menu: [
+      { id: "automate-rule", label: "Create a rule", opens: true },
+      { id: "automate-flow", label: "Power Automate", opens: true },
+      { id: "automate-approval", label: "Request approval", opens: true },
+    ] },
+    { id: "export", label: "Export", menu: [
+      { id: "export-csv", label: "Export to CSV" },
+      { id: "export-excel", label: "Export to Excel" },
+      { id: "export-pdf", label: "Export to PDF" },
     ] },
     { id: "sync", label: "Sync" },
+    { id: "alert", label: "Alert me", menu: [
+      { id: "alert-this", label: "Set an alert on this library" },
+      { id: "alert-manage", label: "Manage my alerts", opens: true },
+    ] },
     { id: "more", label: "⋯", menu: [
       { id: "pin", label: "Pin to Quick access" },
       { id: "version-history", label: "Version history" },
+      { id: "alert-me", label: "Alert me" },
+      { id: "library-settings", label: "Library settings", opens: true },
       { id: "delete-item", label: "Delete" },
     ] },
   ],
@@ -126,13 +168,18 @@ export const sharepointApp = {
     versionsFor: null,
     pinned: null,
     deletedItem: null,
+    createdFile: null,
+    synced: false,
+    alerted: null,
+    automated: null,
+    exported: null,
   },
   questions: [
     {
       id: "sharepoint-q1",
       /* Upload, Files, choose Q4_Report.pdf, Upload. */
       minClicks: 4,
-      task: "Q4_Report.pdf is on your laptop. Copy that exact file into this library.",
+      task: "Q4_Report.pdf is on your laptop and has to end up in this library.",
       answers: [{ kind: "confirm", dialog: "sp-upload", value: "Q4_Report.pdf" }],
       verify: (state) => state.uploadedFiles.includes("Q4_Report.pdf"),
       explanation:
@@ -142,7 +189,7 @@ export const sharepointApp = {
       id: "sharepoint-q2",
       /* New, Folder, Create (the name is typed, which is not a click). */
       minClicks: 3,
-      task: "Create a new folder named “Q4 Evidence” in this library to hold the evidence you are about to collect.",
+      task: "The evidence you are about to collect needs a place of its own, named “Q4 Evidence”.",
       answers: [{ kind: "confirm", dialog: "sp-folder", value: "Q4 Evidence" }],
       verify: (state) => state.folders.includes("Q4 Evidence"),
       explanation:
@@ -152,7 +199,7 @@ export const sharepointApp = {
       id: "sharepoint-q3",
       /* Select the document, Share, Manage access, Audit Team, Send. */
       minClicks: 5,
-      task: "Give the audit team access to Q4_Security_Policy.docx: select that document, then grant Audit Team access.",
+      task: "The audit team needs to be able to open Q4_Security_Policy.docx.",
       answers: [
         { kind: "confirm", dialog: "sp-share", value: "Audit Team", target: "sp-row-policy" },
       ],
@@ -164,7 +211,7 @@ export const sharepointApp = {
       id: "sharepoint-q4",
       /* Right-click the Modified header, then Sort newest first. */
       minClicks: 2,
-      task: "Reorder the library so the most recently edited files appear first.",
+      task: "The library still lists files by name, and the most recently edited ones should come first.",
       answers: [{ kind: "menu", target: "sp-col-modified", item: "sort-newest" }],
       verify: (state) => state.sorting === "newest",
       explanation:
@@ -174,7 +221,7 @@ export const sharepointApp = {
       id: "sharepoint-q5",
       /* Right-click the plan, then Version history. */
       minClicks: 2,
-      task: "You need the revision that existed before last week's edit. Open the version history of the incident response plan.",
+      task: "You need the revision of the incident response plan that existed before last week's edit.",
       answers: [{ kind: "menu", target: "sp-row-ir-plan", item: "version-history" }],
       verify: (state) => state.versionsFor === "sp-row-ir-plan",
       explanation:
@@ -184,7 +231,7 @@ export const sharepointApp = {
       id: "sharepoint-q6",
       /* Right-click the tracker, then Pin to Quick access. */
       minClicks: 2,
-      task: "Keep the vendor renewal tracker within one click by pinning it to Quick access.",
+      task: "The vendor renewal tracker must be reachable in one click from Quick access.",
       answers: [
         { kind: "menu", target: "sp-row-vendor", item: "pin" },
         { kind: "option", control: "more", option: "pin", target: "sp-row-vendor" },

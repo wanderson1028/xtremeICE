@@ -312,20 +312,20 @@ const playPath = (question, sim) => {
 
 /* ---------------------------------------------------------------- budget --- */
 
-test("every task declares an audited minimum and four times that many clicks", () => {
+test("every task declares an audited minimum and three times that many clicks", () => {
   assert.equal(M365_QUESTIONS.length, 36);
-  assert.equal(CLICK_MULTIPLIER, 4);
+  assert.equal(CLICK_MULTIPLIER, 3);
 
   M365_QUESTIONS.forEach((question) => {
     assert.equal(typeof question.minClicks, "number", `${question.id} declares minClicks`);
     assert.ok(Number.isInteger(question.minClicks) && question.minClicks >= 1, `${question.id} minimum`);
-    assert.equal(clickBudget(question.minClicks), question.minClicks * 4, `${question.id} budget`);
+    assert.equal(clickBudget(question.minClicks), question.minClicks * 3, `${question.id} budget`);
     assert.ok(question.minClicks <= 5, `${question.id} minimum is plausible (${question.minClicks})`);
   });
 
   /* The reported example: Layout > Orientation > Landscape is three clicks. */
   assert.equal(questionById("word-q1").minClicks, 3);
-  assert.equal(clickBudget(questionById("word-q1").minClicks), 12);
+  assert.equal(clickBudget(questionById("word-q1").minClicks), 9);
 });
 
 test("the declared minimum is the real shortest click path for all 36 tasks", () => {
@@ -339,7 +339,7 @@ test("the declared minimum is the real shortest click path for all 36 tasks", ()
     assert.equal(sim.used, question.minClicks, `${question.id} needs exactly that many clicks`);
     assert.equal(sim.outcome, "correct", `${question.id} shortest path scores`);
     assert.equal(sim.answers[question.id].correct, true, `${question.id} recorded correct`);
-    assert.equal(sim.remaining, question.minClicks * 3, `${question.id} leaves three quarters of the budget`);
+    assert.equal(sim.remaining, question.minClicks * 2, `${question.id} leaves two thirds of the budget`);
   });
 });
 
@@ -388,7 +388,7 @@ test("left click, right click and a blank click each spend one", () => {
   assert.equal(sim.used, 3, "choosing from the context menu counts");
   sim.blank();
   assert.equal(sim.used, 4, "a blank click counts");
-  assert.equal(sim.remaining, 8);
+  assert.equal(sim.remaining, 5);
 });
 
 /* ---------------------------------------------------------- exploration --- */
@@ -435,25 +435,25 @@ test("wrong commands never close a task before the budget runs out", () => {
 
 /* ---------------------------------------------------------------- limits --- */
 
-test("the first task closes as wrong on the twelfth click, once", () => {
+test("the first task closes as wrong on the ninth click, once", () => {
   const question = questionById("word-q1");
   const sim = new WindowSim(question);
-  assert.equal(sim.limit, 12);
+  assert.equal(sim.limit, 9);
 
-  for (let index = 0; index < 11; index += 1) sim.blank();
-  assert.equal(sim.used, 11);
-  assert.equal(sim.answers["word-q1"], undefined, "eleven clicks is not the limit");
+  for (let index = 0; index < 8; index += 1) sim.blank();
+  assert.equal(sim.used, 8);
+  assert.equal(sim.answers["word-q1"], undefined, "eight clicks is not the limit");
   assert.equal(sim.outcome, "ignored");
 
   sim.blank();
-  assert.equal(sim.used, 12);
+  assert.equal(sim.used, 9);
   assert.equal(sim.outcome, "exhausted");
   assert.equal(sim.answers["word-q1"].correct, false, "the task is recorded wrong");
   assert.equal(sim.locked, true, "the window locks as the task closes");
 
   const extra = sim.blank();
   assert.equal(extra, null, "clicks after the limit do nothing");
-  assert.equal(sim.used, 12, "and are not counted");
+  assert.equal(sim.used, 9, "and are not counted");
   assert.equal(sim.outcomes.filter((outcome) => outcome === "exhausted").length, 1, "wrong is recorded once");
 });
 
@@ -461,12 +461,12 @@ test("a correct command on the last allowed click wins", () => {
   const question = questionById("word-q1");
   const sim = new WindowSim(question);
 
-  for (let index = 0; index < 9; index += 1) sim.blank();
+  for (let index = 0; index < 6; index += 1) sim.blank();
   assert.equal(sim.remaining, 3);
 
   playPath(question, sim);
 
-  assert.equal(sim.used, 12, "the solution lands on the final click");
+  assert.equal(sim.used, 9, "the solution lands on the final click");
   assert.equal(sim.outcome, "correct");
   assert.equal(sim.answers["word-q1"].correct, true, "the last click still scores");
   assert.equal(sim.outcomes.includes("exhausted"), false, "the limit never marks it wrong");

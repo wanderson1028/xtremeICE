@@ -212,7 +212,7 @@ export default function M365Assessment() {
           </p>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-500">
             Each task is marked correct or wrong as it closes, with no hints and no solutions. The
-            total score, pass or fail and per-application scores appear at the end. Every task has a click budget, four times
+            total score, pass or fail and per-application scores appear at the end. Every task has a click budget, three times
             what the shortest solution needs: you can try a command, get it wrong and correct it,
             and the counter under the window shows what is left. When the budget runs out the task
             closes and the attempt moves on. The application screens are recreated simulations with
