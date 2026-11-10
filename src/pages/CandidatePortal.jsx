@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Shield, CheckCircle2, ChevronRight, Loader2, Send, AlertCircle } from "lucide-react";
 import CandidateQuestion, { isAnswered } from "@/components/assessment/CandidateQuestion";
 import CandidateLabRunner from "@/components/assessment/CandidateLabRunner";
+import SubmitAssessmentDialog from "@/components/assessment/SubmitAssessmentDialog";
 import { assessmentLabs } from "@/lib/candidateLabs";
 
 export default function CandidatePortal() {
@@ -21,6 +22,7 @@ export default function CandidatePortal() {
   const [alreadyTaken, setAlreadyTaken] = useState(false);
   const [labResult, setLabResult] = useState(null);
   const [labSubmitError, setLabSubmitError] = useState("");
+  const [confirmSubmit, setConfirmSubmit] = useState(false);
 
   useEffect(() => {
     if (startTime && !submitted) {
@@ -150,7 +152,7 @@ export default function CandidatePortal() {
             submitted_at: new Date().toISOString(),
           };
         }),
-        time_elapsed_minutes: Math.floor((Date.now() - startTime) / 60000),
+        time_elapsed_minutes: startTime ? Math.floor((Date.now() - startTime) / 60000) : Math.floor(elapsed / 60),
       });
       setSubmitted(true);
     } catch (e) {
@@ -325,7 +327,7 @@ export default function CandidatePortal() {
                 <li>• Timer starts when you click Start</li>
                 <li>• You cannot pause once started</li>
                 <li>• Your answers save as you go — you can refresh safely</li>
-                <li>• Answer every question before submitting</li>
+                <li>• Submit whenever you are ready — unanswered questions are marked blank</li>
                 <li>• Single attempt — you cannot retake this once submitted</li>
               </ul>
             </div>
@@ -401,6 +403,14 @@ export default function CandidatePortal() {
             <div className="text-white font-bold">{answeredCount}/{sortedTasks.length}</div>
             <div className="text-gray-600 text-[10px]">answered</div>
           </div>
+          <button
+            onClick={() => setConfirmSubmit(true)}
+            disabled={submitting}
+            className="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white rounded-lg font-semibold text-sm transition-colors flex items-center gap-2"
+          >
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            Submit
+          </button>
         </div>
       </div>
 
@@ -511,20 +521,42 @@ export default function CandidatePortal() {
                     ? "Next question already answered"
                     : "Your progress is saved automatically"}
                 </span>
-                <button
-                  onClick={handleTaskSubmit}
-                  disabled={submitting || !isAnswered(currentTask, currentValue)}
-                  className="px-5 py-2.5 bg-red-700 hover:bg-red-600 disabled:opacity-40 text-white rounded-lg font-semibold text-sm transition-colors flex items-center gap-2"
-                >
-                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  {currentTaskIndex < sortedTasks.length - 1 ? "Save & Next" : "Save Answer"}
-                  <ChevronRight className="h-4 w-4" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setConfirmSubmit(true)}
+                    disabled={submitting}
+                    className="px-4 py-2.5 border border-green-700/60 text-green-400 hover:bg-green-900/20 disabled:opacity-40 rounded-lg font-semibold text-sm transition-colors flex items-center gap-2"
+                  >
+                    <Send className="h-4 w-4" />
+                    Submit now
+                  </button>
+                  <button
+                    onClick={handleTaskSubmit}
+                    disabled={submitting || !isAnswered(currentTask, currentValue)}
+                    className="px-5 py-2.5 bg-red-700 hover:bg-red-600 disabled:opacity-40 text-white rounded-lg font-semibold text-sm transition-colors flex items-center gap-2"
+                  >
+                    {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    {currentTaskIndex < sortedTasks.length - 1 ? "Save & Next" : "Save Answer"}
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      <SubmitAssessmentDialog
+        open={confirmSubmit}
+        onOpenChange={setConfirmSubmit}
+        answeredCount={answeredCount}
+        totalCount={sortedTasks.length}
+        submitting={submitting}
+        onConfirm={() => {
+          setConfirmSubmit(false);
+          handleFinalSubmit();
+        }}
+      />
     </div>
   );
 }
