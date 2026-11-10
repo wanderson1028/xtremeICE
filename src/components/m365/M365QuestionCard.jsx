@@ -1,21 +1,27 @@
 import React from "react";
-import { Check, Loader2, Lock, MousePointerClick } from "lucide-react";
+import { CheckCircle2, Loader2, Lock, MousePointerClick, XCircle } from "lucide-react";
 
 /**
- * Task prompt, click budget and neutral submission status — no hints and no
- * answer feedback. Once a task is closing the window locks, so the copy says
- * plainly that the response is recorded and that the attempt moves on.
+ * Task prompt, click budget and outcome feedback — no hints and no solutions.
+ * Once a task closes the window locks: the card states plainly whether the
+ * operation was verified correct or the task closed wrong because its click
+ * limit ran out, then the attempt moves on.
  */
 export default function M365QuestionCard({
-  question, app, submitted, saving, index, total, isLast, clicks = 0, limit = 0, exhausted = false,
+  question, app, submitted, saving, index, total, isLast,
+  clicks = 0, limit = 0, outcome = null,
 }) {
   const remaining = Math.max(0, limit - clicks);
+  const wrong = outcome === "wrong";
+  const correct = outcome === "correct";
   const progress = isLast
     ? "All tasks answered — preparing your score…"
     : "The next task opens automatically.";
 
   const status = () => {
-    if (!submitted) return <span className="text-gray-500">Complete the task in the window above.</span>;
+    if (!submitted) {
+      return <span className="text-gray-500">Complete the task in the window above.</span>;
+    }
     if (saving) {
       return (
         <>
@@ -24,26 +30,34 @@ export default function M365QuestionCard({
         </>
       );
     }
-    if (exhausted) {
+    if (wrong) {
       return (
         <>
-          <Check className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-          <span className="text-gray-300">Click limit reached. Moving to the next task.</span>
+          <XCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />
+          <span className="font-semibold text-red-400">Wrong — click limit reached.</span>
+          <span className="text-gray-500">{progress}</span>
         </>
       );
     }
     return (
       <>
-        <Check className="h-3.5 w-3.5 shrink-0 text-sky-400" />
-        <span className="text-gray-300">
-          Response recorded. <span className="text-gray-500">{progress}</span>
+        <CheckCircle2
+          className={`h-3.5 w-3.5 shrink-0 ${correct ? "text-emerald-400" : "text-sky-400"}`}
+        />
+        <span className={correct ? "font-semibold text-emerald-400" : "text-gray-300"}>
+          Correct.
         </span>
+        <span className="text-gray-500">{progress}</span>
       </>
     );
   };
 
   return (
-    <div className="mt-3 rounded-xl border border-gray-700 bg-gray-900 px-4 py-3">
+    <div
+      className={`mt-3 rounded-xl border px-4 py-3 ${
+        wrong ? "border-red-700/60 bg-red-950/20" : "border-gray-700 bg-gray-900"
+      }`}
+    >
       <div className="mb-1.5 flex items-center gap-2">
         <span
           className="rounded-full px-2 py-[1px] text-[10px] font-semibold text-white"

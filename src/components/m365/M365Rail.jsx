@@ -1,44 +1,119 @@
 import React from "react";
+import { Check, Minus, X } from "lucide-react";
+import {
+  QUESTION_CORRECT, QUESTION_UNANSWERED, QUESTION_WRONG, sectionResult,
+} from "@/lib/m365/outcome";
 
-/** Application progress rail — deliberately neutral while the attempt is running. */
-export default function M365Rail({ apps, currentAppId, answers }) {
+const MARKER = {
+  [QUESTION_CORRECT]: {
+    label: "Correct",
+    className: "border-emerald-600/60 bg-emerald-500/15 text-emerald-400",
+    Icon: Check,
+  },
+  [QUESTION_WRONG]: {
+    label: "Wrong",
+    className: "border-red-600/70 bg-red-500/20 text-red-400",
+    Icon: X,
+  },
+  [QUESTION_UNANSWERED]: {
+    label: "Not answered",
+    className: "border-gray-700 bg-gray-800/60 text-gray-500",
+    Icon: Minus,
+  },
+};
+
+/**
+ * Application rail: what each task actually came out as. A green check means the
+ * operation was verified correct; a red cross means the task closed wrong (its
+ * click limit ran out); a dash means it has not been answered yet. Counts are
+ * true outcomes, so "Answered" never stands in for "Correct".
+ */
+export default function M365Rail({ apps, currentAppId, currentQuestionId, answers }) {
   return (
-    <aside className="hidden w-56 shrink-0 overflow-y-auto border-r border-gray-800 bg-black/30 p-3 lg:block">
+    <aside className="hidden w-60 shrink-0 overflow-y-auto border-r border-gray-800 bg-black/30 p-3 lg:block">
       <div className="mb-2 px-1 font-mono text-[10px] uppercase tracking-wider text-gray-500">
         Applications
       </div>
+
       {apps.map((app) => {
         const active = app.id === currentAppId;
-        const done = app.questions.filter((q) => answers[q.id]).length;
+        const result = sectionResult(app, answers);
         return (
           <div
             key={app.id}
-            className={`mb-1 rounded-lg border px-2.5 py-2 ${
-              active ? "border-sky-700/60 bg-sky-950/30" : "border-transparent"
+            className={`mb-2 rounded-lg border px-2.5 py-2 ${
+              active ? "border-sky-700/60 bg-sky-950/30" : "border-gray-800/70"
             }`}
           >
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: app.accent }} />
-              <span className={`text-xs font-medium ${active ? "text-white" : "text-gray-400"}`}>
+              <span className={`text-xs font-medium ${active ? "text-white" : "text-gray-300"}`}>
                 {app.name}
               </span>
-              <span className="ml-auto font-mono text-[10px] text-gray-500">
-                {done}/{app.questions.length}
-              </span>
+              {result.passed ? (
+                <span className="ml-auto rounded-full border border-emerald-600/60 bg-emerald-500/15 px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-wide text-emerald-400">
+                  Passed
+                </span>
+              ) : result.finished ? (
+                <span className="ml-auto rounded-full border border-amber-600/60 bg-amber-500/10 px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-wide text-amber-400">
+                  Finished
+                </span>
+              ) : null}
             </div>
+
+            <div className="mt-1.5 space-y-0.5 font-mono text-[10px] tabular-nums">
+              <div className="text-gray-300">
+                Answered: {result.answered}/{result.total}
+              </div>
+              <div className="flex gap-2.5">
+                <span className="text-emerald-400">Correct: {result.correct}</span>
+                <span className={result.wrong ? "text-red-400" : "text-gray-500"}>
+                  Wrong: {result.wrong}
+                </span>
+              </div>
+            </div>
+
             <div className="mt-1.5 flex gap-1">
-              {app.questions.map((q) => (
-                <span
-                  key={q.id}
-                  className={`h-1 flex-1 rounded-full ${answers[q.id] ? "bg-sky-500" : "bg-gray-700"}`}
-                />
-              ))}
+              {app.questions.map((question, i) => {
+                const { label, className, Icon } = MARKER[result.statuses[i]];
+                const current = question.id === currentQuestionId;
+                return (
+                  <span
+                    key={question.id}
+                    role="img"
+                    aria-label={`${app.name} task ${i + 1}: ${label}`}
+                    title={`${app.name} task ${i + 1}: ${label}`}
+                    className={`flex h-4 flex-1 items-center justify-center rounded-[3px] border ${className} ${
+                      current ? "ring-2 ring-sky-500/70 ring-offset-1 ring-offset-gray-950" : ""
+                    }`}
+                  >
+                    <Icon className="h-2.5 w-2.5" strokeWidth={3} />
+                  </span>
+                );
+              })}
             </div>
           </div>
         );
       })}
-      <p className="mt-3 px-1 font-mono text-[10px] leading-relaxed text-gray-600">
-        Results are shown at the end of the assessment.
+
+      <div className="mt-3 space-y-1 border-t border-gray-800 px-1 pt-2 font-mono text-[10px] text-gray-500">
+        {[QUESTION_CORRECT, QUESTION_WRONG, QUESTION_UNANSWERED].map((status) => {
+          const { label, className, Icon } = MARKER[status];
+          return (
+            <div key={status} className="flex items-center gap-1.5">
+              <span
+                className={`flex h-3.5 w-3.5 items-center justify-center rounded-[3px] border ${className}`}
+              >
+                <Icon className="h-2 w-2" strokeWidth={3} />
+              </span>
+              {label}
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="mt-2 px-1 font-mono text-[10px] leading-relaxed text-gray-600">
+        Progress counts answered tasks. Your score appears at the end.
       </p>
     </aside>
   );

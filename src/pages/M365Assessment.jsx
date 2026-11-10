@@ -10,6 +10,7 @@ import { clickBudget } from "@/lib/m365/clicks";
 import { createTaskPointerFlow } from "@/lib/m365/pointerFlow";
 import { afterTask } from "@/lib/m365/progress";
 import { applyTaskAction, expireTask } from "@/lib/m365/session";
+import { tally } from "@/lib/m365/outcome";
 import M365Window from "@/components/m365/M365Window";
 import M365Rail from "@/components/m365/M365Rail";
 import M365Summary from "@/components/m365/M365Summary";
@@ -24,7 +25,6 @@ export default function M365Assessment() {
   const [answers, setAnswers] = useState({});
   const [appState, setAppState] = useState(initialAppState);
   const [submitted, setSubmitted] = useState(false);
-  const [exhausted, setExhausted] = useState(false);
   const [clicks, setClicks] = useState(0);
   const [transition, setTransition] = useState(null);
   const [finished, setFinished] = useState(false);
@@ -40,7 +40,10 @@ export default function M365Assessment() {
   const question = M365_QUESTIONS[index];
   const app = appById(question.appId);
   const limit = clickBudget(question.minClicks);
-  const answeredCount = M365_QUESTIONS.filter((q) => answers[q.id]).length;
+  /* Progress is answered tasks; correctness is its own count. Both read the
+     stored outcome, so a task closed by its click budget shows as wrong. */
+  const overall = tally(M365_QUESTIONS, answers);
+  const currentAnswer = answers[question.id] || null;
 
   /* A task opens with a fresh budget. Presses are counted at the window boundary
      and an expiry is only armed there; it is decided once the press has finished
@@ -48,7 +51,6 @@ export default function M365Assessment() {
      applied and verified instead of being pre-empted by its own click. */
   useEffect(() => {
     setSubmitted(false);
-    setExhausted(false);
     advancedRef.current = false;
     continuingRef.current = false;
     setClicks(0);
@@ -68,10 +70,7 @@ export default function M365Assessment() {
         statesRef.current = result.states;
         setAnswers(result.answers);
         setAppState(result.states);
-        if (result.outcome === "exhausted") {
-          setExhausted(true);
-          setSubmitted(true);
-        }
+        if (result.outcome === "exhausted") setSubmitted(true);
       },
     });
     flowRef.current = flow;
@@ -183,7 +182,6 @@ export default function M365Assessment() {
     setAppState(fresh);
     setClicks(0);
     setTransition(null);
-    setExhausted(false);
     setIndex(0);
     setSubmitted(false);
     setSaving(false);
@@ -213,8 +211,8 @@ export default function M365Assessment() {
             that performs the task. Some tasks also need a selection or a right-click first.
           </p>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-500">
-            No hints or answer feedback are shown during the attempt — the total score, pass or fail
-            and per-application scores appear at the end. Every task has a click budget, four times
+            Each task is marked correct or wrong as it closes, with no hints and no solutions. The
+            total score, pass or fail and per-application scores appear at the end. Every task has a click budget, four times
             what the shortest solution needs: you can try a command, get it wrong and correct it,
             and the counter under the window shows what is left. When the budget runs out the task
             closes and the attempt moves on. The application screens are recreated simulations with
@@ -276,9 +274,13 @@ export default function M365Assessment() {
             Microsoft 365 Point &amp; Click
           </span>
         </div>
-        <div className="flex items-center gap-3 font-mono text-[11px] text-gray-500">
-          <span>
-            {answeredCount}/{TOTAL_QUESTIONS} tasks answered
+        <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 font-mono text-[11px] tabular-nums">
+          <span className="text-gray-300">
+            Answered: {overall.answered}/{TOTAL_QUESTIONS}
+          </span>
+          <span className="text-emerald-400">Correct: {overall.correct}</span>
+          <span className={overall.wrong ? "text-red-400" : "text-gray-600"}>
+            Wrong: {overall.wrong}
           </span>
         </div>
       </div>
@@ -287,13 +289,21 @@ export default function M365Assessment() {
         <div className="h-1.5 overflow-hidden rounded-full bg-gray-800">
           <div
             className="h-full rounded-full bg-gradient-to-r from-sky-600 to-sky-400 transition-all duration-500"
-            style={{ width: `${(answeredCount / TOTAL_QUESTIONS) * 100}%` }}
+            style={{ width: `${(overall.answered / TOTAL_QUESTIONS) * 100}%` }}
           />
+        </div>
+        <div className="mt-1 text-right font-mono text-[10px] text-gray-500">
+          Progress counts answered tasks, not your score.
         </div>
       </div>
 
       <div className="flex min-h-0 flex-1">
-        <M365Rail apps={M365_APPS} currentAppId={app.id} answers={answers} />
+        <M365Rail
+          apps={M365_APPS}
+          currentAppId={app.id}
+          currentQuestionId={transition ? null : question.id}
+          answers={answers}
+        />
 
         <div className="min-w-0 flex-1 overflow-y-auto p-4 lg:p-6">
           <div className="mx-auto max-w-3xl">
@@ -301,8 +311,8 @@ export default function M365Assessment() {
               <M365SectionTransition
                 fromApp={transition.from}
                 toApp={transition.to}
-                answered={answeredCount}
-                total={TOTAL_QUESTIONS}
+                answers={answers}
+                overall={overall}
                 onContinue={continueSection}
               />
             ) : (
@@ -343,7 +353,9 @@ export default function M365Assessment() {
                   isLast={index + 1 >= TOTAL_QUESTIONS}
                   clicks={clicks}
                   limit={limit}
-                  exhausted={exhausted}
+                  outcome={
+                    currentAnswer ? (currentAnswer.correct ? "correct" : "wrong") : null
+                  }
                 />
               </>
             )}
