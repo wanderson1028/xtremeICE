@@ -22,6 +22,21 @@ const COUNTED_EVENTS = new Set(["click", "contextmenu"]);
 
 export const countsAsClick = (eventType) => COUNTED_EVENTS.has(eventType);
 
+/**
+ * Run `decide` once the current press has finished dispatching — after the
+ * bubbled control handler has run, not during the capture phase that counted the
+ * click. A macrotask is used on purpose: microtasks are drained between the
+ * capture and bubble listeners of the same event, so a microtask (or a React
+ * effect flushed on the counting update) would still settle the task before the
+ * click's own operation is applied and could never be taken back.
+ *
+ * Returns a cancel function.
+ */
+export function deferUntilAfterDispatch(decide) {
+  const id = setTimeout(decide, 0);
+  return () => clearTimeout(id);
+}
+
 /** A tally that stops at the budget, so the counter can never overrun the limit. */
 export function createClickTally(limit) {
   const max = Math.max(1, Math.round(Number(limit) || 1));

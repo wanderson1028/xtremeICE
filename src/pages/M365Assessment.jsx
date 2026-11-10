@@ -7,8 +7,9 @@ import {
   appById, initialAppState, correctCount,
 } from "@/lib/m365";
 import { clickBudget } from "@/lib/m365/clicks";
+import { createTaskPointerFlow } from "@/lib/m365/pointerFlow";
 import { afterTask } from "@/lib/m365/progress";
-import { applyTaskAction } from "@/lib/m365/session";
+import { applyTaskAction, expireTask } from "@/lib/m365/session";
 import M365Window from "@/components/m365/M365Window";
 import M365Rail from "@/components/m365/M365Rail";
 import M365Summary from "@/components/m365/M365Summary";
@@ -31,7 +32,7 @@ export default function M365Assessment() {
 
   const answersRef = useRef({});
   const statesRef = useRef(appState);
-  const clicksRef = useRef(0);
+  const flowRef = useRef(null);
   const savedRef = useRef(false);
   const advancedRef = useRef(false);
   const continuingRef = useRef(false);
@@ -41,13 +42,40 @@ export default function M365Assessment() {
   const limit = clickBudget(question.minClicks);
   const answeredCount = M365_QUESTIONS.filter((q) => answers[q.id]).length;
 
+  /* A task opens with a fresh budget. Presses are counted at the window boundary
+     and an expiry is only armed there; it is decided once the press has finished
+     dispatching (see pointerFlow), so the operation on the final allowed click is
+     applied and verified instead of being pre-empted by its own click. */
   useEffect(() => {
     setSubmitted(false);
     setExhausted(false);
     advancedRef.current = false;
     continuingRef.current = false;
-    clicksRef.current = 0;
     setClicks(0);
+
+    const task = M365_QUESTIONS[index];
+    const flow = createTaskPointerFlow({
+      limit: clickBudget(task.minClicks),
+      isResolved: () => Boolean(answersRef.current[task.id]),
+      onCount: setClicks,
+      expire: () => {
+        const result = expireTask({
+          question: task,
+          answers: answersRef.current,
+          states: statesRef.current,
+        });
+        answersRef.current = result.answers;
+        statesRef.current = result.states;
+        setAnswers(result.answers);
+        setAppState(result.states);
+        if (result.outcome === "exhausted") {
+          setExhausted(true);
+          setSubmitted(true);
+        }
+      },
+    });
+    flowRef.current = flow;
+    return () => flow.dispose();
   }, [index]);
 
   const finish = useCallback(async () => {
@@ -107,16 +135,19 @@ export default function M365Assessment() {
 
   /* One physical press inside the window spends one click, whatever it hit: a
      wrong control, a menu, a blank area or a right-click. Clicks outside the
-     window — progress, navigation, the hand-off screen — never count. */
-  const handlePointer = () => {
+     window — progress, navigation, the hand-off screen — never count.
+
+     This runs in the capture phase, before the pressed control's own handler, so
+     it only records and reserves the click. It never settles, locks or re-renders
+     the task away: the budget decision waits until the press has finished. */
+  const handlePointer = (eventType) => {
     if (submitted || answersRef.current[question.id]) return;
-    if (clicksRef.current >= limit) return;
-    clicksRef.current += 1;
-    setClicks(clicksRef.current);
+    flowRef.current?.press(eventType);
   };
 
   /* Navigation stays ignored. A committed operation either completes the task,
-     or changes the document and leaves the task open so it can be corrected. */
+     or changes the document and leaves the task open so it can be corrected —
+     including the operation performed by the last click the budget allows. */
   const handleAction = (action) => {
     if (submitted || answersRef.current[question.id]) return;
     const result = applyTaskAction({
@@ -124,47 +155,13 @@ export default function M365Assessment() {
       answers: answersRef.current,
       states: statesRef.current,
       action,
-      clicks: clicksRef.current,
-      budget: limit,
     });
     answersRef.current = result.answers;
     statesRef.current = result.states;
     setAnswers(result.answers);
     setAppState(result.states);
-    if (result.outcome === "correct") {
-      setSubmitted(true);
-    } else if (result.outcome === "exhausted") {
-      setExhausted(true);
-      setSubmitted(true);
-    }
+    if (result.outcome === "correct") setSubmitted(true);
   };
-
-  /* A click that hit nothing still spends the budget, so the limit is checked
-     after every click: a task that is not solved by the time the budget is gone
-     closes as wrong, once. A correct operation on the last allowed click is
-     scored by the handler above and never reaches this check. */
-  useEffect(() => {
-    if (!started || finished || transition) return;
-    if (submitted || answersRef.current[question.id]) return;
-    if (clicks < limit) return;
-
-    const result = applyTaskAction({
-      question,
-      answers: answersRef.current,
-      states: statesRef.current,
-      action: null,
-      clicks,
-      budget: limit,
-    });
-    answersRef.current = result.answers;
-    statesRef.current = result.states;
-    setAnswers(result.answers);
-    setAppState(result.states);
-    if (result.outcome === "exhausted") {
-      setExhausted(true);
-      setSubmitted(true);
-    }
-  }, [clicks, submitted, limit, question, started, finished, transition]);
 
   const continueSection = () => {
     if (!transition || continuingRef.current) return;
@@ -178,7 +175,7 @@ export default function M365Assessment() {
     const fresh = initialAppState();
     answersRef.current = {};
     statesRef.current = fresh;
-    clicksRef.current = 0;
+    flowRef.current?.dispose();
     savedRef.current = false;
     advancedRef.current = false;
     continuingRef.current = false;
