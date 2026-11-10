@@ -156,6 +156,8 @@ export const powerbiApp = {
   questions: [
     {
       id: "powerbi-q1",
+      /* Publish (Home), then the Security Operations workspace. */
+      minClicks: 2,
       task: "Publish the report to the Security Operations workspace so the team can open it.",
       answers: [{ kind: "option", control: "publish", option: "security-workspace" }],
       verify: (state) => state.published === "security-workspace",
@@ -164,6 +166,8 @@ export const powerbiApp = {
     },
     {
       id: "powerbi-q2",
+      /* Refresh, already on the Home tab. */
+      minClicks: 1,
       task: "The overnight data load has finished. Bring the newest figures into the report model.",
       answers: [{ kind: "control", control: "refresh" }],
       verify: (state) => state.refreshed === true,
@@ -171,6 +175,9 @@ export const powerbiApp = {
     },
     {
       id: "powerbi-q3",
+      /* View tab, Filters toggle, then the EMEA checkbox in the pane. */
+      prep: [{ tab: "view" }, { control: "filters-pane" }],
+      minClicks: 3,
       task: "Show the filters pane, then limit the report to the EMEA region only.",
       answers: [{ kind: "click", target: "pbi-filter-emea" }],
       verify: (state) => state.region === "EMEA",
@@ -179,6 +186,8 @@ export const powerbiApp = {
     },
     {
       id: "powerbi-q4",
+      /* View tab, then New page. */
+      minClicks: 2,
       task: "Add a second page to the report for the regional breakdown.",
       answers: [{ kind: "control", control: "new-page" }],
       verify: (state) => state.pages === 2,
@@ -186,6 +195,8 @@ export const powerbiApp = {
     },
     {
       id: "powerbi-q5",
+      /* Right-click the visual, then See records. */
+      minClicks: 2,
       task: "An auditor asks which findings make up the tallest bar. Open the underlying rows of that chart.",
       answers: [{ kind: "menu", target: "pbi-visual-1", item: "see-records" }],
       verify: (state) => state.recordsFor === "pbi-visual-1",
@@ -194,6 +205,8 @@ export const powerbiApp = {
     },
     {
       id: "powerbi-q6",
+      /* Get data, SQL Server, Connect (the server is pre-filled). */
+      minClicks: 3,
       task: "The source moved to a new database server. Connect the report to the SQL Server source NORTHWIND-SQL01.",
       answers: [{ kind: "confirm", dialog: "pbi-sql", value: "NORTHWIND-SQL01" }],
       verify: (state) => state.connectedServer === "NORTHWIND-SQL01",

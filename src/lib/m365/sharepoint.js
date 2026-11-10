@@ -130,6 +130,8 @@ export const sharepointApp = {
   questions: [
     {
       id: "sharepoint-q1",
+      /* Upload, Files, choose Q4_Report.pdf, Upload. */
+      minClicks: 4,
       task: "Q4_Report.pdf is on your laptop. Copy that exact file into this library.",
       answers: [{ kind: "confirm", dialog: "sp-upload", value: "Q4_Report.pdf" }],
       verify: (state) => state.uploadedFiles.includes("Q4_Report.pdf"),
@@ -138,6 +140,8 @@ export const sharepointApp = {
     },
     {
       id: "sharepoint-q2",
+      /* New, Folder, Create (the name is typed, which is not a click). */
+      minClicks: 3,
       task: "Create a new folder named “Q4 Evidence” in this library to hold the evidence you are about to collect.",
       answers: [{ kind: "confirm", dialog: "sp-folder", value: "Q4 Evidence" }],
       verify: (state) => state.folders.includes("Q4 Evidence"),
@@ -146,6 +150,8 @@ export const sharepointApp = {
     },
     {
       id: "sharepoint-q3",
+      /* Select the document, Share, Manage access, Audit Team, Send. */
+      minClicks: 5,
       task: "Give the audit team access to Q4_Security_Policy.docx: select that document, then grant Audit Team access.",
       answers: [
         { kind: "confirm", dialog: "sp-share", value: "Audit Team", target: "sp-row-policy" },
@@ -156,6 +162,8 @@ export const sharepointApp = {
     },
     {
       id: "sharepoint-q4",
+      /* Right-click the Modified header, then Sort newest first. */
+      minClicks: 2,
       task: "Reorder the library so the most recently edited files appear first.",
       answers: [{ kind: "menu", target: "sp-col-modified", item: "sort-newest" }],
       verify: (state) => state.sorting === "newest",
@@ -164,6 +172,8 @@ export const sharepointApp = {
     },
     {
       id: "sharepoint-q5",
+      /* Right-click the plan, then Version history. */
+      minClicks: 2,
       task: "You need the revision that existed before last week's edit. Open the version history of the incident response plan.",
       answers: [{ kind: "menu", target: "sp-row-ir-plan", item: "version-history" }],
       verify: (state) => state.versionsFor === "sp-row-ir-plan",
@@ -172,6 +182,8 @@ export const sharepointApp = {
     },
     {
       id: "sharepoint-q6",
+      /* Right-click the tracker, then Pin to Quick access. */
+      minClicks: 2,
       task: "Keep the vendor renewal tracker within one click by pinning it to Quick access.",
       answers: [
         { kind: "menu", target: "sp-row-vendor", item: "pin" },

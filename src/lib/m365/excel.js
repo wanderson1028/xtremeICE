@@ -196,6 +196,8 @@ export const excelApp = {
   questions: [
     {
       id: "excel-q1",
+      /* Insert tab, Column gallery, Clustered Column. */
+      minClicks: 3,
       task: "Compare the quarterly totals visually by adding a clustered column chart to the sheet.",
       answers: [{ kind: "option", control: "column-chart", option: "cluster" }],
       verify: (state) => state.chart === "cluster",
@@ -204,6 +206,8 @@ export const excelApp = {
     },
     {
       id: "excel-q2",
+      /* Right-click the Marketing row header, then Insert. */
+      minClicks: 2,
       task: "Insert a blank row directly above the Marketing line so a new department can be added.",
       answers: [{ kind: "menu", target: "excel-row-marketing", item: "insert-rows" }],
       verify: (state) => state.insertedRowAbove === "excel-row-marketing",
@@ -212,6 +216,8 @@ export const excelApp = {
     },
     {
       id: "excel-q3",
+      /* Select column E, Currency gallery (Home), $ English (US). */
+      minClicks: 3,
       task: "Format the Q4 figures as US dollars: select column E, then apply the built-in $ format.",
       answers: [
         { kind: "option", control: "currency", option: "currency-usd", target: "excel-col-e" },
@@ -222,6 +228,8 @@ export const excelApp = {
     },
     {
       id: "excel-q4",
+      /* View tab, Freeze Panes menu, Freeze Top Row. */
+      minClicks: 3,
       task: "Keep the header row visible while scrolling through the rest of the budget.",
       answers: [{ kind: "option", control: "freeze", option: "freeze-top" }],
       verify: (state) => state.frozen === "freeze-top",
@@ -229,6 +237,8 @@ export const excelApp = {
     },
     {
       id: "excel-q5",
+      /* Select the title cell, then Merge & Center (Home). */
+      minClicks: 2,
       task: "Center the report title across the whole width of the table: select the title cell, then merge A1 through E1.",
       answers: [{ kind: "control", control: "merge", target: "excel-cell-a1" }],
       verify: (state) => state.merged === "excel-cell-a1",
@@ -237,6 +247,8 @@ export const excelApp = {
     },
     {
       id: "excel-q6",
+      /* Select column D, Formulas tab, AutoSum. */
+      minClicks: 3,
       task: "Total the Q3 column without typing a formula: select column D, then use AutoSum.",
       answers: [{ kind: "control", control: "autosum", target: "excel-col-d" }],
       verify: (state) => state.autosumColumn === "excel-col-d",

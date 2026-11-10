@@ -105,6 +105,8 @@ export const teamsApp = {
   questions: [
     {
       id: "teams-q1",
+      /* Meet in the channel header, then Meet now. */
+      minClicks: 2,
       task: "The channel needs an unscheduled face-to-face call right now. Start it from the channel header.",
       answers: [{ kind: "option", control: "meet", option: "meet-now" }],
       verify: (state) => state.meeting === true,
@@ -113,6 +115,8 @@ export const teamsApp = {
     },
     {
       id: "teams-q2",
+      /* Attach, Files, choose the workbook, Attach. */
+      minClicks: 4,
       task: "Share the Q4 evidence spreadsheet in your reply: attach Q4_Evidence_Log.xlsx before you post it.",
       answers: [{ kind: "confirm", dialog: "teams-attach", value: "Q4_Evidence_Log.xlsx" }],
       verify: (state) => state.attachment === "Q4_Evidence_Log.xlsx",
@@ -121,6 +125,8 @@ export const teamsApp = {
     },
     {
       id: "teams-q3",
+      /* Right-click the channel, then Mute channel. */
+      minClicks: 2,
       task: "The Threat Intel channel is posting too often. Stop its notifications without leaving it.",
       answers: [{ kind: "menu", target: "teams-channel-threat-intel", item: "mute" }],
       verify: (state) => state.muted === "teams-channel-threat-intel",
@@ -129,6 +135,8 @@ export const teamsApp = {
     },
     {
       id: "teams-q4",
+      /* The send arrow. */
+      minClicks: 1,
       task: "Post the update already typed in the compose box to the channel conversation.",
       answers: [{ kind: "click", target: "teams-send" }],
       verify: (state) => state.postedChannel === "General",
@@ -136,6 +144,8 @@ export const teamsApp = {
     },
     {
       id: "teams-q5",
+      /* ⋯ more options, Add channel, Create (the name is typed). */
+      minClicks: 3,
       task: "Create a new channel named “Incident 2026-11” so this month's work has its own thread.",
       answers: [{ kind: "confirm", dialog: "teams-add-channel", value: "Incident 2026-11" }],
       verify: (state) => state.channels.includes("Incident 2026-11"),
@@ -144,6 +154,9 @@ export const teamsApp = {
     },
     {
       id: "teams-q6",
+      /* The Files tab, then the spreadsheet in it. */
+      prep: [{ select: "teams-tab-files" }],
+      minClicks: 2,
       task: "Open the evidence log that is shared in this channel: go to the channel's files and open Q4_Evidence_Log.xlsx.",
       answers: [{ kind: "click", target: "teams-file-q4-evidence" }],
       verify: (state) => state.openedFile === "teams-file-q4-evidence",

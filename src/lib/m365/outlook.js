@@ -145,6 +145,8 @@ export const outlookApp = {
   questions: [
     {
       id: "outlook-q1",
+      /* Select the message, then Reply (Home is already open). */
+      minClicks: 2,
       task: "Answer Dana Whitfield's Q4 vendor renewal message so the conversation stays in one thread.",
       answers: [{ kind: "control", control: "reply", target: "ol-msg-vendor" }],
       verify: (state) => state.replyDraftFor === "ol-msg-vendor",
@@ -153,6 +155,8 @@ export const outlookApp = {
     },
     {
       id: "outlook-q2",
+      /* Select the message, Move menu, Vendors. */
+      minClicks: 3,
       task: "File the vendor renewal message in the Vendors folder.",
       answers: [{ kind: "option", control: "move", option: "vendors", target: "ol-msg-vendor" }],
       verify: (state) => state.movedMessage === "ol-msg-vendor",
@@ -161,6 +165,8 @@ export const outlookApp = {
     },
     {
       id: "outlook-q3",
+      /* Right-click the message, then Forward. */
+      minClicks: 2,
       task: "Send the vendor renewal to your manager without editing it, using the message's own menu.",
       answers: [{ kind: "menu", target: "ol-msg-vendor", item: "forward" }],
       verify: (state) => state.forwardOf === "ol-msg-vendor",
@@ -169,6 +175,8 @@ export const outlookApp = {
     },
     {
       id: "outlook-q4",
+      /* Select the message, then Delete (Home is already open). */
+      minClicks: 2,
       task: "The “Unusual sign-in attempt” message is a confirmed phishing lure. Remove that message from the mailbox.",
       answers: [{ kind: "control", control: "delete", target: "ol-msg-phish" }],
       verify: (state) => state.deletedMessage === "ol-msg-phish",
@@ -176,6 +184,8 @@ export const outlookApp = {
     },
     {
       id: "outlook-q5",
+      /* Filter menu (Home), then Unread. */
+      minClicks: 2,
       task: "Cut the inbox down to messages you have not read yet.",
       answers: [{ kind: "option", control: "filter", option: "unread" }],
       verify: (state) => state.filter === "unread",
@@ -183,6 +193,8 @@ export const outlookApp = {
     },
     {
       id: "outlook-q6",
+      /* Title-bar Settings, Automatic replies, Turn on. */
+      minClicks: 3,
       task: "You are on call next week. Switch on an automatic out-of-office reply.",
       answers: [{ kind: "confirm", dialog: "ol-auto-replies" }],
       verify: (state) => state.autoReplies === true,

@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react";
 import {
   bodyClick, contextChoice, dialogConfirm, menuChoice, ribbonPress,
 } from "@/lib/m365/actions";
+import { countsAsClick } from "@/lib/m365/clicks";
 import { MenuList } from "./M365Menu";
 import M365MenuButton from "./M365MenuButton";
 import M365Dialog from "./M365Dialog";
@@ -27,13 +28,23 @@ const BODIES = {
  * menus. Every interaction is reported with the current selection and whether
  * it is a commit (an operation) or navigation (opening UI).
  */
-export default function M365Window({ app, state, locked, onAction }) {
+export default function M365Window({ app, state, locked, onAction, onPointer }) {
   const [activeTabId, setActiveTabId] = useState(app.defaultTab || app.tabs?.[0]?.id || null);
   const [selected, setSelected] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
   const [uiFlags, setUiFlags] = useState({});
   const [dialog, setDialog] = useState(null);
   const shellRef = useRef(null);
+
+  /* Every physical press inside the window is counted once, at this boundary.
+     The capture phase runs before any inner handler, so nested elements, menus
+     and the dialog cannot report the same press twice; only click and context
+     menu are observed, so a pointerdown/click pair or a mousemove adds nothing.
+     A locked window (answer recorded, or the task is closing) counts nothing. */
+  const reportPointer = (eventType) => {
+    if (locked || !countsAsClick(eventType)) return;
+    onPointer?.(eventType);
+  };
 
   const emit = (action) => {
     if (locked) return;
@@ -89,6 +100,8 @@ export default function M365Window({ app, state, locked, onAction }) {
   return (
     <div
       ref={shellRef}
+      onClickCapture={() => reportPointer("click")}
+      onContextMenuCapture={() => reportPointer("contextmenu")}
       onClick={() => setContextMenu(null)}
       className="relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg border border-gray-700 bg-white shadow-[0_18px_44px_-12px_rgba(0,0,0,0.55)]"
     >

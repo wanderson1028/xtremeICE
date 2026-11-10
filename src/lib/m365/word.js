@@ -199,6 +199,8 @@ export const wordApp = {
   questions: [
     {
       id: "word-q1",
+      /* Minimum physical clicks: Layout tab, Orientation menu, Landscape. */
+      minClicks: 3,
       task: "Make sure the policy prints in landscape rather than portrait orientation.",
       answers: [{ kind: "option", control: "orientation", option: "landscape" }],
       verify: (state) => isLandscape(state),
@@ -207,6 +209,8 @@ export const wordApp = {
     },
     {
       id: "word-q2",
+      /* References tab, Table of Contents menu, Automatic Table 1. */
+      minClicks: 3,
       task: "Add a generated table of contents at the start of the document.",
       answers: [
         { kind: "option", control: "table-of-contents", option: "toc-auto1" },
@@ -218,6 +222,8 @@ export const wordApp = {
     },
     {
       id: "word-q3",
+      /* Review tab, Track Changes menu, All Markup: On. */
+      minClicks: 3,
       task: "Legal must see every edit before it is accepted. Turn change tracking on.",
       answers: [
         { kind: "option", control: "track-changes", option: "track-on" },
@@ -228,6 +234,8 @@ export const wordApp = {
     },
     {
       id: "word-q4",
+      /* Select the title, then Heading 1 (Home is already open). */
+      minClicks: 2,
       task: "Select the document title, then restyle it with the built-in Heading 1 style so the table of contents can find it.",
       answers: [{ kind: "control", control: "heading1", target: "word-title" }],
       verify: (state) => state.headingTarget === "word-title",
@@ -236,6 +244,8 @@ export const wordApp = {
     },
     {
       id: "word-q5",
+      /* Right-click the paragraph, then New Comment. */
+      minClicks: 2,
       task: "Ask Legal a question about the liability paragraph: anchor a new comment to that paragraph.",
       answers: [{ kind: "menu", target: "word-para-2", item: "new-comment" }],
       verify: (state) => state.commentTarget === "word-para-2",
@@ -244,6 +254,8 @@ export const wordApp = {
     },
     {
       id: "word-q6",
+      /* Select the paragraph, then Bold (Home is already open). */
+      minClicks: 2,
       task: "Emphasise the three control statements by making that paragraph bold.",
       answers: [{ kind: "control", control: "bold", target: "word-para-3" }],
       verify: (state) => state.boldParagraph === "word-para-3",
