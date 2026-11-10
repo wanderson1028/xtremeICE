@@ -364,6 +364,23 @@ export default function CandidatePortal() {
     return <CandidateLabRunner lab={labs[0]} onComplete={handleLabComplete} />;
   }
 
+  /* Never show an empty answer form: an assessment with no questions and no
+     runnable lab is a setup problem for the hiring team to fix. */
+  if (!sortedTasks.length) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center p-6">
+        <div className="max-w-md text-center">
+          <AlertCircle className="h-12 w-12 text-orange-500 mx-auto mb-4" />
+          <h2 className="text-white text-xl font-bold mb-2">No questions to answer yet</h2>
+          <p className="text-gray-400 text-sm leading-relaxed">
+            This assessment has no questions or lab attached yet. Please contact the hiring team so
+            they can finish setting it up.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const answeredCount = sortedTasks.filter((task) => isAnswered(task, answers[task.id])).length;
   const allTasksDone = answeredCount >= sortedTasks.length && sortedTasks.length > 0;
   const progress = sortedTasks.length ? (answeredCount / sortedTasks.length) * 100 : 0;
