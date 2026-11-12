@@ -12,7 +12,7 @@ export default function AppBreadcrumb() {
   if (!trail.length) return null;
 
   return (
-    <div className="border-b border-red-900/30 bg-gray-900/95">
+    <div className="sticky top-20 z-40 border-b border-red-900/30 bg-gray-900/95 backdrop-blur-sm shadow-sm">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-0.5 py-2 text-[11px] leading-4">
           {trail.map((crumb, index) => {
