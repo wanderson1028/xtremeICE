@@ -126,6 +126,7 @@ import About from './pages/About'
 import MSSPSOC from './pages/MSSPSOC'
 import MSSPSession from './pages/MSSPSession'
 import M365Assessment from './pages/M365Assessment'
+import Splash from '@/pages/Splash'
 import Login from '@/pages/Login'
 import Register from '@/pages/Register'
 import ForgotPassword from '@/pages/ForgotPassword'
@@ -187,15 +188,13 @@ const AuthenticatedApp = () => {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/mfa" element={<Mfa />} />
 
+      {/* Public branded splash page shown before login */}
+      <Route path="/" element={<Splash />} />
+
       {/* Tokenised candidate assessment links open without an account */}
       <Route path="/candidate-assessment" element={<CandidatePortal />} />
 
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
-        <Route path="/" element={
-          <LayoutWrapper currentPageName={mainPageKey}>
-            <MainPage />
-          </LayoutWrapper>
-        } />
         {Object.entries(Pages).map(([path, Page]) => (
           <Route
             key={path}

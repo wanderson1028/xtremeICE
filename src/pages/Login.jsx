@@ -43,9 +43,10 @@ export default function Login() {
 
   return (
     <AuthLayout
+      brand
       icon={LogIn}
       title="Welcome back"
-      subtitle="Log in to your account"
+      subtitle="Log in to your Xtreme I.C.E. training account"
       footer={
         <>
           Don't have an account?{" "}
