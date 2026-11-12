@@ -63,7 +63,13 @@ export default function M365Dialog({ dialog, onCancel, onConfirm }) {
                 value={text}
                 onChange={(event) => setText(event.target.value)}
                 placeholder={dialog.input.placeholder}
-                className="mt-1 w-full rounded border border-[#c8c6c4] px-2 py-1 text-[10px] text-[#201f1e] outline-none focus:border-[#0f6cbd]"
+                autoFocus
+                /* Inline ink keeps the value readable inside the simulated
+                   application: the lab-wide dark theme raises generic input
+                   colours to near-white, which would hide typed text on this
+                   white dialog. */
+                style={{ color: "#201f1e", backgroundColor: "#ffffff" }}
+                className="mt-1 w-full rounded border border-[#c8c6c4] px-2 py-1 text-[10px] outline-none focus:border-[#0f6cbd]"
               />
             </label>
           ) : null}

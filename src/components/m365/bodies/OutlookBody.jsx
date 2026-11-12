@@ -58,8 +58,10 @@ export default function OutlookBody({ state, selectedId, click, context }) {
   );
   if (state.filter === "unread") messages = messages.filter((message) => message.unread);
 
-  const selected =
-    messages.find((message) => message.id === selectedId) || messages[0] || null;
+  /* Nothing is open until a message is actually selected: the reading pane must
+     not imply a message is acted on, since Reply, Move and Forward only apply to
+     a selected message. */
+  const selected = messages.find((message) => message.id === selectedId) || null;
   const unread = messages.filter((message) => message.unread).length;
 
   return (
