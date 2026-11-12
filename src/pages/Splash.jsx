@@ -31,9 +31,11 @@ export default function Splash() {
   if (user) return <Navigate to="/Home" replace />;
 
   return (
-    <div className="splash relative min-h-screen overflow-hidden border border-[#ececec] px-6 pb-[120px] sm:px-12 lg:px-24">
+    <div className="splash relative min-h-screen overflow-hidden px-6 pb-20 sm:px-12 lg:px-24">
+      <div className="splash-grid" aria-hidden="true" />
       <div className="splash-glow-a" aria-hidden="true" />
       <div className="splash-glow-b" aria-hidden="true" />
+      <div className="splash-glow-c" aria-hidden="true" />
 
       <div className="relative mx-auto w-full max-w-[1257px]">
         <SplashNav />

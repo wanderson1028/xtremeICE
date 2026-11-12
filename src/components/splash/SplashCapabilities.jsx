@@ -1,12 +1,5 @@
 import React from "react";
-import {
-  Network,
-  Crosshair,
-  ShieldCheck,
-  Radar,
-  ClipboardCheck,
-  GraduationCap,
-} from "lucide-react";
+import { Network, Crosshair, ShieldCheck, Radar, ClipboardCheck, GraduationCap } from "lucide-react";
 
 const CAPABILITIES = [
   {
@@ -49,35 +42,37 @@ const CAPABILITIES = [
 
 export default function SplashCapabilities() {
   return (
-    <div className="relative pt-[120px]">
-      <div className="mb-12 flex items-center gap-5">
-        <span className="h-2.5 w-2.5 rounded-full bg-[#c90032]" />
-        <span className="text-sm font-extrabold uppercase tracking-[0.2em] text-[#151515]">
+    <div className="relative mt-[120px]">
+      <div className="mb-9 flex items-center gap-[18px]">
+        <span className="h-2.5 w-2.5 rounded-full bg-[#C90032] shadow-[0_0_14px_#C90032]" />
+        <span className="text-sm font-extrabold uppercase tracking-[0.22em] text-[#F7F9FC]">
           Built In
         </span>
-        <i className="h-px flex-1 bg-gradient-to-r from-[#151515] to-[#d9d9d9]" />
+        <span className="h-px flex-1 bg-gradient-to-r from-[#00D7C5] to-transparent" />
       </div>
 
-      <div className="mt-7 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+      <div className="splash-rail relative mt-10 grid gap-[22px] md:grid-cols-3">
         {CAPABILITIES.map((item) => {
           const Icon = item.icon;
           return (
             <div
               key={item.title}
-              className="flex min-h-[110px] items-start gap-4 rounded-[22px] border border-[#ececec] bg-[#fafafa] p-[22px] transition-[border-color,box-shadow] duration-200 hover:border-[#c90032] hover:shadow-[0_12px_26px_-12px_rgba(201,0,50,0.3)]"
+              className="relative flex min-h-[118px] items-start gap-4 rounded-[22px] border border-white/[0.16] bg-[#0A1A2C]/[0.72] p-[22px] shadow-[0_16px_36px_-14px_rgba(0,0,0,0.7),inset_0_1px_rgba(255,255,255,0.15)] transition-[border-color,box-shadow] duration-200 hover:border-[#00D7C5] hover:shadow-[0_16px_40px_-10px_rgba(0,215,197,0.4),inset_0_1px_rgba(255,255,255,0.25)]"
             >
               <span
-                className={`flex h-11 w-11 flex-none items-center justify-center rounded-[14px] ${
-                  item.red ? "bg-[#c90032]" : "bg-[#151515]"
+                className={`flex h-[46px] w-[46px] flex-none items-center justify-center rounded-[14px] border ${
+                  item.red
+                    ? "border-[#ff7896]/60 bg-[linear-gradient(145deg,#e0003a,#C90032)] shadow-[0_0_18px_rgba(201,0,50,0.5)]"
+                    : "border-[#00D7C5]/50 bg-[linear-gradient(145deg,#12324a,#07111E)] shadow-[0_0_18px_rgba(0,215,197,0.3)]"
                 }`}
               >
-                <Icon className="h-[22px] w-[22px] text-white" strokeWidth={1.8} />
+                <Icon className="h-[22px] w-[22px] text-[#F7F9FC]" strokeWidth={1.8} />
               </span>
               <div className="min-w-0">
-                <span className="block text-[15px] font-extrabold tracking-[-0.01em] text-[#151515]">
+                <strong className="block text-base font-black tracking-[-0.01em] text-[#F7F9FC]">
                   {item.title}
-                </span>
-                <span className="mt-1 block text-[14px] leading-[1.5] text-[#555]">
+                </strong>
+                <span className="mt-[5px] block text-sm leading-[1.5] text-[#F7F9FC]/70">
                   {item.description}
                 </span>
               </div>
