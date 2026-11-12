@@ -4,6 +4,7 @@ import { createPageUrl } from "@/utils";
 import { ChevronDown, Flame, PenTool, Sparkles, ClipboardCheck, Swords, LayoutDashboard, FolderOpen, Share2, Activity, LayoutTemplate, Server, ShoppingBag, Cloud, Settings, GraduationCap, FlaskConical, ShieldCheck, Bug, BookOpen, UserCheck, CircleDollarSign, Radar } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import AppBreadcrumb from "@/components/AppBreadcrumb";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { getAccessFromKeys, ADMIN_ACCESS } from "@/lib/featureConfig";
@@ -502,6 +503,7 @@ export default function Layout({ children, currentPageName }) {
         </div>
       </header>
       <main className={isEmbedded ? "pt-0" : "pt-20"} style={isCFRS ? { background: "#E8EAEF", minHeight: "calc(100vh - 5rem)" } : undefined}>
+        {!isEmbedded && <AppBreadcrumb />}
         {children}
       </main>
     </div>
