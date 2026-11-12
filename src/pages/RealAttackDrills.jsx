@@ -87,7 +87,7 @@ function AttackCard({ item, onSelect }) {
   );
 }
 
-function AttackDetailModal({ item, onGenerate, onClose, generating }) {
+function AttackDetailModal({ item, onGenerate, onClose, generating, error }) {
   if (!item) return null;
   const sev = SEVERITY_STYLES[item.severity_label] || SEVERITY_STYLES.medium;
   const src = SOURCE_STYLES[item.source] || SOURCE_STYLES["NVD-CVE"];
@@ -140,12 +140,20 @@ function AttackDetailModal({ item, onGenerate, onClose, generating }) {
           {generating ? (
             <GeneratingIndicator />
           ) : (
+            <>
+            {error && (
+              <div className="mb-3 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-400 flex items-start gap-2">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
             <button
               onClick={() => onGenerate(item)}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-all"
             >
               <Zap className="h-4 w-4" /> Generate Drill
             </button>
+            </>
           )}
         </div>
       </motion.div>
@@ -254,6 +262,7 @@ export default function RealAttackDrills() {
   const generateDrill = async (item) => {
     setGenerating(true);
     setGenError(null);
+    setDetailItem(item);
     try {
       const response = await base44.functions.invoke("generateDynamicScenario", { feed_item_id: item.id });
       const scenario = response.data?.scenario;
@@ -404,6 +413,7 @@ export default function RealAttackDrills() {
               onGenerate={generateDrill}
               onClose={() => setDetailItem(null)}
               generating={generating}
+              error={genError}
             />
           )}
         </AnimatePresence>

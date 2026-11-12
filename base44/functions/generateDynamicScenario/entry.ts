@@ -155,10 +155,9 @@ Generate a complete training scenario. The scenario must:
 
 Return ONLY the JSON object matching the schema. Make all alert/log messages realistic and specific with IPs, usernames, and file paths from the endpoint list.`;
 
-    const llmResponse = await base44.integrations.Core.InvokeLLM({
+    const llmResponse = await base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt,
       response_json_schema: SCHEMA,
-      model: 'claude_sonnet_4_6',
     });
 
     // Ensure the id matches our convention
