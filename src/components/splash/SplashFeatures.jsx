@@ -1,39 +1,39 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 const FEATURES = [
   {
     number: "01",
-    title: "Live Cyber Ranges",
-    description:
-      "Deploy multi-site topologies with real routing, then attack and defend them in the range.",
+    titleKey: "splash.feature1Title",
+    descriptionKey: "splash.feature1Desc",
     image:
       "https://media.base44.com/images/public/69a0a5a90473fac0aa3ea135/e48cdf2e1_generated_989d63ce.jpg",
   },
   {
     number: "02",
-    title: "SOC & SIEM Simulators",
-    description:
-      "Triage alerts, build detections and work the full incident lifecycle inside a live console.",
+    titleKey: "splash.feature2Title",
+    descriptionKey: "splash.feature2Desc",
     image:
       "https://media.base44.com/images/public/69a0a5a90473fac0aa3ea135/21fe96577_generated_3feec9f5.jpg",
   },
   {
     number: "03",
-    title: "Assessments & Scorecards",
-    description:
-      "Role-based labs and application tests that score candidates the moment they submit.",
+    titleKey: "splash.feature3Title",
+    descriptionKey: "splash.feature3Desc",
     image:
       "https://media.base44.com/images/public/69a0a5a90473fac0aa3ea135/c4c53befc_generated_0da9e236.jpg",
   },
 ];
 
 export default function SplashFeatures() {
+  const { t } = useTranslation();
+
   return (
     <div className="relative mt-16 sm:mt-24">
       <div className="mb-9 flex items-center gap-[18px]">
         <span className="h-2.5 w-2.5 rounded-full bg-[#C90032] shadow-[0_0_14px_#C90032]" />
         <span className="text-sm font-extrabold uppercase tracking-[0.22em] text-[#F7F9FC]">
-          Platform Features
+          {t("splash.platformFeatures")}
         </span>
         <span className="h-px flex-1 bg-gradient-to-r from-[#00D7C5] to-transparent" />
       </div>
@@ -48,7 +48,7 @@ export default function SplashFeatures() {
           >
             <img
               src={feature.image}
-              alt={feature.title}
+              alt={t(feature.titleKey)}
               className="block aspect-[3/2] w-full object-cover"
             />
             <div className="flex flex-1 flex-col gap-2.5 px-[26px] pb-7 pt-6">
@@ -56,9 +56,9 @@ export default function SplashFeatures() {
                 {feature.number}
               </span>
               <span className="text-2xl font-black tracking-[-0.02em] text-[#F7F9FC]">
-                {feature.title}
+                {t(feature.titleKey)}
               </span>
-              <p className="text-[15px] leading-[1.55] text-[#F7F9FC]/75">{feature.description}</p>
+              <p className="text-[15px] leading-[1.55] text-[#F7F9FC]/75">{t(feature.descriptionKey)}</p>
             </div>
           </div>
         ))}

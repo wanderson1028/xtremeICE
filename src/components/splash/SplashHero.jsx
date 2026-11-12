@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 
 const LOGO =
@@ -9,6 +10,8 @@ const HERO_IMAGE =
   "https://media.base44.com/images/public/69a0a5a90473fac0aa3ea135/1836c306c_generated_ae415d9c.jpg";
 
 export default function SplashHero() {
+  const { t } = useTranslation();
+
   return (
     <>
       <div
@@ -25,7 +28,7 @@ export default function SplashHero() {
             style={{ animationDelay: ".3s" }}
           >
             <span className="block h-0.5 w-9 bg-[#00D7C5]" />
-            Cybersecurity Training
+            {t("splash.eyebrow")}
           </p>
 
           <h1
@@ -39,20 +42,19 @@ export default function SplashHero() {
             className="splash-enter mt-5 text-[12px] font-extrabold uppercase leading-[1.5] tracking-[0.16em] text-[#C90032] [text-shadow:0_0_18px_rgba(201,0,50,0.5)] sm:mt-[22px] sm:text-[15px] sm:tracking-[0.18em]"
             style={{ animationDelay: ".55s" }}
           >
-            Hands-On Cyber Range &amp; SOC Training
+            {t("splash.headline")}
           </p>
 
           <p
             className="splash-enter mt-4 max-w-[560px] text-base leading-[1.6] text-[#F7F9FC]/80 sm:mt-5 sm:text-[19px]"
             style={{ animationDelay: ".7s" }}
           >
-            Design enterprise network infrastructure, run live SOC and SIEM investigations, and
-            prove capability with scored assessments, from first requirement to deployment.
+            {t("splash.description")}
           </p>
 
           <div className="splash-enter mt-[30px]" style={{ animationDelay: ".85s" }}>
             <Link to="/login" className="splash-btn">
-              Login
+              {t("splash.login")}
               <ArrowRight strokeWidth={2.4} />
             </Link>
           </div>
