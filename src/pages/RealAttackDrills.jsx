@@ -26,6 +26,7 @@ import ScenarioBriefing from "@/components/soc/ScenarioBriefing";
 import TrainingNarrative from "@/components/soc/TrainingNarrative";
 import GeneratingIndicator from "@/components/soc/GeneratingIndicator";
 import { calculateSurrenderScore } from "@/components/soc/drillReview";
+import ProductRemediationDrill from "@/components/soc/productDrill/ProductRemediationDrill";
 
 const TABS = [
   { id: "dashboard", label: "Dashboard", icon: Monitor },
@@ -35,6 +36,20 @@ const TABS = [
   { id: "remediation", label: "Remediation", icon: Terminal },
   { id: "report", label: "Report", icon: FileText },
 ];
+
+const CONSOLE_TAB = { id: "console", label: "Console", icon: Terminal };
+
+function buildProductRemediation(result) {
+  if (!result) return undefined;
+  return {
+    score: result.score,
+    earned: result.earned,
+    total: result.total,
+    product: `${result.spec?.vendor || ""} ${result.spec?.product || ""}`.trim(),
+    interface_name: result.spec?.interface_name || "",
+    steps: result.tasks,
+  };
+}
 
 const SEVERITY_STYLES = {
   critical: { badge: "text-red-400 bg-red-500/10 border-red-500/30", dot: "bg-red-500" },
@@ -169,6 +184,8 @@ export default function RealAttackDrills() {
   const [genError, setGenError] = useState(null);
   const [selectedNetwork, setSelectedNetwork] = useState(null);
   const [selectedScenario, setSelectedScenario] = useState(null);
+  const [productDrill, setProductDrill] = useState(null);
+  const [productResult, setProductResult] = useState(null);
   const [simData, setSimData] = useState(null);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [actionsLog, setActionsLog] = useState([]);
@@ -179,6 +196,7 @@ export default function RealAttackDrills() {
   const [sessionStartedAt, setSessionStartedAt] = useState(null);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const sessionSavedRef = useRef(false);
+  const savedSessionIdRef = useRef(null);
 
   // Filter state
   const [search, setSearch] = useState("");
@@ -224,13 +242,22 @@ export default function RealAttackDrills() {
       score_breakdown: { finalThreatLevel: evolution.threatLevel, elapsedMinutes: evolution.elapsedMinutes, outcome: evolution.status },
       affected_assets: compromisedAssets,
       iocs: runSeed?.iocs || [],
-    }).then(() => {
+      product_remediation: buildProductRemediation(productResult),
+    }).then((saved) => {
+      savedSessionIdRef.current = saved?.id || null;
       queryClient.invalidateQueries({ queryKey: ["my-soc-sessions"] });
       queryClient.invalidateQueries({ queryKey: ["soc-sessions"] });
       queryClient.invalidateQueries({ queryKey: ["soc-sessions-detail"] });
       queryClient.invalidateQueries({ queryKey: ["soc-sessions-leaderboard"] });
     }).catch(() => {});
-  }, [evolution.status, selectedScenario, currentUser, selectedNetwork, sessionStartedAt, actionsLog, score, evolution.liveEndpoints, evolution.liveAlerts, evolution.threatLevel, evolution.elapsedMinutes, evolution.status, runSeed, queryClient]);
+  }, [evolution.status, selectedScenario, currentUser, selectedNetwork, sessionStartedAt, actionsLog, score, evolution.liveEndpoints, evolution.liveAlerts, evolution.threatLevel, evolution.elapsedMinutes, evolution.status, runSeed, productResult, queryClient]);
+
+  // Attach the console drill result if it finished after the session was saved
+  useEffect(() => {
+    const id = savedSessionIdRef.current;
+    if (!id || !productResult) return;
+    base44.entities.SOCSession.update(id, { product_remediation: buildProductRemediation(productResult) }).catch(() => {});
+  }, [productResult]);
 
   const { data: feedItems = [], isLoading: feedLoading } = useQuery({
     queryKey: ["threat-feed-items"],
@@ -264,10 +291,20 @@ export default function RealAttackDrills() {
     setGenError(null);
     setDetailItem(item);
     try {
-      const response = await base44.functions.invoke("generateDynamicScenario", { feed_item_id: item.id });
+      const [scenarioCall, productCall] = await Promise.allSettled([
+        base44.functions.invoke("generateDynamicScenario", { feed_item_id: item.id }),
+        base44.functions.invoke("generateProductRemediation", { feed_item_id: item.id }),
+      ]);
+      if (scenarioCall.status === "rejected") throw scenarioCall.reason;
+      const response = scenarioCall.value;
       const scenario = response.data?.scenario;
       if (!scenario) throw new Error("No scenario returned");
       registerDynamicScenario(scenario);
+
+      const productData = productCall.status === "fulfilled" ? productCall.value?.data : null;
+      setProductDrill(productData?.supported && productData.spec ? productData.spec : null);
+      setProductResult(null);
+
       setSelectedAttack(item);
       setSelectedScenario(scenario);
       setPhase("select_network");
@@ -295,6 +332,8 @@ export default function RealAttackDrills() {
     setRunSeed(seed);
     setSessionStartedAt(new Date().toISOString());
     sessionSavedRef.current = false;
+    savedSessionIdRef.current = null;
+    setProductResult(null);
     setActiveTab("dashboard");
     setPhase("active");
   };
@@ -331,6 +370,9 @@ export default function RealAttackDrills() {
     setSelectedScenario(null);
     setSelectedNetwork(null);
     setSimData(null);
+    setProductDrill(null);
+    setProductResult(null);
+    savedSessionIdRef.current = null;
     setActionsLog([]);
     setScore(0);
   };
@@ -443,6 +485,14 @@ export default function RealAttackDrills() {
                 <span key={m} className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 font-mono">{m}</span>
               ))}
             </div>
+            {productDrill && (
+              <div className="mt-3 flex items-center gap-2 text-xs text-cyan-300 border-t border-cyan-500/20 pt-2">
+                <Terminal className="h-3.5 w-3.5 shrink-0" />
+                <span>
+                  Product console drill ready: {productDrill.vendor} {productDrill.product} — {productDrill.tasks.length} point-and-click remediation steps in the Console tab.
+                </span>
+              </div>
+            )}
           </div>
 
           <h2 className="text-lg font-semibold text-white mb-1">Choose Network Environment <span className="text-sm text-gray-500 font-normal">(optional)</span></h2>
@@ -541,7 +591,7 @@ export default function RealAttackDrills() {
         </div>
 
         <div className="flex items-center gap-0.5 bg-secondary/50 rounded-lg p-0.5 mx-auto overflow-x-auto">
-          {TABS.map(tab => {
+          {(productDrill ? [...TABS.slice(0, 4), CONSOLE_TAB, ...TABS.slice(4)] : TABS).map(tab => {
             const Icon = tab.icon;
             const hasAlert = tab.id === "siem" && openAlerts > 0;
             return (
@@ -583,6 +633,7 @@ export default function RealAttackDrills() {
               {activeTab === "siem" && <SIEMViewer logs={evolution.liveLogs} />}
               {activeTab === "edr" && <EDRModule detections={evolution.liveEDR} endpoints={evolution.liveEndpoints} onAction={handleAction} />}
               {activeTab === "rmm" && <RMMModule endpoints={evolution.liveEndpoints} onAction={handleAction} />}
+              {activeTab === "console" && <ProductRemediationDrill spec={productDrill} onComplete={setProductResult} />}
               {activeTab === "remediation" && <RemediationPanel endpoints={evolution.liveEndpoints} alerts={evolution.liveAlerts} logs={evolution.liveLogs} actionsLog={actionsLog} onAction={handleAction} score={score} scenario={selectedScenario} seed={runSeed} />}
               {activeTab === "report" && <IncidentReport scenario={selectedScenario} alerts={evolution.liveAlerts} logs={evolution.liveLogs} actionsLog={actionsLog} endpoints={evolution.liveEndpoints} score={score} elapsedMinutes={evolution.elapsedMinutes} onReportGenerated={() => { setReportGenerated(true); evolution.markComplete(); }} />}
             </motion.div>
@@ -613,6 +664,7 @@ export default function RealAttackDrills() {
             score={score}
             elapsedMinutes={evolution.elapsedMinutes}
             status={evolution.status}
+            productRemediation={productResult}
             successMessage={evolution.successMessage}
             failureMessage={evolution.failureMessage}
             onExit={exitSimulation}
