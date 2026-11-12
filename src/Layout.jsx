@@ -452,7 +452,6 @@ export default function Layout({ children, currentPageName }) {
                 <OrgBranding orgId={currentUser.organization_id} />
               )}
 
-              {currentUser && <Link to="/LearnerWorkspace" className={`px-3 py-2 text-sm ${currentPageName === "LearnerWorkspace" ? NAV_ACTIVE : NAV_IDLE}`}>Assigned Labs</Link>}
               {/* Dashboard — always visible */}
               <Link
                 to="/EnvironmentHub"
