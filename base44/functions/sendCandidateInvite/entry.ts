@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { canEditFeature } from '../../shared/featureAccess.ts';
 
 const MAX_CANDIDATES = 100;
 const BATCH_SIZE = 4;
@@ -74,6 +75,13 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me().catch((error) => (error?.status === 401 ? null : Promise.reject(error)));
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // Inviting (assigning) candidates to an assessment is an edit action on the
+    // assessments feature; viewers can read assessments but not assign them.
+    const allowedToAssign = await canEditFeature(base44, user, 'soc_assessments');
+    if (!allowedToAssign) {
+      return Response.json({ error: 'You do not have permission to invite candidates.' }, { status: 403 });
+    }
 
     const payload = await req.json().catch(() => ({}));
     const batchMode = Array.isArray(payload?.candidates);

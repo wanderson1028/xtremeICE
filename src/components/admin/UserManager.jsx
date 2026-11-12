@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Users, UserPlus, X, Search, UserCheck, ArrowRightLeft, Lock, KeyRound, Check, Crown, Building2 } from "lucide-react";
+import { Users, UserPlus, X, Search, UserCheck, ArrowRightLeft, Lock, KeyRound, Check, Crown, Building2, SlidersHorizontal } from "lucide-react";
+import UserFeatureAccess from "./UserFeatureAccess";
+import { buildServiceList } from "@/lib/featureConfig";
 
 const roleColor = {
   admin: "bg-purple-100 text-purple-700 border-purple-300",
@@ -19,10 +21,10 @@ export default function UserManager({ selectedOrgId, onOrgChange, isPlatformAdmi
   const [search, setSearch] = useState("");
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteOrgRole, setInviteOrgRole] = useState("member");
   const [inviting, setInviting] = useState(false);
   const [movingUserId, setMovingUserId] = useState(null);
   const [resetSentFor, setResetSentFor] = useState(null);
+  const [accessUser, setAccessUser] = useState(null);
 
   const { data: orgs = [] } = useQuery({
     queryKey: ["organizations"],
@@ -34,8 +36,33 @@ export default function UserManager({ selectedOrgId, onOrgChange, isPlatformAdmi
     queryFn: () => base44.entities.User.list(),
   });
 
+  const { data: flags = [] } = useQuery({
+    queryKey: ["feature-flags-access"],
+    queryFn: () => base44.entities.FeatureFlag.list(),
+  });
+
+  const services = buildServiceList(flags);
+
+  // Feature assignments for the users in view. Read server-side because tenant
+  // admins may only see the assignments of their own organization's members.
+  const { data: assignments = [] } = useQuery({
+    queryKey: ["tenant-access", selectedOrgId || "all"],
+    queryFn: async () => {
+      const response = await base44.functions.invoke("manageTenantAccess", {
+        action: "list_assignments",
+        organization_id: isPlatformAdmin && selectedOrgId && selectedOrgId !== "__individual__" ? selectedOrgId : "",
+      });
+      return response?.data?.assignments || [];
+    },
+  });
+
   const updateUserMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.User.update(id, data),
+    mutationFn: ({ id, data }) =>
+      base44.functions.invoke("manageTenantAccess", {
+        action: "set_org_role",
+        user_id: id,
+        org_role: data.org_role,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["all-users"] });
       setMovingUserId(null);
@@ -57,6 +84,10 @@ export default function UserManager({ selectedOrgId, onOrgChange, isPlatformAdmi
     u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
     u.email?.toLowerCase().includes(search.toLowerCase())
   );
+
+  const visibleEmails = new Set(visibleUsers.map((u) => (u.email || "").toLowerCase()));
+  const userAssignments = assignments.filter((a) => visibleEmails.has((a.user_email || "").toLowerCase()));
+  const featureCount = (email) => userAssignments.filter((a) => a.user_email === email).length;
 
   const orgName = (orgId) => orgs.find((o) => o.id === orgId)?.name || "—";
   const orgColor = (orgId) => orgs.find((o) => o.id === orgId)?.primary_color || "#0ea5e9";
@@ -95,7 +126,7 @@ export default function UserManager({ selectedOrgId, onOrgChange, isPlatformAdmi
   };
 
   // ── Grouped rendering helpers ────────────────────────────────────────────────
-  const colCount = isPlatformAdmin ? 5 : 5;
+  const colCount = isPlatformAdmin ? 6 : 6;
 
   const TableHead = () => (
     <thead>
@@ -110,7 +141,8 @@ export default function UserManager({ selectedOrgId, onOrgChange, isPlatformAdmi
         {!isPlatformAdmin && (
           <th className="text-left px-4 py-3 text-gray-600 font-medium hidden md:table-cell">Organization</th>
         )}
-        <th className="text-left px-4 py-3 text-gray-600 font-medium">Org Role</th>
+        <th className="text-left px-4 py-3 text-gray-600 font-medium">Tenant Role</th>
+        <th className="text-left px-4 py-3 text-gray-600 font-medium">Features</th>
         <th className="px-4 py-3 text-gray-600 font-medium">Password</th>
       </tr>
     </thead>
@@ -175,15 +207,28 @@ export default function UserManager({ selectedOrgId, onOrgChange, isPlatformAdmi
       <td className="px-4 py-3">
         {user.organization_id ? (
           <Select value={user.org_role || "member"} onValueChange={(v) => handleSetOrgRole(user.id, v)}>
-            <SelectTrigger className="h-8 text-xs w-32"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-8 text-xs w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="member">Member</SelectItem>
-              <SelectItem value="org_admin">Org Admin</SelectItem>
+              <SelectItem value="member">Standard user</SelectItem>
+              <SelectItem value="org_admin">Tenant admin</SelectItem>
             </SelectContent>
           </Select>
         ) : (
           <span className="text-xs text-gray-400">—</span>
         )}
+      </td>
+      <td className="px-4 py-3">
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 text-xs gap-1.5"
+          onClick={() => setAccessUser(user)}
+          title="Assign features as editor or viewer"
+        >
+          <SlidersHorizontal className="h-3.5 w-3.5" />
+          Manage
+          <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{featureCount(user.email)}</Badge>
+        </Button>
       </td>
       <td className="px-4 py-3">
         <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5"
@@ -272,6 +317,17 @@ export default function UserManager({ selectedOrgId, onOrgChange, isPlatformAdmi
     );
   };
 
+  if (accessUser) {
+    return (
+      <UserFeatureAccess
+        user={accessUser}
+        services={services}
+        assignments={userAssignments}
+        onBack={() => setAccessUser(null)}
+      />
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-cyan-700 bg-slate-950 p-4 text-slate-100"><b>Distributed Command TTX assignments</b><p className="mt-1 text-sm text-slate-300">Use these existing accounts for department workspaces. Grant Tabletop Exercises under Features, then assign departments and exercise responsibilities.</p><a className="mt-2 inline-block font-semibold text-cyan-300 underline" href={"/TabletopExercises?mode=distributed"+(selectedOrgId?"&organization="+encodeURIComponent(selectedOrgId):"")}>Manage TTX people & departments →</a></div>
@@ -338,16 +394,6 @@ export default function UserManager({ selectedOrgId, onOrgChange, isPlatformAdmi
               onChange={(e) => setInviteEmail(e.target.value)}
               placeholder="user@example.com"
             />
-          </div>
-          <div className="space-y-1.5 w-36">
-            <Label>Org Role</Label>
-            <Select value={inviteOrgRole} onValueChange={setInviteOrgRole}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="member">Member</SelectItem>
-                <SelectItem value="org_admin">Org Admin</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
           <div className="flex gap-2">
             <Button type="submit" disabled={inviting} className="gap-2">

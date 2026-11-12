@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { canEditFeature, isTenantAdmin } from '../../shared/featureAccess.ts';
 
 const QUESTION_TYPES = ['mcq', 'matching', 'hotspot', 'manual'];
 
@@ -69,6 +70,13 @@ Deno.serve(async (req) => {
     }
     if (!String(assessmentData.position_title || '').trim()) {
       return Response.json({ error: 'Position title is required.' }, { status: 400 });
+    }
+
+    // Creating or editing assessments needs editor access to the assessments
+    // feature. Platform admins and tenant admins hold it across their scope.
+    const allowedToEdit = await canEditFeature(base44, user, 'soc_assessments');
+    if (!allowedToEdit) {
+      return Response.json({ error: 'You do not have permission to create or edit assessments.' }, { status: 403 });
     }
 
     // Build and validate task records (including the objective answer keys).
@@ -176,7 +184,11 @@ Deno.serve(async (req) => {
         .get(assessmentId)
         .catch((error) => (error?.status === 404 ? null : Promise.reject(error)));
       if (!current) return Response.json({ error: 'Assessment not found.' }, { status: 404 });
-      if (current.created_by_id !== user.id && user.role !== 'admin') {
+      // Tenant admins may edit any assessment belonging to their own organization.
+      const sameTenant = isTenantAdmin(user)
+        && Boolean(current.organization_id)
+        && String(current.organization_id) === String(user.organization_id || '');
+      if (current.created_by_id !== user.id && user.role !== 'admin' && !sameTenant) {
         return Response.json({ error: 'You cannot edit this assessment.' }, { status: 403 });
       }
       assessment = await base44.asServiceRole.entities.Assessment.update(assessmentId, assessmentPayload);
@@ -185,6 +197,8 @@ Deno.serve(async (req) => {
         ...assessmentPayload,
         created_by_id: user.id,
         created_by_email: user.email,
+        organization_id: assessmentPayload.organization_id
+          || (isTenantAdmin(user) ? user.organization_id : ''),
       });
     }
 

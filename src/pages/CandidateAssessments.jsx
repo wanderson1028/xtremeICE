@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { Plus, ClipboardList, Users, BarChart3, Eye, Trash2, Send, CheckCircle2, Clock, AlertCircle, Activity, TrendingUp, UserCheck, Hourglass, X, ListChecks, RotateCcw } from "lucide-react";
 import DeleteConfirmDialog from "@/components/assessments/DeleteConfirmDialog";
 import { useToast } from "@/components/ui/use-toast";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 
 const STATUS_STYLE = {
   draft: "bg-gray-800 text-gray-400 border-gray-700",
@@ -108,6 +109,8 @@ const HIRE_LABEL = {
 export default function CandidateAssessments() {
   const qc = useQueryClient();
   const { toast, dismiss } = useToast();
+  const { canEdit } = useFeatureAccess();
+  const canManage = canEdit("soc_assessments");
   const [activeTab, setActiveTab] = useState("tracker");
 
   const { data: assessments = [], isLoading } = useQuery({
@@ -221,20 +224,29 @@ export default function CandidateAssessments() {
             <p className="text-gray-400 text-sm mt-0.5">Smart hands-on technical evaluation platform</p>
           </div>
           <div className="flex items-center gap-2">
-            <Link
-              to="/create-assessment"
-              className="flex items-center gap-2 px-4 py-2.5 border border-gray-700 text-gray-200 hover:text-white hover:border-gray-600 rounded-lg text-sm font-semibold transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              From Labs
-            </Link>
-            <Link
-              to="/application-test-builder"
-              className="flex items-center gap-2 px-4 py-2.5 bg-red-700 hover:bg-red-600 text-white rounded-lg text-sm font-semibold transition-colors"
-            >
-              <ListChecks className="h-4 w-4" />
-              New Application Test
-            </Link>
+            {canManage ? (
+              <>
+                <Link
+                  to="/create-assessment"
+                  className="flex items-center gap-2 px-4 py-2.5 border border-gray-700 text-gray-200 hover:text-white hover:border-gray-600 rounded-lg text-sm font-semibold transition-colors"
+                >
+                  <Plus className="h-4 w-4" />
+                  From Labs
+                </Link>
+                <Link
+                  to="/application-test-builder"
+                  className="flex items-center gap-2 px-4 py-2.5 bg-red-700 hover:bg-red-600 text-white rounded-lg text-sm font-semibold transition-colors"
+                >
+                  <ListChecks className="h-4 w-4" />
+                  New Application Test
+                </Link>
+              </>
+            ) : (
+              <span className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-700 bg-gray-900 text-xs text-gray-300">
+                <Eye className="h-4 w-4" />
+                Viewer access — assessments are read-only
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -454,9 +466,11 @@ export default function CandidateAssessments() {
               <div className="text-center py-20 border border-dashed border-gray-800 rounded-xl">
                 <ClipboardList className="h-12 w-12 text-gray-700 mx-auto mb-3" />
                 <p className="text-gray-200 mb-4">No assessments created yet</p>
-                <Link to="/create-assessment" className="px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded-lg text-sm transition-colors">
-                  Create your first assessment
-                </Link>
+                {canManage && (
+                  <Link to="/create-assessment" className="px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded-lg text-sm transition-colors">
+                    Create your first assessment
+                  </Link>
+                )}
               </div>
             )}
             {assessments.map(a => {
@@ -499,12 +513,16 @@ export default function CandidateAssessments() {
                   <Link to={`/assessment-detail?id=${a.id}`} className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors" title="View">
                     <Eye className="h-4 w-4" />
                   </Link>
-                  <Link to={`/invite-candidate?assessment_id=${a.id}`} className="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-800 rounded-lg transition-colors" title="Invite one candidate">
-                    <Send className="h-4 w-4" />
-                  </Link>
-                  <Link to={`/bulk-invite?assessment_id=${a.id}`} className="p-2 text-gray-400 hover:text-purple-400 hover:bg-gray-800 rounded-lg transition-colors" title="Invite multiple candidates">
-                    <Users className="h-4 w-4" />
-                  </Link>
+                  {canManage && (
+                    <>
+                      <Link to={`/invite-candidate?assessment_id=${a.id}`} className="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-800 rounded-lg transition-colors" title="Invite one candidate">
+                        <Send className="h-4 w-4" />
+                      </Link>
+                      <Link to={`/bulk-invite?assessment_id=${a.id}`} className="p-2 text-gray-400 hover:text-purple-400 hover:bg-gray-800 rounded-lg transition-colors" title="Invite multiple candidates">
+                        <Users className="h-4 w-4" />
+                      </Link>
+                    </>
+                  )}
                   <button
                     onClick={() => setPendingDelete({ kind: "assessment", id: a.id, label: a.position_title })}
                     className="flex items-center gap-1.5 px-3 py-2 bg-red-950/60 border border-red-700/70 text-red-300 hover:bg-red-800 hover:text-white rounded-lg text-xs font-semibold transition-colors card-3d"

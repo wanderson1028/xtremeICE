@@ -9,6 +9,15 @@
     "service_key": {
       "type": "string",
       "description": "The service/feature assigned to the user. Matches a FeatureFlag key."
+    },
+    "access_level": {
+      "type": "string",
+      "enum": [
+        "editor",
+        "viewer"
+      ],
+      "default": "editor",
+      "description": "Permission inside the feature. 'editor' can create and change records; 'viewer' is read-only. Assignments made before this field existed have no value and keep full use of the feature, so they resolve to editor."
     }
   },
   "required": [
