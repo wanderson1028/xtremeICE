@@ -546,7 +546,17 @@ body.lab-readable textarea::placeholder {
 }
 @media (max-width: 1023px) {
   .splash-logo {
-    height: 180px;
+    height: 190px;
+    max-width: 420px;
+  }
+}
+@media (max-width: 639px) {
+  .splash-logo {
+    height: 132px;
+    max-width: 280px;
+  }
+  .splash-rail::before {
+    display: none;
   }
 }
 @media (prefers-reduced-motion: reduce) {

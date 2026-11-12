@@ -6,7 +6,7 @@ const CAPABILITIES = [
     icon: Network,
     red: false,
     title: "Network Design",
-    description: "Multi-site topology, routing and WAN design through to Eve-NG.",
+    description: "Multi-site topology, routing and WAN design through to deployment.",
   },
   {
     icon: Crosshair,
@@ -42,7 +42,7 @@ const CAPABILITIES = [
 
 export default function SplashCapabilities() {
   return (
-    <div className="relative mt-[120px]">
+    <div className="relative mt-16 sm:mt-[120px]">
       <div className="mb-9 flex items-center gap-[18px]">
         <span className="h-2.5 w-2.5 rounded-full bg-[#C90032] shadow-[0_0_14px_#C90032]" />
         <span className="text-sm font-extrabold uppercase tracking-[0.22em] text-[#F7F9FC]">

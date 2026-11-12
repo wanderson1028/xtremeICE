@@ -7,12 +7,12 @@ const LOGO =
 export default function SplashNav() {
   return (
     <div
-      className="splash-enter relative flex items-center justify-between gap-6 pt-9"
+      className="splash-enter relative flex items-center justify-between gap-4 pt-7 sm:gap-6 sm:pt-9"
       style={{ animationDelay: ".1s" }}
     >
-      <Link to="/" className="flex items-center gap-3.5">
-        <img src={LOGO} alt="Xtreme I.C.E." className="h-11 w-auto object-contain" />
-        <span className="text-2xl font-extrabold tracking-[-0.02em] text-[#F7F9FC]">
+      <Link to="/" className="flex items-center gap-3">
+        <img src={LOGO} alt="Xtreme I.C.E." className="h-9 w-auto object-contain sm:h-11" />
+        <span className="text-lg font-extrabold tracking-[-0.02em] text-[#F7F9FC] sm:text-2xl">
           Xtreme I.C.E.
         </span>
       </Link>
