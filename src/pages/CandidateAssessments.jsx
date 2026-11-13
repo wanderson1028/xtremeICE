@@ -339,16 +339,18 @@ export default function CandidateAssessments() {
                 {trackerGroups.map(({ assessment, rows }) => (
                   <div key={assessment?.id || "unassigned"}>
                     <TrackerGroupHeader assessment={assessment} rows={rows} />
-                    {rows.map(({ inv, session, scorecard }) => (
-                      <TrackerRow
-                        key={inv.id}
-                        inv={inv}
-                        session={session}
-                        scorecard={scorecard}
-                        onReset={(target) => setPendingReset({ inv: target })}
-                        onDelete={(target) => setPendingDelete({ kind: "invitation", id: target.id, label: target.candidate_name })}
-                      />
-                    ))}
+                    <div className="ml-4 pl-2 border-l-2 border-gray-800/70">
+                      {rows.map(({ inv, session, scorecard }) => (
+                        <TrackerRow
+                          key={inv.id}
+                          inv={inv}
+                          session={session}
+                          scorecard={scorecard}
+                          onReset={(target) => setPendingReset({ inv: target })}
+                          onDelete={(target) => setPendingDelete({ kind: "invitation", id: target.id, label: target.candidate_name })}
+                        />
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
