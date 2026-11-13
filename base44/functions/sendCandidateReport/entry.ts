@@ -285,29 +285,31 @@ export default async function (req: Request) {
       assessment?.position_title ? ` for ${assessment.position_title}` : ''
     }`;
 
+    // The report is delivered by the platform mailer, which sends from the app's own
+    // verified sender (no-reply@design-xsirange.com) and reaches non-user reviewer addresses.
+    const deliver = async (to: string) => {
+      const outcome = await base44.asServiceRole.integrations.Core.SendEmail({
+        to,
+        subject,
+        html,
+        category: 'transactional',
+      });
+      if (outcome?.success === false) {
+        throw new Error(outcome?.message || outcome?.reason || 'Email was not delivered.');
+      }
+    };
+
     const failed = [];
     let sent = 0;
     for (let index = 0; index < recipients.length; index += 4) {
       const chunk = recipients.slice(index, index + 4);
-      const settled = await Promise.allSettled(
-        chunk.map((to) =>
-          base44.asServiceRole.integrations.Core.SendEmail({
-            to,
-            subject,
-            html,
-            from_name: 'Xtreme I.C.E. Candidate Review',
-            category: 'transactional',
-          }),
-        ),
-      );
+      const settled = await Promise.allSettled(chunk.map((to) => deliver(to)));
       settled.forEach((outcome, position) => {
         const to = chunk[position];
         if (outcome.status === 'rejected') {
-          failed.push({ email: to, reason: outcome.reason?.message || String(outcome.reason) });
-          return;
-        }
-        if (outcome.value?.success === false) {
-          failed.push({ email: to, reason: outcome.value?.message || outcome.value?.reason || 'Email was not delivered.' });
+          const reason = outcome.reason?.message || String(outcome.reason);
+          console.error('Scorecard report delivery failed:', to, reason);
+          failed.push({ email: to, reason });
           return;
         }
         sent += 1;
