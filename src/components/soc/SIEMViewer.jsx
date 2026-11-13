@@ -89,6 +89,7 @@ export default function SIEMViewer({ logs }) {
             {filtered.map((log, i) => (
               <tr
                 key={log.id}
+                data-soc-click={`row-${log.id}`}
                 onClick={() => setExpandedRow(expandedRow === log.id ? null : log.id)}
                 className={`border-b border-border/10 hover:bg-secondary/30 transition-colors cursor-pointer ${i % 2 === 0 ? "" : "bg-white/[0.01]"}`}
               >

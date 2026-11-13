@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { motion, AnimatePresence } from "framer-motion";
@@ -21,6 +21,8 @@ import DrillReview from "@/components/soc/DrillReview";
 import CompleteScenarioDialog from "@/components/soc/CompleteScenarioDialog";
 import ScenarioBriefing from "@/components/soc/ScenarioBriefing";
 import TrainingNarrative from "@/components/soc/TrainingNarrative";
+import GuidedClickOverlay from "@/components/soc/GuidedClickOverlay";
+import { getGuidedClickSteps } from "@/components/soc/guidedClicks";
 import { getScenarioPlaybook, getRequiredActionIds } from "@/components/soc/scenarioPlaybooks";
 import { calculateSurrenderScore } from "@/components/soc/drillReview";
 
@@ -80,9 +82,26 @@ export default function SOCTraining() {
   const [sessionStartedAt, setSessionStartedAt] = useState(null);
   const [attemptMode, setAttemptMode] = useState("unguided");
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [guidedClicks, setGuidedClicks] = useState(new Set());
   const sessionSavedRef = useRef(false);
 
   const evolution = useThreatEvolution(selectedScenario, simData, runSeed, attemptMode);
+
+  // Guided lessons: click targets derived from the run's seeded evidence
+  const guidedSteps = useMemo(
+    () => (attemptMode === "guided" && simData && runSeed
+      ? getGuidedClickSteps({ seed: runSeed, alerts: simData.alerts, logs: simData.logs })
+      : []),
+    [attemptMode, simData, runSeed]
+  );
+  const activeGuidedStep = guidedSteps.find(s => !guidedClicks.has(s.id) && s.tab === activeTab) || null;
+
+  const completeGuidedStep = (step) => {
+    if (!step) return;
+    setGuidedClicks(prev => new Set([...prev, step.id]));
+    // A tab only counts as reviewed in a guided run once its evidence was found
+    setTabsVisited(prev => new Set([...prev, step.tab]));
+  };
   const queryClient = useQueryClient();
 
   const { data: currentUser } = useQuery({
@@ -166,7 +185,8 @@ export default function SOCTraining() {
     setSimData({ alerts: scenarioAlerts, logs: scenarioLogs, endpoints: updatedEps, edr: scenarioEDR });
     setActionsLog([]);
     setScore(0);
-    setTabsVisited(new Set(["dashboard"]));
+    setTabsVisited(new Set(attemptMode === "guided" ? [] : ["dashboard"]));
+    setGuidedClicks(new Set());
     setReportGenerated(false);
     setRunSeed(seed);
     setSessionStartedAt(new Date().toISOString());
@@ -224,6 +244,7 @@ export default function SOCTraining() {
     setScore(0);
     setSessionStartedAt(null);
     setAttemptMode("unguided");
+    setGuidedClicks(new Set());
     sessionSavedRef.current = false;
   };
 
@@ -407,7 +428,7 @@ export default function SOCTraining() {
 
       {/* Content + Sidebar */}
       <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden" data-soc-scope>
           <AnimatePresence mode="wait">
             <motion.div key={activeTab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="h-full">
               {activeTab === "dashboard" && <SOCDashboard alerts={evolution.liveAlerts} logs={evolution.liveLogs} edrDetections={evolution.liveEDR} endpoints={evolution.liveEndpoints} actionsLog={actionsLog} scenario={selectedScenario} elapsedMinutes={evolution.elapsedMinutes} score={score} threatLevel={evolution.threatLevel} threatTrend={evolution.threatTrend} eventFeed={evolution.eventFeed} status={evolution.status} />}
@@ -421,9 +442,16 @@ export default function SOCTraining() {
         </div>
         <div className="w-px shrink-0 bg-gradient-to-b from-transparent via-primary/40 to-transparent" />
         <div className="w-80 shrink-0 flex flex-col overflow-hidden">
-          <TrainingNarrative guided={attemptMode === "guided"} scenario={selectedScenario} actionsLog={actionsLog} alerts={evolution.liveAlerts} reportGenerated={reportGenerated} activeTab={activeTab} onNavigate={handleTabChange} tabsVisited={tabsVisited} threatLevel={evolution.threatLevel} eventFeed={evolution.eventFeed} status={evolution.status} seed={runSeed} onHintUsed={evolution.addTimePenalty} />
+          <TrainingNarrative guided={attemptMode === "guided"} scenario={selectedScenario} actionsLog={actionsLog} alerts={evolution.liveAlerts} reportGenerated={reportGenerated} activeTab={activeTab} onNavigate={handleTabChange} tabsVisited={tabsVisited} threatLevel={evolution.threatLevel} eventFeed={evolution.eventFeed} status={evolution.status} seed={runSeed} onHintUsed={evolution.addTimePenalty} guidedSteps={guidedSteps} guidedClicks={guidedClicks} />
         </div>
       </div>
+
+      <GuidedClickOverlay
+        step={activeGuidedStep}
+        index={activeGuidedStep ? guidedSteps.indexOf(activeGuidedStep) + 1 : 0}
+        total={guidedSteps.length}
+        onComplete={completeGuidedStep}
+      />
 
       <CompleteScenarioDialog
         open={showCompleteDialog}

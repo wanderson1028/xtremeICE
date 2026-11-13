@@ -140,7 +140,11 @@ export default function SOCDashboard({ alerts, logs, edrDetections, endpoints, a
           </div>
           <div className="divide-y divide-border/10 max-h-64 overflow-y-auto">
             {alerts.map(alert => (
-              <div key={alert.id} className={`px-4 py-3 flex items-start gap-3 ${alert.status === "closed" ? "opacity-40" : ""}`}>
+              <div
+                key={alert.id}
+                data-soc-click={`alert-${alert.id}`}
+                className={`px-4 py-3 flex items-start gap-3 transition-colors hover:bg-secondary/20 ${alert.status === "closed" ? "opacity-40" : ""}`}
+              >
                 <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border shrink-0 mt-0.5 ${severityColor[alert.severity] || severityColor.low}`}>
                   {alert.severity}
                 </span>

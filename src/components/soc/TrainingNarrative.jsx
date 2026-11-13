@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { getScenarioPlaybook, actionRuleComplete } from "./scenarioPlaybooks";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronRight, BookOpen, AlertTriangle, Shield, CheckCircle, FileText, Radio, Activity, TrendingUp, TrendingDown, Zap, Lightbulb } from "lucide-react";
+import { ChevronRight, BookOpen, AlertTriangle, Shield, CheckCircle, FileText, Radio, Activity, TrendingUp, TrendingDown, Zap, Lightbulb, MousePointerClick } from "lucide-react";
 
 // Per-scenario detect guidance: what to look for on each tab
 const DETECT_GUIDANCE = {
@@ -125,7 +125,7 @@ const BASE_PHASES = [
   },
 ];
 
-export default function TrainingNarrative({ guided = false, scenario, actionsLog, alerts, reportGenerated, activeTab, onNavigate, onPhaseChange, tabsVisited, threatLevel = 30, eventFeed = [], status = "active", seed, onHintUsed }) {
+export default function TrainingNarrative({ guided = false, scenario, actionsLog, alerts, reportGenerated, activeTab, onNavigate, onPhaseChange, tabsVisited, threatLevel = 30, eventFeed = [], status = "active", seed, onHintUsed, guidedSteps = [], guidedClicks }) {
   const [currentPhase, setCurrentPhase] = useState(0);
   const [expandedPhase, setExpandedPhase] = useState(0);
   const playbook = useMemo(() => getScenarioPlaybook(scenario?.id), [scenario?.id]);
@@ -312,7 +312,30 @@ export default function TrainingNarrative({ guided = false, scenario, actionsLog
                           <div className="space-y-2">
                             {p.id === "detect" ? (
                               <div className="space-y-2">
-                                {detectSteps.map((step, si) => {
+                                {guided && guidedSteps.length > 0 && guidedSteps.map((step, si) => {
+                                  const clicked = guidedClicks?.has(step.id);
+                                  return (
+                                    <div key={step.id} className={`rounded-lg border p-2.5 transition-all ${clicked ? "border-green-500/30 bg-green-500/5" : "border-cyan-500/30 bg-cyan-500/5"}`}>
+                                      <div className="flex items-center gap-2 mb-1">
+                                        {clicked
+                                          ? <CheckCircle className="h-3 w-3 text-green-400 shrink-0" />
+                                          : <MousePointerClick className="h-3 w-3 text-cyan-400 shrink-0" />}
+                                        <span className={`text-[10px] font-semibold ${clicked ? "text-green-400" : "text-foreground"}`}>Step {si + 1} — {step.title}</span>
+                                      </div>
+                                      <p className="text-[10px] text-muted-foreground leading-relaxed ml-5">{step.instruction}</p>
+                                      {!clicked && (
+                                        activeTab === step.tab ? (
+                                          <p className="mt-1.5 ml-5 text-[10px] text-cyan-400">Click the matching row in the panel on the left.</p>
+                                        ) : (
+                                          <button onClick={() => onNavigate(step.tab)} className="mt-2 ml-5 flex items-center gap-1 text-[10px] font-medium text-cyan-400 hover:opacity-80 transition-opacity">
+                                            Go to {step.tabLabel} <ChevronRight className="h-2.5 w-2.5" />
+                                          </button>
+                                        )
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                                {!(guided && guidedSteps.length > 0) && detectSteps.map((step, si) => {
                                   const visited = tabsVisited && tabsVisited.has(step.tab);
                                   return (
                                     <div key={si} className={`rounded-lg border p-2.5 transition-all ${visited ? "border-green-500/30 bg-green-500/5" : "border-border/30 bg-secondary/20"}`}>
