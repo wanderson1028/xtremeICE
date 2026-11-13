@@ -1,0 +1,189 @@
+{
+  "name": "TrainingExercise",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "published",
+        "archived"
+      ],
+      "default": "draft",
+      "enumColors": [
+        "gray",
+        "green",
+        "red"
+      ]
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": [
+        "Beginner",
+        "Intermediate",
+        "Advanced",
+        "Expert"
+      ],
+      "default": "Intermediate",
+      "enumColors": [
+        "green",
+        "yellow",
+        "orange",
+        "red"
+      ]
+    },
+    "duration_minutes": {
+      "type": "number",
+      "default": 45
+    },
+    "organization_id": {
+      "type": "string",
+      "description": "vPenTest organization id the source findings were imported from"
+    },
+    "organization_name": {
+      "type": "string"
+    },
+    "source_assessment_id": {
+      "type": "string",
+      "description": "vPenTest assessment id the findings came from"
+    },
+    "source_assessment_name": {
+      "type": "string"
+    },
+    "source_assessment_date": {
+      "type": "string"
+    },
+    "source_finding_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Ids of the selected findings, kept for traceability and refresh"
+    },
+    "source_findings": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Snapshot of the selected findings as imported from vPenTest"
+    },
+    "nice_role_id": {
+      "type": "string"
+    },
+    "nice_role_name": {
+      "type": "string"
+    },
+    "nice_category": {
+      "type": "string"
+    },
+    "nice_tasks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "nice_knowledge": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "nice_skills": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "scenario": {
+      "type": "string"
+    },
+    "objectives": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Exercise tasks as { id, title, instructions, success_criteria }"
+    },
+    "success_criteria": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "generated": {
+      "type": "boolean",
+      "default": false
+    },
+    "created_by_email": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "data.status": "published"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -125,6 +125,8 @@ import LiveLabTopology from './pages/LiveLabTopology'
 import About from './pages/About'
 import MSSPSOC from './pages/MSSPSOC'
 import MSSPSession from './pages/MSSPSession'
+import TrainingDesigner from './pages/TrainingDesigner'
+import TrainingExerciseRunner from './pages/TrainingExerciseRunner'
 import M365Assessment from './pages/M365Assessment'
 import Splash from '@/pages/Splash'
 import Login from '@/pages/Login'
@@ -331,6 +333,8 @@ const AuthenticatedApp = () => {
         <Route path="/about" element={<LayoutWrapper currentPageName="About"><About /></LayoutWrapper>} />
         <Route path="/mssp-soc" element={<LayoutWrapper currentPageName="MSSPSOC"><MSSPSOC /></LayoutWrapper>} />
         <Route path="/mssp-soc/session" element={<LayoutWrapper currentPageName="MSSPSession"><MSSPSession /></LayoutWrapper>} />
+        <Route path="/training-designer" element={<LayoutWrapper currentPageName="TrainingDesigner"><TrainingDesigner /></LayoutWrapper>} />
+        <Route path="/training-designer/:exerciseId" element={<LayoutWrapper currentPageName="TrainingDesigner"><TrainingExerciseRunner /></LayoutWrapper>} />
         <Route path="*" element={<PageNotFound />} />
       </Route>
     </Routes>

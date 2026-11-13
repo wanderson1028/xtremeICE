@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { ChevronDown, Flame, PenTool, Sparkles, ClipboardCheck, Swords, LayoutDashboard, FolderOpen, Share2, Activity, LayoutTemplate, Server, ShoppingBag, Cloud, Settings, GraduationCap, FlaskConical, ShieldCheck, Bug, BookOpen, UserCheck, CircleDollarSign, Radar } from "lucide-react";
+import { ChevronDown, Flame, PenTool, Sparkles, ClipboardCheck, Swords, LayoutDashboard, FolderOpen, Share2, Activity, LayoutTemplate, Server, ShoppingBag, Cloud, Settings, GraduationCap, FlaskConical, ShieldCheck, Bug, BookOpen, UserCheck, CircleDollarSign, Radar, Wand2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import AppBreadcrumb from "@/components/AppBreadcrumb";
@@ -241,7 +241,7 @@ function TrainingDropdown({ currentPageName, access }) {
   const [simOpen, setSimOpen] = useState(false);
   const [socOpen, setSocOpen] = useState(false);
   const ref = useRef(null);
-  const isActive = ["Labs", "VirtualLabs", "SOCSimulation", "SOCTraining", "RealAttackDrills", "SOCAssessments", "InteractiveVirtualLabs", "LabCourses", "TabletopExercises", "MSSPSOC", "MSSPSession"].includes(currentPageName);
+  const isActive = ["Labs", "VirtualLabs", "SOCSimulation", "SOCTraining", "RealAttackDrills", "SOCAssessments", "InteractiveVirtualLabs", "LabCourses", "TabletopExercises", "MSSPSOC", "MSSPSession", "TrainingDesigner"].includes(currentPageName);
 
   useEffect(() => {
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -249,7 +249,7 @@ function TrainingDropdown({ currentPageName, access }) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  if (!access.hasTraining && !access.hasTTX) return null;
+  if (!access.hasTraining && !access.hasTTX && !access.hasTrainingDesigner) return null;
 
   const showSocSub = access.hasSocTraining || access.hasRealAttackDrills;
 
@@ -264,6 +264,15 @@ function TrainingDropdown({ currentPageName, access }) {
       </button>
       {open && (
         <div className="absolute right-0 top-full mt-1 w-56 bg-gray-950 border border-red-900/40 rounded-xl shadow-xl z-50 py-1 overflow-hidden">
+          {access.hasTrainingDesigner && (
+            <Link to="/training-designer" onClick={() => setOpen(false)}
+              aria-current={currentPageName === "TrainingDesigner" ? "page" : undefined}
+              className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:text-white hover:bg-red-950/50 ${currentPageName === "TrainingDesigner" ? "text-red-400 bg-red-950/30" : "text-gray-200"}`}>
+              <Wand2 className="h-4 w-4 shrink-0 icon-glow icon-glow-rose" />
+              {t("nav.trainingDesigner")}
+            </Link>
+          )}
+          {access.hasTrainingDesigner && (access.hasTTX || access.hasTraining) && <div className="border-t border-red-900/30" />}
           {access.hasTTX && (
             <Link to="/TabletopExercises" onClick={() => setOpen(false)}
               aria-current={currentPageName === "TabletopExercises" ? "page" : undefined}
