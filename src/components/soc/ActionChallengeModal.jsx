@@ -5,21 +5,30 @@ import { getScenarioPlaybook } from "./scenarioPlaybooks";
 // Challenge definitions per action ID
 // All correct answers are derived from the run-seed so they always match the
 // evidence the analyst sees in SIEM, EDR, alerts, and endpoints.
+
+// Terms that mark a log line as attacker evidence, including web-attack patterns.
+const SUSPICIOUS_EVIDENCE =
+  /attacker|command and control|\bc2\b|brute ?force|failed (?:vpn )?auth|scan|unknown ip|foreign ip|reverse shell|beacon|spoof|injection|traversal|%2e|\.\.\/|web shell|malicious|suspicious|probe|exploit|exfil|hijack|poison|\bioc\b|blocked/i;
+
+const NEVER_AN_ATTACKER = new Set(["0.0.0.0", "255.255.255.255"]);
+
 function deriveAttackerIPFromLogs(logs = [], endpoints = []) {
   const endpointIPs = new Set(endpoints.map(endpoint => endpoint.ip).filter(Boolean));
   const candidates = new Map();
-  const suspiciousTerms = /attacker|c2|command and control|brute force|failed (?:vpn )?auth|scan|unknown ip|foreign ip|reverse shell|beacon|spoof/i;
 
   logs.forEach(log => {
     const text = `${log.source || ""} ${log.message || ""}`;
-    if (!suspiciousTerms.test(text)) return;
-    const matches = text.match(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g) || [];
-    matches.forEach(ip => {
+    if (!SUSPICIOUS_EVIDENCE.test(text)) return;
+    for (const match of text.matchAll(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g)) {
+      const ip = match[0];
       const octets = ip.split(".").map(Number);
       const valid = octets.length === 4 && octets.every(value => value >= 0 && value <= 255);
-      if (!valid || endpointIPs.has(ip) || ip === "0.0.0.0" || ip.endsWith(".0") || ip.endsWith(".255")) return;
+      if (!valid || endpointIPs.has(ip) || NEVER_AN_ATTACKER.has(ip) || ip.endsWith(".0") || ip.endsWith(".255")) continue;
+      // "gateway IP 10.0.1.1" is the victim being impersonated, not the attacker
+      const before = text.slice(Math.max(0, match.index - 12), match.index).toLowerCase();
+      if (/gateway\s+(?:ip\s+)?$/.test(before)) continue;
       candidates.set(ip, (candidates.get(ip) || 0) + 1);
-    });
+    }
   });
 
   return [...candidates.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
@@ -32,7 +41,18 @@ export function buildChallenge(actionId, endpoints, alerts, scenario, seed, logs
   const allEndpointNames = endpoints.map((e) => e.name);
 
   // ─── Derive IOCs from the seed (single source of truth) ───────────────────
-  const attackerIP = seed?.attackerIP || deriveAttackerIPFromLogs(logs, endpoints);
+  // Alert sources are folded in so an attacker address that only appears in an
+  // alert still counts as evidence. A seed address is only trusted when the
+  // analyst can actually see it — otherwise the answer key would reference an
+  // address that is nowhere in this run.
+  const evidenceLines = [
+    ...logs,
+    ...(alerts || []).map(a => ({ source: a.src, message: `${a.title || ""} ${a.rule || ""}` })),
+  ];
+  const evidenceBlob = evidenceLines.map(l => `${l.source || ""} ${l.message || ""}`).join("\n");
+  const seedAttackerIP = seed?.attackerIP || null;
+  const visibleSeedIP = seedAttackerIP && evidenceBlob.includes(seedAttackerIP) ? seedAttackerIP : null;
+  const attackerIP = visibleSeedIP || deriveAttackerIPFromLogs(evidenceLines, endpoints) || null;
   const compromisedUser = seed?.compromisedUser || null;
   const maliciousFile = seed?.maliciousFile || null;
   const seedProcesses = seed?.maliciousProcesses || [];
@@ -162,19 +182,21 @@ export function buildChallenge(actionId, endpoints, alerts, scenario, seed, logs
     },
     update_fw_rule: {
       type: "single_select",
-      title: "Select the Correct Firewall Rule",
-      description: "Choose the ACL snippet that correctly blocks the attacker while preserving legitimate traffic.",
+      title: fwScripts ? "Select the Correct Firewall Rule" : "Select the Correct Firewall Action",
+      description: fwScripts
+        ? "Choose the ACL snippet that correctly blocks the attacker while preserving legitimate traffic."
+        : "This run's evidence contains no verified attacker address or malicious domain, so no firewall block can be justified. Choose the response that avoids an unjustified change.",
       options: fwScripts || [
-        { id: "correct", label: `deny ip host 10.0.1.50 any\ndeny ip any host 10.0.1.50`, correct: true },
-        { id: "wrong1", label: "permit ip host 10.0.1.50 any", correct: false },
+        { id: "correct", label: "no change — no verified IOC in this run's evidence", correct: true },
+        { id: "wrong1", label: "deny ip any any", correct: false },
         { id: "wrong2", label: "deny tcp any any eq 443", correct: false },
         { id: "wrong3", label: "no ip access-list extended BLOCK", correct: false },
       ],
       explanation: scenarioTarget
         ? `The correct control targets ${scenarioTarget.target}, which is the malicious domain, service, or wireless identifier shown in the SIEM evidence.`
         : attackerIP
-          ? `The correct rule blocks both inbound and outbound traffic to and from ${attackerIP}, the IOC shown in this run’s SIEM evidence.`
-          : "Choose a narrowly scoped control derived from the scenario evidence; never apply a broad deny rule without a verified IOC.",
+          ? `The correct rule blocks both inbound and outbound traffic to and from ${attackerIP}, the address shown in this run's SIEM evidence.`
+          : "No attacker address or malicious domain appears in this run's evidence, so a firewall block would target something you have not verified. Broad denies like 'deny ip any any' or blocking all 443 break legitimate traffic — preserve the evidence and escalate until an IOC is confirmed.",
     },
     remove_persistence: {
       type: "multi_select",
