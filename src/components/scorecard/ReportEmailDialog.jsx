@@ -62,6 +62,7 @@ export default function ReportEmailDialog({ open, onOpenChange, scorecard, asses
               className="bg-black/40 border-gray-700 text-white placeholder:text-gray-600"
             />
             <p className="text-[11px] text-gray-500">Separate multiple addresses with a comma. Up to 10 reviewers.</p>
+            <p className="text-[11px] text-gray-500">A PDF copy of the report is attached to every email.</p>
           </div>
 
           <div className="space-y-2">

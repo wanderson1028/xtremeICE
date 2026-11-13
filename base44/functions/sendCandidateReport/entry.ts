@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { buildReportPdfBase64 } from './reportPdf.ts';
 
 const MAX_RECIPIENTS = 10;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -64,7 +65,7 @@ const listItems = (items, marker) =>
 const buildReport = (scorecard) => {
   const categories = Object.entries(scorecard.category_scores || {});
   const results = (scorecard.task_results || []).slice(0, 40);
-  const recommendation = RECOMMENDATION_LABELS[scorecard.hiring_recommendation] || 'Pending review';
+  const recommendation = scorecard.recommendation || RECOMMENDATION_LABELS[scorecard.hiring_recommendation] || 'Pending review';
   const passed = !!scorecard.passed;
   const statusColor = passed ? '#16a34a' : '#dc2626';
   const timingNote = scorecard.timing_note || '';
@@ -269,17 +270,33 @@ export default async function (req: Request) {
     const origin = resolveOrigin(req);
     const note = String(payload?.note || '').trim().slice(0, 1200);
 
-    const html = buildReport({
+    const reportData = {
       ...scorecard,
       position_title: assessment?.position_title || '',
       assessment_type: assessment?.assessment_type || '',
       timing_note: timingNote,
       reviewer_note: note,
+      recommendation: RECOMMENDATION_LABELS[scorecard.hiring_recommendation] || 'Pending review',
       prepared_by: user.full_name || user.email || 'the hiring team',
       prepared_for: `${scorecard.candidate_name || 'Candidate'} \u00b7 shared for personnel review`,
       generated_on: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
       scorecard_url: `${origin}/scorecard?scorecard_id=${scorecard.id}`,
-    });
+    };
+
+    const html = buildReport(reportData);
+
+    // A downloadable PDF copy of the same report rides along with the email.
+    let attachments;
+    try {
+      const slug = String(scorecard.candidate_name || 'candidate')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '') || 'candidate';
+      const content = await buildReportPdfBase64(reportData);
+      attachments = [{ filename: `candidate-report-${slug}.pdf`, content }];
+    } catch (pdfError) {
+      console.error('Scorecard report PDF could not be generated:', pdfError?.message || String(pdfError));
+    }
 
     const subject = `Candidate Assessment Report \u2014 ${scorecard.candidate_name || 'Candidate'}${
       assessment?.position_title ? ` for ${assessment.position_title}` : ''
@@ -293,6 +310,7 @@ export default async function (req: Request) {
         subject,
         html,
         category: 'transactional',
+        ...(attachments ? { attachments } : {}),
       });
       if (outcome?.success === false) {
         throw new Error(outcome?.message || outcome?.reason || 'Email was not delivered.');
