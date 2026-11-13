@@ -80,7 +80,7 @@ export default function ExercisePreview({ draft, setDraft, onSave, saving, error
           {saving ? "Saving…" : "Save exercise"}
         </button>
         <span className="text-[11px]" style={{ color: "#404040" }}>
-          Saved exercises are published to every learner on your team.
+          After saving, assign the exercise to individual learners or the whole organization.
         </span>
       </div>
     </section>

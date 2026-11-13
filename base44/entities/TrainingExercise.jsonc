@@ -49,6 +49,17 @@
     "organization_name": {
       "type": "string"
     },
+    "app_organization_id": {
+      "type": "string",
+      "description": "App Organization this exercise belongs to. Scopes org admins to their own organization's exercises."
+    },
+    "assigned_emails": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Learners the exercise has been assigned to; maintained by the assignment service so assigned learners can open it"
+    },
     "source_assessment_id": {
       "type": "string",
       "description": "vPenTest assessment id the findings came from"
@@ -152,7 +163,10 @@
           "created_by_id": "{{user.id}}"
         },
         {
-          "data.status": "published"
+          "data.app_organization_id": "{{user.data.organization_id}}"
+        },
+        {
+          "data.assigned_emails": "{{user.email}}"
         },
         {
           "user_condition": {

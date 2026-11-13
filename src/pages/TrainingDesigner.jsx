@@ -7,6 +7,7 @@ import FindingSelector from "@/components/trainingdesigner/FindingSelector";
 import NiceRoleSelector from "@/components/trainingdesigner/NiceRoleSelector";
 import ExercisePreview from "@/components/trainingdesigner/ExercisePreview";
 import SavedExercises from "@/components/trainingdesigner/SavedExercises";
+import MyAssignments from "@/components/trainingdesigner/MyAssignments";
 
 const message = (error, fallback) => error?.response?.data?.error || error?.response?.data?.message || error?.message || fallback;
 
@@ -17,6 +18,7 @@ export default function TrainingDesigner() {
   const [companiesLoading, setCompaniesLoading] = useState(true);
   const [companiesError, setCompaniesError] = useState("");
   const [organization, setOrganization] = useState(null);
+  const [scope, setScope] = useState(null);
 
   const [assessments, setAssessments] = useState([]);
   const [assessmentsLoading, setAssessmentsLoading] = useState(false);
@@ -41,6 +43,8 @@ export default function TrainingDesigner() {
 
   const [saved, setSaved] = useState([]);
   const [attempts, setAttempts] = useState([]);
+  const [assignments, setAssignments] = useState([]);
+  const [me, setMe] = useState(null);
   const [savedLoading, setSavedLoading] = useState(true);
 
   const loadCompanies = useCallback(async () => {
@@ -50,6 +54,7 @@ export default function TrainingDesigner() {
       const response = await base44.functions.invoke("vpentestConnection", { action: "status" });
       const data = response.data || {};
       setCompanies(data.companies || []);
+      setScope(data.scope || null);
       if (data.status && data.status !== "connected") {
         setCompaniesError(data.message || "The vPenTest connection is not available.");
       }
@@ -63,12 +68,16 @@ export default function TrainingDesigner() {
   const loadSaved = useCallback(async () => {
     setSavedLoading(true);
     try {
-      const [exercises, attemptPage] = await Promise.all([
+      const [exercises, attemptPage, assignmentPage, currentUser] = await Promise.all([
         base44.entities.TrainingExercise.filter({}, { sort: "-created_date", limit: 100 }),
         base44.entities.TrainingExerciseAttempt.filter({}, { sort: "-created_date", limit: 200 }),
+        base44.entities.TrainingAssignment.filter({}, { sort: "-created_date", limit: 200 }),
+        base44.auth.me(),
       ]);
       setSaved(exercises.items || []);
       setAttempts(attemptPage.items || []);
+      setAssignments(assignmentPage.items || []);
+      setMe(currentUser);
     } finally {
       setSavedLoading(false);
     }
@@ -170,6 +179,8 @@ export default function TrainingDesigner() {
         duration_minutes: Number(draft.duration_minutes) || Number(duration) || 45,
         organization_id: organization?.id || "",
         organization_name: organization?.name || "",
+        app_organization_id: organization?.app_organization_id || "",
+        assigned_emails: [],
         source_assessment_id: assessment?.id || "",
         source_assessment_name: assessment?.name || "",
         source_assessment_date: assessment?.created_at || "",
@@ -197,7 +208,7 @@ export default function TrainingDesigner() {
       });
       setDraft(null);
       setSelectedFindingIds([]);
-      setSavedFlash("Exercise saved to the training area.");
+      setSavedFlash("Exercise saved. Assign it to learners from the saved exercises list.");
       setTab("saved");
       await loadSaved();
     } catch (error) {
@@ -216,6 +227,21 @@ export default function TrainingDesigner() {
   const openExercise = (exercise) => {
     window.location.href = `/training-designer/${exercise.id}`;
   };
+
+  const handleAssigned = async (created) => {
+    setSavedFlash(
+      created
+        ? `${created} learner${created === 1 ? "" : "s"} assigned to the exercise.`
+        : "Those learners already had this exercise assigned."
+    );
+    await loadSaved();
+  };
+
+  const myAssignments = me?.email
+    ? assignments.filter(
+        (assignment) => String(assignment.assignee_email || "").toLowerCase() === String(me.email).toLowerCase()
+      )
+    : [];
 
   return (
     <div className="cfrs-sg min-h-screen">
@@ -244,6 +270,13 @@ export default function TrainingDesigner() {
             >
               Saved exercises ({saved.length})
             </button>
+            <button
+              type="button"
+              onClick={() => setTab("mine")}
+              className={`rounded px-3 py-1.5 text-xs font-semibold ${tab === "mine" ? "sg-btn-primary" : ""}`}
+            >
+              Assigned to me ({myAssignments.length})
+            </button>
           </div>
         </header>
 
@@ -254,7 +287,18 @@ export default function TrainingDesigner() {
         )}
 
         {tab === "saved" ? (
-          <SavedExercises exercises={saved} attempts={attempts} loading={savedLoading} onDelete={remove} onOpen={openExercise} />
+          <SavedExercises
+            exercises={saved}
+            attempts={attempts}
+            assignments={assignments}
+            me={me}
+            loading={savedLoading}
+            onDelete={remove}
+            onOpen={openExercise}
+            onAssigned={handleAssigned}
+          />
+        ) : tab === "mine" ? (
+          <MyAssignments assignments={myAssignments} exercises={saved} attempts={attempts} me={me} loading={savedLoading} />
         ) : (
           <div className="space-y-4">
             <div className="grid gap-4 xl:grid-cols-2">
@@ -265,6 +309,7 @@ export default function TrainingDesigner() {
                 selectedId={organization?.id}
                 onSelect={pickOrganization}
                 onRefresh={loadCompanies}
+                scope={scope}
               />
               {organization && (
                 <AssessmentPicker
@@ -347,10 +392,11 @@ export default function TrainingDesigner() {
               <section className="sg-panel p-5">
                 <h2 className="flex items-center gap-2 text-sm font-semibold"><BookOpenCheck className="h-4 w-4" /> How it works</h2>
                 <ol className="sg-body mt-2 space-y-1 pl-5" style={{ color: "#404040" }}>
-                  <li>Choose the vPenTest organization and assessment to import.</li>
-                  <li>Select the findings the exercise should be built on.</li>
+                  <li>Pick the organization from the list. App admins choose any organization; organization admins only see their own.</li>
+                  <li>Pick the vPenTest assessment to import and select the findings the exercise should be built on.</li>
                   <li>Pick the NICE Framework work role the learner is training for.</li>
-                  <li>Generate, edit and save the exercise — then launch it for the learner.</li>
+                  <li>Generate, edit and save the exercise.</li>
+                  <li>Assign it to individual learners or the whole organization, then track attempts from Saved exercises.</li>
                 </ol>
               </section>
             )}
