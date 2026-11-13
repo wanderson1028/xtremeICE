@@ -19,10 +19,17 @@ export default function ScorecardView() {
   const scorecardId = params.get("scorecard_id");
   const invitationId = params.get("invitation_id");
 
-  const { data: scorecard, isLoading } = useQuery({
+  const { data: scorecard, isLoading, error } = useQuery({
     queryKey: ["scorecard", scorecardId, invitationId],
     queryFn: async () => {
-      if (scorecardId) return base44.entities.Scorecard.get(scorecardId);
+      if (scorecardId) {
+        // Read the record directly, then fall back to a filtered read (the same call the tracker uses).
+        const direct = await base44.entities.Scorecard.get(scorecardId).catch(() => null);
+        if (direct) return direct;
+        const page = await base44.entities.Scorecard.filter({ id: scorecardId });
+        const items = Array.isArray(page) ? page : page?.items || [];
+        return items[0] || null;
+      }
       if (invitationId) {
         // The invitation id is not the scorecard session id — resolve the session first.
         const sessions = await base44.entities.CandidateSession.filter({ invitation_id: invitationId });
@@ -49,7 +56,13 @@ export default function ScorecardView() {
   });
 
   if (isLoading) return <div className="min-h-screen bg-black flex items-center justify-center text-gray-400">Loading scorecard...</div>;
-  if (!scorecard) return <div className="min-h-screen bg-black flex items-center justify-center text-gray-400">Scorecard not found.</div>;
+  if (error) return <div className="min-h-screen bg-black flex flex-col items-center justify-center gap-2 text-gray-400 px-6 text-center">
+    <span>This scorecard could not be opened.</span>
+    <span className="text-xs text-gray-500">{error?.message || String(error)}</span>
+  </div>;
+  if (!scorecard) return <div className="min-h-screen bg-black flex items-center justify-center text-gray-400">
+    {scorecardId || invitationId ? "Scorecard not found." : "No scorecard was selected. Open a candidate's report from the tracker."}
+  </div>;
 
   const hConf = HIRE_CONFIG[scorecard.hiring_recommendation] || HIRE_CONFIG.borderline;
   const catScores = scorecard.category_scores || {};

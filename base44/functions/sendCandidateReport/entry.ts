@@ -40,8 +40,8 @@ const scoreRow = (label, value, note) => {
   const pct = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
   const color = scoreColor(pct);
   return `<tr>
-    <td width="190" style="padding:6px 0;font-size:12px;color:#c90032;vertical-align:middle;">${escapeHtml(label)}${
-      note ? `<br><span style="font-size:11px;color:#c90032;">${escapeHtml(note)}</span>` : ''
+    <td width="190" style="padding:6px 0;font-size:12px;color:#000000;vertical-align:middle;">${escapeHtml(label)}${
+      note ? `<br><span style="font-size:11px;color:#000000;">${escapeHtml(note)}</span>` : ''
     }</td>
     <td style="padding:6px 0 6px 10px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
@@ -58,8 +58,8 @@ const scoreRow = (label, value, note) => {
 const listItems = (items, marker) =>
   (items || [])
     .slice(0, 12)
-    .map((item) => `<li style="margin:0 0 6px;font-size:13px;line-height:1.5;color:#c90032;">${escapeHtml(item)}</li>`)
-    .join('') || `<li style="margin:0;font-size:13px;color:#c90032;">${marker}</li>`;
+    .map((item) => `<li style="margin:0 0 6px;font-size:13px;line-height:1.5;color:#000000;">${escapeHtml(item)}</li>`)
+    .join('') || `<li style="margin:0;font-size:13px;color:#000000;">${marker}</li>`;
 
 const buildReport = (scorecard) => {
   const categories = Object.entries(scorecard.category_scores || {});
@@ -102,7 +102,7 @@ const buildReport = (scorecard) => {
           <tr>
             <td style="padding:28px 28px 8px;">
               <h1 style="margin:0 0 6px;font-size:24px;line-height:1.25;color:#000000;">Candidate Assessment Report</h1>
-              <p style="margin:0;font-size:13px;color:#c90032;">${escapeHtml(scorecard.prepared_for || 'Review copy for personnel')}</p>
+              <p style="margin:0;font-size:13px;color:#000000;">${escapeHtml(scorecard.prepared_for || 'Review copy for personnel')}</p>
             </td>
           </tr>
           <tr>
@@ -114,8 +114,8 @@ const buildReport = (scorecard) => {
                       <tr>
                         <td style="vertical-align:top;">
                           <p style="margin:0 0 4px;font-size:18px;font-weight:700;color:#000000;">${escapeHtml(scorecard.candidate_name || 'Candidate')}</p>
-                          <p style="margin:0 0 4px;font-size:13px;color:#c90032;">${escapeHtml(scorecard.candidate_email || '')}</p>
-                          <p style="margin:0;font-size:13px;color:#c90032;">${escapeHtml(scorecard.position_title || 'Assessment')}${scorecard.assessment_type ? ` &middot; ${escapeHtml(scorecard.assessment_type)}` : ''}</p>
+                          <p style="margin:0 0 4px;font-size:13px;color:#000000;">${escapeHtml(scorecard.candidate_email || '')}</p>
+                          <p style="margin:0;font-size:13px;color:#000000;">${escapeHtml(scorecard.position_title || 'Assessment')}${scorecard.assessment_type ? ` &middot; ${escapeHtml(scorecard.assessment_type)}` : ''}</p>
                         </td>
                         <td width="140" align="right" style="vertical-align:top;">
                           <p style="margin:0;font-size:40px;font-weight:800;line-height:1;color:${statusColor};">${scorecard.overall_score ?? 0}%</p>
@@ -140,7 +140,7 @@ const buildReport = (scorecard) => {
               ? `<tr>
                   <td style="padding:22px 28px 0;">
                     <h2 style="margin:0 0 8px;font-size:15px;color:#000000;">Skillset Synopsis</h2>
-                    <p style="margin:0;font-size:13px;line-height:1.65;color:#c90032;">${escapeHtml(scorecard.smart_summary)}</p>
+                    <p style="margin:0;font-size:13px;line-height:1.65;color:#000000;">${escapeHtml(scorecard.smart_summary)}</p>
                   </td>
                 </tr>`
               : ''
@@ -154,7 +154,7 @@ const buildReport = (scorecard) => {
                     <ul style="margin:0;padding-left:18px;">${listItems(scorecard.strengths, 'None recorded')}</ul>
                   </td>
                   <td width="50%" valign="top" style="padding-left:10px;">
-                    <h2 style="margin:0 0 8px;font-size:15px;color:#dc2626;">Areas to Probe</h2>
+                    <h2 style="margin:0 0 8px;font-size:15px;color:#000000;">Areas to Probe</h2>
                     <ul style="margin:0;padding-left:18px;">${listItems(scorecard.weaknesses, 'No gaps identified')}</ul>
                   </td>
                 </tr>
@@ -168,9 +168,9 @@ const buildReport = (scorecard) => {
                     <h2 style="margin:0 0 10px;font-size:15px;color:#000000;">Question-by-Question Results</h2>
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border-top:1px solid #e5e7eb;">
                       <tr>
-                        <th align="left" style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#c90032;">Question</th>
-                        <th align="left" style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#c90032;">Result</th>
-                        <th align="right" style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#c90032;">Points</th>
+                        <th align="left" style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#000000;">Question</th>
+                        <th align="left" style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#000000;">Result</th>
+                        <th align="right" style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#000000;">Points</th>
                       </tr>
                       ${taskRows}
                     </table>
@@ -203,7 +203,7 @@ const buildReport = (scorecard) => {
               ? `<tr>
                   <td style="padding:22px 28px 0;">
                     <h2 style="margin:0 0 8px;font-size:15px;color:#000000;">Reviewer Note</h2>
-                    <p style="margin:0;font-size:13px;line-height:1.65;color:#c90032;background:#f6f7f9;border-radius:10px;padding:14px 16px;">${escapeHtml(scorecard.reviewer_note)}</p>
+                    <p style="margin:0;font-size:13px;line-height:1.65;color:#000000;background:#f6f7f9;border-radius:10px;padding:14px 16px;">${escapeHtml(scorecard.reviewer_note)}</p>
                   </td>
                 </tr>`
               : ''
@@ -215,7 +215,7 @@ const buildReport = (scorecard) => {
           </tr>
           <tr>
             <td style="padding:14px 28px 28px;border-top:1px solid #e5e7eb;">
-              <p style="margin:0;font-size:11px;line-height:1.6;color:#c90032;">Prepared by ${escapeHtml(scorecard.prepared_by || 'the hiring team')} on ${escapeHtml(scorecard.generated_on || '')}. This report contains candidate assessment data; share it with authorized reviewers only.</p>
+              <p style="margin:0;font-size:11px;line-height:1.6;color:#000000;">Prepared by ${escapeHtml(scorecard.prepared_by || 'the hiring team')} on ${escapeHtml(scorecard.generated_on || '')}. This report contains candidate assessment data; share it with authorized reviewers only.</p>
             </td>
           </tr>
         </table>
