@@ -184,6 +184,7 @@ export default function RealAttackDrills() {
   const [genError, setGenError] = useState(null);
   const [selectedNetwork, setSelectedNetwork] = useState(null);
   const [selectedScenario, setSelectedScenario] = useState(null);
+  const [attemptMode, setAttemptMode] = useState("unguided");
   const [productDrill, setProductDrill] = useState(null);
   const [productResult, setProductResult] = useState(null);
   const [simData, setSimData] = useState(null);
@@ -203,7 +204,7 @@ export default function RealAttackDrills() {
   const [sevFilter, setSevFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
 
-  const evolution = useThreatEvolution(selectedScenario, simData, runSeed);
+  const evolution = useThreatEvolution(selectedScenario, simData, runSeed, attemptMode);
   const queryClient = useQueryClient();
 
   const { data: currentUser } = useQuery({
@@ -239,7 +240,7 @@ export default function RealAttackDrills() {
       actions_taken: actionsLog,
       alerts_triaged: triagedAlerts,
       score: score,
-      score_breakdown: { finalThreatLevel: evolution.threatLevel, elapsedMinutes: evolution.elapsedMinutes, outcome: evolution.status },
+      score_breakdown: { finalThreatLevel: evolution.threatLevel, elapsedMinutes: evolution.elapsedMinutes, outcome: evolution.status, attemptMode, timeLimitMinutes: evolution.timeLimitMinutes },
       affected_assets: compromisedAssets,
       iocs: runSeed?.iocs || [],
       product_remediation: buildProductRemediation(productResult),
@@ -307,6 +308,7 @@ export default function RealAttackDrills() {
 
       setSelectedAttack(item);
       setSelectedScenario(scenario);
+      setAttemptMode("unguided");
       setPhase("select_network");
       setDetailItem(null);
     } catch (err) {
@@ -556,6 +558,9 @@ export default function RealAttackDrills() {
       <ScenarioBriefing
         scenario={selectedScenario}
         mode="training"
+        attemptMode={attemptMode}
+        onAttemptModeChange={setAttemptMode}
+        guidedTimeLimit={Math.max(5, Math.ceil((selectedScenario?.duration_min || 15) * 0.65))}
         onConfirm={() => launchScenario(selectedScenario)}
         onBack={() => setPhase("select_network")}
       />
@@ -641,7 +646,7 @@ export default function RealAttackDrills() {
         </div>
         <div className="w-px shrink-0 bg-gradient-to-b from-transparent via-primary/40 to-transparent" />
         <div className="w-80 shrink-0 flex flex-col overflow-hidden">
-          <TrainingNarrative scenario={selectedScenario} actionsLog={actionsLog} alerts={evolution.liveAlerts} reportGenerated={reportGenerated} activeTab={activeTab} onNavigate={handleTabChange} tabsVisited={tabsVisited} threatLevel={evolution.threatLevel} eventFeed={evolution.eventFeed} status={evolution.status} seed={runSeed} onHintUsed={evolution.addTimePenalty} />
+          <TrainingNarrative guided={attemptMode === "guided"} scenario={selectedScenario} actionsLog={actionsLog} alerts={evolution.liveAlerts} reportGenerated={reportGenerated} activeTab={activeTab} onNavigate={handleTabChange} tabsVisited={tabsVisited} threatLevel={evolution.threatLevel} eventFeed={evolution.eventFeed} status={evolution.status} seed={runSeed} onHintUsed={evolution.addTimePenalty} />
         </div>
       </div>
 
