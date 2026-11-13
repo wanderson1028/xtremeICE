@@ -24,6 +24,8 @@ import DrillReview from "@/components/soc/DrillReview";
 import CompleteScenarioDialog from "@/components/soc/CompleteScenarioDialog";
 import ScenarioBriefing from "@/components/soc/ScenarioBriefing";
 import TrainingNarrative from "@/components/soc/TrainingNarrative";
+import GuidedClickOverlay from "@/components/soc/GuidedClickOverlay";
+import { getGuidedClickSteps } from "@/components/soc/guidedClicks";
 import GeneratingIndicator from "@/components/soc/GeneratingIndicator";
 import { calculateSurrenderScore } from "@/components/soc/drillReview";
 import ProductRemediationDrill from "@/components/soc/productDrill/ProductRemediationDrill";
@@ -192,6 +194,7 @@ export default function RealAttackDrills() {
   const [actionsLog, setActionsLog] = useState([]);
   const [score, setScore] = useState(0);
   const [tabsVisited, setTabsVisited] = useState(new Set(["dashboard"]));
+  const [guidedClicks, setGuidedClicks] = useState(new Set());
   const [reportGenerated, setReportGenerated] = useState(false);
   const [runSeed, setRunSeed] = useState(null);
   const [sessionStartedAt, setSessionStartedAt] = useState(null);
@@ -206,6 +209,22 @@ export default function RealAttackDrills() {
 
   const evolution = useThreatEvolution(selectedScenario, simData, runSeed, attemptMode);
   const queryClient = useQueryClient();
+
+  // Guided lessons: click targets derived from this run's seeded evidence
+  const guidedSteps = useMemo(
+    () => (attemptMode === "guided" && simData && runSeed
+      ? getGuidedClickSteps({ seed: runSeed, alerts: simData.alerts, logs: simData.logs })
+      : []),
+    [attemptMode, simData, runSeed]
+  );
+  const activeGuidedStep = guidedSteps.find(s => !guidedClicks.has(s.id) && s.tab === activeTab) || null;
+
+  const completeGuidedStep = (step) => {
+    if (!step) return;
+    setGuidedClicks(prev => new Set([...prev, step.id]));
+    // A tab only counts as reviewed in a guided run once its evidence was found
+    setTabsVisited(prev => new Set([...prev, step.tab]));
+  };
 
   const { data: currentUser } = useQuery({
     queryKey: ["me"],
@@ -330,6 +349,7 @@ export default function RealAttackDrills() {
     setActionsLog([]);
     setScore(0);
     setTabsVisited(new Set(["dashboard"]));
+    setGuidedClicks(new Set());
     setReportGenerated(false);
     setRunSeed(seed);
     setSessionStartedAt(new Date().toISOString());
@@ -377,6 +397,7 @@ export default function RealAttackDrills() {
     savedSessionIdRef.current = null;
     setActionsLog([]);
     setScore(0);
+    setGuidedClicks(new Set());
   };
 
   // ── SELECT ATTACK ───────────────────────────────────────────────────────────
@@ -646,9 +667,16 @@ export default function RealAttackDrills() {
         </div>
         <div className="w-px shrink-0 bg-gradient-to-b from-transparent via-primary/40 to-transparent" />
         <div className="w-80 shrink-0 flex flex-col overflow-hidden">
-          <TrainingNarrative guided={attemptMode === "guided"} scenario={selectedScenario} actionsLog={actionsLog} alerts={evolution.liveAlerts} reportGenerated={reportGenerated} activeTab={activeTab} onNavigate={handleTabChange} tabsVisited={tabsVisited} threatLevel={evolution.threatLevel} eventFeed={evolution.eventFeed} status={evolution.status} seed={runSeed} onHintUsed={evolution.addTimePenalty} />
+          <TrainingNarrative guided={attemptMode === "guided"} scenario={selectedScenario} actionsLog={actionsLog} alerts={evolution.liveAlerts} reportGenerated={reportGenerated} activeTab={activeTab} onNavigate={handleTabChange} tabsVisited={tabsVisited} threatLevel={evolution.threatLevel} eventFeed={evolution.eventFeed} status={evolution.status} seed={runSeed} onHintUsed={evolution.addTimePenalty} guidedSteps={guidedSteps} guidedClicks={guidedClicks} />
         </div>
       </div>
+
+      <GuidedClickOverlay
+        step={activeGuidedStep}
+        index={activeGuidedStep ? guidedSteps.indexOf(activeGuidedStep) + 1 : 0}
+        total={guidedSteps.length}
+        onComplete={completeGuidedStep}
+      />
 
       <CompleteScenarioDialog
         open={showCompleteDialog}
