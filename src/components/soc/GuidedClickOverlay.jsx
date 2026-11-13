@@ -118,7 +118,7 @@ export default function GuidedClickOverlay({ step, index, total, onComplete }) {
               >
                 <Crosshair className="h-3 w-3" /> Spotlight it
               </button>
-              <span className="text-[10px] text-gray-500">click the matching row in the panel above</span>
+              <span className="text-[10px] text-gray-500">{step.locationHint || "in the panel on the left"}</span>
             </div>
           )}
         </div>

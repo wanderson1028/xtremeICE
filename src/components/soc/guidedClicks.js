@@ -33,14 +33,11 @@ export function getGuidedClickSteps({ seed, alerts = [], logs = [] } = {}) {
       tab: "dashboard",
       tabLabel: "Dashboard",
       title: "Spot the incident alert",
-      instruction: ioc
-        ? `Click the alert in the Alert Queue that names ${ioc}.`
-        : "Click the most severe alert in the Alert Queue.",
+      instruction: `Click the "${alertTarget.title}" alert in the Alert Queue.`,
+      locationHint: "in the Alert Queue on the left",
       targetId: `alert-${alertTarget.id}`,
       selector: `[data-soc-click="alert-${alertTarget.id}"]`,
-      missHint: ioc
-        ? `Not that one — look for the alert containing ${ioc}.`
-        : "Not that one — pick the alert with the highest severity badge.",
+      missHint: `Not that one — find the alert titled "${alertTarget.title}".`,
       hintText: `It is in the Alert Queue: "${alertTarget.title}".`,
     });
   }
@@ -58,6 +55,7 @@ export function getGuidedClickSteps({ seed, alerts = [], logs = [] } = {}) {
       instruction: ioc
         ? `Click the log line whose message contains ${ioc}.`
         : "Click the highest-severity line in the log stream.",
+      locationHint: "in the log table",
       targetId: `row-${logTarget.id}`,
       selector: `[data-soc-click="row-${logTarget.id}"]`,
       missHint: ioc

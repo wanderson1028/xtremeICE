@@ -652,7 +652,7 @@ export default function RealAttackDrills() {
 
       {/* Content + Sidebar */}
       <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden" data-soc-scope>
           <AnimatePresence mode="wait">
             <motion.div key={activeTab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="h-full">
               {activeTab === "dashboard" && <SOCDashboard alerts={evolution.liveAlerts} logs={evolution.liveLogs} edrDetections={evolution.liveEDR} endpoints={evolution.liveEndpoints} actionsLog={actionsLog} scenario={selectedScenario} elapsedMinutes={evolution.elapsedMinutes} score={score} threatLevel={evolution.threatLevel} threatTrend={evolution.threatTrend} eventFeed={evolution.eventFeed} status={evolution.status} />}

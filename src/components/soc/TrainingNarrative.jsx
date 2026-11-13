@@ -322,15 +322,10 @@ export default function TrainingNarrative({ guided = false, scenario, actionsLog
                                           : <MousePointerClick className="h-3 w-3 text-cyan-400 shrink-0" />}
                                         <span className={`text-[10px] font-semibold ${clicked ? "text-green-400" : "text-foreground"}`}>Step {si + 1} — {step.title}</span>
                                       </div>
-                                      <p className="text-[10px] text-muted-foreground leading-relaxed ml-5">{step.instruction}</p>
-                                      {!clicked && (
-                                        activeTab === step.tab ? (
-                                          <p className="mt-1.5 ml-5 text-[10px] text-cyan-400">Click the matching row in the panel on the left.</p>
-                                        ) : (
-                                          <button onClick={() => onNavigate(step.tab)} className="mt-2 ml-5 flex items-center gap-1 text-[10px] font-medium text-cyan-400 hover:opacity-80 transition-opacity">
-                                            Go to {step.tabLabel} <ChevronRight className="h-2.5 w-2.5" />
-                                          </button>
-                                        )
+                                      {!clicked && activeTab !== step.tab && (
+                                        <button onClick={() => onNavigate(step.tab)} className="mt-1.5 ml-5 flex items-center gap-1 text-[10px] font-medium text-cyan-400 hover:opacity-80 transition-opacity">
+                                          Go to {step.tabLabel} <ChevronRight className="h-2.5 w-2.5" />
+                                        </button>
                                       )}
                                     </div>
                                   );
