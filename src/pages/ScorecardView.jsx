@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, CheckCircle2, XCircle, AlertCircle, TrendingUp, MessageSquare, Star, ChevronRight, BarChart2, Sparkles } from "lucide-react";
+import { ArrowLeft, CheckCircle2, XCircle, AlertCircle, TrendingUp, MessageSquare, Star, ChevronRight, BarChart2, Sparkles, Mail } from "lucide-react";
+import ReportEmailDialog from "@/components/scorecard/ReportEmailDialog";
 
 const HIRE_CONFIG = {
   strong_hire: { label: "Strong Hire", color: "text-green-400", bg: "bg-green-900/20 border-green-700/40" },
@@ -13,6 +14,7 @@ const HIRE_CONFIG = {
 
 export default function ScorecardView() {
   const navigate = useNavigate();
+  const [reportOpen, setReportOpen] = useState(false);
   const params = new URLSearchParams(window.location.search);
   const scorecardId = params.get("scorecard_id");
   const invitationId = params.get("invitation_id");
@@ -40,11 +42,20 @@ export default function ScorecardView() {
     enabled: !!scorecard?.assessment_id,
   });
 
+  const { data: session } = useQuery({
+    queryKey: ["session-for-sc", scorecard?.session_id],
+    queryFn: () => base44.entities.CandidateSession.get(scorecard.session_id),
+    enabled: !!scorecard?.session_id,
+  });
+
   if (isLoading) return <div className="min-h-screen bg-black flex items-center justify-center text-gray-400">Loading scorecard...</div>;
   if (!scorecard) return <div className="min-h-screen bg-black flex items-center justify-center text-gray-400">Scorecard not found.</div>;
 
   const hConf = HIRE_CONFIG[scorecard.hiring_recommendation] || HIRE_CONFIG.borderline;
   const catScores = scorecard.category_scores || {};
+  const usedMinutes = Number(session?.time_elapsed_minutes) || 0;
+  const allowedMinutes = Number(assessment?.duration_minutes) || 0;
+  const timingNote = usedMinutes && allowedMinutes ? `Used ${usedMinutes} of ${allowedMinutes} min` : "";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-red-950/10">
@@ -57,6 +68,12 @@ export default function ScorecardView() {
             <span className="text-gray-600">|</span>
             <h1 className="text-white font-bold">Candidate Scorecard</h1>
           </div>
+          <button
+            onClick={() => setReportOpen(true)}
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+          >
+            <Mail className="h-4 w-4" /> Email Report
+          </button>
         </div>
       </div>
 
@@ -88,7 +105,12 @@ export default function ScorecardView() {
               <div className="space-y-3">
                 {Object.entries(catScores).map(([key, val]) => (
                   <div key={key} className="flex items-center gap-3">
-                    <span className="text-gray-400 text-xs capitalize w-48 shrink-0">{key.replace(/_/g, " ")}</span>
+                    <div className="w-48 shrink-0">
+                      <span className="text-gray-400 text-xs capitalize">{key.replace(/_/g, " ")}</span>
+                      {key === "time_management" && timingNote && (
+                        <span className="block text-[10px] text-gray-500">{timingNote}</span>
+                      )}
+                    </div>
                     <div className="flex-1 h-2.5 bg-gray-800 rounded-full overflow-hidden">
                       <div className={`h-full rounded-full transition-all ${val >= 80 ? "bg-green-500" : val >= 60 ? "bg-yellow-500" : "bg-red-500"}`} style={{ width: `${val}%` }} />
                     </div>
@@ -201,6 +223,13 @@ export default function ScorecardView() {
           </div>
         )}
       </div>
+
+      <ReportEmailDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        scorecard={scorecard}
+        assessment={assessment}
+      />
     </div>
   );
 }

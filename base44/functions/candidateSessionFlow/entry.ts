@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import { buildResults, weightsMapFrom, weightedTotals, recommendationFor } from '../../shared/objectiveScoring.ts';
+import { timeManagementScore } from '../../shared/timeScore.ts';
 
 const ACTION_STATUS = {
   start: 'in_progress',
@@ -372,7 +373,7 @@ Return JSON. "smart_summary" must be a 2-4 sentence synopsis of this candidate's
     const wrongResults = results.filter((item) => item.correct === false);
     const answeredPct = scored.total ? Math.round((scored.answered / scored.total) * 100) : 0;
     const duration = Number(assessment.duration_minutes) || 0;
-    const timePct = duration ? Math.max(0, Math.round(100 - (time_elapsed_minutes / duration) * 50)) : 100;
+    const timePct = timeManagementScore(time_elapsed_minutes, duration) ?? 100;
 
     const gradedCategories = narrative?.category_scores;
     const categoryScores = gradedCategories &&
@@ -385,6 +386,10 @@ Return JSON. "smart_summary" must be a 2-4 sentence synopsis of this candidate's
           completion: answeredPct,
           time_management: timePct,
         };
+
+    // Time management always reflects the recorded elapsed time against the limit,
+    // never a model's impression of pacing.
+    categoryScores.time_management = timePct;
 
     const derivedStrengths = correctResults.slice(0, 4).map((item) => `Answered correctly: ${item.title}`);
     const derivedWeaknesses = wrongResults.slice(0, 4).map((item) => `Incorrect: ${item.title}`);
