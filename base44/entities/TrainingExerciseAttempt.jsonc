@@ -29,14 +29,25 @@
       "items": {
         "type": "string"
       },
-      "description": "Ids of the exercise tasks the learner marked complete"
+      "description": "Ids of the activities the learner answered correctly"
     },
     "task_total": {
       "type": "number"
     },
     "score": {
       "type": "number",
-      "description": "Percentage of tasks completed"
+      "description": "Percentage of activities answered correctly"
+    },
+    "answers": {
+      "type": "object",
+      "description": "Learner responses keyed by activity id"
+    },
+    "task_results": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Per-activity outcome as { id, title, type, correct }"
     },
     "notes": {
       "type": "string"

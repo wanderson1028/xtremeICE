@@ -84,6 +84,13 @@
       },
       "description": "Snapshot of the selected findings as imported from vPenTest"
     },
+    "nice_roles": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "NICE Framework work roles the combined exercise is mapped to, as { id, name, category }"
+    },
     "nice_role_id": {
       "type": "string"
     },
@@ -125,7 +132,7 @@
       "items": {
         "type": "object"
       },
-      "description": "Exercise tasks as { id, title, instructions, success_criteria }"
+      "description": "Interactive activity sequence. Each activity is { id, type, title, instructions } where type is hands_on, mcq, matching or hotspot. hands_on adds success_criteria; mcq adds options [{ id, text }] and correct_option_id; matching adds matching_prompts, matching_choices and matching_answer { promptId: choiceId }; hotspot adds interface_name, hotspot_regions [{ id, label, detail }] and correct_region_id."
     },
     "success_criteria": {
       "type": "array",

@@ -30,7 +30,7 @@ export default function TrainingDesigner() {
   const [findingsError, setFindingsError] = useState("");
   const [selectedFindingIds, setSelectedFindingIds] = useState([]);
 
-  const [role, setRole] = useState(null);
+  const [roles, setRoles] = useState([]);
   const [difficulty, setDifficulty] = useState("Intermediate");
   const [duration, setDuration] = useState(45);
 
@@ -143,16 +143,22 @@ export default function TrainingDesigner() {
 
   const selectedFindings = findings.filter((finding) => selectedFindingIds.includes(finding.id));
 
+  const toggleRole = (role) => {
+    setRoles((current) =>
+      current.some((item) => item.id === role.id) ? current.filter((item) => item.id !== role.id) : [...current, role]
+    );
+  };
+
   const generate = async () => {
     setGenerateError("");
     if (!selectedFindings.length) { setGenerateError("Select at least one finding."); return; }
-    if (!role) { setGenerateError("Choose a NICE Framework work role."); return; }
+    if (!roles.length) { setGenerateError("Choose at least one NICE Framework work role."); return; }
     setGenerating(true);
     try {
       const response = await base44.functions.invoke("generateTrainingExercise", {
         organization_name: organization?.name,
         assessment_name: assessment?.name,
-        nice_role: { id: role.id, name: role.name, category: role.category, description: role.description },
+        nice_roles: roles.map((role) => ({ id: role.id, name: role.name, category: role.category, description: role.description })),
         findings: selectedFindings.slice(0, 12),
         difficulty,
         duration_minutes: Number(duration) || 45,
@@ -193,9 +199,10 @@ export default function TrainingDesigner() {
           evidence: String(finding.evidence || "").slice(0, 800),
           mitre_technique_id: finding.mitre_technique_id || "",
         })),
-        nice_role_id: role?.id || "",
-        nice_role_name: role?.name || "",
-        nice_category: role?.category || "",
+        nice_roles: roles.map((role) => ({ id: role.id, name: role.name, category: role.category })),
+        nice_role_id: roles[0]?.id || "",
+        nice_role_name: roles.map((role) => role.name).join(", "),
+        nice_category: roles[0]?.category || "",
         nice_tasks: draft.nice_tasks || [],
         nice_knowledge: draft.nice_knowledge || [],
         nice_skills: draft.nice_skills || [],
@@ -335,7 +342,7 @@ export default function TrainingDesigner() {
                   onSelectAll={(all) => setSelectedFindingIds(all.map((finding) => finding.id))}
                   onClear={() => setSelectedFindingIds([])}
                 />
-                <NiceRoleSelector value={role} onChange={setRole} />
+                <NiceRoleSelector values={roles} onToggle={toggleRole} onClear={() => setRoles([])} />
               </div>
             )}
 
@@ -345,7 +352,10 @@ export default function TrainingDesigner() {
                   <Sparkles className="h-4 w-4" /> 5 · Generate exercise
                 </h2>
                 <p className="sg-body mt-1" style={{ color: "#404040" }}>
-                  {selectedFindings.length} finding{selectedFindings.length === 1 ? "" : "s"} · {role ? role.name : "no role selected"}
+                  {selectedFindings.length} finding{selectedFindings.length === 1 ? "" : "s"} ·{" "}
+                  {roles.length
+                    ? `${roles.length} role${roles.length === 1 ? "" : "s"} (${roles.map((item) => item.name).join(", ")})`
+                    : "no roles selected"}
                 </p>
                 <div className="mt-3 flex flex-wrap items-end gap-3">
                   <label className="block">
@@ -378,7 +388,7 @@ export default function TrainingDesigner() {
                   </button>
                   {generating && (
                     <span className="text-[11px]" style={{ color: "#404040" }}>
-                      Building objectives, tasks and success criteria for this role…
+                      Building a mixed multiple-choice, matching, point-and-click and hands-on sequence…
                     </span>
                   )}
                 </div>
@@ -394,7 +404,7 @@ export default function TrainingDesigner() {
                 <ol className="sg-body mt-2 space-y-1 pl-5" style={{ color: "#404040" }}>
                   <li>Pick the organization from the list. App admins choose any organization; organization admins only see their own.</li>
                   <li>Pick the vPenTest assessment to import and select the findings the exercise should be built on.</li>
-                  <li>Pick the NICE Framework work role the learner is training for.</li>
+                  <li>Pick one or more NICE Framework work roles the learner is training for.</li>
                   <li>Generate, edit and save the exercise.</li>
                   <li>Assign it to individual learners or the whole organization, then track attempts from Saved exercises.</li>
                 </ol>

@@ -65,7 +65,8 @@ export default function SavedExercises({ exercises = [], attempts = [], assignme
                 <div className="min-w-0">
                   <h3 className="truncate text-sm font-semibold">{exercise.title}</h3>
                   <p className="mt-1 text-[11px]" style={{ color: "#404040" }}>
-                    {exercise.organization_name || "Organization"} · {exercise.nice_role_name || "No role"}
+                    {exercise.organization_name || "Organization"} ·{" "}
+                    {(exercise.nice_roles || []).map((role) => role.name).join(", ") || exercise.nice_role_name || "No role"}
                   </p>
                 </div>
                 <span className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase" style={tone}>

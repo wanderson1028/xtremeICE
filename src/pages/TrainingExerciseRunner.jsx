@@ -1,7 +1,10 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, CheckCircle2, Circle, Loader2, PlayCircle, Send } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, PlayCircle, Send } from "lucide-react";
+import TaskCard from "@/components/trainingdesigner/runner/TaskCard";
+import AttemptResult from "@/components/trainingdesigner/runner/AttemptResult";
+import { evaluateExercise, isAnswered } from "@/lib/trainingScoring";
 
 const message = (error, fallback) => error?.response?.data?.error || error?.response?.data?.message || error?.message || fallback;
 
@@ -11,7 +14,8 @@ export default function TrainingExerciseRunner() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
-  const [completed, setCompleted] = useState([]);
+  const [answers, setAnswers] = useState({});
+  const [index, setIndex] = useState(0);
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -42,17 +46,20 @@ export default function TrainingExerciseRunner() {
     })();
   }, [exerciseId, loadAttempts]);
 
-  const tasks = exercise?.tasks || [];
+  const tasks = useMemo(() => exercise?.tasks || [], [exercise]);
+  const current = tasks[index];
+  const evaluation = useMemo(() => evaluateExercise(tasks, answers), [tasks, answers]);
+  const answeredCount = tasks.filter((task) => isAnswered(task, answers[task.id])).length;
 
-  const toggle = (id) => setCompleted((current) => (current.includes(id) ? current.filter((value) => value !== id) : [...current, id]));
+  const setAnswer = (taskId, value) => setAnswers((prev) => ({ ...prev, [taskId]: value }));
 
   const submit = async () => {
     setSubmitError("");
+    const outcome = evaluateExercise(tasks, answers);
     setSubmitting(true);
     try {
       const me = await base44.auth.me();
-      const score = tasks.length ? Math.round((completed.length / tasks.length) * 100) : 0;
-      const attempt = await base44.entities.TrainingExerciseAttempt.create({
+      await base44.entities.TrainingExerciseAttempt.create({
         exercise_id: exercise.id,
         exercise_title: exercise.title,
         exercise_owner_id: exercise.created_by_id || "",
@@ -60,21 +67,30 @@ export default function TrainingExerciseRunner() {
         organization_name: exercise.organization_name || "",
         user_email: me?.email || "",
         user_name: me?.full_name || me?.email || "",
-        completed_tasks: completed,
-        task_total: tasks.length,
-        score,
+        completed_tasks: outcome.completed,
+        task_total: outcome.total,
+        score: outcome.score,
         notes,
+        answers,
+        task_results: outcome.rows.map((row) => ({ id: row.id, title: row.title, type: row.type, correct: row.correct })),
         status: "completed",
         started_at: new Date().toISOString(),
         completed_at: new Date().toISOString(),
       });
-      setResult(attempt);
+      setResult(outcome);
       await loadAttempts();
     } catch (error) {
       setSubmitError(message(error, "The attempt could not be recorded."));
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const retake = () => {
+    setAnswers({});
+    setNotes("");
+    setResult(null);
+    setIndex(0);
   };
 
   if (loading) {
@@ -96,6 +112,9 @@ export default function TrainingExerciseRunner() {
     );
   }
 
+  const roleNames = (exercise.nice_roles || []).map((role) => role.name).filter(Boolean);
+  const roleLabel = roleNames.length ? roleNames.join(", ") : exercise.nice_role_name;
+
   return (
     <div className="cfrs-sg min-h-screen">
       <div className="mx-auto max-w-[1100px] px-4 py-7 lg:px-7">
@@ -105,116 +124,143 @@ export default function TrainingExerciseRunner() {
 
         <header className="sg-panel p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
+            <div className="min-w-0">
               <h1 className="text-xl font-semibold lg:text-2xl">{exercise.title}</h1>
               <p className="mt-1 text-[11px]" style={{ color: "#404040" }}>
-                {[exercise.organization_name, exercise.nice_role_name, exercise.difficulty, `${exercise.duration_minutes || 45} min`]
+                {[roleLabel, exercise.difficulty, `${exercise.duration_minutes || 45} min`, `${tasks.length} activities`]
                   .filter(Boolean)
                   .join(" · ")}
               </p>
             </div>
-            <span className="rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase" style={{ borderColor: "#b91c1c", color: "#b91c1c" }}>
+            <span className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase" style={{ borderColor: "#b91c1c", color: "#b91c1c" }}>
               {exercise.status}
             </span>
           </div>
           {exercise.summary && <p className="sg-body mt-3" style={{ color: "#404040" }}>{exercise.summary}</p>}
+          {exercise.scenario && (
+            <p className="mt-3 whitespace-pre-line rounded-lg border px-3 py-2 text-xs" style={{ borderColor: "#e5e5e5", background: "#fafafa", color: "#404040" }}>
+              {exercise.scenario}
+            </p>
+          )}
         </header>
 
-        {result && (
-          <section className="sg-panel mt-4 p-5" style={{ borderTopColor: "#0f9d58" }}>
-            <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <CheckCircle2 className="h-4 w-4" style={{ color: "#0f9d58" }} /> Attempt recorded
-            </h2>
-            <p className="sg-body mt-1" style={{ color: "#404040" }}>
-              {result.score}% · {result.completed_tasks.length} of {result.task_total} tasks completed.
-            </p>
-          </section>
-        )}
-
-        {exercise.scenario && (
-          <section className="sg-panel mt-4 p-5">
-            <h2 className="text-sm font-semibold">Scenario</h2>
-            <p className="sg-body mt-2 whitespace-pre-line">{exercise.scenario}</p>
-          </section>
-        )}
-
-        <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_320px]">
-          <section className="sg-panel p-5">
-            <h2 className="text-sm font-semibold">Tasks</h2>
-            <p className="sg-body mt-1" style={{ color: "#404040" }}>{completed.length} of {tasks.length} complete</p>
-            <div className="mt-3 space-y-2">
-              {tasks.map((task) => {
-                const isOn = completed.includes(task.id);
+        {result ? (
+          <div className="mt-4">
+            <AttemptResult evaluation={result} tasks={tasks} onRetake={retake} />
+          </div>
+        ) : (
+          <>
+            <div className="mt-4 flex flex-wrap items-center gap-1.5">
+              {tasks.map((task, taskIndex) => {
+                const done = isAnswered(task, answers[task.id]);
+                const active = taskIndex === index;
                 return (
                   <button
-                    key={task.id}
+                    key={task.id || taskIndex}
                     type="button"
-                    onClick={() => toggle(task.id)}
-                    className={`flex w-full gap-3 rounded-lg border px-3 py-3 text-left transition ${isOn ? "border-green-600 bg-green-50" : "border-[#d4d4d4] bg-white hover:border-red-300"}`}
+                    onClick={() => setIndex(taskIndex)}
+                    aria-label={`Go to activity ${taskIndex + 1}`}
+                    aria-current={active ? "step" : undefined}
+                    className={`h-7 w-7 rounded-full border text-[11px] font-semibold transition ${done ? "border-red-600 bg-red-600" : "border-[#d4d4d4] bg-white hover:border-red-300"}`}
+                    style={{ color: done ? "#fff" : active ? "#b91c1c" : "#525252", boxShadow: active ? "0 0 0 2px #b91c1c44" : "none" }}
                   >
-                    {isOn ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "#0f9d58" }} /> : <Circle className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "#737373" }} />}
-                    <span className="min-w-0">
-                      <span className="block text-sm font-semibold">{task.title}</span>
-                      {task.instructions && <span className="mt-1 block whitespace-pre-line text-xs" style={{ color: "#404040" }}>{task.instructions}</span>}
-                      {task.success_criteria && (
-                        <span className="mt-1 block text-[11px]" style={{ color: "#166534" }}>Success: {task.success_criteria}</span>
-                      )}
-                    </span>
+                    {taskIndex + 1}
                   </button>
                 );
               })}
+              <span className="ml-2 text-[11px]" style={{ color: "#404040" }}>{answeredCount} of {tasks.length} answered</span>
             </div>
 
-            <label className="mt-4 block">
-              <span className="sg-micro">Analyst notes</span>
-              <textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={4} className="sg-input mt-1 w-full px-3 py-2 text-sm" placeholder="What you did, found and changed" />
-            </label>
+            <div className="mt-3 grid gap-4 lg:grid-cols-[1fr_320px]">
+              <div className="space-y-3">
+                {current && (
+                  <TaskCard task={current} index={index} total={tasks.length} value={answers[current.id]} onChange={(value) => setAnswer(current.id, value)} />
+                )}
 
-            {submitError && <p className="mt-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs" style={{ color: "#7f1d1d" }}>{submitError}</p>}
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIndex((value) => Math.max(0, value - 1))}
+                    disabled={index === 0}
+                    className="sg-btn flex items-center gap-1.5 px-3 py-1.5 text-xs disabled:opacity-40"
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" /> Back
+                  </button>
+                  {index < tasks.length - 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => setIndex((value) => Math.min(tasks.length - 1, value + 1))}
+                      className="sg-btn-primary flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold"
+                    >
+                      Next activity <ArrowRight className="h-3.5 w-3.5" />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={submit}
+                      disabled={submitting}
+                      className="sg-btn-primary flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold"
+                    >
+                      {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                      {submitting ? "Submitting…" : "Submit attempt"}
+                    </button>
+                  )}
+                </div>
 
-            <button type="button" onClick={submit} disabled={submitting} className="sg-btn-primary mt-3 flex items-center gap-2 px-4 py-2 text-xs font-semibold">
-              {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-              {submitting ? "Submitting…" : "Submit attempt"}
-            </button>
-          </section>
+                <section className="sg-panel p-4">
+                  <label className="block">
+                    <span className="sg-micro">Analyst notes</span>
+                    <textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} className="sg-input mt-1 w-full px-3 py-2 text-sm" placeholder="What you did, found and changed" />
+                  </label>
+                  {submitError && <p className="mt-2 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs" style={{ color: "#7f1d1d" }}>{submitError}</p>}
+                  {index < tasks.length - 1 && (
+                    <button type="button" onClick={submit} disabled={submitting} className="sg-btn mt-3 flex items-center gap-1.5 px-3 py-1.5 text-[11px]">
+                      {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                      Submit now
+                    </button>
+                  )}
+                </section>
+              </div>
 
-          <div className="space-y-4">
-            <section className="sg-panel p-4">
-              <h2 className="text-sm font-semibold">Objectives</h2>
-              <ul className="sg-body mt-2 space-y-1 pl-4" style={{ color: "#404040", listStyle: "disc" }}>
-                {(exercise.objectives || []).map((objective, index) => <li key={index}>{objective}</li>)}
-              </ul>
-            </section>
+              <div className="space-y-4">
+                <section className="sg-panel p-4">
+                  <h2 className="text-sm font-semibold">Objectives</h2>
+                  <ul className="sg-body mt-2 space-y-1 pl-4" style={{ color: "#404040", listStyle: "disc" }}>
+                    {(exercise.objectives || []).map((objective, objectiveIndex) => <li key={objectiveIndex}>{objective}</li>)}
+                  </ul>
+                </section>
 
-            <section className="sg-panel p-4">
-              <h2 className="text-sm font-semibold">Source findings</h2>
-              <ul className="mt-2 space-y-1.5">
-                {(exercise.source_findings || []).map((finding) => (
-                  <li key={finding.id} className="text-[11px]" style={{ color: "#404040" }}>
-                    <span className="font-semibold">{finding.title}</span>
-                    {finding.severity ? ` · ${finding.severity}` : ""}
-                  </li>
-                ))}
-              </ul>
-            </section>
+                <section className="sg-panel p-4">
+                  <h2 className="text-sm font-semibold">Source findings</h2>
+                  <ul className="mt-2 space-y-1.5">
+                    {(exercise.source_findings || []).map((finding) => (
+                      <li key={finding.id} className="text-[11px]" style={{ color: "#404040" }}>
+                        <span className="font-semibold">{finding.title}</span>
+                        {finding.severity ? ` · ${finding.severity}` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
 
-            <section className="sg-panel p-4">
-              <h2 className="flex items-center gap-2 text-sm font-semibold"><PlayCircle className="h-4 w-4" /> Recent attempts</h2>
-              {attempts.length ? (
-                <ul className="mt-2 space-y-1.5">
-                  {attempts.map((attempt) => (
-                    <li key={attempt.id} className="flex items-center justify-between gap-2 text-[11px]" style={{ color: "#404040" }}>
-                      <span className="truncate">{attempt.user_name || attempt.user_email}</span>
-                      <span className="shrink-0 font-semibold">{attempt.score}%</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-2 text-[11px]" style={{ color: "#404040" }}>No attempts yet.</p>
-              )}
-            </section>
-          </div>
-        </div>
+                <section className="sg-panel p-4">
+                  <h2 className="flex items-center gap-2 text-sm font-semibold"><PlayCircle className="h-4 w-4" /> Recent attempts</h2>
+                  {attempts.length ? (
+                    <ul className="mt-2 space-y-1.5">
+                      {attempts.map((attempt) => (
+                        <li key={attempt.id} className="flex items-center justify-between gap-2 text-[11px]" style={{ color: "#404040" }}>
+                          <span className="truncate">{attempt.user_name || attempt.user_email}</span>
+                          <span className="shrink-0 font-semibold">{attempt.score}%</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-2 text-[11px]" style={{ color: "#404040" }}>No attempts yet.</p>
+                  )}
+                </section>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
