@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
 import { Plus, ClipboardList, Users, BarChart3, Eye, Trash2, Send, CheckCircle2, Clock, AlertCircle, Activity, TrendingUp, UserCheck, Hourglass, X, ListChecks, RotateCcw } from "lucide-react";
 import DeleteConfirmDialog from "@/components/assessments/DeleteConfirmDialog";
+import AssessmentCell from "@/components/assessments/AssessmentCell";
 import { useToast } from "@/components/ui/use-toast";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 
@@ -363,8 +364,7 @@ export default function CandidateAssessments() {
 
                       {/* Assessment */}
                       <div className="col-span-2 min-w-0">
-                        <p className="text-gray-300 text-xs font-normal truncate">{assessment?.position_title || "—"}</p>
-                        <p className="text-gray-300 text-[10px] truncate">{assessment?.assessment_type || ""}</p>
+                        <AssessmentCell assessment={assessment} />
                       </div>
 
                       {/* Status + Date */}
