@@ -2,9 +2,10 @@ import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
-import { Plus, ClipboardList, Users, BarChart3, Eye, Trash2, Send, CheckCircle2, Clock, AlertCircle, Activity, TrendingUp, UserCheck, Hourglass, X, ListChecks, RotateCcw } from "lucide-react";
+import { Plus, ClipboardList, Users, BarChart3, Eye, Trash2, Send, CheckCircle2, Clock, AlertCircle, Activity, TrendingUp, UserCheck, Hourglass, X, ListChecks } from "lucide-react";
 import DeleteConfirmDialog from "@/components/assessments/DeleteConfirmDialog";
-import AssessmentCell from "@/components/assessments/AssessmentCell";
+import TrackerRow from "@/components/assessments/TrackerRow";
+import TrackerGroupHeader from "@/components/assessments/TrackerGroupHeader";
 import { useToast } from "@/components/ui/use-toast";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 
@@ -207,13 +208,23 @@ export default function CandidateAssessments() {
     const assessment = assessments.find(a => a.id === inv.assessment_id);
     const session = sessions.find(s => s.invitation_id === inv.id);
     const scorecard = scorecards.find(sc => sc.session_id === session?.id);
-    const totalTasks = session?.task_submissions?.length || 0;
-    const taskCount = assessment ? 0 : 0; // tasks loaded separately, use submission count as proxy
-    const progressPct = session && session.task_submissions?.length
-      ? Math.round((session.task_submissions.length / Math.max(session.task_submissions.length, 1)) * 100)
-      : 0;
     return { inv, assessment, session, scorecard };
   });
+
+  // Candidates grouped under the assessment they were invited to
+  const trackerGroups = (() => {
+    const byAssessment = new Map();
+    trackerRows.forEach(row => {
+      const key = row.inv.assessment_id || "unassigned";
+      if (!byAssessment.has(key)) byAssessment.set(key, { assessment: row.assessment, rows: [] });
+      byAssessment.get(key).rows.push(row);
+    });
+    const ordered = assessments.filter(a => byAssessment.has(a.id)).map(a => byAssessment.get(a.id));
+    const unlinked = [...byAssessment.entries()]
+      .filter(([id]) => !assessments.some(a => a.id === id))
+      .map(([, group]) => group);
+    return [...ordered, ...unlinked];
+  })();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-red-950/10">
@@ -318,136 +329,28 @@ export default function CandidateAssessments() {
               <div className="bg-gray-900/40 border border-gray-800 rounded-xl overflow-hidden">
                 {/* Table header */}
                 <div className="grid grid-cols-12 gap-3 px-4 py-2.5 border-b border-gray-800 text-[10px] font-semibold text-gray-300 uppercase tracking-wider">
-                  <div className="col-span-2">Candidate</div>
-                  <div className="col-span-2">Assessment</div>
+                  <div className="col-span-3">Candidate</div>
                   <div className="col-span-2">Status / Date</div>
-                  <div className="col-span-2">Progress</div>
+                  <div className="col-span-3">Progress / Time</div>
                   <div className="col-span-2 text-center">Score</div>
                   <div className="col-span-2 text-center">Action</div>
                 </div>
 
-                {trackerRows.map(({ inv, assessment, session, scorecard }) => {
-                  const statusConfig = {
-                    pending:     { label: "Invited",     color: "text-yellow-400",  bg: "bg-yellow-900/20 border-yellow-700/40",  dot: "bg-yellow-400" },
-                    accepted:    { label: "Accepted",    color: "text-blue-400",    bg: "bg-blue-900/20 border-blue-700/40",      dot: "bg-blue-400" },
-                    in_progress: { label: "In Progress", color: "text-purple-400",  bg: "bg-purple-900/20 border-purple-700/40",  dot: "bg-purple-400 animate-pulse" },
-                    submitted:   { label: "Submitted",   color: "text-orange-400",  bg: "bg-orange-900/20 border-orange-700/40",  dot: "bg-orange-400" },
-                    completed:   { label: "Completed",   color: "text-green-400",   bg: "bg-green-900/20 border-green-700/40",    dot: "bg-green-400" },
-                    expired:     { label: "Expired",     color: "text-gray-500",    bg: "bg-gray-900/40 border-gray-700/40",      dot: "bg-gray-600" },
-                    evaluated:   { label: "Evaluated",   color: "text-green-400",   bg: "bg-green-900/20 border-green-700/40",    dot: "bg-green-400" },
-                  };
-                  const st = statusConfig[session?.status || inv.status] || statusConfig.pending;
-                  const submittedCount = session?.task_submissions?.length || 0;
-                  // We don't have task count here easily, use submitted as "done" indicator
-                  const timeElapsed = session?.time_elapsed_minutes || 0;
-                  const duration = assessment?.duration_minutes || 60;
-                  const timePct = session?.started_at ? Math.min(100, Math.round((timeElapsed / duration) * 100)) : 0;
-                  const hireConf = {
-                    strong_hire: { label: "Strong Hire", color: "text-green-400" },
-                    hire:        { label: "Hire",        color: "text-blue-400"  },
-                    borderline:  { label: "Borderline",  color: "text-yellow-400"},
-                    no_hire:     { label: "No Hire",     color: "text-red-400"   },
-                  }[scorecard?.hiring_recommendation] || null;
-
-                  return (
-                    <div key={inv.id} className="grid grid-cols-12 gap-3 px-4 py-3.5 border-b border-gray-800/60 last:border-0 hover:bg-gray-800/20 transition-colors items-center">
-                      {/* Candidate */}
-                      <div className="col-span-2 flex items-center gap-2 min-w-0">
-                        <div className="h-7 w-7 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center text-gray-200 font-bold text-xs shrink-0">
-                          {inv.candidate_name?.[0]?.toUpperCase() || "?"}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-gray-200 text-xs font-normal truncate">{inv.candidate_name}</p>
-                          <p className="text-gray-400 text-[10px] truncate">{inv.candidate_email}</p>
-                        </div>
-                      </div>
-
-                      {/* Assessment */}
-                      <div className="col-span-2 min-w-0">
-                        <AssessmentCell assessment={assessment} />
-                      </div>
-
-                      {/* Status + Date */}
-                      <div className="col-span-2">
-                        <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-1 rounded-full border ${st.bg} ${st.color}`}>
-                          <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${st.dot}`} />
-                          {st.label}
-                        </span>
-                        {inv.email_delivery_status && (
-                          <p
-                            className={`text-[10px] mt-1 ${inv.email_delivery_status === "sent" ? "text-green-400" : inv.email_delivery_status === "failed" ? "text-red-400" : "text-yellow-400"}`}
-                            title={inv.email_delivery_error || ""}
-                          >
-                            Email {inv.email_delivery_status}
-                          </p>
-                        )}
-                        {inv.sent_at && (
-                          <p className="text-gray-200 text-[10px] mt-1">{new Date(inv.sent_at).toLocaleDateString()}</p>
-                        )}
-                      </div>
-
-                      {/* Progress */}
-                      <div className="col-span-2">
-                        {session?.started_at ? (
-                          <div>
-                            <div className="flex justify-between text-[10px] text-gray-200 mb-1">
-                              <span>{submittedCount} tasks submitted</span>
-                              <span className="flex items-center gap-0.5"><Clock className="h-2.5 w-2.5" />{timeElapsed}m elapsed</span>
-                            </div>
-                            <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all ${session.status === "submitted" || session.status === "evaluated" ? "bg-green-500" : "bg-purple-500"}`}
-                                style={{ width: `${submittedCount > 0 ? Math.min(100, submittedCount * 15) : timePct}%` }}
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-gray-300 text-xs">Not started yet</span>
-                        )}
-                      </div>
-
-                      {/* Score */}
-                      <div className="col-span-2 text-center">
-                        {scorecard ? (
-                          <div>
-                            <div className={`text-lg font-bold ${scorecard.passed ? "text-green-400" : "text-red-400"}`}>{scorecard.overall_score}%</div>
-                            {hireConf && <div className={`text-[10px] font-semibold ${hireConf.color}`}>{hireConf.label}</div>}
-                          </div>
-                        ) : (
-                          <span className="text-gray-300 text-xs">Pending</span>
-                        )}
-                      </div>
-
-                      {/* Action */}
-                      <div className="col-span-2 flex justify-center items-center gap-1">
-                        <button
-                          onClick={() => setPendingReset({ inv })}
-                          className="flex items-center gap-1 text-[10px] px-2 py-1 bg-gray-800 border border-gray-700 text-gray-300 hover:text-white hover:border-gray-600 rounded-lg transition-colors whitespace-nowrap"
-                          title="Reset attempt & resend invite"
-                        >
-                          <RotateCcw className="h-3 w-3" />
-                          Reset
-                        </button>
-                        {scorecard ? (
-                          <Link to={`/scorecard?scorecard_id=${scorecard.id}`} className="text-[10px] px-2 py-1 bg-green-900/30 border border-green-700/40 text-green-400 rounded-lg hover:bg-green-900/50 transition-colors whitespace-nowrap">
-                            Report
-                          </Link>
-                        ) : (
-                          <Link to={`/invite-candidate?assessment_id=${inv.assessment_id}&candidate_name=${encodeURIComponent(inv.candidate_name || "")}&candidate_email=${encodeURIComponent(inv.candidate_email || "")}`} className="text-[10px] px-2 py-1 bg-gray-800 border border-gray-700 text-gray-100 rounded-lg hover:text-white transition-colors whitespace-nowrap">
-                            Resend
-                          </Link>
-                        )}
-                        <button
-                          onClick={() => setPendingDelete({ kind: "invitation", id: inv.id, label: inv.candidate_name })}
-                          className="p-1.5 bg-red-950/60 border border-red-700/70 text-red-300 hover:bg-red-800 hover:text-white rounded-md transition-colors"
-                          title="Delete invite"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                {trackerGroups.map(({ assessment, rows }) => (
+                  <div key={assessment?.id || "unassigned"}>
+                    <TrackerGroupHeader assessment={assessment} rows={rows} />
+                    {rows.map(({ inv, session, scorecard }) => (
+                      <TrackerRow
+                        key={inv.id}
+                        inv={inv}
+                        session={session}
+                        scorecard={scorecard}
+                        onReset={(target) => setPendingReset({ inv: target })}
+                        onDelete={(target) => setPendingDelete({ kind: "invitation", id: target.id, label: target.candidate_name })}
+                      />
+                    ))}
+                  </div>
+                ))}
               </div>
             )}
           </div>
