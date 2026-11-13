@@ -50,6 +50,8 @@ export default function GuidedClickOverlay({ step, index, total, onComplete }) {
     const handler = (event) => {
       // Only the evidence panel counts; tabs, header and guide stay usable
       if (!event.target.closest?.("[data-soc-scope]")) return;
+      // Filter chips inside the panel are not evidence — ignore them
+      if (event.target.closest?.("[data-soc-ignore]")) return;
       const hit = event.target.closest?.(step.selector);
       if (hit) {
         setStatus("correct");

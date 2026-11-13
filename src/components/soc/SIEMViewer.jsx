@@ -97,7 +97,18 @@ export default function SIEMViewer({ logs }) {
                   {new Date(log.timestamp).toLocaleTimeString()}
                 </td>
                 <td className="px-2 py-2">
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded border ${sevColor[log.severity] || sevColor.info}`}>{log.severity}</span>
+                  <button
+                    type="button"
+                    data-soc-ignore
+                    title={`Filter by ${log.severity} severity`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSevFilter(sevFilter === log.severity ? "all" : log.severity);
+                    }}
+                    className={`text-[10px] px-1.5 py-0.5 rounded border transition-all hover:brightness-125 hover:ring-1 hover:ring-current ${sevFilter === log.severity ? "ring-1 ring-current" : ""} ${sevColor[log.severity] || sevColor.info}`}
+                  >
+                    {log.severity}
+                  </button>
                 </td>
                 <td className="px-2 py-2">
                   <span className={`text-[10px] ${typeColor[log.type] || "text-foreground"}`}>{log.type}</span>
