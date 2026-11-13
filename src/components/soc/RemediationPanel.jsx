@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { CheckCircle, AlertTriangle, Clock, Lock } from "lucide-react";
 import { REMEDIATION_ACTIONS } from "./socData";
-import ActionChallengeModal, { buildChallenge } from "./ActionChallengeModal";
+import ActionChallengeModal, { buildChallenge, challengeBlocked } from "./ActionChallengeModal";
 
 const categoryColors = {
   Containment: "text-red-400 border-red-500/30 hover:bg-red-500/10",
@@ -42,7 +42,7 @@ const ACTION_OUTCOMES = {
 
 const PENALTY = -5;
 
-export default function RemediationPanel({ endpoints, alerts, logs = [], actionsLog, onAction, score, scenario, seed }) {
+export default function RemediationPanel({ endpoints, alerts, logs = [], edr = [], actionsLog, onAction, score, scenario, seed }) {
   const [activeChallenge, setActiveChallenge] = useState(null); // { action, challenge }
   const [noteText, setNoteText] = useState("");
   const [notes, setNotes] = useState([]);
@@ -67,9 +67,21 @@ export default function RemediationPanel({ endpoints, alerts, logs = [], actions
     return shuffled;
   }, [seed]);
 
+  // Actions whose indicator (attacker IP, account, file, process, persistence
+  // entry) does not appear in this run's evidence are locked, so no action ever
+  // asks for an answer the analyst cannot verify.
+  const blocked = React.useMemo(() => {
+    const map = new Map();
+    REMEDIATION_ACTIONS.forEach(action => {
+      const challenge = buildChallenge(action.id, endpoints, alerts, scenario, seed, logs, edr);
+      if (challengeBlocked(challenge)) map.set(action.id, challenge.unavailableReason);
+    });
+    return map;
+  }, [endpoints, alerts, scenario, seed, logs, edr]);
+
   const openChallenge = (action) => {
-    if (takenActionIds.has(action.id)) return;
-    const challenge = buildChallenge(action.id, endpoints, alerts, scenario, seed, logs);
+    if (takenActionIds.has(action.id) || blocked.has(action.id)) return;
+    const challenge = buildChallenge(action.id, endpoints, alerts, scenario, seed, logs, edr);
     if (!challenge) {
       // No challenge defined — apply directly (fallback)
       applyAction(action, true);
@@ -180,8 +192,7 @@ export default function RemediationPanel({ endpoints, alerts, logs = [], actions
               {catActions.map(action => {
                 const taken = takenActionIds.has(action.id);
                 const attempted = attemptedActions.has(action.id);
-                const actionChallenge = action.id === "block_ip" ? buildChallenge(action.id, endpoints, alerts, scenario, seed, logs) : null;
-                const unavailable = action.id === "block_ip" && !actionChallenge?.correctAnswer;
+                const unavailable = blocked.has(action.id);
                 const disabled = taken || attempted || unavailable;
                 const fails = failedAttempts[action.id] || 0;
                 const wasFailed = attempted && !taken;
@@ -190,7 +201,7 @@ export default function RemediationPanel({ endpoints, alerts, logs = [], actions
                     key={action.id}
                     onClick={() => openChallenge(action)}
                     disabled={disabled}
-                    title={unavailable ? "No verified attacker IP appears in this scenario’s SIEM evidence. Use the scenario-specific containment action." : action.description}
+                    title={unavailable ? blocked.get(action.id) : action.description}
                     className={`relative flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
                       disabled
                         ? "opacity-40 cursor-not-allowed border-border/20 text-muted-foreground"

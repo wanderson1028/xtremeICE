@@ -610,6 +610,7 @@ export default function SOCSimulation() {
                   endpoints={endpoints}
                   alerts={alerts}
                   logs={logs}
+                  edr={edrDetections}
                   actionsLog={actionsLog}
                   onAction={handleAction}
                   score={score}

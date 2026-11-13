@@ -408,6 +408,7 @@ export function generateEDRFromSeed(scenarioId, seed) {
     seed.maliciousProcesses.forEach((proc, i) => {
       detections.push({
         id: `edr-${i}`,
+        kind: "process",
         endpoint: patientZeroEp.name,
         process: proc.name.split(" ")[0],
         pid: 1000 + Math.floor(Math.random() * 9000),
@@ -420,6 +421,63 @@ export function generateEDRFromSeed(scenarioId, seed) {
     });
   }
 
+  // Surface dropped files and persistence artifacts in EDR, so the file and
+  // persistence remediation answers are verifiable in the analyst's evidence.
+  (seed.maliciousProcesses || []).forEach((proc, i) => {
+    if (!proc.file) return;
+    detections.push({
+      id: `edr-file-${i}`,
+      kind: "file",
+      endpoint: patientZeroEp.name,
+      process: proc.file.split(/[\\/]/).pop(),
+      pid: 1400 + i * 11,
+      parent: proc.name.split(" ")[0],
+      cmdline: `Artifact on disk: ${proc.file} (dropped by ${proc.name})`,
+      severity: "critical",
+      mitre: "T1105",
+      time: new Date(now - (22 - i * 4) * 60000).toISOString(),
+    });
+  });
+
+  // The seeded malicious file must be visible even when no listed process
+  // dropped it, otherwise the quarantine answer cannot be verified.
+  const seenFilePaths = detections.filter(d => d.kind === "file").map(d => d.cmdline).join(" ").toLowerCase();
+  if (seed.maliciousFile && !seenFilePaths.includes(seed.maliciousFile.toLowerCase())) {
+    detections.push({
+      id: "edr-file-seed",
+      kind: "file",
+      endpoint: patientZeroEp.name,
+      process: seed.maliciousFile.split(/[\\/]/).pop(),
+      pid: 1512,
+      parent: (seed.maliciousProcesses?.[0]?.name || "loader.exe").split(" ")[0],
+      cmdline: `Artifact on disk: ${seed.maliciousFile} (dropped on ${patientZeroEp.name})`,
+      severity: "critical",
+      mitre: "T1105",
+      time: new Date(now - 26 * 60000).toISOString(),
+    });
+  }
+
+  const persistenceTool = (artifact) => {
+    if (/systemd|service/i.test(artifact)) return "systemctl";
+    if (/^wmi/i.test(artifact)) return "wmiprvse.exe";
+    if (/scheduled task/i.test(artifact)) return "schtasks.exe";
+    return "reg.exe";
+  };
+  (seed.persistenceArtifacts || []).forEach((artifact, i) => {
+    detections.push({
+      id: `edr-persist-${i}`,
+      kind: "persistence",
+      endpoint: patientZeroEp.name,
+      process: persistenceTool(artifact),
+      pid: 2600 + i * 37,
+      parent: "cmd.exe",
+      cmdline: `Persistence established: ${artifact}`,
+      severity: "high",
+      mitre: "T1547",
+      time: new Date(now - (18 - i * 3) * 60000).toISOString(),
+    });
+  });
+
   // Add scenario-specific EDR detections
   const scenarioEDR = SCENARIO_EDR[scenarioId];
   if (scenarioEDR) {
@@ -427,6 +485,7 @@ export function generateEDRFromSeed(scenarioId, seed) {
       const ep = ENDPOINTS.find(e => e.id === (d.endpointId || seed.patientZero)) || patientZeroEp;
       detections.push({
         id: `edr-s-${i}`,
+        kind: "process",
         endpoint: ep.name,
         process: d.process,
         pid: 2000 + i * 137,
@@ -443,6 +502,7 @@ export function generateEDRFromSeed(scenarioId, seed) {
   if (detections.length === 0) {
     detections.push({
       id: "edr-0",
+      kind: "process",
       endpoint: patientZeroEp.name,
       process: "powershell.exe",
       pid: 4892,
