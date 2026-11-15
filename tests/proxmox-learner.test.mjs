@@ -44,7 +44,7 @@ function collection(initial = []) {
   };
 }
 
-function fixture() {
+function fixture({ workerConfigured = true } = {}) {
   let now = 1000;
   const entities = {
     FeatureFlag: collection([{ key: "proxmox_learner_labs", is_enabled: true }]),
@@ -64,7 +64,8 @@ function fixture() {
     Response, TextEncoder, console, crypto: webcrypto,
     Date: { now: () => now },
     Deno: {
-      env: { get: name => name === "PROXMOX_LAB_SECONDS" ? "150" : createHash("sha256").update(key).digest("hex") },
+      env: { get: name => name === "PROXMOX_LAB_SECONDS"
+        ? "150" : workerConfigured ? createHash("sha256").update(key).digest("hex") : undefined },
       serve: fn => { handler = fn; },
     },
     createClientFromRequest: req => ({
@@ -107,6 +108,14 @@ test("only explicit published assignments launch, and duplicate requests share a
   assert.equal(second.length, 1);
   assert.equal(first[0].id, second[0].id);
   assert.equal(first[0].title, "Published Linux lab");
+});
+
+test("an enabled flag without a configured worker cannot queue a launch", async () => {
+  const { call, entities } = fixture({ workerConfigured: false });
+  const response = await learner(call, alice, aa)("launch");
+  assert.equal(response.status, 403);
+  assert.equal(entities.UserLabAssignment.rows[0].proxmox_launch, undefined);
+  assert.equal((await call("workerPoll", {}, { worker: true })).status, 401);
 });
 
 test("automatic expiry requires a saved grade and verified cleanup, then retains the learner result", async () => {
