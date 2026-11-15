@@ -27,6 +27,7 @@ import LabAssignments from './pages/LabAssignments'
 import LifecycleDiagnostics from './pages/LifecycleDiagnostics'
 import OperatorAlerts from './pages/OperatorAlerts'
 import LearnerWorkspace from './pages/LearnerWorkspace'
+import LabRunnerPreview from './pages/LabRunnerPreview'
 import LabEnvironments from './pages/LabEnvironments'
 import LabExports from './pages/LabExports'
 import NiceMapping from './pages/NiceMapping'
@@ -226,6 +227,7 @@ const AuthenticatedApp = () => {
       <Route path="/OperatorAlerts" element={<LayoutWrapper currentPageName="OperatorAlerts"><OperatorAlerts /></LayoutWrapper>} />
       <Route path="/LifecycleDiagnostics" element={<LayoutWrapper currentPageName="LifecycleDiagnostics"><LifecycleDiagnostics /></LayoutWrapper>} />
       <Route path="/LearnerWorkspace" element={<LayoutWrapper currentPageName="LearnerWorkspace"><LearnerWorkspace /></LayoutWrapper>} />
+      <Route path="/LabRunnerPreview" element={<LayoutWrapper currentPageName="LearnerWorkspace"><LabRunnerPreview /></LayoutWrapper>} />
       <Route path="/LabEnvironments" element={<LayoutWrapper currentPageName="LabEnvironments"><LabEnvironments /></LayoutWrapper>} />
       <Route path="/LabExports" element={<LayoutWrapper currentPageName="LabExports"><LabExports /></LayoutWrapper>} />
       <Route path="/NiceMapping" element={<LayoutWrapper currentPageName="NiceMapping"><NiceMapping /></LayoutWrapper>} />
