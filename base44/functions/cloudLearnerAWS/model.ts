@@ -1,3 +1,4 @@
+import { classroomTags, type ClassroomRun } from "./classroom.ts";
 import { GUEST_PROFILE_NAME } from "./accessConfig.ts";
 export const REGION = "us-east-1";
 export const ACCOUNT = "935838375949";
@@ -56,11 +57,16 @@ export function parseOutput(kind: Operation, nonce: string, text: string) {
   return { mode, content: new TextDecoder("utf-8",{fatal:true}).decode(bytes) };
 }
 const ref = (name:string) => ({Ref:name});
-export function stackTemplate(ami:string,zone:string,runId:string) {
+export function stackTemplate(ami:string,zone:string,runId:string,plan?:{seat:ClassroomRun|null;expires_at:string|null}) {
   if (!/^ami-[a-f0-9]{8,17}$/.test(ami) || !/^us-east-1[a-f]$/.test(zone) || !/^[a-f0-9]{16,32}$/.test(runId)) throw new Error("INVALID_STACK_INPUT");
-  const tags=[{Key:"ManagedBy",Value:MANAGED_BY},{Key:"LearnerRunId",Value:runId}];
+  const tags=[{Key:"ManagedBy",Value:MANAGED_BY},{Key:"LearnerRunId",Value:runId},...classroomTags(plan?.seat??null)];
   const resource=(Type:string,Properties:any,extra:any={})=>({Type,Properties,...extra});
-  const userData=["#!/bin/bash","set -eu","shutdown -h +105","install -d -m 700 /var/tmp/design-studio-learner",
+  const shutdown=plan?.expires_at
+    ? ["end="+Math.floor(Date.parse(plan.expires_at)/1000), "remaining=$((end - $(date -u +%s)))",
+      'if [ "$remaining" -le 0 ]; then shutdown -h now; exit 0; fi',
+      'shutdown -h "+$(((remaining + 59) / 60))"']
+    : ["shutdown -h +105"];
+  const userData=["#!/bin/bash","set -eu",...shutdown,"install -d -m 700 /var/tmp/design-studio-learner",
     "printf 'Edit this file, then protect it with mode 600.\\n' > "+TASK_PATH,"chmod 644 "+TASK_PATH,"systemctl enable --now amazon-ssm-agent"].join("\n");
   return {AWSTemplateFormatVersion:"2010-09-09",Description:"Disposable Design Studio guided learner file task",Resources:{
     Vpc:resource("AWS::EC2::VPC",{CidrBlock:"10.252.0.0/24",EnableDnsSupport:true,EnableDnsHostnames:true,Tags:tags}),

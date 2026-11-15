@@ -30,7 +30,7 @@ export default function LifecycleDiagnostics(){
   {error&&<p role="alert" className="rounded border border-red-700 p-4">{data?"Refresh failed. The records below are stale. ":""}{error}</p>}
   {data&&<><section className="rounded border border-sky-700 p-4 space-y-2">
    <p className="font-semibold">{error?"Stale snapshot":"Snapshot"} · {stamp(data.generated_at)}</p>
-   <p>{data.capacity.held?"Capacity reserved by at least "+data.capacity.record_count_at_least+" saved session record(s).":"No capacity hold appears in saved records."} Pilot limit: {data.capacity.guest_limit} guest.</p>
+   <p>{data.capacity.held?"Capacity reserved by at least "+data.capacity.record_count_at_least+" saved session record(s).":"No capacity hold appears in saved records."} Configured AWS seats: {data.capacity.guest_limit}.</p>
    {data.notes.map(note=><p key={note} className="text-sm text-gray-300">{note}</p>)}
    {Object.values(data.truncated).some(Boolean)&&<p role="status" className="text-amber-300">Results are limited. Session or guest-action counts may be incomplete; inspect older records before making recovery decisions.</p>}
   </section><section className="space-y-3"><h2 className="text-xl font-semibold">Sessions holding capacity</h2>

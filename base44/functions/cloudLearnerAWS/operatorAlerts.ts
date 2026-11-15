@@ -1,3 +1,4 @@
+import { capacityConflict, readClassroom } from "./classroom.ts";
 // Read-only operator monitoring. No AWS clients, resource actions, or entity mutations.
 export const ALERT_SCOPE="69a0a5a90473fac0aa3ea135:design-studio-integration";
 export const EXPIRY_WORKFLOW_ID="6aebf2f5f80221b22d139e5d";
@@ -16,7 +17,7 @@ const codes:Record<string,[string,string,string]>={
  session_state:["high","A session has an unrecognized state","Inspect the saved session before reusing capacity."],
  uncertain_action:["warning","A guest action has an uncertain outcome","Review the existing action. Avoid submitting a replacement until its outcome or guest removal is verified."],
  operation_overdue:["warning","A guest action needs review","Review the pending action and its deadline."],
- capacity_conflict:["high","Multiple session records hold pilot capacity","Inspect the session records. This count does not prove multiple AWS guests exist."],
+ capacity_conflict:["high","Saved sessions overlap the same AWS capacity","Inspect the session records. This count does not prove multiple AWS guests exist."],
  expiry_disabled:["high","Automatic expiry cleanup is disabled","Inspect the Expire AWS Learner Labs workflow. New launches require approval."],
  expiry_failed:["high","The expiry sweep reported a failure","Inspect the workflow run and recovery overview; capacity remains reserved until removal is verified."],
  expiry_stale:["high","No recent expiry sweep heartbeat","Inspect the workflow schedule and its recent runs."],
@@ -59,8 +60,7 @@ export async function detectOperatorAlerts(data:any,time=Date.now()){
   await check(source,"uncertain_action",held&&uncertain,!held||!data.truncated.operations,extra);
   await check(source,"operation_overdue",held&&overdue,!held||!data.truncated.operations,extra);
  }
- const held=data.active.length+data.legacy.length;
- await check("pilot","capacity_conflict",held>1,!data.truncated.active&&!data.truncated.legacy,{source_type:"pilot",run_id:null});
+ await check("pilot","capacity_conflict",capacityConflict(data.active,data.legacy),!data.truncated.active&&!data.truncated.legacy,{source_type:"pilot",run_id:null});
  await check("monitor","results_incomplete",Object.values(data.truncated).some(Boolean),true,{source_type:"monitor",run_id:null});
  const w=data.workflow,workflowExtra={source_type:"workflow",run_id:null};
  const workflowKnown=w.available&&w.accounting_available&&date(w.last_run_at)!==null&&date(w.last_run_at)!<=time+minutes(5)&&w.last_run_status!==null;
@@ -87,5 +87,7 @@ export async function operatorAlerts(b:any,user:any,request:Request,deps:any={})
  try{workflow=workflowHealth((await e.CloudLearnerExpiryHealth.filter({signal_key:EXPIRY_SIGNAL_KEY},"-checked_at",1))[0]??null);}
  catch{workflow={available:false,reason:"heartbeat_read_failed",source:"app_heartbeat"};}
  const result=await detectOperatorAlerts({active:active.slice(0,LIMIT),recent:recent.slice(0,RECENT),legacy:legacy.slice(0,LIMIT),recentLegacy:recentLegacy.slice(0,RECENT),operations:operations.slice(0,OPS),truncated,workflow},time);
- return {subject_id:user.id,scope:ALERT_SCOPE,checked_at:new Date(time).toISOString(),...result,workflow,truncated,read_only:true,provider_checked:false,delivery:"in_app_while_open",acknowledgments:"this_browser_only",pilot:{guest_limit:1,ttl_minutes:110}};
+ const classroom=readClassroom();
+ const capacity={mode:classroom.mode,guest_limit:classroom.mode==="classroom"?classroom.config.seats.length:classroom.mode==="pilot"?1:0};
+ return {capacity,subject_id:user.id,scope:ALERT_SCOPE,checked_at:new Date(time).toISOString(),...result,workflow,truncated,read_only:true,provider_checked:false,delivery:"in_app_while_open",acknowledgments:"this_browser_only",pilot:{guest_limit:1,ttl_minutes:110}};
 }

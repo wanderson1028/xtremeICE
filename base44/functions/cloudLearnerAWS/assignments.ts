@@ -1,3 +1,4 @@
+import { ACTIVE_PROOF_STATUSES, ACTIVE_RUN_STATUSES, classroomRun, classroomSeat, classroomWindow, launchScope, readClassroom } from "./classroom.ts";
 import { assessGuidedTemplate, freezeGuidedTemplate } from "./templateContract.ts";
 import { hash } from "./awsControl.ts";
 export const ASSIGNMENT_KIND={lab_type:"lab_course",service_key:"lab_scenarios"};
@@ -14,10 +15,13 @@ export async function assignedLab(b:any,user:any,id:unknown,checkTemplate=true){
 export async function assignmentActions(action:string,input:any,b:any,user:any){
  if(!["assignmentCatalog","assignLab","revokeAssignment","assignedLabs"].includes(action))return null;
  if(action!=="assignedLabs"&&user.role!=="admin")throw denied("Instructor access required.");
+ const classroom=readClassroom();
  if(action==="assignmentCatalog"){
   const [templates,users,assignments]=await Promise.all([b.asServiceRole.entities.LabTemplate.list("-created_date",100),b.asServiceRole.entities.User.list("-created_date",200),b.asServiceRole.entities.UserLabAssignment.filter(ASSIGNMENT_KIND,"-created_date",200)]);
   const labs=await Promise.all(templates.filter((t:any)=>assessGuidedTemplate(t).ready).map(async(t:any)=>({id:t.id,title:t.title,description:t.description||"",instructions:t.lab_content.tasks[0].instructions,template_hash:await hash(JSON.stringify(freezeGuidedTemplate(t)))})));
-  return {labs,users:users.map((u:any)=>({id:u.id,email:u.email,name:u.full_name||u.email})),assignments:assignments.filter((a:any)=>labs.some(l=>l.id===a.lab_id)).map((a:any)=>({id:a.id,template_id:a.lab_id,user_email:a.user_email}))};
+  return {labs,aws_capacity:classroom.mode==="classroom"
+   ? {mode:"classroom",seats:classroom.config.seats.length,opens_at:classroom.config.opens_at,expires_at:classroom.config.expires_at}
+   : {mode:classroom.mode,seats:classroom.mode==="pilot"?1:0},users:users.map((u:any)=>({id:u.id,email:u.email,name:u.full_name||u.email})),assignments:assignments.filter((a:any)=>labs.some(l=>l.id===a.lab_id)).map((a:any)=>({id:a.id,template_id:a.lab_id,user_email:a.user_email}))};
  }
  if(action==="assignLab"){
   const template=(await b.asServiceRole.entities.LabTemplate.filter({id:input.template_id}))[0];
@@ -39,11 +43,28 @@ export async function assignmentActions(action:string,input:any,b:any,user:any){
   return {revoked:true};
  }
  const rows=await b.asServiceRole.entities.UserLabAssignment.filter({...ASSIGNMENT_KIND,user_email:user.email},"-created_date",100);
+ const [active,previous]=await Promise.all([
+  b.asServiceRole.entities.CloudLearnerRun.filter({status:{$in:ACTIVE_RUN_STATUSES}},"created_date",101),
+  b.asServiceRole.entities.CloudPocRun.filter({status:{$in:ACTIVE_PROOF_STATUSES}},"created_date",1),
+ ]);
+ const window=classroomWindow(classroom);
  const assignments=[];
  for(const row of rows){
   const template=(await b.asServiceRole.entities.LabTemplate.filter({id:row.lab_id}))[0];
-  if(template?.tags?.includes("aws-guided-file-v1"))assignments.push({id:row.id,template_id:row.lab_id,title:template.title,description:template.description||"",objectives:template.objectives||[],available:assessGuidedTemplate(template).ready});
+  if(!template?.tags?.includes("aws-guided-file-v1"))continue;
+  const seat=classroomSeat(classroom,user,row);
+  let launch_blocked:string|null=null;
+  if(window==="invalid")launch_blocked="AWS classroom setup needs instructor attention.";
+  else if(classroom.mode==="classroom"){
+   if(!seat)launch_blocked="This assignment does not have a seat in the configured AWS class.";
+   else if(window==="scheduled")launch_blocked="This class has not opened yet.";
+   else if(window==="ended")launch_blocked="The class lab window has ended.";
+   else if(previous.length||active.length>=101||active.some((r:any)=>{
+    const held=classroomRun(r.contract);
+    return held?.id!==seat.id||(r.stack_name===launchScope(seat)&&r.owner_user_id!==user.id);
+   }))launch_blocked="AWS capacity is still reserved by another session. Check with your instructor.";
+  }
+  assignments.push({id:row.id,template_id:row.lab_id,title:template.title,description:template.description||"",objectives:template.objectives||[],available:assessGuidedTemplate(template).ready,launch_blocked,classroom_id:seat?.id||null});
  }
- const occupied=await b.asServiceRole.entities.CloudLearnerRun.filter({status:{$in:["preparing","provisioning","ready","failed","cleanup_pending"]}});
- return {assignments,capacity_available:occupied.length===0};
+ return {assignments,launch_mode:classroom.mode,capacity_available:classroom.mode==="pilot"?active.length===0&&!previous.length:assignments.some(a=>!a.launch_blocked)};
 }

@@ -1,3 +1,4 @@
+import { ACTIVE_PROOF_STATUSES, ACTIVE_RUN_STATUSES, classroomRun, classroomSeat, classroomTags, classroomWindow, launchScope, readClassroom, type ClassroomRun } from "./classroom.ts";
 import { operatorAlerts } from "./operatorAlerts.ts";
 import { assignedLab, assignmentActions } from "./assignments.ts";
 import { lifecycleDiagnostics } from "./diagnostics.ts";
@@ -9,8 +10,6 @@ import { assessGuidedTemplate, freezeGuidedTemplate } from "./templateContract.t
 import { REGION, ACCOUNT, MANAGED_BY, TASK, requireAccount, canOperate, owns, compileOperation, parseOutput, stackTemplate, type Operation } from "./model.ts";
 import { EC2Client, STSClient, GetCallerIdentityCommand, DescribeImagesCommand, DescribeInstanceTypeOfferingsCommand, DescribeInstancesCommand, DescribeVolumesCommand, DescribeVpcsCommand } from "./awsQuery.ts";
 const ec2=new EC2Client(),sts=new STSClient();
-const STACK_NAME="ExtremeICE-DesignStudio-Learner-Pilot";
-const ACTIVE=["preparing","provisioning","ready","cleanup_pending","failed"];
 const reply=(body:any,status=200)=>Response.json(body,{status});
 const now=()=>new Date().toISOString();
 const safe=(e:any)=>String(e?.name||"OPERATION_FAILED").slice(0,80);
@@ -24,6 +23,21 @@ async function authoredTemplate(b:any,id:unknown){
  if(!assessment.ready)throw Object.assign(new Error(assessment.errors.join(" ")),{name:"TEMPLATE_NOT_ELIGIBLE",status:400});
  const snapshot=freezeGuidedTemplate(template);
  return {template,snapshot,fingerprint:await hash(JSON.stringify(snapshot))};
+}
+function launchPlan(user:any, assignment:any, fingerprint?:string) {
+ const classroom=readClassroom();
+ if(classroom.mode==="pilot")return {seat:null,expires_at:null};
+ const seat=classroomSeat(classroom,user,assignment);
+ if(classroom.mode==="invalid")throw Object.assign(new Error("AWS classroom setup needs instructor attention."),{name:"AWS_CLASSROOM_CONFIG_INVALID",status:409});
+ if(classroom.mode!=="classroom"||!seat)throw Object.assign(new Error("You do not have a seat in this AWS class."),{name:"AWS_CLASSROOM_SEAT_REQUIRED",status:403});
+ const window=classroomWindow(classroom);
+ if(window!=="open")throw Object.assign(new Error(window==="scheduled"?"This class has not opened yet.":"The class lab window has ended."),{name:"AWS_CLASSROOM_CLOSED",status:409});
+ if(fingerprint&&fingerprint!==classroom.config.template_hash)throw Object.assign(new Error("The class lab changed after approval. Ask the instructor to review it."),{name:"AWS_CLASSROOM_TEMPLATE_CHANGED",status:409});
+ return {seat,expires_at:classroom.config.expires_at};
+}
+function sameClass(run:any, seat:ClassroomRun|null){
+ const binding=classroomRun(run.contract);
+ return seat ? binding?.id===seat.id && binding.slot===seat.slot && run.stack_name===launchScope(seat) : !binding && run.stack_name===launchScope(null);
 }
 async function schemaReady(b:any){
  try{await b.asServiceRole.entities.CloudLearnerRun.list("-created_date",1);await b.asServiceRole.entities.CloudGuestOperation.list("-created_date",1);return true;}catch{return false;}
@@ -62,17 +76,19 @@ export async function handleLearnerRequest(req:Request,b:any){
  }
  if(action==="preflight"||action==="assignmentPreflight"){
    if(user.role!=="admin"&&!assignmentContext)return reply({error:"Admin pilot provisioning required"},403);
+   launchPlan(user,assignmentContext?.assignment);
    const source=await authoredTemplate(b,input.template_id);
+   const plan=launchPlan(user,assignmentContext?.assignment,source.fingerprint);
    const identity=await assertAccount();
    const images=await ec2.send(new DescribeImagesCommand({Owners:["137112412989"],Filters:[{Name:"name",Values:["al2023-ami-2023.*-x86_64"]},{Name:"state",Values:["available"]},{Name:"architecture",Values:["x86_64"]}]}));
    const ami=(images.Images||[]).sort((a:any,b:any)=>String(b.CreationDate).localeCompare(String(a.CreationDate)))[0]?.ImageId;if(!ami)fail("NO_AMI");
    const offerings=await ec2.send(new DescribeInstanceTypeOfferingsCommand({LocationType:"availability-zone",Filters:[{Name:"instance-type",Values:["t3.micro"]}]}));
    const zone=(offerings.Offerings||[]).map((x:any)=>x.Location).filter((x:any)=>/^us-east-1[a-f]$/.test(x)).sort()[0];if(!zone)fail("NO_ZONE");
-   const template=stackTemplate(ami,zone,"0123456789abcdef01234567");
+   const template=stackTemplate(ami,zone,"0123456789abcdef01234567",plan);
    await aws("cloudformation","ValidateTemplate",{TemplateBody:JSON.stringify(template)});
    await aws("ssm","DescribeInstanceInformation",{MaxResults:5});
    const ready=await schemaReady(b);
-   return reply({template_id:source.template.id,template_hash:source.fingerprint,template_title:source.snapshot.title,schema_ready:ready,eligible:ready,account:identity.Account,region:REGION,ami_id:ami,zone,scope:"One t3.micro, encrypted 8 GiB disk, new VPC/subnet, two private SSM endpoints, two security groups, and the preconfigured SSM instance profile. No public IP or internet gateway. Endpoints remain billable until stack cleanup.",task:TASK});
+   return reply({template_id:source.template.id,template_hash:source.fingerprint,template_title:source.snapshot.title,schema_ready:ready,eligible:ready,launch_mode:plan.seat?"classroom":"pilot",class_ends_at:plan.expires_at,account:identity.Account,region:REGION,ami_id:ami,zone,scope:"One t3.micro, encrypted 8 GiB disk, new VPC/subnet, two private SSM endpoints, two security groups, and the preconfigured SSM instance profile. No public IP or internet gateway. Endpoints remain billable until stack cleanup.",task:TASK});
  }
  if(action==="list"){
    if(!await schemaReady(b))return reply({runs:[],schema_ready:false});
@@ -84,23 +100,39 @@ export async function handleLearnerRequest(req:Request,b:any){
    if(input.ack!=="LAUNCH_PRIVATE_SSM_LEARNER_PILOT")return reply({error:"Explicit scope acknowledgment required"},400);
    stackTemplate(input.ami_id,input.zone,"0123456789abcdef01234567");
    if(!await schemaReady(b))return reply({error:"Shared learner schemas are required"},409);
-   const active=await b.asServiceRole.entities.CloudLearnerRun.filter({status:{$in:ACTIVE}});
-   const resumable=assignmentContext&&active.find((r:any)=>r.owner_user_id===user.id&&r.contract?.assignment_id===assignmentContext.assignment.id);
-   if(resumable)return reply({run_id:resumable.id,status:resumable.status,expires_at:resumable.expires_at,resumed:true});
-   if(active.length)return reply({error:"The single lab environment is in use or awaiting cleanup. Try again when it is available.",error_code:"LAB_CAPACITY_BUSY"},409);
-   const old=await b.asServiceRole.entities.CloudPocRun.filter({status:{$in:["preparing","provisioning","running","cleanup_pending"]}});if(old.length)return reply({error:"A previous AWS proof is active"},409);
+   launchPlan(user,assignmentContext?.assignment);
    const source=await authoredTemplate(b,input.template_id);
    if(input.template_hash!==source.fingerprint)return reply({error:"The saved template changed after preflight. Check AWS learner access again."},409);
+   const plan=launchPlan(user,assignmentContext?.assignment,source.fingerprint);
+   const stackName=launchScope(plan.seat);
+   const active=await b.asServiceRole.entities.CloudLearnerRun.filter({status:{$in:ACTIVE_RUN_STATUSES}},"created_date",101);
+   const owned=assignmentContext?active.filter((r:any)=>r.owner_user_id===user.id&&r.contract?.assignment_id===assignmentContext.assignment.id&&sameClass(r,plan.seat)):[];
+   const resumable=owned.find((r:any)=>r.stack_id)||owned.find((r:any)=>r.contract?.lifecycle?.launch_collision!==true);
+   if(resumable)return reply({run_id:resumable.id,status:resumable.status,expires_at:resumable.expires_at,resumed:true});
+   const occupied=plan.seat
+    ? active.length>=101||active.some((r:any)=>{const held=classroomRun(r.contract);return held?.id!==plan.seat?.id||r.stack_name===stackName;})
+    : active.length>0;
+   if(occupied)return reply({error:plan.seat?"This class seat or another AWS configuration still holds capacity. Check for pending cleanup.":"The single lab environment is in use or awaiting cleanup. Try again when it is available.",error_code:"LAB_CAPACITY_BUSY"},409);
+   const old=await b.asServiceRole.entities.CloudPocRun.filter({status:{$in:ACTIVE_PROOF_STATUSES}},"created_date",1);
+   if(old.length)return reply({error:"A previous AWS proof is active"},409);
+   if(plan.seat){
+     const attempts=await b.asServiceRole.entities.CloudLearnerRun.filter({stack_name:stackName,owner_user_id:user.id},"-created_date",100);
+     const finished=attempts.find((r:any)=>sameClass(r,plan.seat)&&r.contract?.assignment_id===assignmentContext.assignment.id&&r.contract?.lifecycle?.launch_collision!==true&&r.status==="terminated"&&r.contract?.learning?.completed_at);
+     if(finished)return reply({run_id:finished.id,status:finished.status,expires_at:finished.expires_at,resumed:true});
+   }
    await assertAccount();
    const images=await ec2.send(new DescribeImagesCommand({Owners:["137112412989"],Filters:[{Name:"image-id",Values:[input.ami_id]},{Name:"state",Values:["available"]},{Name:"name",Values:["al2023-ami-2023.*-x86_64"]}]}));
    if(!images.Images?.some((x:any)=>x.ImageId===input.ami_id))fail("AMI_PREFLIGHT_CHANGED");
    const zones=await ec2.send(new DescribeInstanceTypeOfferingsCommand({LocationType:"availability-zone",Filters:[{Name:"instance-type",Values:["t3.micro"]},{Name:"location",Values:[input.zone]}]}));if(!zones.Offerings?.some((x:any)=>x.Location===input.zone))fail("ZONE_PREFLIGHT_CHANGED");
-   const expires=new Date(Date.now()+110*60000).toISOString();
-   const run=await b.asServiceRole.entities.CloudLearnerRun.create({owner_user_id:user.id,owner_email:user.email,status:"preparing",region:REGION,stack_name:STACK_NAME,contract:{...TASK,...(assignmentContext?{assignment_id:assignmentContext.assignment.id}:{}),title:source.snapshot.lab_content.tasks[0].title,account_id:ACCOUNT,template_snapshot:source.snapshot},template_id:source.template.id,started_at:now(),expires_at:expires});
+   const expires=plan.expires_at||new Date(Date.now()+110*60000).toISOString();
+   const run=await b.asServiceRole.entities.CloudLearnerRun.create({owner_user_id:user.id,owner_email:user.email,status:"preparing",region:REGION,stack_name:stackName,contract:{...TASK,...(assignmentContext?{assignment_id:assignmentContext.assignment.id}:{}),...(plan.seat?{classroom:plan.seat}:{}),title:source.snapshot.lab_content.tasks[0].title,account_id:ACCOUNT,template_snapshot:source.snapshot},template_id:source.template.id,started_at:now(),expires_at:expires});
    try{
      const lab=await b.asServiceRole.entities.LabInstance.create({template_id:source.template.id,user_email:user.email,status:"provisioning",provider:"aws",template_snapshot:source.snapshot,template_version:source.template.version||"",started_at:now(),expires_at:expires,provider_status_message:"Creating private SSM learner stack."});
      await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{lab_instance_id:lab.id});
-     const result=await aws("cloudformation","CreateStack",{StackName:STACK_NAME,TemplateBody:JSON.stringify(stackTemplate(input.ami_id,input.zone,run.id)),RoleARN:EXECUTION_ROLE_ARN,OnFailure:"DELETE",TimeoutInMinutes:15,ClientRequestToken:run.id,Tags:[{Key:"ManagedBy",Value:MANAGED_BY},{Key:"LearnerRunId",Value:run.id}]});
+     const currentAssignment=plan.seat?await assignedLab(b,user,assignmentContext.assignment.id,false):assignmentContext;
+     const currentPlan=launchPlan(user,currentAssignment?.assignment,source.fingerprint);
+     if(currentPlan.seat?.id!==plan.seat?.id||currentPlan.seat?.slot!==plan.seat?.slot||currentPlan.expires_at!==plan.expires_at)fail("AWS_CLASSROOM_CHANGED_DURING_START");
+     const result=await aws("cloudformation","CreateStack",{StackName:stackName,TemplateBody:JSON.stringify(stackTemplate(input.ami_id,input.zone,run.id,plan)),RoleARN:EXECUTION_ROLE_ARN,OnFailure:"DELETE",TimeoutInMinutes:15,ClientRequestToken:run.id,Tags:[{Key:"ManagedBy",Value:MANAGED_BY},{Key:"LearnerRunId",Value:run.id},...classroomTags(plan.seat)]});
      await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{stack_id:result.StackId,status:"provisioning"});
      return reply({run_id:run.id,status:"provisioning",expires_at:expires});
    }catch(e){await b.asServiceRole.entities.CloudLearnerRun.update(run.id,{status:"failed",last_error_code:safe(e),...(safe(e)==="AlreadyExistsException"?{contract:{...run.contract,lifecycle:{launch_collision:true}}}:{})});return reply({error:"Provisioning request failed; inspect or clean up this run",error_code:safe(e),run_id:run.id},502);}

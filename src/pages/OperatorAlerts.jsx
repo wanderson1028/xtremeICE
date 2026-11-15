@@ -15,7 +15,7 @@ export default function OperatorAlerts(){
   {storageWarning&&<p role="status" className="border border-amber-700 rounded p-4">{storageWarning}</p>}
   {snapshot&&<section className="rounded border border-sky-700 p-4 space-y-2">
    <p>{error?"Stale snapshot":"Last checked"}: {stamp(snapshot.checked_at)} · {open} unacknowledged · {active.length-open} acknowledged</p>
-   <p className="text-sm">Pilot limit: {snapshot.pilot.guest_limit} guest · {snapshot.pilot.ttl_minutes}-minute sessions. Additional AWS launches and main deployment require approval.</p>
+   <p className="text-sm">Configured AWS seats: {snapshot.capacity?.guest_limit ?? snapshot.pilot.guest_limit}.</p>
    <p className="text-sm text-gray-300">Session alerts use saved records; they do not prove current AWS health or removal. Expiry sweep heartbeat: {snapshot.workflow.available?snapshot.workflow.last_run_status:"not verified"} · Last recorded sweep: {stamp(snapshot.workflow.last_run_at)}. Workflow configuration is checked separately in Base44.</p>
   </section>}
   {snapshot&&!snapshot.workflow.available&&<p className="text-sm text-amber-300">{snapshot.workflow.reason==="heartbeat_missing"?"No valid expiry sweep heartbeat is available yet.":"Expiry sweep heartbeat could not be verified."} Review Expire AWS Learner Labs in Base44; a successful scheduled run should record the next heartbeat.</p>}

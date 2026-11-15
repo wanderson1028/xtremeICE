@@ -1,5 +1,35 @@
 # Design Studio: AI → Builder → AWS learner demo
 
+## AWS classroom mode
+
+Xtreme I.C.E. supports up to 20 assigned learners for one scheduled AWS class in account 935838375949, us-east-1. Set the server-side `AWS_LEARNER_CLASSROOM` configuration to enable classroom launches. An absent setting selects the original one-guest pilot. A malformed setting blocks new launches. Existing sessions still support recovery and scheduled cleanup.
+
+Assign a reviewed AWS guided lab to existing users from **Lab assignments**. Use the approved lab's ID and the `template_hash` reported by the instructor's assignment catalog. Set a unique class ID, the UTC opening and closing times, and a list of 1–20 unique learner and assignment IDs. The order assigns CloudFormation stack names `ExtremeICE-DSCap-01` through `ExtremeICE-DSCap-20`. Keep the roster order and class ID fixed once launches begin.
+
+```json
+{
+  "id": "linux-permissions-2026-11-20",
+  "opens_at": "2026-11-20T15:00:00Z",
+  "expires_at": "2026-11-20T17:00:00Z",
+  "template_id": "<approved LabTemplate id>",
+  "template_hash": "<64-character SHA-256 hash from assignmentCatalog>",
+  "seats": [
+    {
+      "user_id": "<existing non-admin User id>",
+      "assignment_id": "<that learner's UserLabAssignment id>"
+    }
+  ]
+}
+```
+
+Before opening a class, verify AWS headroom for one VPC, two private endpoints and one t3.micro per learner. The AWS application identity and CloudFormation execution role need access to the exact classroom stack names and to the tagged guest resources, including SSM and verified cleanup. Classroom resources preserve the existing ownership tags and add `ClassroomId`. The branch supports AWS temporary sessions through the existing AWS learner credential settings and `AWS_LEARNER_SESSION_TOKEN`. Keep credentials available to the scheduled worker through resource removal. The completed proof's temporary IAM role has already been removed.
+
+Wait for any pilot or previous cohort to release its resources before enabling a class or clearing its configuration. A seat stays reserved until removal is verified. Learners can resume their own active session, and a completed session remains available after cleanup. Repeat requests compete for the same provider stack name. A failed launch can be retried after its cleanup is confirmed.
+
+Exercise the release candidate with the actual expiry workflow in a rehearsal environment before publishing. Check 16 and 20 simultaneous sessions, peer access denial, score retention, and deletion retries. The earlier live proof reached 20 Ready in roughly 15 minutes, including a restart for one delayed SSM registration. AWS throttled one scheduled deletion, which succeeded on the next sweep.
+
+## Earlier one-guest pilot evidence
+
 Prepared for the next demo session. App: Extreme ICE, branch design-studio-integration.
 Preview: https://app.base44.com/apps/69a0a5a90473fac0aa3ea135/editor/preview?branch=design-studio-integration
 
@@ -130,4 +160,3 @@ Check CloudLearnerRun and LabInstance are terminated. Preserve validation record
 DesignStudioLearnerAccessSetupV2 reached ROLLBACK_COMPLETE because AppUserAccess used an IAM user inline policy of 2,264 characters, above the 2,048-character aggregate limit. The corrected AppUserAccess is AWS::IAM::ManagedPolicy attached to the same dedicated user, with the exact same PolicyDocument and permissions. It fits the 6,144-character managed-policy limit. All 14 focused tests and static CloudFormation lint pass; live deployment is still pending.
 
 Create a fresh standard stack named DesignStudioLearnerAccessSetupV3 in account 935838375949, us-east-1, uploading the newly updated AWS_Learner_Access_Bootstrap.json. Acknowledge named IAM capabilities. Wait for CREATE_COMPLETE before creating the dedicated user's key. Preserve the failed V2 stack for its event history. If AWS reports a named resource already exists, inspect that resource and V2 Resources first rather than deleting it blindly.
-

@@ -1,32 +1,38 @@
+import { PILOT_STACK_NAME, classroomRun, launchScope } from "./classroom.ts";
 import { aws as awsRequest, list } from "./awsControl.ts";
 import { EXECUTION_ROLE_ARN } from "./accessConfig.ts";
 import { ACCOUNT, MANAGED_BY, REGION } from "./model.ts";
 import { EC2Client, DescribeInstancesCommand, DescribeVolumesCommand, DescribeVpcsCommand } from "./awsQuery.ts";
 
-export const STACK_NAME = "ExtremeICE-DesignStudio-Learner-Pilot";
+export const STACK_NAME = PILOT_STACK_NAME;
 export const START_GRACE_MS = 5 * 60 * 1000;
 export const PROVISION_TIMEOUT_MS = 20 * 60 * 1000;
 const missing = (e: any) => e?.name === "ValidationError" && /does not exist/i.test(String(e.message));
 const code = (e: any) => String(e?.name || "LIFECYCLE_CHECK_FAILED").slice(0,80);
 const bound = (run: any) => {
- if(run.region!==REGION || run.stack_name!==STACK_NAME || run.contract?.account_id!==ACCOUNT)
-  throw Object.assign(new Error("Stored run binding differs from the pilot"),{name:"RUN_BINDING_MISMATCH"});
- if(run.stack_id && !String(run.stack_id).startsWith("arn:aws:cloudformation:"+REGION+":"+ACCOUNT+":stack/"+STACK_NAME+"/"))
-  throw Object.assign(new Error("Stored stack differs from the pilot"),{name:"STACK_BINDING_MISMATCH"});
+ const classroom=classroomRun(run.contract), stackName=launchScope(classroom);
+ if(run.region!==REGION || run.stack_name!==stackName || run.contract?.account_id!==ACCOUNT ||
+    (run.contract?.classroom && !classroom))
+  throw Object.assign(new Error("Stored run does not match its authorized stack"),{name:"RUN_BINDING_MISMATCH"});
+ const prefix="arn:aws:cloudformation:"+REGION+":"+ACCOUNT+":stack/"+stackName+"/";
+ if(run.stack_id && !String(run.stack_id).startsWith(prefix))
+  throw Object.assign(new Error("Stored stack does not match its authorized slot"),{name:"STACK_BINDING_MISMATCH"});
+ return {classroom,prefix};
 };
 export function starting(run: any, time=Date.now()) {
  return run.status==="preparing" && !run.stack_id && time-Date.parse(run.started_at)<START_GRACE_MS;
 }
 export async function ownedStack(run: any, deps: any={}) {
- bound(run);
+ const {classroom,prefix}=bound(run);
  let stack: any;
  try { const r=await (deps.aws||awsRequest)("cloudformation","DescribeStacks",{StackName:run.stack_id||run.stack_name});stack=list(r.Stacks?.member)[0]||null; }
  catch(e){if(missing(e))return null;throw e;}
  if(!stack)return null;
  const tags=list(stack.Tags?.member);
- if((run.stack_id && stack.StackId!==run.stack_id) ||
-    !tags.some((t:any)=>t.Key==="ManagedBy"&&t.Value===MANAGED_BY) ||
-    !tags.some((t:any)=>t.Key==="LearnerRunId"&&t.Value===run.id))
+ if(!String(stack.StackId).startsWith(prefix)||(run.stack_id&&stack.StackId!==run.stack_id)||
+    !tags.some((t:any)=>t.Key==="ManagedBy"&&t.Value===MANAGED_BY)||
+    !tags.some((t:any)=>t.Key==="LearnerRunId"&&t.Value===run.id)||
+    (classroom&&!tags.some((t:any)=>t.Key==="ClassroomId"&&t.Value===classroom.id)))
   throw Object.assign(new Error("Stack ownership tags differ"),{name:"STACK_OWNERSHIP_MISMATCH"});
  return stack;
 }
@@ -46,7 +52,12 @@ export async function resourceRemnants(run: any, deps: any={}) {
  return [...remaining];
 }
 export async function verifyRunRemoval(run: any, deps: any={}) {
- const stack=await ownedStack(run,deps);
+ let stack;
+ try{stack=await ownedStack(run,deps);}
+ catch(e:any){
+  // A released attempt without a stack ARN can be followed by a new owner of the same name.
+  if(!(e.name==="STACK_OWNERSHIP_MISMATCH"&&run.status==="terminated"&&!run.stack_id))throw e;
+ }
  if(stack && stack.StackStatus!=="DELETE_COMPLETE")return {verified:false,remaining:["stack"]};
  const remaining=await resourceRemnants(run,deps);
  return {verified:!remaining.length,remaining};

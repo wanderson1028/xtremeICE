@@ -40,6 +40,7 @@ async function hmac(key: string | Uint8Array, value: string) {
 async function signedQuery(service: "ec2" | "sts", action: string, input: any) {
   const accessKey = Deno.env.get("AWS_LEARNER_ACCESS_KEY_ID");
   const secretKey = Deno.env.get("AWS_LEARNER_SECRET_ACCESS_KEY");
+  const sessionToken = Deno.env.get("AWS_LEARNER_SESSION_TOKEN");
   if (!accessKey || !secretKey) throw Object.assign(new Error("Dedicated learner AWS keys are not configured"), { name: "LEARNER_AWS_KEYS_MISSING" });
   const host = `${service}.${REGION}.amazonaws.com`;
   const query: Record<string, string> = { Action: action, Version: service === "ec2" ? "2016-11-15" : "2011-06-15", ...flatten(input) };
@@ -47,7 +48,9 @@ async function signedQuery(service: "ec2" | "sts", action: string, input: any) {
   const stamp = new Date().toISOString().replace(/[:-]|\.\d{3}/g, "");
   const date = stamp.slice(0, 8);
   const scope = `${date}/${REGION}/${service}/aws4_request`;
-  const canonical = `GET\n/\n${sorted}\nhost:${host}\nx-amz-date:${stamp}\n\nhost;x-amz-date\n${await sha256("")}`;
+  const signedHeaders = sessionToken ? "host;x-amz-date;x-amz-security-token" : "host;x-amz-date";
+  const canonicalHeaders = `host:${host}\nx-amz-date:${stamp}\n` + (sessionToken ? `x-amz-security-token:${sessionToken}\n` : "");
+  const canonical = `GET\n/\n${sorted}\n${canonicalHeaders}\n${signedHeaders}\n${await sha256("")}`;
   const toSign = `AWS4-HMAC-SHA256\n${stamp}\n${scope}\n${await sha256(canonical)}`;
   let key = await hmac(`AWS4${secretKey}`, date);
   key = await hmac(key, REGION);
@@ -55,7 +58,7 @@ async function signedQuery(service: "ec2" | "sts", action: string, input: any) {
   key = await hmac(key, "aws4_request");
   const signature = Array.from(await hmac(key, toSign)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
   const response = await fetch(`https://${host}/?${sorted}`, {
-    headers: { "Host": host, "X-Amz-Date": stamp, "Authorization": `AWS4-HMAC-SHA256 Credential=${accessKey}/${scope}, SignedHeaders=host;x-amz-date, Signature=${signature}` },
+    headers: { "Host": host, "X-Amz-Date": stamp, ...(sessionToken ? {"X-Amz-Security-Token": sessionToken} : {}), "Authorization": `AWS4-HMAC-SHA256 Credential=${accessKey}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}` },
     signal: AbortSignal.timeout(25000),
   });
   const raw = await response.text();

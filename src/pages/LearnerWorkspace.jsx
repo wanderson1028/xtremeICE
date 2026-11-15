@@ -5,14 +5,14 @@ import {learnerCall,learnerError} from "@/lib/cloudLearnerClient";
 const ACTIVE=["preparing","provisioning","ready","failed","cleanup_pending"];
 export default function LearnerWorkspace(){
  const [params,setParams]=useSearchParams(),selected=params.get("run")||"";
- const [user,setUser]=useState(null),[assignments,setAssignments]=useState([]),[runs,setRuns]=useState([]),[capacity,setCapacity]=useState(true),[loading,setLoading]=useState(true);
+ const [user,setUser]=useState(null),[assignments,setAssignments]=useState([]),[runs,setRuns]=useState([]),[capacity,setCapacity]=useState(true),[launchMode,setLaunchMode]=useState("pilot"),[loading,setLoading]=useState(true);
  const [statusError,setStatusError]=useState(""),[operationError,setOperationError]=useState("");
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState(""),[operation,setOperation]=useState(null);
  const [content,setContent]=useState(""),[mode,setMode]=useState("644"),[loaded,setLoaded]=useState(false),[history,setHistory]=useState([]),[clock,setClock]=useState(Date.now());
  const run=runs.find(r=>r.id===selected),snapshot=run?.contract?.template_snapshot,learning=run?.contract?.learning||{},locked=busy||!!operation;
  const hasAssignment=!run?.contract?.assignment_id||assignments.some(a=>a.id===run.contract.assignment_id);
  const expired=run&&Date.parse(run.expires_at)<=clock,canEdit=run?.status==="ready"&&!run.cleanup_requested_at&&!expired&&!learning.finished_at&&hasAssignment;
- const load=async()=>{const [me,a,r]=await Promise.all([base44.auth.me(),learnerCall("assignedLabs"),learnerCall("list")]);setUser(me);setAssignments(a.assignments);setCapacity(a.capacity_available);setRuns(r.runs.filter(x=>x.owner_user_id===me.id));};
+ const load=async()=>{const [me,a,r]=await Promise.all([base44.auth.me(),learnerCall("assignedLabs"),learnerCall("list")]);setUser(me);setAssignments(a.assignments);setCapacity(a.capacity_available);setLaunchMode(a.launch_mode||"pilot");setRuns(r.runs.filter(x=>x.owner_user_id===me.id));};
  useEffect(()=>{load().catch(e=>setError(learnerError(e))).finally(()=>setLoading(false));const timer=setInterval(()=>setClock(Date.now()),1000);return()=>clearInterval(timer);},[]);
  useEffect(()=>{setLoaded(false);setContent("");setMode("644");setHistory([]);setOperation(null);setOperationError("");setStatusError("");setNotice("");setError("");if(!selected)return;
   let cancelled=false;Promise.all([learnerCall("workspaceState",{run_id:selected}),learnerCall("validationHistory",{run_id:selected})]).then(([s,h])=>{if(cancelled)return;setRuns(rows=>rows.some(r=>r.id===s.run.id)?rows.map(r=>r.id===s.run.id?s.run:r):[s.run,...rows]);setHistory(h.checks||[]);if(s.pending_operation)setOperation({...s.pending_operation,run_id:selected});}).catch(e=>{if(!cancelled)setError(learnerError(e));});return()=>{cancelled=true;};
@@ -21,7 +21,7 @@ export default function LearnerWorkspace(){
   let cancelled=false,timer,failures=0;const poll=async()=>{let delay=15000;try{
    const d=await learnerCall("refresh",{run_id:run.id});if(cancelled)return;
    setRuns(rows=>rows.map(r=>r.id===run.id?d.run:r));
-   const a=await learnerCall("assignedLabs");if(cancelled)return;setAssignments(a.assignments);setCapacity(a.capacity_available);setStatusError("");failures=0;
+   const a=await learnerCall("assignedLabs");if(cancelled)return;setAssignments(a.assignments);setCapacity(a.capacity_available);setLaunchMode(a.launch_mode||"pilot");setStatusError("");failures=0;
    if(!ACTIVE.includes(d.run.status))return;
    delay=d.run.status==="ready"?15000:5000;
   }catch(e){if(cancelled)return;setStatusError(learnerError(e));delay=Math.min(30000,2000*2**Math.min(++failures,4));}
@@ -41,7 +41,14 @@ export default function LearnerWorkspace(){
  },[operation]);
  const perform=async(fn)=>{setBusy(true);setError("");setNotice("");try{await fn();}catch(e){setError(learnerError(e));}finally{setBusy(false);}};
  const open=id=>setParams({run:id});
- const start=a=>{if(!window.confirm("Start your private lab session? Finish the lab to release its environment. This pilot allows one active guest and a session of up to 110 minutes."))return;perform(async()=>{const p=await learnerCall("assignmentPreflight",{assignment_id:a.id});if(!p.eligible)throw new Error("The assigned lab is not ready. Contact your instructor.");const d=await learnerCall("startAssigned",{assignment_id:a.id,template_hash:p.template_hash,ami_id:p.ami_id,zone:p.zone,ack:"LAUNCH_PRIVATE_SSM_LEARNER_PILOT"});await load();open(d.run_id);});};
+ const start=a=>perform(async()=>{
+  const p=await learnerCall("assignmentPreflight",{assignment_id:a.id});
+  if(!p.eligible)throw new Error("The assigned lab is not ready. Contact your instructor.");
+  const until=p.class_ends_at?" Your class lab window ends at "+new Date(p.class_ends_at).toLocaleString()+".":" The session lasts up to 110 minutes.";
+  if(!window.confirm("Start your private lab session?"+until))return;
+  const d=await learnerCall("startAssigned",{assignment_id:a.id,template_hash:p.template_hash,ami_id:p.ami_id,zone:p.zone,ack:"LAUNCH_PRIVATE_SSM_LEARNER_PILOT"});
+  await load();open(d.run_id);
+ });
  const action=kind=>perform(async()=>{const d=await learnerCall("startOperation",{run_id:run.id,kind,...(kind==="write"?{content,mode}:{})});setOperation({id:d.operation_id,kind:d.kind||kind,run_id:run.id});});
  const finish=()=>{if(window.confirm("Finish this session and release its environment? Your validation results will be kept."))perform(async()=>{await learnerCall("finish",{run_id:run.id,ack:"DELETE_LEARNER_STACK"});await load();});};
  const refresh=()=>perform(async()=>{if(run)await learnerCall("refresh",{run_id:run.id});await load();setStatusError("");});
@@ -55,8 +62,20 @@ export default function LearnerWorkspace(){
   {loading&&<p>Loading your labs…</p>}
   {!loading&&<div className="grid lg:grid-cols-[280px_1fr] gap-6"><aside className="space-y-5">
    <section className="space-y-3"><h2 className="font-semibold">Your assignments</h2>{!assignments.length&&<p className="text-gray-400 text-sm">No AWS labs assigned yet. Ask your instructor to assign a lab.</p>}
-   {!capacity&&<p className="text-amber-300 text-sm">The shared pilot environment is occupied or awaiting cleanup. You can resume your own active session.</p>}
-   {assignments.map(a=>{const active=runs.find(r=>r.contract?.assignment_id===a.id&&ACTIVE.includes(r.status));return <article key={a.id} className="bg-gray-900 border border-gray-700 rounded-xl p-4 space-y-3"><h3 className="font-semibold">{a.title}</h3><p className="text-sm text-gray-400">{a.description}</p><button className={button} disabled={locked||(!active&&(!capacity||!a.available))} onClick={()=>active?open(active.id):start(a)}>{active?"Resume session":"Start lab"}</button>{!a.available&&!active&&<p className="text-amber-300 text-sm">This lab needs instructor review.</p>}</article>;})}
+   {launchMode==="pilot"&&!capacity&&<p className="text-amber-300 text-sm">The shared pilot environment is occupied or awaiting cleanup. You can resume your own active session.</p>}
+   {assignments.map(a=>{
+    const assigned=runs.filter(r=>r.contract?.assignment_id===a.id);
+    const active=assigned.find(r=>ACTIVE.includes(r.status)&&!r.contract?.lifecycle?.launch_collision);
+    const completed=a.classroom_id&&assigned.find(r=>r.contract?.classroom?.id===a.classroom_id&&r.status==="terminated"&&r.contract?.learning?.completed_at);
+    const saved=active||completed;
+    const blocked=a.launch_blocked||(launchMode==="pilot"&&!capacity?"The AWS environment is occupied or awaiting cleanup.":null);
+    return <article key={a.id} className="bg-gray-900 border border-gray-700 rounded-xl p-4 space-y-3">
+     <h3 className="font-semibold">{a.title}</h3><p className="text-sm text-gray-400">{a.description}</p>
+     <button className={button} disabled={locked||(!saved&&(!!blocked||!a.available))} onClick={()=>saved?open(saved.id):start(a)}>{active?"Resume session":completed?"View results":"Start lab"}</button>
+     {!saved&&blocked&&launchMode!=="pilot"&&<p className="text-sm text-amber-300">{blocked}</p>}
+     {!saved&&!a.available&&<p className="text-amber-300 text-sm">This lab needs instructor review.</p>}
+    </article>;
+   })}
    </section><section className="space-y-2"><h2 className="font-semibold">Your sessions</h2>{runs.map(r=><button key={r.id} disabled={locked} onClick={()=>open(r.id)} className={"block text-left w-full rounded p-3 border "+(r.id===selected?"border-sky-500 bg-sky-950":"border-gray-700")}><span className="block">{r.contract?.template_snapshot?.title||"Lab session"}</span><span className="text-xs text-gray-400">{r.contract?.learning?.completed_at?"Task completed · ":""}{r.status==="terminated"?"Environment released":r.status}</span></button>)}</section>
    <button className={button} disabled={locked} onClick={refresh}>Refresh status</button>
   </aside><section className="bg-gray-900 border border-gray-700 rounded-xl p-6 space-y-5">

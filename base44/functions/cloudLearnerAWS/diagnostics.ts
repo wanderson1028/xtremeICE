@@ -1,3 +1,4 @@
+import { readClassroom } from "./classroom.ts";
 import { START_GRACE_MS, PROVISION_TIMEOUT_MS } from "./lifecycle.ts";
 
 const LIMIT = 50, RECENT_LIMIT = 20, OP_LIMIT = 200;
@@ -16,6 +17,8 @@ export async function lifecycleDiagnostics(b: any, user: any, time=Date.now()) {
   entities.CloudPocRun.filter({status:{$ne:"terminated"}},"expires_at",LIMIT+1),
  ]);
  const pending=operations.slice(0,OP_LIMIT);
+ const classroom=readClassroom();
+ const guestLimit=classroom.mode==="classroom"?classroom.config.seats.length:classroom.mode==="pilot"?1:0;
  const project=(run: any, legacy=false) => {
   const started=date(run.started_at),expiry=date(run.expires_at),cleanup=date(run.cleanup_requested_at);
   const updated=date(run.updated_date),terminated=date(run.terminated_at);
@@ -54,14 +57,14 @@ export async function lifecycleDiagnostics(b: any, user: any, time=Date.now()) {
  const recent=recentRows.slice(0,RECENT_LIMIT).map((r:any)=>project(r));
  return {
   generated_at:new Date(time).toISOString(),read_only:true,provider_checked:false,
-  capacity:{held:activeRows.length>0||legacyRows.length>0,record_count_at_least:activeRows.length+legacyRows.length,guest_limit:1},
+  capacity:{held:activeRows.length>0||legacyRows.length>0,record_count_at_least:activeRows.length+legacyRows.length,guest_limit:guestLimit,mode:classroom.mode},
   active,legacy,recent,
   truncated:{active:activeRows.length>LIMIT,legacy:legacyRows.length>LIMIT,recent:recentRows.length>RECENT_LIMIT,operations:operations.length>OP_LIMIT},
   notes:[
    "This view reads saved records only. Refreshing it does not check AWS, start guests, or request cleanup.",
    "Last successful provider checks are not recorded. Record update times can include learning changes and do not prove AWS health.",
    "Recorded release times reflect earlier verified cleanup; they are not a new provider check.",
-   "Guest-action counts may be incomplete when results are limited. Continue using the supervised one-guest pilot checks.",
+   "Guest-action counts may be incomplete when results are limited.",
   ],
  };
 }

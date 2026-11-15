@@ -12,10 +12,20 @@ export async function sweepExpiredLearners(b:any,deps:any={}) {
  const result:any={checked_at:cutoff,scanned:rows.length,cleanup_requested:0,pending:0,verified_terminated:0,errors:[],has_more:rows.length===BATCH};
  if(!rows.length)return result;
  const identity=await (deps.sts||new STSClient()).send(new GetCallerIdentityCommand({}));requireAccount(identity.Account);
- for(const row of rows)try{
-  const r=await requestCleanup(b,row,deps);
-  if(r.cleanup_requested)result.cleanup_requested++;
-  if(r.pending)result.pending++;else if(r.run.status==="terminated")result.verified_terminated++;
- }catch(e:any){const error_code=String(e?.name||"EXPIRY_CLEANUP_FAILED").slice(0,80);await b.asServiceRole.entities.CloudLearnerRun.update(row.id,{last_error_code:error_code});result.errors.push({run_id:row.id,error_code});}
+ let next=0;
+ await Promise.all(Array.from({length:Math.min(4,rows.length)},async()=>{
+  while(next<rows.length){
+   const row=rows[next++];
+   try{
+    const r=await requestCleanup(b,row,deps);
+    if(r.cleanup_requested)result.cleanup_requested++;
+    if(r.pending)result.pending++;else if(r.run.status==="terminated")result.verified_terminated++;
+   }catch(e:any){
+    const error_code=String(e?.name||"EXPIRY_CLEANUP_FAILED").slice(0,80);
+    result.errors.push({run_id:row.id,error_code});
+    await b.asServiceRole.entities.CloudLearnerRun.update(row.id,{last_error_code:error_code}).catch(()=>null);
+   }
+  }
+ }));
  return result;
 }
