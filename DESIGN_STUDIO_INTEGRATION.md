@@ -12,7 +12,15 @@
 | Proxmox | The November 14 two-learner proof tested isolated guests, grading, saved results, and cleanup. The standalone Design Studio staging branch retains the tested source at `eb7e247`, exercised in a private source-matched app. The Windows evidence records are `Design_Studio_Proxmox_Learner_Proof_2026-11-14.json` and `Design_Studio_Proxmox_Staging_Integration_2026-11-14.json`. [Standalone staging branch](https://app.base44.com/apps/6a54fa64eddfd24b86e71c34/editor/preview?branch=local-provider-proof) |
 | Cyber Range contract and Azure planning | The November 12 architecture contract is a proposed baseline. An approved `LabTemplate` revision supplies a frozen `LabInstance`. Provider adapters own environment provisioning, access, and cleanup. Evidence, evaluation, learner results, and environment lifecycle have separate responsibilities. The planned Azure proof covers AI-901, SC-300, and SC-900, with a separate training tenant and subscription for each of two learners, subject to licensing, billing, and provisioning feasibility. |
 
-Kasm and Proxmox implementation code remains in the provider proof and staging environments. Azure remains at the planning stage.
+The November 14 Kasm and Proxmox live evidence applies to the proof environments. The Xtreme I.C.E. implementation is tracked below. Azure remains at the planning stage.
+
+### Kasm and Proxmox branch integration
+
+Instructors assign published Kasm and Proxmox labs in **Lab assignments**. Learners open their assignments and saved results from **Assigned Labs** or **My Lab Progress**. The existing AWS learner and expiry functions are unchanged.
+
+- **Kasm** uses a matching active Kasm account, a published lab with a compatible environment profile, and server-owned `KasmLearnerRun` records. Workspace readiness, task validation, grades, Finish, and expiry reconciliation use the ported provider implementation. The `Expire Kasm Learner Labs` workflow definition is included. A missing `kasm_learner_labs` flag disables new launches. Before live branch use, verify the Kasm configuration, the same-branch validation callback and function version, and the scheduled cleanup run.
+- **Proxmox** uses `ProxmoxLearnerRun` and the proof's two-slot, allowlisted file-permissions worker. A missing `proxmox_learner_labs` flag or worker key digest disables new launches. The worker scripts are under `infrastructure/proxmox-worker/` and require the proof host, template, reserved slots, and isolated network. The worker reads `app-id`, `gateway-url`, `functions-version`, and `worker.key` from `/var/lib/xtreme-ice-proxmox-learner`. Use the integration branch's verified function address and version. The earlier proof worker was scoped to its own app.
+- **Branch checks** passed for seven simulated Kasm cases, three simulated Proxmox cases, and all 85 AWS regression tests. The four provider backend entries passed Deno type checks. The frontend build and focused lint passed, and both Python worker files parsed successfully. The live November 14 provider results belong to the proof environments. Live launch, isolation, grading, and expiry cleanup on this Xtreme I.C.E. branch remain to be verified.
 
 ### Records and evidence
 
