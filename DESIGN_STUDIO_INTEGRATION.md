@@ -1,5 +1,29 @@
 # Design Studio integration into Extreme ICE
 
+## November 15, 2026 — Design Studio consolidation status
+
+`design-studio-integration` is the working branch for the Xtreme I.C.E. Design Studio integration. The November 15 branch comparison used integration source at `12a1eab` and main source at `eefab23`. Promotion to main is deferred.
+
+| Work | Source and evidence |
+| --- | --- |
+| AWS classroom | The implementation is on this branch at `677f6d5`. It supports one scheduled class of up to 20 assigned learners, binds launches to the reviewed lab fingerprint and class window, and retains each seat until cleanup is verified. The November 14 handoff records 85 passing AWS backend tests and a successful build with AWS calls simulated. A separate live proof reached 20 Ready guests in isolated VPCs and verified cross-learner denial, saved scores, and cleanup after a throttled deletion retried. [AWS classroom runbook](docs/aws-learner-demo-runbook.md) |
+| AWS recovery and operator alerts | Exact copies of the checked November 5 recovery, operator-alerting, and export source files are reachable in this branch's Git history. Historical source references include the recovery handler at `07a7b2a`, the operator-alert implementation at `757f5b7`, and the rehearsal helper at `3363be5`. [Operator alerts runbook](docs/operator-alerts-runbook.md) |
+| Kasm | The November 14 two-learner browser proof used the separate Design Studio Kasm Proof app (`6af7e337cc48560c8d29791b`). It verified separate workspaces, peer-access denial, grading, manual Finish, scheduled expiry, and saved results. The Windows evidence record is `Design_Studio_Kasm_Learner_Proof_2026-11-14.json`. |
+| Proxmox | The November 14 two-learner proof tested isolated guests, grading, saved results, and cleanup. The standalone Design Studio staging branch retains the tested source at `eb7e247`, exercised in a private source-matched app. The Windows evidence records are `Design_Studio_Proxmox_Learner_Proof_2026-11-14.json` and `Design_Studio_Proxmox_Staging_Integration_2026-11-14.json`. [Standalone staging branch](https://app.base44.com/apps/6a54fa64eddfd24b86e71c34/editor/preview?branch=local-provider-proof) |
+| Cyber Range contract and Azure planning | The November 12 architecture contract is a proposed baseline. An approved `LabTemplate` revision supplies a frozen `LabInstance`. Provider adapters own environment provisioning, access, and cleanup. Evidence, evaluation, learner results, and environment lifecycle have separate responsibilities. The planned Azure proof covers AI-901, SC-300, and SC-900, with a separate training tenant and subscription for each of two learners, subject to licensing, billing, and provisioning feasibility. |
+
+Kasm and Proxmox implementation code remains in the provider proof and staging environments. Azure remains at the planning stage.
+
+### Records and evidence
+
+The Windows Base44 Design Studio folder contains the November 14 `Design_Studio_Project_Snapshot.md` and the local `PROJECT-INDEX.md`. The index points to the Cyber Range Platform and Cyber Simulations snapshots, the infrastructure status, and the verified Drive archive.
+
+The recovery and operator-alerting archive is at `My Drive/Projects/Cyber Training Range/zzz_Archive/2026-11-15_Base44-Recovery-and-Operator-Alerting`. The Google Drive web listing showed all 17 evidence and backup files and `SHA256-manifest.csv` on November 15. The backup check matched each copy to its original by SHA-256 through the mounted drive and preserved both paths for the identical recovery UI results. The archive covers the November 5 evidence set and the associated lifecycle-hardening report. The November 14 provider proof records are in the Windows Design Studio folder.
+
+### Verification for a future release
+
+All 14 classroom code and test paths passed a read-only, whitespace-aware patch check against `eefab23` on November 15. The runbook would need to be added as a new file on main. A future scoped candidate needs the backend suite, frontend build, learner smoke checks, and one-guest fallback check on its exact source. Classroom activation also needs AWS authorization for the classroom stack names and a live rehearsal of isolation, saved results, and scheduled cleanup on that candidate.
+
 ## November 15, 2026 — app lineage and consolidation audit (documentation-only)
 
 **Authoritative parent app:** Xtreme I.C.E. (`69a0a5a90473fac0aa3ea135`), main branch, connected to GitHub `wanderson1028/xtremeICE`. Main is published and has three connected custom domains (`xtremecandidate.com`, `dev.xsirange.com`, `design-xsirange.com`) plus seven app users. Do not treat development-branch verification as a main release or modify main/deploy without separate gates.
