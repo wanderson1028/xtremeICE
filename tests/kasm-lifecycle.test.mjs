@@ -59,6 +59,29 @@ Deno.test("peer operations, legacy handles and direct command cannot reach Kasm"
   assert.equal((await send(owner, "status")).status, 409);
 });
 
+Deno.test("disabled launches and revoked assignments cannot operate Kasm workspaces", async () => {
+  const { db, row, instances } = fixture();
+  db.FeatureFlag = { filter: async () => [] };
+  instances.set(row.id, { ...row, template_id: "lab" });
+  const send = (user, action, fields = {}) => handleKasm(
+    { auth: { me: async () => user }, asServiceRole: { entities: db } },
+    new Request("https://app.example.test", { method: "POST", body: JSON.stringify({ action, ...fields }) }),
+  );
+
+  assert.equal((await send(owner, "launch", { template_id: "lab" })).status, 403);
+  const disabled = (await (await send(owner, "assignedLabs")).json()).data;
+  assert.deepEqual(disabled.labs, []);
+  assert.deepEqual(disabled.runs.map(run => run.id), [row.id]);
+  const other = (await (await send(peer, "assignedLabs")).json()).data;
+  assert.deepEqual(other.runs, []);
+
+  db.FeatureFlag = { filter: async () => [{ is_enabled: true }] };
+  const assigned = (await (await send(owner, "assignedLabs")).json()).data;
+  assert.deepEqual(assigned.labs.map(lab => lab.template_id), ["lab"]);
+  db.UserLabAssignment = { filter: async () => [] };
+  assert.equal((await send(owner, "submitTask", { instance_id: row.id, task_id: "t" })).status, 403);
+});
+
 Deno.test("launch requires assignment and published revision; Kasm identity is derived on the server", async () => {
   const { db, template } = fixture();
   const calls = [];
