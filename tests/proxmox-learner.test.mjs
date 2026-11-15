@@ -57,8 +57,9 @@ function fixture() {
     ProxmoxLearnerRun: collection(),
   };
   let handler;
-  const code = readFileSync(new URL("../base44/functions/proxmoxLearner/entry.ts", import.meta.url), "utf8")
-    .replace(/^import .*;\r?\n/m, "");
+  const code = readFileSync(new URL("../base44/functions/proxmoxLearner/handler.js", import.meta.url), "utf8")
+    .replace("export async function handleProxmoxLearner", "async function handleProxmoxLearner") +
+    "\nDeno.serve(req => handleProxmoxLearner(req, createClientFromRequest));";
   runInNewContext(code, {
     Response, TextEncoder, console, crypto: webcrypto,
     Date: { now: () => now },
