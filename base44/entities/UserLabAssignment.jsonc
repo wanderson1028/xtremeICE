@@ -15,7 +15,9 @@
       "enum": [
         "lab_course",
         "virtual_lab",
-        "soc_scenario"
+        "soc_scenario",
+        "kasm_template",
+        "proxmox_template"
       ],
       "description": "Type of lab"
     },
@@ -27,6 +29,36 @@
         "lab_scenarios"
       ],
       "description": "Parent service this lab belongs to"
+    },
+    "proxmox_launch": {
+      "type": "object",
+      "description": "Server-owned launch request and the published exercise saved at the time of launch.",
+      "properties": {
+        "owner_id": {
+          "type": "string"
+        },
+        "owner_email": {
+          "type": "string"
+        },
+        "template_id": {
+          "type": "string"
+        },
+        "template_version": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "task_title": {
+          "type": "string"
+        },
+        "instructions": {
+          "type": "string"
+        },
+        "requested_at": {
+          "type": "number"
+        }
+      }
     }
   },
   "required": [

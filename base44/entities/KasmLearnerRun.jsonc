@@ -1,0 +1,311 @@
+{
+  "name": "KasmLearnerRun",
+  "type": "object",
+  "properties": {
+    "template_id": {
+      "type": "string",
+      "description": "Reference to the published LabTemplate this instance was created from"
+    },
+    "template_snapshot": {
+      "type": "object",
+      "description": "Frozen copy of the LabTemplate's runtime-relevant fields at instance creation time. The runtime reads scenario, tasks, validation_criteria, passing_score, difficulty, and estimated_duration from this snapshot — never from the live LabTemplate. This ensures an instance is unaffected by later author edits. Populated by the provisioning flow when status transitions to 'provisioning'.",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string",
+          "description": "Frozen learner-facing lab description"
+        },
+        "difficulty": {
+          "type": "string"
+        },
+        "passing_score": {
+          "type": "number",
+          "default": 70
+        },
+        "estimated_duration_minutes": {
+          "type": "number"
+        },
+        "objectives": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "prerequisites": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "lab_guidance": {
+          "type": "string",
+          "description": "Frozen instructional guidance metadata; does not directly control runtime behavior"
+        },
+        "environment_profile_id": {
+          "type": "string"
+        },
+        "environment_definition": {
+          "type": "object",
+          "description": "Frozen platform-independent environment requirements from LabTemplate.environment_definition. Provider provisioning reads this snapshot rather than the live template."
+        },
+        "lab_content": {
+          "type": "object",
+          "description": "Full snapshot of LabTemplate.lab_content (scenario, tasks[], success_criteria)"
+        }
+      }
+    },
+    "template_version": {
+      "type": "string",
+      "description": "Denormalized LabTemplate.version at snapshot time. Allows analytics to group instances by version without deserializing template_snapshot."
+    },
+    "user_email": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "provisioning",
+        "running",
+        "paused",
+        "completed",
+        "failed",
+        "terminated"
+      ],
+      "default": "pending"
+    },
+    "provider": {
+      "type": "string",
+      "description": "Execution provider that instantiated this lab (e.g. kasm, proxmox, vmware). Determines how provider_session_* handles are interpreted.",
+      "default": "kasm"
+    },
+    "kasm_session_id": {
+      "type": "string"
+    },
+    "kasm_session_url": {
+      "type": "string"
+    },
+    "environment_profile_id": {
+      "type": "string"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "progress": {
+      "type": "number",
+      "default": 0,
+      "description": "Percentage of required tasks passed. Calculated from task_results: (tasks_passed / total_required_tasks) * 100."
+    },
+    "score": {
+      "type": "number",
+      "description": "Raw percentage score: (points_earned / points_possible) * 100. No difficulty multiplier in the authoritative score; difficulty is a separate derived metric."
+    },
+    "task_results": {
+      "type": "array",
+      "description": "Per-task runtime state, keyed by stable task_id matching LabTemplate.lab_content.tasks[].id. Initialized empty at instance creation; populated lazily as the learner interacts with each task. Existing records with freeform task_results load as-is and are migrated when the runtime next touches them.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "description": "Stable task ID matching the authored task.id in template_snapshot.lab_content.tasks[]"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_started",
+              "in_progress",
+              "submitted",
+              "passed",
+              "failed",
+              "skipped"
+            ],
+            "default": "not_started"
+          },
+          "points_earned": {
+            "type": "number",
+            "default": 0,
+            "description": "Sum of points_awarded from validation_results, or instructor_override_score if set"
+          },
+          "points_possible": {
+            "type": "number",
+            "default": 0,
+            "description": "Denormalized from the task's points field at first interaction; protects against later template edits"
+          },
+          "hints_used": {
+            "type": "number",
+            "default": 0,
+            "description": "Number of progressive hints the learner revealed for this task"
+          },
+          "submission": {
+            "type": "string",
+            "description": "Learner's submitted answer, configuration, or notes"
+          },
+          "validation_results": {
+            "type": "array",
+            "description": "Results of each validation criterion check, mirroring the authored validation_criteria 1:1 by check ID",
+            "items": {
+              "type": "object",
+              "properties": {
+                "check": {
+                  "type": "string",
+                  "description": "Check ID matching the authored criterion's check field"
+                },
+                "passed": {
+                  "type": "boolean"
+                },
+                "points_awarded": {
+                  "type": "number",
+                  "default": 0
+                },
+                "message": {
+                  "type": "string",
+                  "description": "How the check was evaluated (e.g. 'Verified via terminal', 'Command not yet entered')"
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "manual",
+                    "runtime",
+                    "instructor"
+                  ],
+                  "description": "How the criterion result was established."
+                },
+                "runtime_validator_type": {
+                  "type": "string",
+                  "description": "Provider-neutral runtime validator type that produced this result."
+                },
+                "evidence": {
+                  "type": "object",
+                  "description": "Structured evidence returned by runtime validation."
+                },
+                "validated_at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "When this criterion was last evaluated."
+                }
+              }
+            }
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "time_spent_minutes": {
+            "type": "number",
+            "default": 0
+          },
+          "instructor_override_score": {
+            "type": "number",
+            "description": "Optional manual override of points_earned for this task. When set, supersedes the calculated points_earned in scoring."
+          },
+          "instructor_notes": {
+            "type": "string",
+            "description": "Optional instructor notes for this task result"
+          }
+        }
+      }
+    },
+    "notes": {
+      "type": "string"
+    },
+    "provider_session_id": {
+      "type": "string",
+      "description": "Provider-neutral execution session identifier. For Kasm this mirrors kasm_session_id."
+    },
+    "provider_session_url": {
+      "type": "string",
+      "description": "Provider-neutral learner launch URL. Treat as sensitive session data and expose only under LabInstance RLS."
+    },
+    "provider_user_ref": {
+      "type": "string",
+      "description": "Provider-side user reference used to provision and manage the execution session."
+    },
+    "provider_status_message": {
+      "type": "string",
+      "description": "Latest provider provisioning/status message."
+    },
+    "provider_status_progress": {
+      "type": "number",
+      "description": "Latest provider provisioning progress percentage when available."
+    },
+    "kasm_user_id": {
+      "type": "string",
+      "description": "Kasm user_id used for this session. Compatibility field for Kasm provider operations."
+    },
+    "cleanup_state": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "unconfirmed",
+        "verified"
+      ]
+    },
+    "cleanup_reason": {
+      "type": "string"
+    },
+    "learning_outcome": {
+      "type": "string",
+      "enum": [
+        "passed",
+        "failed",
+        "expired",
+        "abandoned"
+      ]
+    },
+    "runtime_authority": {
+      "type": "string",
+      "enum": [
+        "server_kasm_v1"
+      ]
+    }
+  },
+  "required": [
+    "template_id",
+    "user_email"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

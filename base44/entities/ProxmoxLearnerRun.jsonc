@@ -1,0 +1,144 @@
+{
+  "name": "ProxmoxLearnerRun",
+  "type": "object",
+  "properties": {
+    "assignment_id": {
+      "type": "string"
+    },
+    "template_id": {
+      "type": "string"
+    },
+    "owner_id": {
+      "type": "string"
+    },
+    "template_version": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "task_title": {
+      "type": "string"
+    },
+    "instructions": {
+      "type": "string"
+    },
+    "owner_email": {
+      "type": "string",
+      "format": "email"
+    },
+    "stage": {
+      "type": "string",
+      "enum": [
+        "idle",
+        "queued",
+        "provisioning",
+        "active",
+        "cleanup_pending",
+        "finished",
+        "expired",
+        "failed"
+      ]
+    },
+    "requested_at": {
+      "type": "number"
+    },
+    "ready_at": {
+      "type": "number"
+    },
+    "expires_at": {
+      "type": "number"
+    },
+    "closed_at": {
+      "type": "number"
+    },
+    "finalized_at": {
+      "type": "number"
+    },
+    "cleanup_at": {
+      "type": "number"
+    },
+    "vmid": {
+      "type": "number"
+    },
+    "command_request": {
+      "type": "string"
+    },
+    "command_kind": {
+      "type": "string"
+    },
+    "command_done": {
+      "type": "string"
+    },
+    "command_output": {
+      "type": "string"
+    },
+    "grade_request": {
+      "type": "string"
+    },
+    "grade_done": {
+      "type": "string"
+    },
+    "last_mode": {
+      "type": "string"
+    },
+    "score": {
+      "type": "number"
+    },
+    "final_score": {
+      "type": "number"
+    },
+    "result_mode": {
+      "type": "string"
+    },
+    "reason": {
+      "type": "string",
+      "enum": [
+        "finish",
+        "expiry",
+        "failure"
+      ]
+    },
+    "cleanup_vm_absent": {
+      "type": "boolean"
+    },
+    "cleanup_disk_absent": {
+      "type": "boolean"
+    },
+    "cleanup_network_absent": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "assignment_id",
+    "template_id",
+    "owner_id",
+    "owner_email",
+    "title",
+    "task_title",
+    "instructions",
+    "stage"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
