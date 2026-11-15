@@ -1,5 +1,23 @@
 # Design Studio integration into Extreme ICE
 
+## November 15, 2026 — app lineage and consolidation audit (documentation-only)
+
+**Authoritative parent app:** Xtreme I.C.E. (`69a0a5a90473fac0aa3ea135`), main branch, connected to GitHub `wanderson1028/xtremeICE`. Main is published and has three connected custom domains (`xtremecandidate.com`, `dev.xsirange.com`, `design-xsirange.com`) plus seven app users. Do not treat development-branch verification as a main release or modify main/deploy without separate gates.
+
+**Active development branch:** This `design-studio-integration` branch (`6adc042dc1759e6183863750`), with unmerged changes. As inspected Nov 15, the branch is **not flagged private** (`is_private=false`). Its sync-status against main reported `main_code_changed=true`, 156 newer main conversation messages, `conflict_state=unavailable` and `sync_state=idle`; do not merge the entire branch blindly. Review overlapping routes, schemas, authorization and workflows and promote one feature at a time.
+
+**Historical cloned app:** Standalone Design Studio (`6a54fa64eddfd24b86e71c34`) has its own GitHub connection, `jschmoe330/base44-design-studio`, and a separate private `local-provider-proof` branch. Its root `PROJECT_STATUS.md` was reconciled November 15 but primarily preserves October 23 Kasm/Proxmox evidence; it is **not** the operational status of the newer Xtreme I.C.E. integration branch. The clone's main had two app users and no custom domains/dependent templates in a read-only delete-impact check. The published-URL lookup reported it not published. Do **not** delete it until its Kasm/Proxmox code, secrets/config references, migration dependencies, and evidence have been compared and preserved.
+
+**Separate proof apps (do not confuse with branches):** Design Studio AWS Capacity Proof (`6af90ae887e65e3c5031d164`, published URL reported, 21 app users); Design Studio — Kasm Proof (`6af7e337cc48560c8d29791b`, three users); Design Studio — Assigned Proxmox Test (`6af8f0f799bb8f01af298b1e`, three users); and Design Studio — Proxmox Proof (`6af8e885e3ea93e918cec966`, three users). The latter three returned no published URL. None of these four has a GitHub connection according to the Nov 15 lookup. They are proof environments, not automatically promoted code or evidence. Keep them until ownership, deployments, data and reproducible proof artifacts are inventoried.
+
+**Evidence reconciliation:** This branch's existing dated sections document November 4 live AWS two-learner isolation acceptance; November 5 recovery/expiry and idempotency rehearsal; and November 9 expiry-heartbeat/workflow health checks. Preserve their exact test scope and caveats. These are **AWS learner lifecycle** tests, not verification of Azure tenant isolation or the separate Kasm/Proxmox provider proofs. The earlier cloned-app status mistakenly appeared to be the newest Design Studio status because it was the file previously located.
+
+**Proposed final arrangement (not yet migrated):** Xtreme I.C.E. `main` remains the deployed product, with protected development branches for features. Store one canonical, versioned project snapshot (architecture/decisions) and one operational project status (milestones/evidence/gates) in the Xtreme I.C.E. repository after identifying the current authoritative Codex-local snapshot and reconciling source. Treat the ChatGPT Library snapshot and Project Home as derived copies with explicit source commit/date and refresh mode; avoid divergent manual authorities. Retire the standalone clone and proof apps only after evidence and required provider integrations are secured and no active users/deployments depend on them.
+
+**Immediate gates:** (1) identify/backup Codex-local current snapshot and source; (2) compare provider work in legacy clone and proof apps with this branch, capture test artifacts; (3) establish canonical status/snapshot in Xtreme GitHub with agreed branch strategy; (4) evaluate private branch protection and safe feature promotion; (5) confirm dependency/user/domain checks before archival or deletion. No app deletion, merge, publication, production data change, or AWS provisioning occurred in this audit.
+
+---
+
 Status: November 9 workflow-health fix verified. The scheduled expiry wrapper on main now writes a sanitized heartbeat, and the integration-branch instructor alert page reads it. No AWS launch, frontend publication, branch merge, or broader notification activation occurred.
 
 ## November 9 workflow health and branch/main reconciliation (current handoff)
