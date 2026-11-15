@@ -1,5 +1,6 @@
 import React,{useEffect,useState} from "react";
 import OperatorAlertBanner from "@/components/OperatorAlertBanner";
+import LocalProviderAssignments from "@/components/labs/LocalProviderAssignments";
 import {Link} from "react-router-dom";
 import {learnerCall,learnerError} from "@/lib/cloudLearnerClient";
 export default function LabAssignments(){
@@ -30,6 +31,6 @@ export default function LabAssignments(){
   </section><section className="space-y-3"><h2 className="text-xl font-semibold">Current assignments</h2>
    {!data.assignments.length&&<p className="text-gray-400">No supported AWS labs are assigned yet.</p>}
    {data.assignments.map(a=><article key={a.id} className="rounded-xl border border-gray-700 p-4 flex justify-between items-center gap-4"><div><h3 className="font-semibold">{data.labs.find(l=>l.id===a.template_id)?.title}</h3><p className="text-gray-400">{a.user_email}</p></div><button className={button} disabled={busy} onClick={()=>revoke(a.id)}>Revoke access</button></article>)}
-  </section></>}
+  </section><LocalProviderAssignments users={data.users} /></>}
  </div></main>;
 }

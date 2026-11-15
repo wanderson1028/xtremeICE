@@ -6,6 +6,7 @@ import StudentOverviewStats from "../components/lab/student/StudentOverviewStats
 import StudentScenarioCard from "../components/lab/student/StudentScenarioCard";
 import StudentProgressCharts from "../components/lab/student/StudentProgressCharts";
 import TaskWorkspaceModal from "../components/lab/student/TaskWorkspaceModal";
+import AssignedProviderLabs from "../components/lab/student/AssignedProviderLabs";
 
 export default function StudentDashboard() {
   const [user, setUser] = useState(null);
@@ -84,6 +85,8 @@ export default function StudentDashboard() {
             <p className="text-sm text-muted-foreground">Welcome back, {user.full_name || user.email}</p>
           </div>
         </div>
+
+        <AssignedProviderLabs user={user} />
 
         {/* Overview Stats */}
         <StudentOverviewStats

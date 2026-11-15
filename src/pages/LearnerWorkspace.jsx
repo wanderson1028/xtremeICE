@@ -2,8 +2,11 @@ import React,{useEffect,useState} from "react";
 import {Link,useSearchParams} from "react-router-dom";
 import {base44} from "@/api/base44Client";
 import {learnerCall,learnerError} from "@/lib/cloudLearnerClient";
+import AssignedProviderLabs from "@/components/lab/student/AssignedProviderLabs";
+import {useAuth} from "@/lib/AuthContext";
 const ACTIVE=["preparing","provisioning","ready","failed","cleanup_pending"];
 export default function LearnerWorkspace(){
+ const {user: providerUser}=useAuth();
  const [params,setParams]=useSearchParams(),selected=params.get("run")||"";
  const [user,setUser]=useState(null),[assignments,setAssignments]=useState([]),[runs,setRuns]=useState([]),[capacity,setCapacity]=useState(true),[launchMode,setLaunchMode]=useState("pilot"),[loading,setLoading]=useState(true);
  const [statusError,setStatusError]=useState(""),[operationError,setOperationError]=useState("");
@@ -59,6 +62,7 @@ export default function LearnerWorkspace(){
   {statusError&&<p role="status" className="border border-amber-700 rounded p-4">Status could not be verified. Retrying automatically; the environment remains reserved until cleanup is verified.</p>}
   {operationError&&<p role="status" className="border border-amber-700 rounded p-4">Guest action status could not be verified. Retrying the same action automatically; controls remain locked.</p>}
   {notice&&<p role="status" className="border border-sky-700 rounded p-4">{notice}</p>}
+  {(providerUser||user)&&<AssignedProviderLabs user={providerUser||user} />}
   {loading&&<p>Loading your labs…</p>}
   {!loading&&<div className="grid lg:grid-cols-[280px_1fr] gap-6"><aside className="space-y-5">
    <section className="space-y-3"><h2 className="font-semibold">Your assignments</h2>{!assignments.length&&<p className="text-gray-400 text-sm">No AWS labs assigned yet. Ask your instructor to assign a lab.</p>}
