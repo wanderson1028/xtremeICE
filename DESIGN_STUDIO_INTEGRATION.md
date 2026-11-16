@@ -22,6 +22,12 @@ Instructors assign published Kasm and Proxmox labs in **Lab assignments**. Learn
 - **Proxmox** uses `ProxmoxLearnerRun` and the proof's two-slot, allowlisted file-permissions worker. A missing `proxmox_learner_labs` flag or worker key digest disables new launches. The worker scripts are under `infrastructure/proxmox-worker/` and require the proof host, template, reserved slots, and isolated network. The worker reads `app-id`, `gateway-url`, `functions-version`, and `worker.key` from `/var/lib/xtreme-ice-proxmox-learner`. Use the integration branch's verified function address and version. The earlier proof worker was scoped to its own app.
 - **Branch checks** passed for seven simulated Kasm cases, three simulated Proxmox cases, and all 85 AWS regression tests. The four provider backend entries passed Deno type checks. The frontend build and focused lint passed, and both Python worker files parsed successfully. The live November 14 provider results belong to the proof environments. Live launch, isolation, grading, and expiry cleanup on this Xtreme I.C.E. branch remain to be verified.
 
+### VM100 administrative relay
+
+The standalone Design Studio app still serves the live `proxmox-vm100` worker. Xtreme I.C.E. `design-studio-integration` contains the `proxmoxRelay` function, worker and job schemas, the admin panel in Lab Builder, and the matching worker source at `infrastructure/proxmox-worker/proxmox-worker.py`. The admin relay covers inventory, VM status, and start and stop for VM101. The Proxmox learner worker has its own gateway and credentials.
+
+The relay policy checks, Python syntax, targeted lint, and frontend build passed. Base44 accepted the branch function save, but the worker-style request to the branch preview returned HTTP 404. Base44 documents that branch-only functions require a signed-in app editor. VM100's heartbeat continued to advance on the standalone app. Keep the standalone app while it serves VM100. Before retiring it, establish an endpoint that accepts unattended worker requests, register the worker there, and verify a fresh heartbeat and a successful VM101 status job. [Base44 branch behavior](https://docs.base44.com/Building-your-app/working-with-branches)
+
 ### Records and evidence
 
 The Windows Base44 Design Studio folder contains the November 14 `Design_Studio_Project_Snapshot.md` and the local `PROJECT-INDEX.md`. The index points to the Cyber Range Platform and Cyber Simulations snapshots, the infrastructure status, and the verified Drive archive.
