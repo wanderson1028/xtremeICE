@@ -24,9 +24,11 @@ Instructors assign published Kasm and Proxmox labs in **Lab assignments**. Learn
 
 ### VM100 administrative relay
 
-The standalone Design Studio app still serves the live `proxmox-vm100` worker. Xtreme I.C.E. `design-studio-integration` contains the `proxmoxRelay` function, worker and job schemas, the admin panel in Lab Builder, and the matching worker source at `infrastructure/proxmox-worker/proxmox-worker.py`. The admin relay covers inventory, VM status, and start and stop for VM101. The Proxmox learner worker has its own gateway and credentials.
+VM100 (`proxmox-vm100`) now polls the Xtreme I.C.E. `main` relay at `https://xtreme-i-c-e.base44.app/api/apps/69a0a5a90473fac0aa3ea135/functions/proxmoxRelay`. The worker selects Base44's `preview` function version. The relay-only change on `main` is `618b4f3`, saved at checkpoint `6afa5040572819dc13f5a687`. The Lab Builder admin panel and worker source remain on `design-studio-integration`. The Proxmox learner worker has a separate gateway and credentials.
 
-The relay policy checks, Python syntax, targeted lint, and frontend build passed. Base44 accepted the branch function save, but the worker-style request to the branch preview returned HTTP 404. Base44 documents that branch-only functions require a signed-in app editor. VM100's heartbeat continued to advance on the standalone app. Keep the standalone app while it serves VM100. Before retiring it, establish an endpoint that accepts unattended worker requests, register the worker there, and verify a fresh heartbeat and a successful VM101 status job. [Base44 branch behavior](https://docs.base44.com/Building-your-app/working-with-branches)
+On November 15, 2026, VM100 switched to Xtreme I.C.E. using a fresh worker credential. The new heartbeat advanced, and VM101 status job `6afa5077f9b58f1e411937bc` succeeded on the first attempt at 7:38:50 p.m. Eastern, reporting VM101 stopped. The standalone app's heartbeat ceased after the switch and its relay queue had no queued or leased jobs. The standalone app is no longer required for VM100.
+
+VM100's service uses `/etc/systemd/system/design-studio-proxmox-worker.service.d/90-xtreme-ice.conf` to load the Xtreme I.C.E. connection settings. The original environment file remains the source of the Proxmox connection settings. The admin relay covers inventory, VM status, and start and stop for VM101.
 
 ### Records and evidence
 
