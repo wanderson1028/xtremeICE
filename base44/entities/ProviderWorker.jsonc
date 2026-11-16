@@ -1,0 +1,69 @@
+{
+  "name": "ProviderWorker",
+  "type": "object",
+  "properties": {
+    "worker_id": {
+      "type": "string",
+      "description": "Stable non-secret worker identifier"
+    },
+    "provider": {
+      "type": "string",
+      "enum": [
+        "proxmox"
+      ]
+    },
+    "token_hash": {
+      "type": "string",
+      "description": "SHA-256 hash of the worker bearer ******"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "disabled"
+      ],
+      "default": "active"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "last_seen": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "metadata": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "worker_id",
+    "provider",
+    "token_hash",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "name": "ProviderExecutionJob",
+  "type": "object",
+  "properties": {
+    "provider": {
+      "type": "string",
+      "enum": [
+        "proxmox"
+      ]
+    },
+    "operation": {
+      "type": "string",
+      "enum": [
+        "inventory",
+        "vm_status",
+        "vm_start",
+        "vm_stop"
+      ]
+    },
+    "parameters": {
+      "type": "object"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "leased",
+        "succeeded",
+        "failed",
+        "expired"
+      ],
+      "default": "queued"
+    },
+    "requested_by": {
+      "type": "string"
+    },
+    "request_key": {
+      "type": "string",
+      "description": "Admin-scoped idempotency key; never sent to workers"
+    },
+    "worker_id": {
+      "type": "string"
+    },
+    "lease_expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "attempts": {
+      "type": "integer",
+      "default": 0
+    },
+    "result": {
+      "type": "object"
+    },
+    "error_message": {
+      "type": "string"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "provider",
+    "operation",
+    "parameters",
+    "status",
+    "requested_by"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
