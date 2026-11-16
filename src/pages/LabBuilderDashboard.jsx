@@ -2,6 +2,8 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { BookOpen, Layers, Settings, FileText, Globe, Download, Network, Zap, Cloud } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { useAuth } from "@/lib/AuthContext";
+import ProxmoxRelayManager from "@/components/admin/ProxmoxRelayManager";
 
 const modules = [
   { name: "Operator alerts", icon: Cloud, path: "/OperatorAlerts", desc: "Review lab failures, delayed cleanup and expiry monitoring" },
@@ -20,6 +22,7 @@ const modules = [
 ];
 
 export default function LabBuilderDashboard() {
+  const { user } = useAuth();
   return (
     <div className="min-h-screen bg-gray-950 p-8">
       <div className="max-w-6xl mx-auto">
@@ -44,6 +47,7 @@ export default function LabBuilderDashboard() {
             </Link>
           ))}
         </div>
+        {user?.role === "admin" && <div className="mt-8"><ProxmoxRelayManager /></div>}
       </div>
     </div>
   );
