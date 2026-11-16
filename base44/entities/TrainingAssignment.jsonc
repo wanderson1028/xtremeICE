@@ -1,0 +1,126 @@
+{
+  "name": "TrainingAssignment",
+  "type": "object",
+  "properties": {
+    "exercise_id": {
+      "type": "string"
+    },
+    "exercise_title": {
+      "type": "string"
+    },
+    "organization_id": {
+      "type": "string",
+      "description": "App organization the assignment belongs to (scopes org admins to their own people)"
+    },
+    "organization_name": {
+      "type": "string"
+    },
+    "assignee_email": {
+      "type": "string"
+    },
+    "assignee_name": {
+      "type": "string"
+    },
+    "assignment_scope": {
+      "type": "string",
+      "enum": [
+        "user",
+        "organization"
+      ],
+      "default": "user",
+      "enumColors": [
+        "blue",
+        "purple"
+      ],
+      "description": "Whether the learner was picked individually or covered by a whole-organization assignment"
+    },
+    "assigned_by_email": {
+      "type": "string"
+    },
+    "assigned_by_name": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "assigned",
+        "completed"
+      ],
+      "default": "assigned",
+      "enumColors": [
+        "yellow",
+        "green"
+      ]
+    },
+    "assigned_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "due_date": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "exercise_id",
+    "assignee_email"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "data.assigned_by_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "data.assignee_email": "{{user.email}}"
+        },
+        {
+          "data.assigned_by_email": "{{user.email}}"
+        },
+        {
+          "data.organization_id": "{{user.data.organization_id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.assignee_email": "{{user.email}}"
+        },
+        {
+          "data.assigned_by_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.assigned_by_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
