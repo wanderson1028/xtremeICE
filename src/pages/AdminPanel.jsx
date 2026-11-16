@@ -13,8 +13,10 @@ import FeatureFlagManager from "@/components/admin/FeatureFlagManager";
 import NiceDatasetManager from "@/components/admin/NiceDatasetManager";
 import DemoDataManager from "@/components/admin/DemoDataManager";
 import DemoOrgSeeder from "@/components/admin/DemoOrgSeeder";
+import { useTranslation } from "react-i18next";
 
 export default function AdminPanel() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState("users");
   const [showOrgForm, setShowOrgForm] = useState(false);
   const [editingOrg, setEditingOrg] = useState(null);
@@ -49,8 +51,8 @@ export default function AdminPanel() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center space-y-3">
           <ShieldCheck className="h-12 w-12 text-gray-400 mx-auto" />
-          <h2 className="text-xl font-semibold text-gray-800">Access Restricted</h2>
-          <p className="text-gray-500">You need admin privileges to access this page.</p>
+          <h2 className="text-xl font-semibold text-gray-800">{t("admin.accessRestricted")}</h2>
+          <p className="text-gray-500">{t("admin.accessRestrictedHint")}</p>
         </div>
       </div>
     );
@@ -86,13 +88,10 @@ export default function AdminPanel() {
                 ? <ShieldCheck className="h-6 w-6 text-blue-600" />
                 : <Crown className="h-6 w-6 text-yellow-500" />
               }
-              {isPlatformAdmin ? "Platform Admin" : "Organization Admin"}
+              {isPlatformAdmin ? t("admin.platformAdmin") : t("admin.orgAdmin")}
             </h1>
             <p className="text-sm text-gray-500 mt-1">
-              {isPlatformAdmin
-                ? "Manage all organizations, users, and platform-wide settings."
-                : "Manage your organization's users and settings."
-              }
+              {isPlatformAdmin ? t("admin.platformSubtitle") : t("admin.orgSubtitle")}
             </p>
           </div>
           {/* Only platform admins can create new orgs */}
@@ -102,7 +101,7 @@ export default function AdminPanel() {
               className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
             >
               <Plus className="h-4 w-4" />
-              New Organization
+              {t("admin.newOrganization")}
             </Button>
           )}
         </div>
@@ -121,33 +120,33 @@ export default function AdminPanel() {
           <TabsList className="bg-gray-200">
             <TabsTrigger value="users" className="gap-2 data-[state=active]:bg-white data-[state=active]:text-gray-900 text-gray-600">
               <Users className="h-4 w-4" />
-              Users
+              {t("admin.tabUsers")}
             </TabsTrigger>
             <TabsTrigger value="services" className="gap-2 data-[state=active]:bg-white data-[state=active]:text-gray-900 text-gray-600">
               <KeyRound className="h-4 w-4" />
-              Features
+              {t("admin.tabFeatures")}
             </TabsTrigger>
             {/* Org tab: platform admins see all orgs, org admins see only their org settings */}
             <TabsTrigger value="organizations" className="gap-2 data-[state=active]:bg-white data-[state=active]:text-gray-900 text-gray-600">
               <Building2 className="h-4 w-4" />
-              {isPlatformAdmin ? "Organizations" : "Org Settings"}
+              {isPlatformAdmin ? t("admin.tabOrganizations") : t("admin.tabOrgSettings")}
             </TabsTrigger>
             {isPlatformAdmin && (
               <TabsTrigger value="flags" className="gap-2 data-[state=active]:bg-white data-[state=active]:text-gray-900 text-gray-600">
                 <Flag className="h-4 w-4" />
-                Feature Flags
+                {t("admin.tabFlags")}
               </TabsTrigger>
             )}
             {isPlatformAdmin && (
               <TabsTrigger value="nice" className="gap-2 data-[state=active]:bg-white data-[state=active]:text-gray-900 text-gray-600">
                 <Database className="h-4 w-4" />
-                NICE Dataset
+                {t("admin.tabNice")}
               </TabsTrigger>
             )}
             {isPlatformAdmin && (
               <TabsTrigger value="demo-data" className="gap-2 data-[state=active]:bg-white data-[state=active]:text-gray-900 text-gray-600">
                 <FlaskConical className="h-4 w-4" />
-                Demo Data
+                {t("admin.tabDemo")}
               </TabsTrigger>
             )}
           </TabsList>

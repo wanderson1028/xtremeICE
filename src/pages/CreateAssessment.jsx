@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { ArrowLeft, ChevronRight, CheckCircle2, Loader2, Mail, Copy, Check } from "lucide-react";
-import { VIRTUAL_LABS, LINUX_LABS, POWERSHELL_LABS, LAB_COURSES } from "@/lib/labCatalog";
+import { VIRTUAL_LABS, LINUX_LABS, POWERSHELL_LABS, LAB_COURSES, M365_LABS } from "@/lib/labCatalog";
 
 const SESSION_CATEGORIES = {
   "Active Labs": "lab_scenarios",
@@ -28,7 +28,7 @@ export default function CreateAssessment() {
     queryFn: () => base44.auth.me(),
   });
 
-  const allLabs = [...VIRTUAL_LABS, ...LINUX_LABS, ...POWERSHELL_LABS, ...LAB_COURSES];
+  const allLabs = [...VIRTUAL_LABS, ...LINUX_LABS, ...POWERSHELL_LABS, ...LAB_COURSES, ...M365_LABS];
 
   const [form, setForm] = useState({
     position_title: "",

@@ -83,6 +83,10 @@
       "items": {
         "type": "object"
       }
+    },
+    "product_remediation": {
+      "type": "object",
+      "description": "Result of the product-specific hotspot remediation drill: score, product interface used and per-step outcomes"
     }
   },
   "required": [

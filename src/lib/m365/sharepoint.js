@@ -1,0 +1,244 @@
+/** SharePoint — document library command bar, dialogs, list targets and scored tasks. */
+
+export const ITEM_MENU = [
+  { id: "open", label: "Open in app" },
+  { id: "share", label: "Share", opens: "sp-share" },
+  { id: "copy-link", label: "Copy link" },
+  { id: "download", label: "Download" },
+  { id: "rename", label: "Rename", opens: true },
+  { id: "move-to", label: "Move to", opens: true },
+  { id: "copy-to", label: "Copy to", opens: true },
+  { id: "version-history", label: "Version history" },
+  { id: "pin", label: "Pin to Quick access" },
+  { id: "alert-me", label: "Alert me" },
+  { id: "details", label: "Details" },
+  { id: "delete", label: "Delete" },
+];
+
+export const SORT_MENU = [
+  { id: "sort-newest", label: "Sort newest first" },
+  { id: "sort-oldest", label: "Sort oldest first" },
+  { id: "sort-name", label: "Sort by name (A → Z)" },
+  { id: "sort-name-desc", label: "Sort by name (Z → A)" },
+  { id: "sort-size", label: "Sort by size" },
+];
+
+export const SHAREPOINT_DIALOGS = {
+  "sp-upload": {
+    title: "Upload files",
+    description: "Choose a file on your computer to copy into Security Operations.",
+    items: [
+      { id: "Q4_Report.pdf", label: "Q4_Report.pdf", meta: "Local · 318 KB" },
+      { id: "Vendor_Contract.pdf", label: "Vendor_Contract.pdf", meta: "Local · 96 KB" },
+      { id: "Audit_Checklist.xlsx", label: "Audit_Checklist.xlsx", meta: "Local · 44 KB" },
+    ],
+    confirm: "Upload",
+  },
+  "sp-folder": {
+    title: "Create folder",
+    description: "Name the folder that will hold the evidence.",
+    input: { label: "Folder name", placeholder: "Type a folder name" },
+    confirm: "Create",
+  },
+  "sp-share": {
+    title: "Manage access",
+    description: "Choose who should be given access to the selected item.",
+    items: [
+      { id: "Audit Team", label: "Audit Team", meta: "Security group · 6 members" },
+      { id: "Priya Raman", label: "Priya Raman", meta: "priya.raman@northwind.example" },
+      { id: "All staff", label: "All staff", meta: "Organization-wide group" },
+    ],
+    confirm: "Send",
+  },
+};
+
+/** Applies any committed operation to the library state. */
+export function reduceSharePoint(state, action) {
+  const next = { ...state };
+  const target = action.targetId || null;
+
+  if (action.type === "confirm") {
+    if (action.dialogId === "sp-upload" && action.value) {
+      next.uploadedFiles = state.uploadedFiles.includes(action.value)
+        ? state.uploadedFiles
+        : [...state.uploadedFiles, action.value];
+    }
+    if (action.dialogId === "sp-folder" && action.value) {
+      next.folders = state.folders.includes(action.value)
+        ? state.folders
+        : [...state.folders, action.value];
+    }
+    if (action.dialogId === "sp-share" && action.value) {
+      next.sharedItem = target;
+      next.sharedWith = state.sharedWith.includes(action.value)
+        ? state.sharedWith
+        : [...state.sharedWith, action.value];
+    }
+  }
+  if (action.type === "menu") {
+    if (action.itemId === "sort-newest") next.sorting = "newest";
+    if (action.itemId === "sort-oldest") next.sorting = "oldest";
+    if (action.itemId === "sort-name") next.sorting = "name";
+    if (action.itemId === "version-history") next.versionsFor = target;
+    if (action.itemId === "pin") next.pinned = target;
+    if (action.itemId === "delete") next.deletedItem = target;
+  }
+  if (action.type === "option") {
+    if (action.controlId === "more" && action.optionId === "pin") next.pinned = target;
+    if (action.controlId === "more" && action.optionId === "version-history") next.versionsFor = target;
+    if (action.controlId === "more" && action.optionId === "delete-item") next.deletedItem = target;
+    if (action.controlId === "more" && action.optionId === "alert-me") next.alerted = target;
+    if (action.controlId === "new" && action.optionId === "new-docx") next.createdFile = "Document.docx";
+    if (action.controlId === "new" && action.optionId === "new-xlsx") next.createdFile = "Workbook.xlsx";
+    if (action.controlId === "sync") next.synced = true;
+    if (action.controlId === "automate") next.automated = action.optionId;
+    if (action.controlId === "export") next.exported = action.optionId;
+  }
+  return next;
+}
+
+export const sharepointApp = {
+  id: "sharepoint",
+  name: "SharePoint",
+  accent: "#036c70",
+  windowTitle: "Security Operations — SharePoint",
+  variant: "library",
+  reduce: reduceSharePoint,
+  tabs: [],
+  dialogs: SHAREPOINT_DIALOGS,
+  commandBar: [
+    { id: "new", label: "New", menu: [
+      { id: "new-folder", label: "Folder", opens: "sp-folder" },
+      { id: "new-docx", label: "Word document" },
+      { id: "new-xlsx", label: "Excel workbook" },
+      { id: "new-pptx", label: "PowerPoint presentation" },
+      { id: "new-onenote", label: "OneNote notebook" },
+      { id: "new-link", label: "Link" },
+    ] },
+    { id: "upload", label: "Upload", menu: [
+      { id: "upload-files", label: "Files", opens: "sp-upload" },
+      { id: "upload-folder", label: "Folder", opens: true },
+      { id: "upload-template", label: "Template", opens: true },
+    ] },
+    { id: "create", label: "Create", menu: [
+      { id: "create-list", label: "List", opens: true },
+      { id: "create-library", label: "Document library", opens: true },
+      { id: "create-page", label: "Site page", opens: true },
+      { id: "create-app", label: "App", opens: true },
+    ] },
+    { id: "share", label: "Share", menu: [
+      { id: "manage-access", label: "Manage access", opens: "sp-share" },
+      { id: "copy-link", label: "Copy link" },
+      { id: "email-link", label: "Email link", opens: true },
+      { id: "share-teams", label: "Share in Teams" },
+    ] },
+    { id: "copy-to", label: "Copy to", menu: [
+      { id: "copy-to-library", label: "Copy to…", opens: true },
+      { id: "move-to-library", label: "Move to…", opens: true },
+    ] },
+    { id: "automate", label: "Automate", menu: [
+      { id: "automate-rule", label: "Create a rule", opens: true },
+      { id: "automate-flow", label: "Power Automate", opens: true },
+      { id: "automate-approval", label: "Request approval", opens: true },
+    ] },
+    { id: "export", label: "Export", menu: [
+      { id: "export-csv", label: "Export to CSV" },
+      { id: "export-excel", label: "Export to Excel" },
+      { id: "export-pdf", label: "Export to PDF" },
+    ] },
+    { id: "sync", label: "Sync" },
+    { id: "alert", label: "Alert me", menu: [
+      { id: "alert-this", label: "Set an alert on this library" },
+      { id: "alert-manage", label: "Manage my alerts", opens: true },
+    ] },
+    { id: "more", label: "⋯", menu: [
+      { id: "pin", label: "Pin to Quick access" },
+      { id: "version-history", label: "Version history" },
+      { id: "alert-me", label: "Alert me" },
+      { id: "library-settings", label: "Library settings", opens: true },
+      { id: "delete-item", label: "Delete" },
+    ] },
+  ],
+  defaults: {
+    uploadedFiles: [],
+    folders: [],
+    sorting: "",
+    sharedItem: null,
+    sharedWith: [],
+    versionsFor: null,
+    pinned: null,
+    deletedItem: null,
+    createdFile: null,
+    synced: false,
+    alerted: null,
+    automated: null,
+    exported: null,
+  },
+  questions: [
+    {
+      id: "sharepoint-q1",
+      /* Upload, Files, choose Q4_Report.pdf, Upload. */
+      minClicks: 4,
+      task: "Q4_Report.pdf is on your laptop and has to end up in this library, so the team works from the shared copy rather than local files.",
+      answers: [{ kind: "confirm", dialog: "sp-upload", value: "Q4_Report.pdf" }],
+      verify: (state) => state.uploadedFiles.includes("Q4_Report.pdf"),
+      explanation:
+        "Upload offers a source, then the file picker lists what is on the machine: only the chosen file is copied into the library.",
+    },
+    {
+      id: "sharepoint-q2",
+      /* New, Folder, Create (the name is typed, which is not a click). */
+      minClicks: 3,
+      task: "The evidence you are about to collect needs a place of its own in this library, named “Q4 Evidence”, so it stays separate from day-to-day files.",
+      answers: [{ kind: "confirm", dialog: "sp-folder", value: "Q4 Evidence" }],
+      verify: (state) => state.folders.includes("Q4 Evidence"),
+      explanation:
+        "New on the command bar opens the create dialog; the folder takes the name typed into it.",
+    },
+    {
+      id: "sharepoint-q3",
+      /* Select the document, Share, Manage access, Audit Team, Send. */
+      minClicks: 5,
+      task: "The audit team needs to be able to open Q4_Security_Policy.docx, so access to that document has to reach beyond the current group.",
+      answers: [
+        { kind: "confirm", dialog: "sp-share", value: "Audit Team", target: "sp-row-policy" },
+      ],
+      verify: (state) => state.sharedItem === "sp-row-policy" && state.sharedWith.includes("Audit Team"),
+      explanation:
+        "Sharing acts on the selected item. The access dialog records who the permission is granted to.",
+    },
+    {
+      id: "sharepoint-q4",
+      /* Right-click the Modified header, then Sort newest first. */
+      minClicks: 2,
+      task: "The library still lists files by name, and the most recently edited ones should come first so recent work is easy to find.",
+      answers: [{ kind: "menu", target: "sp-col-modified", item: "sort-newest" }],
+      verify: (state) => state.sorting === "newest",
+      explanation:
+        "The Modified column header opens the sort options; newest first reorders the whole library by edit date.",
+    },
+    {
+      id: "sharepoint-q5",
+      /* Right-click the plan, then Version history. */
+      minClicks: 2,
+      task: "You need the revision of the incident response plan that existed before last week's edit, so the earlier version has to be recoverable from this library.",
+      answers: [{ kind: "menu", target: "sp-row-ir-plan", item: "version-history" }],
+      verify: (state) => state.versionsFor === "sp-row-ir-plan",
+      explanation:
+        "The item context menu exposes Version history, where earlier revisions can be reviewed and restored.",
+    },
+    {
+      id: "sharepoint-q6",
+      /* Right-click the tracker, then Pin to Quick access. */
+      minClicks: 2,
+      task: "The vendor renewal tracker must be reachable in one click from Quick access, without hunting through the library each time.",
+      answers: [
+        { kind: "menu", target: "sp-row-vendor", item: "pin" },
+        { kind: "option", control: "more", option: "pin", target: "sp-row-vendor" },
+      ],
+      verify: (state) => state.pinned === "sp-row-vendor",
+      explanation:
+        "Pinning acts on one item, from its context menu or the ⋯ command bar menu.",
+    },
+  ],
+};

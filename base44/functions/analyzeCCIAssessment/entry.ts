@@ -20,9 +20,14 @@ Deno.serve(async(req)=>{
   const apiImport=user.role==="admin"&&b.api_import?.provider==="vpentest"?b.api_import:null;
   const backgroundFinalize=user.role==="admin"&&b.background_finalize===true&&Boolean(b.revision_of_id);
   if(!String(b.business_name||"").trim())return Response.json({error:"Business name is required"},{status:400});
-  const reportFiles=(b.report_files||[]).filter((f:any)=>f?.file_url);
-  const evidenceFiles=(b.evidence_files||[]).filter((f:any)=>f?.file_url).map((f:any)=>({...f,category:"evidence"}));
+  // Stored links are rendered as clickable anchors, so only https URLs may be kept.
+  // A javascript:/data: link stored here would execute in another user's browser.
+  const safeFileUrl=(v:unknown)=>{try{const url=new URL(String(v||""));return url.protocol==="https:"?url.toString():"";}catch{return "";}};
+  const withSafeUrl=(f:any)=>({...f,file_url:safeFileUrl(f?.file_url)});
+  const reportFiles=(b.report_files||[]).filter((f:any)=>f?.file_url).map(withSafeUrl);
+  const evidenceFiles=(b.evidence_files||[]).filter((f:any)=>f?.file_url).map((f:any)=>({...withSafeUrl(f),category:"evidence"}));
   const files=[...reportFiles,...evidenceFiles];
+  if(files.some((f:any)=>!f.file_url))return Response.json({error:"Report and evidence links must be secure https URLs."},{status:400});
   if(!reportFiles.length&&!apiImport)return Response.json({error:"Upload at least one assessment report, or import a vPenTest assessment"},{status:400});
   const allowed=/\.(pdf|doc|docx|xls|xlsx|csv|txt|json|log|xml)$/i;
   if(files.some((f:any)=>!allowed.test(String(f.name||""))))return Response.json({error:"Supported formats are PDF, Word, Excel, CSV, TXT, JSON, LOG, and XML"},{status:400});

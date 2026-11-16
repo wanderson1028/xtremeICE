@@ -11,6 +11,15 @@
     "position_title": {
       "type": "string"
     },
+    "assessment_kind": {
+      "type": "string",
+      "enum": [
+        "hands_on",
+        "application_test"
+      ],
+      "default": "hands_on",
+      "description": "hands_on labs use written task responses; application_test uses auto-scored multiple choice and matching questions."
+    },
     "organization_id": {
       "type": "string",
       "description": "Organization this assessment belongs to"
@@ -86,6 +95,10 @@
     "scenario_narrative": {
       "type": "string"
     },
+    "scenario_block": {
+      "type": "string",
+      "description": "Shared scenario shown to the candidate above every question; the questions follow it."
+    },
     "objectives": {
       "type": "array",
       "items": {
@@ -97,7 +110,8 @@
       "default": 70
     },
     "scoring_weights": {
-      "type": "object"
+      "type": "object",
+      "description": "Theme scoring weights: { themes: [{ theme, weight }] }. Relative weights are normalized at scoring time."
     },
     "status": {
       "type": "string",

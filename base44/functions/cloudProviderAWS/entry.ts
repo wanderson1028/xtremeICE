@@ -35,10 +35,10 @@ async function checkVpcProtection(vpcId, region, params, user) {
 
 // ── Instance cost tier enforcement ──
 const COST_TIERS = {
-  standard:  { maxCpu: 2,  maxRamMB: 4096,  label: "Standard" },
-  performance: { maxCpu: 4,  maxRamMB: 16384, label: "Performance" },
-  enterprise: { maxCpu: 16, maxRamMB: 65536, label: "Enterprise", adminOnly: true },
-  extreme:   { maxCpu: Infinity, maxRamMB: Infinity, label: "Extreme", adminOnly: true },
+  standard:  { maxCpu: 2,  maxRamMB: 4096,  maxStorageGb: 100,  label: "Standard" },
+  performance: { maxCpu: 4, maxRamMB: 16384, maxStorageGb: 250, label: "Performance" },
+  enterprise: { maxCpu: 16, maxRamMB: 65536, maxStorageGb: 500, label: "Enterprise", adminOnly: true },
+  extreme:   { maxCpu: Infinity, maxRamMB: Infinity, maxStorageGb: 1000, label: "Extreme", adminOnly: true },
 };
 
 function getCostTier(cpu, ram) {
@@ -60,9 +60,9 @@ async function checkInstanceAllowed(base44, labId, cpu, ram, userId) {
   const user = await base44.asServiceRole.entities.User.filter({ id: userId }).then(r => r[0]);
   if (user?.role === "admin") return { allowed: true, tier };
 
-  // Check if lab has admin approval for high-cost instances
-  const lab = await base44.asServiceRole.entities.LiveFireLab.filter({ id: labId }).then(r => r[0]);
-  if (lab?.admin_approved_cost) return { allowed: true, tier };
+  // The lab's admin_approved_cost flag is written by the lab owner through the
+  // entity API, so it cannot authorise a high-cost tier on its own — only a real
+  // admin caller can. (labId kept for call-site compatibility.)
 
   return {
     allowed: false,
@@ -105,6 +105,38 @@ async function verifyVpcAccess(base44, vpcId, region, user) {
     return verifyLabOwnership(base44, labId, user);
   } catch (err) {
     return { allowed: false, error: `Failed to verify VPC ownership: ${err.message}` };
+  }
+}
+
+// A subnet or security group may only be used by the lab that owns its VPC.
+async function verifyVpcBelongsToLab(vpcId, labId, region) {
+  const xml = await ec2Call("DescribeVpcs", { VpcId: [vpcId] }, region);
+  const tagSet = xml.match(/<tagSet>([\s\S]*?)<\/tagSet>/)?.[1] || "";
+  if (extractTag(tagSet, "LabId") !== String(labId)) {
+    return { allowed: false, error: `VPC ${vpcId} does not belong to this lab.` };
+  }
+  return { allowed: true };
+}
+
+async function verifySubnetForLab(subnetId, labId, region) {
+  try {
+    const xml = await ec2Call("DescribeSubnets", { SubnetId: [subnetId] }, region);
+    const vpcId = xml.match(/<vpcId>([^<]+)<\/vpcId>/)?.[1];
+    if (!vpcId) return { allowed: false, error: `Subnet ${subnetId} was not found in ${region}.` };
+    return await verifyVpcBelongsToLab(vpcId, labId, region);
+  } catch (err) {
+    return { allowed: false, error: `Unable to verify subnet ${subnetId}: ${err.message}` };
+  }
+}
+
+async function verifySecurityGroupForLab(securityGroupId, labId, region) {
+  try {
+    const xml = await ec2Call("DescribeSecurityGroups", { GroupId: [securityGroupId] }, region);
+    const vpcId = xml.match(/<vpcId>([^<]+)<\/vpcId>/)?.[1];
+    if (!vpcId) return { allowed: false, error: `Security group ${securityGroupId} is not attached to a VPC.` };
+    return await verifyVpcBelongsToLab(vpcId, labId, region);
+  } catch (err) {
+    return { allowed: false, error: `Unable to verify security group ${securityGroupId}: ${err.message}` };
   }
 }
 
@@ -333,6 +365,24 @@ Deno.serve(async (req) => {
           }, { status: 403 });
         }
 
+        // Resolve the subnet and security groups server-side: they must live inside
+        // a VPC tagged for this lab, so no instance can be placed in another tenant's
+        // or sensitive network segment.
+        if (subnet_id) {
+          const subnetAccess = await verifySubnetForLab(subnet_id, lab_id, region);
+          if (!subnetAccess.allowed) {
+            return Response.json({ error: "SUBNET_ACCESS_DENIED", message: subnetAccess.error }, { status: 403 });
+          }
+        }
+        if (Array.isArray(security_group_ids)) {
+          for (const sgId of security_group_ids) {
+            const sgAccess = await verifySecurityGroupForLab(sgId, lab_id, region);
+            if (!sgAccess.allowed) {
+              return Response.json({ error: "SECURITY_GROUP_ACCESS_DENIED", message: sgAccess.error }, { status: 403 });
+            }
+          }
+        }
+
         // Resolve AMI dynamically for the target region
         let amiId = ami_image_id;
         if (!amiId) {
@@ -379,6 +429,12 @@ Deno.serve(async (req) => {
         }
         const instanceType = selectInstanceType(cpu_cores, ram_mb);
 
+        // Clamp disk size to the approved tier ceiling so a caller cannot provision
+        // unbounded EBS storage at the account's expense.
+        const storageLimitGb = COST_TIERS[tierCheck.tier]?.maxStorageGb || 100;
+        const requestedStorageGb = Number(storage_gb) || 20;
+        const volumeSizeGb = Math.max(8, Math.min(requestedStorageGb, storageLimitGb));
+
         const runParams = {
           ImageId: amiId,
           InstanceType: instanceType,
@@ -387,7 +443,7 @@ Deno.serve(async (req) => {
           SubnetId: subnet_id,
           SecurityGroupId: security_group_ids,
           BlockDeviceMapping: [
-            { DeviceName: "/dev/xvda", Ebs: { VolumeSize: String(storage_gb), VolumeType: "gp3", DeleteOnTermination: "true" } },
+            { DeviceName: "/dev/xvda", Ebs: { VolumeSize: String(volumeSizeGb), VolumeType: "gp3", DeleteOnTermination: "true" } },
           ],
           TagSpecification: [
             { ResourceType: "instance", Tag: [
@@ -658,7 +714,9 @@ Deno.serve(async (req) => {
         return Response.json({
           region,
           suggested_cidr: suggested,
-          existing_vpcs: existingCidrs.map(c => ({ cidr: c })),
+          // Inventory of every VPC in the account is admin-only; other callers still
+          // get the conflict verdict and a free CIDR, without the network map.
+          existing_vpcs: user.role === "admin" ? existingCidrs.map(c => ({ cidr: c })) : [],
           check: checkResult,
         });
       }
@@ -678,7 +736,17 @@ Deno.serve(async (req) => {
             labId: extractTag(m[4], "LabId") || null,
           });
         }
-        return Response.json({ region, vpcs, totalCount: vpcs.length });
+        // Non-admins only see networks that belong to a lab they own or that is shared with them.
+        let visibleVpcs = vpcs;
+        if (user.role !== "admin") {
+          const [ownLabs, sharedLabs] = await Promise.all([
+            base44.asServiceRole.entities.LiveFireLab.filter({ created_by_id: user.id }),
+            base44.asServiceRole.entities.LiveFireLab.filter({ shared_with: user.email }),
+          ]);
+          const allowedLabIds = new Set([...ownLabs, ...sharedLabs].map(l => l.id));
+          visibleVpcs = vpcs.filter(v => v.labId && allowedLabIds.has(v.labId));
+        }
+        return Response.json({ region, vpcs: visibleVpcs, totalCount: visibleVpcs.length });
       }
 
       case "listAllVpcs": {
@@ -789,6 +857,12 @@ Deno.serve(async (req) => {
         if (!vpc_cidr && !vpc_id) {
           return Response.json({ error: "Provide vpc_cidr or vpc_id" }, { status: 400 });
         }
+        if (vpc_id) {
+          const vpcAccess = await verifyVpcAccess(base44, vpc_id, region, user);
+          if (!vpcAccess.allowed) {
+            return Response.json({ error: "VPC_ACCESS_DENIED", message: vpcAccess.error }, { status: 403 });
+          }
+        }
 
         let cidr = vpc_cidr;
         if (!cidr && vpc_id) {
@@ -854,6 +928,11 @@ Deno.serve(async (req) => {
         // List all subnets in a specific VPC with full details
         const { vpc_id } = params;
         if (!vpc_id) return Response.json({ error: "vpc_id required" }, { status: 400 });
+
+        const vpcAccess = await verifyVpcAccess(base44, vpc_id, region, user);
+        if (!vpcAccess.allowed) {
+          return Response.json({ error: "VPC_ACCESS_DENIED", message: vpcAccess.error }, { status: 403 });
+        }
 
         // Fetch VPC CIDR and Name tag
         let vpcCidr = "";
@@ -1072,7 +1151,12 @@ Deno.serve(async (req) => {
         let lastError = null;
         for (const r of regionsToTry) {
           try {
-            xml = await ec2Call("DescribeImages", { ImageId: [image_id] }, r);
+            // Non-admins may only resolve publicly available AMIs, never the
+            // account's private image inventory.
+            const imageParams = user.role === "admin"
+              ? { ImageId: [image_id] }
+              : { ImageId: [image_id], Filter: [{ Name: "is-public", Value: ["true"] }] };
+            xml = await ec2Call("DescribeImages", imageParams, r);
             foundRegion = r;
             break;
           } catch (e) {
@@ -1217,10 +1301,18 @@ Deno.serve(async (req) => {
           },
         ];
 
+        // "My AMIs" lists the account's own private images: admin-only, so other
+        // callers get the shared catalog only.
+        const visibleCategories = user.role === "admin"
+          ? categories
+          : categories
+              .map(c => ({ ...c, groups: (c.groups || []).filter(g => g.owner !== "self") }))
+              .filter(c => (c.groups || []).length > 0);
+
         const categorizedResults = [];
         let describeImagesAvailable = true;
 
-        for (const category of categories) {
+        for (const category of visibleCategories) {
           const catGroups = [];
           for (const group of (category.groups || [])) {
             if (!describeImagesAvailable) {
@@ -1542,7 +1634,13 @@ Deno.serve(async (req) => {
       }
 
       case "createKeyPair": {
-        const { key_name } = params;
+        const { key_name, lab_id } = params;
+        // Key pairs are real AWS writes against the shared account: only the lab owner
+        // deploying their own lab (or an admin) may create one.
+        const keyLabAccess = await verifyLabOwnership(base44, lab_id, user);
+        if (!keyLabAccess.allowed) {
+          return Response.json({ error: "LAB_ACCESS_DENIED", message: keyLabAccess.error }, { status: 403 });
+        }
         const xml = await ec2Call("CreateKeyPair", { KeyName: key_name }, region);
 
         // AWS returns the private key material — this is the ONLY time it's available
@@ -1783,6 +1881,12 @@ Deno.serve(async (req) => {
       case "listSecurityGroups": {
         // List security groups for a given VPC
         const { vpc_id } = params;
+        if (vpc_id) {
+          const vpcAccess = await verifyVpcAccess(base44, vpc_id, region, user);
+          if (!vpcAccess.allowed) {
+            return Response.json({ error: "VPC_ACCESS_DENIED", message: vpcAccess.error }, { status: 403 });
+          }
+        }
         const ids = [];
         if (vpc_id) {
           const xml = await ec2Call("DescribeSecurityGroups", {

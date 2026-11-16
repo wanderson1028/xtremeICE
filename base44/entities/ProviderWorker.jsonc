@@ -14,7 +14,7 @@
     },
     "token_hash": {
       "type": "string",
-      "description": "SHA-256 hash of the worker bearer ******"
+      "description": "SHA-256 digest used to verify the worker credential"
     },
     "status": {
       "type": "string",

@@ -8,20 +8,16 @@
     },
     "service_key": {
       "type": "string",
+      "description": "The service/feature assigned to the user. Matches a FeatureFlag key."
+    },
+    "access_level": {
+      "type": "string",
       "enum": [
-        "network_design_wizard",
-        "visual_design_editor",
-        "cyber_range",
-        "soc_training",
-        "soc_assessments",
-        "real_attack_drills",
-        "lab_scenarios",
-        "course_lab_builder",
-        "cci",
-        "demo_mode",
-        "tabletop_exercises"
+        "editor",
+        "viewer"
       ],
-      "description": "The service/feature assigned to the user"
+      "default": "editor",
+      "description": "Permission inside the feature. 'editor' can create and change records; 'viewer' is read-only. Assignments made before this field existed have no value and keep full use of the feature, so they resolve to editor."
     }
   },
   "required": [

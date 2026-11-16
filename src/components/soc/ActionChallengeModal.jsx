@@ -5,38 +5,130 @@ import { getScenarioPlaybook } from "./scenarioPlaybooks";
 // Challenge definitions per action ID
 // All correct answers are derived from the run-seed so they always match the
 // evidence the analyst sees in SIEM, EDR, alerts, and endpoints.
+
+// Terms that mark a log line as attacker evidence, including web-attack patterns.
+const SUSPICIOUS_EVIDENCE =
+  /attacker|command and control|\bc2\b|brute ?force|failed (?:vpn )?auth|scan|unknown ip|foreign ip|reverse shell|beacon|spoof|injection|traversal|%2e|\.\.\/|web shell|malicious|suspicious|probe|exploit|exfil|hijack|poison|\bioc\b|blocked/i;
+
+const NEVER_AN_ATTACKER = new Set(["0.0.0.0", "255.255.255.255"]);
+
 function deriveAttackerIPFromLogs(logs = [], endpoints = []) {
   const endpointIPs = new Set(endpoints.map(endpoint => endpoint.ip).filter(Boolean));
   const candidates = new Map();
-  const suspiciousTerms = /attacker|c2|command and control|brute force|failed (?:vpn )?auth|scan|unknown ip|foreign ip|reverse shell|beacon|spoof/i;
 
   logs.forEach(log => {
     const text = `${log.source || ""} ${log.message || ""}`;
-    if (!suspiciousTerms.test(text)) return;
-    const matches = text.match(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g) || [];
-    matches.forEach(ip => {
+    if (!SUSPICIOUS_EVIDENCE.test(text)) return;
+    for (const match of text.matchAll(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g)) {
+      const ip = match[0];
       const octets = ip.split(".").map(Number);
       const valid = octets.length === 4 && octets.every(value => value >= 0 && value <= 255);
-      if (!valid || endpointIPs.has(ip) || ip === "0.0.0.0" || ip.endsWith(".0") || ip.endsWith(".255")) return;
+      if (!valid || endpointIPs.has(ip) || NEVER_AN_ATTACKER.has(ip) || ip.endsWith(".0") || ip.endsWith(".255")) continue;
+      // "gateway IP 10.0.1.1" is the victim being impersonated, not the attacker
+      const before = text.slice(Math.max(0, match.index - 12), match.index).toLowerCase();
+      if (/gateway\s+(?:ip\s+)?$/.test(before)) continue;
       candidates.set(ip, (candidates.get(ip) || 0) + 1);
-    });
+    }
   });
 
   return [...candidates.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
 }
 
-export function buildChallenge(actionId, endpoints, alerts, scenario, seed, logs = []) {
-  const compromisedEndpoints = endpoints.filter((e) => e.status !== "healthy").map((e) => e.name);
+const DOMAIN_USER_RE = /\b[A-Za-z0-9-]+\\[A-Za-z0-9._$-]+\b/g;
+const UPN_RE = /\b[A-Za-z0-9._-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
+const WINDOWS_PATH_RE = /\b[A-Za-z]:\\[^\s"',;)]+\.[A-Za-z0-9]{2,4}\b/g;
+const UNIX_PATH_RE = /\/(?:tmp|var\/tmp|dev\/shm|home)\/[^\s"',;)]+/g;
+
+function evidenceTextOf(lines = []) {
+  return lines.map(line => `${line.source || ""} ${line.message || ""}`).join("\n");
+}
+
+function evidenceHas(blob, value) {
+  const needle = String(value || "").trim().toLowerCase();
+  return needle.length > 1 && blob.toLowerCase().includes(needle);
+}
+
+/** Most frequent match among the evidence lines that show attacker activity. */
+function deriveFromEvidence(lines = [], pattern) {
+  const counts = new Map();
+  lines.forEach(line => {
+    const text = `${line.source || ""} ${line.message || ""}`;
+    if (!SUSPICIOUS_EVIDENCE.test(text)) return;
+    for (const match of text.matchAll(pattern)) {
+      const value = match[0].replace(/[.,;:)\]]+$/, "");
+      if (value.length < 3) continue;
+      counts.set(value, (counts.get(value) || 0) + 1);
+    }
+  });
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+}
+
+/** True when the challenge has no answer the analyst can verify in this run. */
+export function challengeBlocked(challenge) {
+  if (!challenge) return false;
+  if (challenge.type === "text_input") return !challenge.correctAnswer;
+  if (Array.isArray(challenge.options)) return !challenge.options.some(option => option.correct);
+  return false;
+}
+
+export function buildChallenge(actionId, endpoints, alerts, scenario, seed, logs = [], edr = []) {
+  // A host counts as compromised when its status says so OR when EDR shows
+  // detections on it — both are evidence the analyst can see.
+  const edrHosts = new Set((edr || []).map(d => d.endpoint).filter(Boolean));
+  const compromisedEndpoints = endpoints
+    .filter((e) => e.status !== "healthy" || edrHosts.has(e.name))
+    .map((e) => e.name);
   const playbook = getScenarioPlaybook(scenario?.id);
   const severityLabels = { P1: "Declare major incident and page IR immediately", P2: "Urgent incident response with same-shift escalation", P3: "Investigate and remediate through the standard queue", P4: "Document and monitor as a low-impact event" };
   const allEndpointNames = endpoints.map((e) => e.name);
 
-  // ─── Derive IOCs from the seed (single source of truth) ───────────────────
-  const attackerIP = seed?.attackerIP || deriveAttackerIPFromLogs(logs, endpoints);
-  const compromisedUser = seed?.compromisedUser || null;
-  const maliciousFile = seed?.maliciousFile || null;
-  const seedProcesses = seed?.maliciousProcesses || [];
-  const seedPersistence = seed?.persistenceArtifacts || [];
+  // ─── Derive IOCs from what the analyst can actually see ───────────────────
+  // SIEM logs, alerts and EDR detections are the evidence. A seed IOC is only
+  // trusted when it appears in that evidence; otherwise it is derived from the
+  // evidence itself, and an action with no verified indicator gets locked
+  // instead of demanding an answer that is nowhere in the run.
+  const evidenceLines = [
+    ...logs,
+    ...(alerts || []).map(a => ({ source: a.src, message: `${a.title || ""} ${a.rule || ""}` })),
+    ...(edr || []).map(d => ({ source: d.endpoint, message: `${d.process || ""} ${d.cmdline || ""} ${d.mitre || ""}` })),
+  ];
+  const evidenceBlob = evidenceTextOf(evidenceLines);
+  const visible = value => evidenceHas(evidenceBlob, value);
+
+  const attackerIP = visible(seed?.attackerIP)
+    ? seed.attackerIP
+    : deriveAttackerIPFromLogs(evidenceLines, endpoints) || null;
+
+  let compromisedUser = null;
+  if (seed?.compromisedUser && (visible(seed.compromisedUser.sam) || visible(seed.compromisedUser.upn))) {
+    compromisedUser = seed.compromisedUser;
+  } else {
+    const sam = deriveFromEvidence(evidenceLines, DOMAIN_USER_RE);
+    const upn = deriveFromEvidence(evidenceLines, UPN_RE);
+    if (sam || upn) compromisedUser = { sam: sam ? sam.split("\\").pop() : null, upn };
+  }
+
+  const edrOfKind = kind => (edr || []).filter(d => (d.kind || "process") === kind);
+  const pathIn = text => (String(text || "").match(WINDOWS_PATH_RE) || String(text || "").match(UNIX_PATH_RE) || [])[0] || null;
+
+  const evidenceFiles = edrOfKind("file").map(d => pathIn(d.cmdline)).filter(Boolean);
+  const maliciousFile = visible(seed?.maliciousFile)
+    ? seed.maliciousFile
+    : evidenceFiles[0] || deriveFromEvidence(evidenceLines, WINDOWS_PATH_RE) || deriveFromEvidence(evidenceLines, UNIX_PATH_RE) || null;
+
+  const evidenceProcesses = edrOfKind("process")
+    .map(d => (d.cmdline || "").trim())
+    .filter(name => name && visible(name));
+  const maliciousProcessNames = [...new Set([
+    ...(seed?.maliciousProcesses || []).filter(p => visible(p.name)).map(p => p.name),
+    ...evidenceProcesses,
+  ])].slice(0, 3);
+
+  const evidencePersistence = edrOfKind("persistence")
+    .map(d => String(d.cmdline || "").replace(/^Persistence established:\s*/i, "").trim())
+    .filter(Boolean);
+  const seedPersistence = (seed?.persistenceArtifacts || []).filter(artifact => visible(artifact));
+  const persistenceItems = seedPersistence.length ? seedPersistence : evidencePersistence;
 
   // ─── Firewall rule scripts (derived from seed attacker IP) ─────────────────
   const scenarioBlockTargets = {
@@ -63,7 +155,7 @@ export function buildChallenge(actionId, endpoints, alerts, scenario, seed, logs
 
   // ─── Malicious processes (from seed, with plausible distractors) ──────────
   const allKnownProcesses = [
-    ...seedProcesses.map(p => ({ name: p.name, correct: true })),
+    ...maliciousProcessNames.map(name => ({ name, correct: true })),
     { name: "chrome.exe", correct: false },
     { name: "explorer.exe", correct: false },
     { name: "notepad.exe", correct: false },
@@ -72,7 +164,7 @@ export function buildChallenge(actionId, endpoints, alerts, scenario, seed, logs
 
   // ─── Persistence items (from seed, with legitimate distractors) ────────────
   const allPersistenceItems = [
-    ...seedPersistence.map(p => ({ name: p, correct: true })),
+    ...persistenceItems.map(p => ({ name: p, correct: true })),
     { name: "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon (legitimate)", correct: false },
     { name: "C:\\Program Files\\Google\\Chrome\\chrome.exe (legitimate)", correct: false },
     { name: "HKLM\\SYSTEM\\CurrentControlSet\\Services\\DHCP (legitimate)", correct: false },
@@ -117,6 +209,7 @@ export function buildChallenge(actionId, endpoints, alerts, scenario, seed, logs
       placeholder: "e.g. 0.0.0.0",
       correctAnswer: attackerIP || "",
       inputKind: "ip",
+      unavailableReason: "No attacker address appears in this run's SIEM, alerts or EDR evidence, so there is nothing to block yet.",
       hint: "Check the SIEM for repeated failed auth, C2 traffic, or scan sources — the IP appears in the logs.",
       explanation: attackerIP
         ? `The correct attacker IP is ${attackerIP}. This IOC is shown in the SIEM evidence for the current run.`
@@ -127,27 +220,26 @@ export function buildChallenge(actionId, endpoints, alerts, scenario, seed, logs
       title: "Enter the Compromised Username",
       description: "Type the exact AD username (CORP\\user format) that has been compromised, as shown in the auth logs.",
       placeholder: "e.g. CORP\\username",
-      correctAnswer: compromisedUser ? `CORP\\${compromisedUser.sam}` : "CORP\\jsmith",
+      correctAnswer: compromisedUser?.sam ? `CORP\\${compromisedUser.sam}` : "",
+      unavailableReason: "No compromised account appears in this run's authentication evidence, so there is no account to disable.",
       hint: "Check the auth/SIEM logs for the account with anomalous login activity — successful auth from an external IP or after lockout.",
-      explanation: `The correct account is CORP\\${compromisedUser?.sam || "jsmith"}. This account shows anomalous authentication patterns in the SIEM — multiple failed logins followed by a successful auth from an external IP, then lateral movement. Disabling the wrong account leaves the attacker active while disrupting a legitimate user.`,
+      explanation: `The correct account is CORP\\${compromisedUser?.sam || "the account named in the auth logs"}. This account shows anomalous authentication patterns in the SIEM — multiple failed logins followed by a successful auth from an external IP, then lateral movement. Disabling the wrong account leaves the attacker active while disrupting a legitimate user.`,
     },
     reset_password: {
       type: "text_input",
       title: "Enter the Account to Force-Reset",
       description: "Specify the UPN (user@domain) of the compromised account requiring an immediate password reset.",
       placeholder: "e.g. user@company.com",
-      correctAnswer: compromisedUser ? compromisedUser.upn : "jsmith@company.com",
+      correctAnswer: compromisedUser?.upn || "",
+      unavailableReason: "No compromised account's UPN appears in this run's evidence, so there is nothing to reset.",
       hint: "Check the SIEM for the compromised account's email/UPN — it appears in auth and email logs.",
     },
     kill_process: {
       type: "multi_select",
       title: "Select Malicious Process(es) to Terminate",
       description: "Choose only the processes confirmed malicious in the EDR detections. Killing the wrong process may crash legitimate services.",
-      options: allKnownProcesses.length > 1 ? allKnownProcesses : [
-        { name: "powershell.exe -enc SQBFAFgA...", correct: true },
-        { name: "chrome.exe", correct: false },
-        { name: "explorer.exe", correct: false },
-      ],
+      options: allKnownProcesses,
+      unavailableReason: "No malicious process appears in this run's EDR detections, so there is nothing to terminate.",
       minCorrect: 1,
       explanation: "Malicious processes are those shown in the EDR tab with suspicious patterns: encoded PowerShell, masquerading names (svchost32.exe is not a real Windows binary), or remote execution tools. Standard Windows processes like chrome.exe and explorer.exe are not malicious — killing them crashes the user's session without stopping the attack.",
     },
@@ -156,34 +248,35 @@ export function buildChallenge(actionId, endpoints, alerts, scenario, seed, logs
       title: "Enter the Malicious File Path",
       description: "Type the full file path of the file to quarantine, exactly as shown in EDR detections.",
       placeholder: "e.g. C:\\Windows\\Temp\\malware.exe",
-      correctAnswer: maliciousFile || "C:\\Windows\\Temp\\svchost32.exe",
+      correctAnswer: maliciousFile || "",
+      unavailableReason: "No suspicious file path appears in this run's EDR detections, so there is nothing to quarantine.",
       hint: "Look at the EDR detections for suspicious executables in non-standard locations (Temp, AppData, /tmp).",
-      explanation: `The correct file is ${maliciousFile || "C:\\Windows\\Temp\\svchost32.exe"}. Legitimate Windows system files live in C:\\Windows\\System32 — never in Temp or AppData. Non-standard paths are classic masquerading indicators (MITRE T1036).`,
+      explanation: `The correct file is ${maliciousFile || "the path shown in the EDR detections"}. Legitimate Windows system files live in C:\\Windows\\System32 — never in Temp or AppData. Non-standard paths are classic masquerading indicators (MITRE T1036).`,
     },
     update_fw_rule: {
       type: "single_select",
-      title: "Select the Correct Firewall Rule",
-      description: "Choose the ACL snippet that correctly blocks the attacker while preserving legitimate traffic.",
+      title: fwScripts ? "Select the Correct Firewall Rule" : "Select the Correct Firewall Action",
+      description: fwScripts
+        ? "Choose the ACL snippet that correctly blocks the attacker while preserving legitimate traffic."
+        : "This run's evidence contains no verified attacker address or malicious domain, so no firewall block can be justified. Choose the response that avoids an unjustified change.",
       options: fwScripts || [
-        { id: "correct", label: `deny ip host 10.0.1.50 any\ndeny ip any host 10.0.1.50`, correct: true },
-        { id: "wrong1", label: "permit ip host 10.0.1.50 any", correct: false },
+        { id: "correct", label: "no change — no verified IOC in this run's evidence", correct: true },
+        { id: "wrong1", label: "deny ip any any", correct: false },
         { id: "wrong2", label: "deny tcp any any eq 443", correct: false },
         { id: "wrong3", label: "no ip access-list extended BLOCK", correct: false },
       ],
       explanation: scenarioTarget
         ? `The correct control targets ${scenarioTarget.target}, which is the malicious domain, service, or wireless identifier shown in the SIEM evidence.`
         : attackerIP
-          ? `The correct rule blocks both inbound and outbound traffic to and from ${attackerIP}, the IOC shown in this run’s SIEM evidence.`
-          : "Choose a narrowly scoped control derived from the scenario evidence; never apply a broad deny rule without a verified IOC.",
+          ? `The correct rule blocks both inbound and outbound traffic to and from ${attackerIP}, the address shown in this run's SIEM evidence.`
+          : "No attacker address or malicious domain appears in this run's evidence, so a firewall block would target something you have not verified. Broad denies like 'deny ip any any' or blocking all 443 break legitimate traffic — preserve the evidence and escalate until an IOC is confirmed.",
     },
     remove_persistence: {
       type: "multi_select",
       title: "Identify Persistence Mechanisms to Remove",
       description: "Select all persistence artifacts planted by the attacker, as shown in the EDR/SIEM. Leave legitimate system entries untouched.",
-      options: allPersistenceItems.length > 1 ? allPersistenceItems : [
-        { name: "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\svcupdate", correct: true },
-        { name: "C:\\Program Files\\Chrome\\chrome.exe (legitimate)", correct: false },
-      ],
+      options: allPersistenceItems,
+      unavailableReason: "No persistence artifact appears in this run's EDR detections, so there is nothing to remove.",
       minCorrect: 1,
       explanation: "The malicious persistence mechanisms are those shown in the EDR detections — Run keys, scheduled tasks, and StartUp folder items planted by the attacker. Legitimate Windows entries (Winlogon, Chrome, DHCP service) must not be removed — doing so would break the OS.",
     },

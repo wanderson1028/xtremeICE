@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
+import { timeManagementScore } from '../../shared/timeScore.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -36,6 +37,9 @@ Deno.serve(async (req) => {
 
     const overallScore = totalPoints > 0 ? Math.round((earned / totalPoints) * 100) : 0;
 
+    // Time management is measured from the recorded elapsed time, never judged.
+    const timeScore = timeManagementScore(session.time_elapsed_minutes, assessment.duration_minutes);
+
     const prompt = `You are a senior cybersecurity hiring manager reviewing a candidate's assessment results.
 
 Assessment: ${assessment.position_title} (${assessment.assessment_type})
@@ -57,7 +61,6 @@ Generate a professional candidate scorecard and evaluation. Return JSON:
     "troubleshooting_process": <0-100>,
     "security_reasoning": <0-100>,
     "documentation_quality": <0-100>,
-    "time_management": <0-100>,
     "remediation_quality": <0-100>,
     "communication_clarity": <0-100>,
     "compliance_with_instructions": <0-100>
@@ -89,6 +92,13 @@ Generate a professional candidate scorecard and evaluation. Return JSON:
       }
     });
 
+    const categoryScores = { ...(smartResult.category_scores || {}) };
+    if (timeScore === null) {
+      delete categoryScores.time_management;
+    } else {
+      categoryScores.time_management = timeScore;
+    }
+
     const scorecard = await base44.entities.Scorecard.create({
       session_id,
       assessment_id: session.assessment_id,
@@ -97,7 +107,7 @@ Generate a professional candidate scorecard and evaluation. Return JSON:
       overall_score: overallScore,
       passed: overallScore >= (assessment.pass_threshold || 70),
       hiring_recommendation: smartResult.hiring_recommendation || 'borderline',
-      category_scores: smartResult.category_scores || {},
+      category_scores: categoryScores,
       task_results: taskResults,
       strengths: smartResult.strengths || [],
       weaknesses: smartResult.weaknesses || [],

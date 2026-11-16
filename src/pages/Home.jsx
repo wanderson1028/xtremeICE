@@ -8,13 +8,15 @@ import {
 import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { useTranslation } from "react-i18next";
+import CyberSideAccents from "@/components/home/CyberSideAccents";
 
 export default function Home() {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
   return (
-    <div className="min-h-screen py-16 px-4 bg-gradient-to-br from-black via-gray-950 to-red-950/20">
+    <div className="relative min-h-screen py-16 px-4 bg-gradient-to-br from-black via-gray-950 to-red-950/20 overflow-x-hidden">
+      <CyberSideAccents />
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-red-900/10 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 left-1/4 w-[300px] h-[300px] bg-red-950/15 rounded-full blur-3xl" />

@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { ChevronDown, Flame, PenTool, Sparkles, ClipboardCheck, Swords, LayoutDashboard, FolderOpen, Share2, Activity, LayoutTemplate, Server, ShoppingBag, Cloud, Settings, GraduationCap, FlaskConical, ShieldCheck, Bug, BookOpen, UserCheck, CircleDollarSign } from "lucide-react";
+import { ChevronDown, Flame, PenTool, Sparkles, ClipboardCheck, Swords, LayoutDashboard, FolderOpen, Share2, Activity, LayoutTemplate, Server, ShoppingBag, Cloud, Settings, GraduationCap, FlaskConical, ShieldCheck, Bug, BookOpen, UserCheck, CircleDollarSign, Radar, Wand2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import AppBreadcrumb from "@/components/AppBreadcrumb";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { getAccessFromKeys, ADMIN_ACCESS } from "@/lib/featureConfig";
@@ -33,6 +34,7 @@ function useNavAccess(currentUser) {
 }
 
 function CapitalIntelligenceDropdown({ currentPageName, access }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const isActive = ["CFRS", "CCI"].includes(currentPageName);
@@ -50,10 +52,10 @@ function CapitalIntelligenceDropdown({ currentPageName, access }) {
       <button
         onClick={() => setOpen(v => !v)}
         className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${isActive ? NAV_ACTIVE : NAV_IDLE}`}
-        title="Capital Intelligence"
+        title={t("nav.capitalIntelligence")}
       >
         <CircleDollarSign className="h-4 w-4 text-amber-400" />
-        <span>Capital Intelligence</span>
+        <span>{t("nav.capitalIntelligence")}</span>
         <ChevronDown className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
@@ -65,8 +67,8 @@ function CapitalIntelligenceDropdown({ currentPageName, access }) {
           >
             <ShieldCheck className="h-4 w-4 shrink-0 icon-glow icon-glow-cyan" />
             <span>
-              <span className="block font-semibold">CFRS</span>
-              <span className="block text-[10px] text-gray-500">Cyber Financial Risk Score</span>
+              <span className="block font-semibold">{t("nav.cfrs")}</span>
+              <span className="block text-[10px] text-gray-500">{t("nav.cfrsSubtitle")}</span>
             </span>
           </Link>
         </div>
@@ -169,7 +171,7 @@ function CollaborationDropdown({ currentPageName, access }) {
               <Link to="/LiveFireDashboard" onClick={() => setOpen(false)}
                 className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
                 <LayoutDashboard className="h-4 w-4 shrink-0 icon-glow icon-glow-orange" />
-                Live Fire Dashboard
+                {t("nav.liveFireDashboard")}
               </Link>
               <button
                 onClick={() => setMyLabsOpen(v => !v)}
@@ -177,7 +179,7 @@ function CollaborationDropdown({ currentPageName, access }) {
               >
                 <span className="flex items-center gap-2.5">
                   <FolderOpen className="h-4 w-4 shrink-0 icon-glow icon-glow-amber" />
-                  My Labs
+                  {t("nav.myLabs")}
                 </span>
                 <ChevronDown className={`h-3 w-3 text-gray-400 transition-transform ${myLabsOpen ? "rotate-180" : ""}`} />
               </button>
@@ -186,44 +188,44 @@ function CollaborationDropdown({ currentPageName, access }) {
                   <Link to="/my-labs" onClick={() => setOpen(false)}
                     className="flex items-center gap-2.5 pl-12 pr-4 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-red-950/50 transition-colors">
                     <FolderOpen className="h-3.5 w-3.5 shrink-0 icon-glow icon-glow-amber" />
-                    View All
+                    {t("nav.viewAll")}
                   </Link>
                   <Link to="/shared-labs" onClick={() => setOpen(false)}
                     className="flex items-center gap-2.5 pl-12 pr-4 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-red-950/50 transition-colors">
                     <Share2 className="h-3.5 w-3.5 shrink-0 icon-glow icon-glow-amber" />
-                    Shared Labs
+                    {t("nav.sharedLabs")}
                   </Link>
                   <Link to="/running-labs" onClick={() => setOpen(false)}
                     className="flex items-center gap-2.5 pl-12 pr-4 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-red-950/50 transition-colors">
                     <Activity className="h-3.5 w-3.5 shrink-0 icon-glow icon-glow-amber" />
-                    Running Labs
+                    {t("nav.runningLabs")}
                   </Link>
                 </>
               )}
               <Link to="/lf-templates" onClick={() => setOpen(false)}
                 className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
                 <LayoutTemplate className="h-4 w-4 shrink-0 icon-glow icon-glow-orange" />
-                Templates
+                {t("nav.templates")}
               </Link>
               <Link to="/image-repository" onClick={() => setOpen(false)}
                 className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
                 <Server className="h-4 w-4 shrink-0 icon-glow icon-glow-orange" />
-                Image Repository
+                {t("nav.imageRepository")}
               </Link>
               <Link to="/marketplace" onClick={() => setOpen(false)}
                 className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
                 <ShoppingBag className="h-4 w-4 shrink-0 icon-glow icon-glow-orange" />
-                Marketplace
+                {t("nav.marketplace")}
               </Link>
               <Link to="/cloud-resources" onClick={() => setOpen(false)}
                 className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
                 <Cloud className="h-4 w-4 shrink-0 icon-glow icon-glow-orange" />
-                Cloud Resources
+                {t("nav.cloudResources")}
               </Link>
               <Link to="/lf-administration" onClick={() => setOpen(false)}
                 className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
                 <Settings className="h-4 w-4 shrink-0 icon-glow icon-glow-orange" />
-                Administration
+                {t("nav.administration")}
               </Link>
             </>
           )}
@@ -239,7 +241,7 @@ function TrainingDropdown({ currentPageName, access }) {
   const [simOpen, setSimOpen] = useState(false);
   const [socOpen, setSocOpen] = useState(false);
   const ref = useRef(null);
-  const isActive = ["Labs", "VirtualLabs", "SOCSimulation", "SOCTraining", "RealAttackDrills", "SOCAssessments", "InteractiveVirtualLabs", "LabCourses", "TabletopExercises"].includes(currentPageName);
+  const isActive = ["Labs", "VirtualLabs", "SOCSimulation", "SOCTraining", "RealAttackDrills", "SOCAssessments", "InteractiveVirtualLabs", "LabCourses", "TabletopExercises", "MSSPSOC", "MSSPSession", "TrainingDesigner"].includes(currentPageName);
 
   useEffect(() => {
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -247,7 +249,7 @@ function TrainingDropdown({ currentPageName, access }) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  if (!access.hasTraining && !access.hasTTX) return null;
+  if (!access.hasTraining && !access.hasTTX && !access.hasTrainingDesigner) return null;
 
   const showSocSub = access.hasSocTraining || access.hasRealAttackDrills;
 
@@ -262,12 +264,21 @@ function TrainingDropdown({ currentPageName, access }) {
       </button>
       {open && (
         <div className="absolute right-0 top-full mt-1 w-56 bg-gray-950 border border-red-900/40 rounded-xl shadow-xl z-50 py-1 overflow-hidden">
+          {access.hasTrainingDesigner && (
+            <Link to="/training-designer" onClick={() => setOpen(false)}
+              aria-current={currentPageName === "TrainingDesigner" ? "page" : undefined}
+              className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:text-white hover:bg-red-950/50 ${currentPageName === "TrainingDesigner" ? "text-red-400 bg-red-950/30" : "text-gray-200"}`}>
+              <Wand2 className="h-4 w-4 shrink-0 icon-glow icon-glow-rose" />
+              {t("nav.trainingDesigner")}
+            </Link>
+          )}
+          {access.hasTrainingDesigner && (access.hasTTX || access.hasTraining) && <div className="border-t border-red-900/30" />}
           {access.hasTTX && (
             <Link to="/TabletopExercises" onClick={() => setOpen(false)}
               aria-current={currentPageName === "TabletopExercises" ? "page" : undefined}
               className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:text-white hover:bg-red-950/50 ${currentPageName === "TabletopExercises" ? "text-red-400 bg-red-950/30" : "text-gray-200"}`}>
               <ClipboardCheck className="h-4 w-4 shrink-0 text-purple-300" />
-              TTX · Tabletop Exercises
+              {t("nav.ttx")}
             </Link>
           )}
           {access.hasTTX && access.hasTraining && <div className="border-t border-red-900/30" />}
@@ -288,7 +299,7 @@ function TrainingDropdown({ currentPageName, access }) {
                   <Link to="/InteractiveVirtualLabs" onClick={() => setOpen(false)}
                     className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
                     <FlaskConical className="h-4 w-4 shrink-0 icon-glow icon-glow-cyan" />
-                    Active Labs
+                    {t("nav.activeLabs")}
                   </Link>
 
                 </>
@@ -321,7 +332,14 @@ function TrainingDropdown({ currentPageName, access }) {
                     <Link to="/real-attack-drills" onClick={() => setOpen(false)}
                       className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
                       <Bug className="h-4 w-4 shrink-0 icon-glow icon-glow-red" />
-                      Real Attack Drills
+                      {t("nav.realAttackDrills")}
+                    </Link>
+                  )}
+                  {access.hasSocTraining && (
+                    <Link to="/mssp-soc" onClick={() => setOpen(false)}
+                      className="flex items-center gap-2.5 pl-8 pr-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-red-950/50 transition-colors">
+                      <Radar className="h-4 w-4 shrink-0 icon-glow icon-glow-amber" />
+                      {t("nav.msspSoc")}
                     </Link>
                   )}
                 </>
@@ -335,6 +353,7 @@ function TrainingDropdown({ currentPageName, access }) {
 }
 
 function SpecialFeaturesDropdown({ currentPageName, access }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const isActive = ["LabBuilderDashboard", "LabTemplates", "LabBuilder", "LabInstances", "LabEnvironments", "LabExports", "NiceMapping", "QuickBuild", "NetworkLabDesigner", "DemoMode"].includes(currentPageName);
@@ -353,7 +372,7 @@ function SpecialFeaturesDropdown({ currentPageName, access }) {
         onClick={() => setOpen(v => !v)}
         className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${isActive ? NAV_ACTIVE : NAV_IDLE}`}
       >
-        <span>Special Features</span>
+        <span>{t("nav.specialFeatures")}</span>
         <ChevronDown className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
@@ -361,20 +380,20 @@ function SpecialFeaturesDropdown({ currentPageName, access }) {
           <Link to="/LabBuilderDashboard" onClick={() => setOpen(false)}
             className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors">
             <BookOpen className="h-4 w-4 shrink-0 icon-glow icon-glow-amber" />
-            Course Lab Builder
+            {t("nav.courseLabBuilder")}
           </Link>
           <div className="border-t border-red-900/30" />
           <Link to="/CandidateAssessments" onClick={() => setOpen(false)}
             className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors">
             <UserCheck className="h-4 w-4 shrink-0 icon-glow icon-glow-rose" />
-            Candidate Assessments
+            {t("nav.candidateAssessments")}
           </Link>
           {access.hasDemo && <div className="border-t border-red-900/30" />}
           {access.hasDemo && (
             <Link to="/DemoMode" onClick={() => setOpen(false)}
               className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-200 hover:text-white hover:bg-red-950/50 transition-colors">
               <FlaskConical className="h-4 w-4 shrink-0 icon-glow icon-glow-cyan" />
-              Demo
+              {t("nav.demo")}
             </Link>
           )}
         </div>
@@ -439,7 +458,7 @@ export default function Layout({ children, currentPageName }) {
               <span className="text-lg font-semibold tracking-tight text-white hidden sm:block">Xtreme I.C.E.</span>
             </Link>
 
-            <nav className="flex items-center gap-0.5">
+            <nav className="flex items-center gap-0.5" aria-label={t("nav.mainNavigation")}>
               {currentUser?.organization_id && (
                 <OrgBranding orgId={currentUser.organization_id} />
               )}
@@ -488,13 +507,14 @@ export default function Layout({ children, currentPageName }) {
                 onClick={() => base44.auth.logout()}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${NAV_IDLE}`}
               >
-                Logout
+                {t("nav.logout")}
               </button>
             </nav>
           </div>
         </div>
       </header>
       <main className={isEmbedded ? "pt-0" : "pt-20"} style={isCFRS ? { background: "#E8EAEF", minHeight: "calc(100vh - 5rem)" } : undefined}>
+        {!isEmbedded && <AppBreadcrumb />}
         {children}
       </main>
     </div>

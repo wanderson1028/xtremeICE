@@ -26,6 +26,10 @@
       "type": "string",
       "description": "Primary contact email for the organization"
     },
+    "vpentest_company_id": {
+      "type": "string",
+      "description": "vPenTest company (organization) id linked to this organization. Set by an app admin; used to scope org admins to their own vPenTest results."
+    },
     "status": {
       "type": "string",
       "enum": [

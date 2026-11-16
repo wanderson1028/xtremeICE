@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
         try {
           const keyResult = await base44.functions.invoke("cloudProviderAWS", {
             action: "createKeyPair",
-            params: { key_name: keyPairName, region: lab.region || "us-east-1" },
+            params: { key_name: keyPairName, lab_id, region: lab.region || "us-east-1" },
           });
           const keyData = keyResult?.data || keyResult;
           sshKeyMaterial = keyData?.privateKey || null;
@@ -569,6 +569,10 @@ Deno.serve(async (req) => {
         const snapshots = await base44.asServiceRole.entities.LiveFireSnapshot.filter({ id: snapshot_id });
         if (!snapshots.length) return Response.json({ error: "Snapshot not found" }, { status: 404 });
         const snap = snapshots[0];
+        // A snapshot may only be restored into the lab it was taken from.
+        if (String(snap.lab_id || "") !== String(lab_id) && user.role !== "admin") {
+          return Response.json({ error: "Forbidden" }, { status: 403 });
+        }
 
         const data = snap.snapshot_data;
         await base44.asServiceRole.entities.LiveFireLab.update(lab_id, {

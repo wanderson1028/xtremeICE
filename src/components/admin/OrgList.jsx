@@ -58,10 +58,9 @@ export default function OrgList({ onEdit, onManageUsers, isPlatformAdmin, locked
         // Reassign each user to No Organization
         for (const u of orgUsers) {
           // eslint-disable-next-line no-await-in-loop
-          await base44.entities.User.update(u.id, {
-            organization_id: null,
-            is_individual: true,
-            org_role: null,
+          await base44.functions.invoke("assignUserOrganization", {
+            user_id: u.id,
+            organization_id: "",
           });
         }
         await base44.entities.Organization.delete(org.id);

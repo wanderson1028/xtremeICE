@@ -14,6 +14,69 @@
     "description": {
       "type": "string"
     },
+    "theme": {
+      "type": "string",
+      "description": "Competency theme this question is scored against (e.g. Alert Triage). Theme weights are configured on the assessment."
+    },
+    "question_type": {
+      "type": "string",
+      "enum": [
+        "mcq",
+        "matching",
+        "hotspot",
+        "manual"
+      ],
+      "default": "manual",
+      "description": "Question format. Objective types (mcq, matching, hotspot) are scored automatically using the stored answer key."
+    },
+    "options": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Multiple-choice options as { id, text }"
+    },
+    "correct_option_id": {
+      "type": "string",
+      "description": "Answer key for multiple-choice questions"
+    },
+    "option_credits": {
+      "type": "object",
+      "description": "Partial credit for multiple-choice options: option id \u2192 credit fraction (0\u20130.99). The fully correct option always earns 1."
+    },
+    "hotspot_image_url": {
+      "type": "string",
+      "description": "Image the candidate clicks on (screenshot, diagram or console capture)"
+    },
+    "hotspot_regions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Clickable areas on the image as { id, label, x, y, w, h } in percentages of the image box"
+    },
+    "correct_region_id": {
+      "type": "string",
+      "description": "Answer key for hotspot questions \u2014 the region id the candidate must click"
+    },
+    "matching_prompts": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Items the candidate must match, as { id, text }"
+    },
+    "matching_choices": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "Match options presented to the candidate, as { id, text }"
+    },
+    "matching_answer": {
+      "type": "object",
+      "description": "Answer key for matching questions: prompt id \u2192 choice id"
+    },
     "task_type": {
       "type": "string",
       "enum": [
@@ -23,7 +86,8 @@
         "Documentation",
         "Remediation",
         "Scripting",
-        "Verification"
+        "Verification",
+        "Knowledge Check"
       ]
     },
     "tools_required": {

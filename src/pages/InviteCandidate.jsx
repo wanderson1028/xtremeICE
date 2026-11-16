@@ -17,8 +17,6 @@ export default function InviteCandidate() {
   const [error, setError] = useState("");
   const [editMode, setEditMode] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const [emailSubject, setEmailSubject] = useState("");
-  const [emailBody, setEmailBody] = useState("");
 
   const { data: assessment } = useQuery({
     queryKey: ["assessment", assessmentId],
@@ -31,16 +29,6 @@ export default function InviteCandidate() {
     queryFn: () => base44.auth.me(),
   });
 
-  // Sync default email subject/body when form or assessment changes
-  useEffect(() => {
-    const positionTitle = assessment?.position_title || "Cybersecurity Position";
-    const companyName = assessment?.company_name || "";
-    setEmailSubject(`Skills Assessment Invitation — ${positionTitle}${companyName ? ` at ${companyName}` : ""}`);
-    setEmailBody(
-      `Hello ${form.candidate_name || "[Candidate Name]"},\n\nYou have been invited to complete a hands-on cybersecurity skills assessment for the ${positionTitle} position${companyName ? ` at ${companyName}` : ""}.\n\nClick the button in the email to get started. Your unique link will be valid for 7 days.\n\nGood luck!\n\nXtreme I.C.E. Assessments`
-    );
-  }, [form.candidate_name, assessment?.position_title, assessment?.company_name]);
-
   const handleSend = async () => {
     if (!form.candidate_name || !form.candidate_email) { setError("Name and email are required."); return; }
     if (!form.candidate_email.includes("@")) { setError("Please enter a valid email address."); return; }
@@ -52,10 +40,6 @@ export default function InviteCandidate() {
         candidate_name: form.candidate_name,
         candidate_email: form.candidate_email.trim().toLowerCase(),
         assessment_id: assessmentId,
-        position_title: assessment?.position_title || "Cybersecurity Position",
-        company_name: assessment?.company_name || "",
-        custom_subject: emailSubject,
-        custom_body: emailBody,
         app_url: window.location.origin,
       });
 
@@ -183,23 +167,23 @@ export default function InviteCandidate() {
                   {showPreview && (
                     <div className="p-4 space-y-3 bg-gray-900/40">
                       <div>
-                        <label className="block text-xs text-gray-500 uppercase mb-1.5">Subject</label>
-                        <input
-                          className="w-full bg-gray-900 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-600 transition-colors"
-                          value={emailSubject}
-                          onChange={e => setEmailSubject(e.target.value)}
-                        />
+                        <p className="block text-xs text-gray-500 uppercase mb-1.5">Subject</p>
+                        <p className="text-sm text-gray-200">
+                          {assessment?.assessment_kind === "application_test" ? "Application Test Invitation" : "Skills Assessment Invitation"}
+                          {assessment?.position_title ? ` — ${assessment.position_title}` : ""}
+                          {assessment?.company_name ? ` at ${assessment.company_name}` : ""}
+                        </p>
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-500 uppercase mb-1.5">Message Body</label>
-                        <textarea
-                          rows={7}
-                          className="w-full bg-gray-900 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-600 transition-colors resize-none font-mono"
-                          value={emailBody}
-                          onChange={e => setEmailBody(e.target.value)}
-                        />
+                        <p className="block text-xs text-gray-500 uppercase mb-1.5">Message</p>
+                        <p className="text-xs text-gray-400 leading-relaxed">
+                          Hello <span className="text-white">{form.candidate_name || "[Candidate Name]"}</span>, you have been invited to complete a
+                          {" "}{assessment?.assessment_kind === "application_test" ? "timed application test" : "hands-on cybersecurity skills assessment"} for the
+                          {" "}<span className="text-red-400">{assessment?.position_title || "Cybersecurity Position"}</span> position
+                          {assessment?.company_name ? ` at ${assessment.company_name}` : ""}.
+                        </p>
                       </div>
-                      <p className="text-xs text-gray-600">A branded "Start Assessment" button with a unique secure link will be appended automatically.</p>
+                      <p className="text-xs text-gray-600">A branded start button with this candidate's unique secure link is appended automatically. Use “Invite Multiple” to send to several candidates at once.</p>
                     </div>
                   )}
                 </div>

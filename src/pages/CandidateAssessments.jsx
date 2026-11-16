@@ -2,7 +2,12 @@ import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
-import { Plus, ClipboardList, Users, BarChart3, Eye, Trash2, Send, CheckCircle2, Clock, AlertCircle, Activity, TrendingUp, UserCheck, Hourglass, X } from "lucide-react";
+import { Plus, ClipboardList, Users, BarChart3, Eye, Trash2, Send, CheckCircle2, Clock, AlertCircle, Activity, TrendingUp, UserCheck, Hourglass, X, ListChecks } from "lucide-react";
+import DeleteConfirmDialog from "@/components/assessments/DeleteConfirmDialog";
+import TrackerRow from "@/components/assessments/TrackerRow";
+import TrackerGroupHeader from "@/components/assessments/TrackerGroupHeader";
+import { useToast } from "@/components/ui/use-toast";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 
 const STATUS_STYLE = {
   draft: "bg-gray-800 text-gray-400 border-gray-700",
@@ -105,6 +110,9 @@ const HIRE_LABEL = {
 
 export default function CandidateAssessments() {
   const qc = useQueryClient();
+  const { toast, dismiss } = useToast();
+  const { canEdit } = useFeatureAccess();
+  const canManage = canEdit("soc_assessments");
   const [activeTab, setActiveTab] = useState("tracker");
 
   const { data: assessments = [], isLoading } = useQuery({
@@ -127,45 +135,62 @@ export default function CandidateAssessments() {
     queryFn: () => base44.entities.CandidateSession.list("-created_date", 200),
   });
 
-  const deleteAssessmentMutation = useMutation({
-    mutationFn: async (assessmentId) => {
-      // Find all related invitations
-      const relatedInvites = invitations.filter(i => i.assessment_id === assessmentId);
-      // For each invitation, delete related sessions and scorecards
-      for (const inv of relatedInvites) {
-        const relatedSessions = sessions.filter(s => s.invitation_id === inv.id);
-        for (const session of relatedSessions) {
-          const relatedScorecards = scorecards.filter(sc => sc.session_id === session.id);
-          for (const sc of relatedScorecards) await base44.entities.Scorecard.delete(sc.id);
-          await base44.entities.CandidateSession.delete(session.id);
-        }
-        await base44.entities.CandidateInvitation.delete(inv.id);
-      }
-      await base44.entities.Assessment.delete(assessmentId);
-    },
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [pendingReset, setPendingReset] = useState(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: (target) => base44.functions.invoke("deleteCandidateRecord", { kind: target.kind, id: target.id }),
     onSuccess: () => {
+      setPendingDelete(null);
       qc.invalidateQueries({ queryKey: ["my-assessments"] });
       qc.invalidateQueries({ queryKey: ["my-invitations"] });
       qc.invalidateQueries({ queryKey: ["my-sessions"] });
       qc.invalidateQueries({ queryKey: ["my-scorecards"] });
+    },
+    onError: (err) => {
+      toast({
+        title: "Delete failed",
+        description: err?.response?.data?.error || err.message,
+        variant: "destructive",
+      });
     },
   });
 
-  const deleteInvitationMutation = useMutation({
-    mutationFn: async (invId) => {
-      const relatedSessions = sessions.filter(s => s.invitation_id === invId);
-      for (const session of relatedSessions) {
-        const relatedScorecards = scorecards.filter(sc => sc.session_id === session.id);
-        for (const sc of relatedScorecards) await base44.entities.Scorecard.delete(sc.id);
-        await base44.entities.CandidateSession.delete(session.id);
+  /* Reset clears the candidate's attempt (answers, progress and result) so the
+     assessment can be taken again, then re-sends the invitation email. */
+  const resetMutation = useMutation({
+    mutationFn: async (row) => {
+      await base44.functions.invoke("resetCandidateAttempt", { invitation_id: row.inv.id });
+      const res = await base44.functions.invoke("sendCandidateInvite", {
+        assessment_id: row.inv.assessment_id,
+        candidate_name: row.inv.candidate_name,
+        candidate_email: row.inv.candidate_email,
+        app_url: window.location.origin,
+      });
+      if (res?.data?.emailSent !== true) {
+        throw new Error(res?.data?.emailFailReason || "The invitation email could not be sent.");
       }
-      await base44.entities.CandidateInvitation.delete(invId);
+      return res.data;
     },
     onSuccess: () => {
+      setPendingReset(null);
       qc.invalidateQueries({ queryKey: ["my-assessments"] });
       qc.invalidateQueries({ queryKey: ["my-invitations"] });
       qc.invalidateQueries({ queryKey: ["my-sessions"] });
       qc.invalidateQueries({ queryKey: ["my-scorecards"] });
+      const resetToast = toast({
+        title: "Attempt reset",
+        description: "A fresh invitation email has been sent to the candidate.",
+      });
+      // Auto-dismiss after a few seconds; the close button still works.
+      setTimeout(() => dismiss(resetToast.id), 4000);
+    },
+    onError: (err) => {
+      toast({
+        title: "Reset failed",
+        description: err?.response?.data?.error || err.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -183,13 +208,23 @@ export default function CandidateAssessments() {
     const assessment = assessments.find(a => a.id === inv.assessment_id);
     const session = sessions.find(s => s.invitation_id === inv.id);
     const scorecard = scorecards.find(sc => sc.session_id === session?.id);
-    const totalTasks = session?.task_submissions?.length || 0;
-    const taskCount = assessment ? 0 : 0; // tasks loaded separately, use submission count as proxy
-    const progressPct = session && session.task_submissions?.length
-      ? Math.round((session.task_submissions.length / Math.max(session.task_submissions.length, 1)) * 100)
-      : 0;
     return { inv, assessment, session, scorecard };
   });
+
+  // Candidates grouped under the assessment they were invited to
+  const trackerGroups = (() => {
+    const byAssessment = new Map();
+    trackerRows.forEach(row => {
+      const key = row.inv.assessment_id || "unassigned";
+      if (!byAssessment.has(key)) byAssessment.set(key, { assessment: row.assessment, rows: [] });
+      byAssessment.get(key).rows.push(row);
+    });
+    const ordered = assessments.filter(a => byAssessment.has(a.id)).map(a => byAssessment.get(a.id));
+    const unlinked = [...byAssessment.entries()]
+      .filter(([id]) => !assessments.some(a => a.id === id))
+      .map(([, group]) => group);
+    return [...ordered, ...unlinked];
+  })();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-red-950/10">
@@ -200,13 +235,31 @@ export default function CandidateAssessments() {
             <h1 className="text-2xl font-semibold text-gray-100 tracking-tight">Candidate Assessments</h1>
             <p className="text-gray-400 text-sm mt-0.5">Smart hands-on technical evaluation platform</p>
           </div>
-          <Link
-            to="/create-assessment"
-            className="flex items-center gap-2 px-4 py-2.5 bg-red-700 hover:bg-red-600 text-white rounded-lg text-sm font-semibold transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-            Create Assessment
-          </Link>
+          <div className="flex items-center gap-2">
+            {canManage ? (
+              <>
+                <Link
+                  to="/create-assessment"
+                  className="flex items-center gap-2 px-4 py-2.5 border border-gray-700 text-gray-200 hover:text-white hover:border-gray-600 rounded-lg text-sm font-semibold transition-colors"
+                >
+                  <Plus className="h-4 w-4" />
+                  From Labs
+                </Link>
+                <Link
+                  to="/application-test-builder"
+                  className="flex items-center gap-2 px-4 py-2.5 bg-red-700 hover:bg-red-600 text-white rounded-lg text-sm font-semibold transition-colors"
+                >
+                  <ListChecks className="h-4 w-4" />
+                  New Application Test
+                </Link>
+              </>
+            ) : (
+              <span className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-700 bg-gray-900 text-xs text-gray-300">
+                <Eye className="h-4 w-4" />
+                Viewer access — assessments are read-only
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -276,125 +329,30 @@ export default function CandidateAssessments() {
               <div className="bg-gray-900/40 border border-gray-800 rounded-xl overflow-hidden">
                 {/* Table header */}
                 <div className="grid grid-cols-12 gap-3 px-4 py-2.5 border-b border-gray-800 text-[10px] font-semibold text-gray-300 uppercase tracking-wider">
-                  <div className="col-span-2">Candidate</div>
-                  <div className="col-span-2">Assessment</div>
+                  <div className="col-span-3">Candidate</div>
                   <div className="col-span-2">Status / Date</div>
-                  <div className="col-span-3">Progress</div>
+                  <div className="col-span-3">Progress / Time</div>
                   <div className="col-span-2 text-center">Score</div>
-                  <div className="col-span-1 text-center">Action</div>
+                  <div className="col-span-2 text-center">Action</div>
                 </div>
 
-                {trackerRows.map(({ inv, assessment, session, scorecard }) => {
-                  const statusConfig = {
-                    pending:     { label: "Invited",     color: "text-yellow-400",  bg: "bg-yellow-900/20 border-yellow-700/40",  dot: "bg-yellow-400" },
-                    accepted:    { label: "Accepted",    color: "text-blue-400",    bg: "bg-blue-900/20 border-blue-700/40",      dot: "bg-blue-400" },
-                    in_progress: { label: "In Progress", color: "text-purple-400",  bg: "bg-purple-900/20 border-purple-700/40",  dot: "bg-purple-400 animate-pulse" },
-                    submitted:   { label: "Submitted",   color: "text-orange-400",  bg: "bg-orange-900/20 border-orange-700/40",  dot: "bg-orange-400" },
-                    completed:   { label: "Completed",   color: "text-green-400",   bg: "bg-green-900/20 border-green-700/40",    dot: "bg-green-400" },
-                    expired:     { label: "Expired",     color: "text-gray-500",    bg: "bg-gray-900/40 border-gray-700/40",      dot: "bg-gray-600" },
-                    evaluated:   { label: "Evaluated",   color: "text-green-400",   bg: "bg-green-900/20 border-green-700/40",    dot: "bg-green-400" },
-                  };
-                  const st = statusConfig[session?.status || inv.status] || statusConfig.pending;
-                  const submittedCount = session?.task_submissions?.length || 0;
-                  // We don't have task count here easily, use submitted as "done" indicator
-                  const timeElapsed = session?.time_elapsed_minutes || 0;
-                  const duration = assessment?.duration_minutes || 60;
-                  const timePct = session?.started_at ? Math.min(100, Math.round((timeElapsed / duration) * 100)) : 0;
-                  const hireConf = {
-                    strong_hire: { label: "Strong Hire", color: "text-green-400" },
-                    hire:        { label: "Hire",        color: "text-blue-400"  },
-                    borderline:  { label: "Borderline",  color: "text-yellow-400"},
-                    no_hire:     { label: "No Hire",     color: "text-red-400"   },
-                  }[scorecard?.hiring_recommendation] || null;
-
-                  return (
-                    <div key={inv.id} className="grid grid-cols-12 gap-3 px-4 py-3.5 border-b border-gray-800/60 last:border-0 hover:bg-gray-800/20 transition-colors items-center">
-                      {/* Candidate */}
-                      <div className="col-span-2 flex items-center gap-2 min-w-0">
-                        <div className="h-7 w-7 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center text-gray-200 font-bold text-xs shrink-0">
-                          {inv.candidate_name?.[0]?.toUpperCase() || "?"}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-gray-200 text-xs font-normal truncate">{inv.candidate_name}</p>
-                          <p className="text-gray-400 text-[10px] truncate">{inv.candidate_email}</p>
-                        </div>
-                      </div>
-
-                      {/* Assessment */}
-                      <div className="col-span-2 min-w-0">
-                        <p className="text-gray-300 text-xs font-normal truncate">{assessment?.position_title || "—"}</p>
-                        <p className="text-gray-300 text-[10px] truncate">{assessment?.assessment_type || ""}</p>
-                      </div>
-
-                      {/* Status + Date */}
-                      <div className="col-span-2">
-                        <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-1 rounded-full border ${st.bg} ${st.color}`}>
-                          <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${st.dot}`} />
-                          {st.label}
-                        </span>
-                        {inv.email_delivery_status && (
-                          <p
-                            className={`text-[10px] mt-1 ${inv.email_delivery_status === "sent" ? "text-green-400" : inv.email_delivery_status === "failed" ? "text-red-400" : "text-yellow-400"}`}
-                            title={inv.email_delivery_error || ""}
-                          >
-                            Email {inv.email_delivery_status}
-                          </p>
-                        )}
-                        {inv.sent_at && (
-                          <p className="text-gray-200 text-[10px] mt-1">{new Date(inv.sent_at).toLocaleDateString()}</p>
-                        )}
-                      </div>
-
-                      {/* Progress */}
-                      <div className="col-span-3">
-                        {session?.started_at ? (
-                          <div>
-                            <div className="flex justify-between text-[10px] text-gray-200 mb-1">
-                              <span>{submittedCount} tasks submitted</span>
-                              <span className="flex items-center gap-0.5"><Clock className="h-2.5 w-2.5" />{timeElapsed}m elapsed</span>
-                            </div>
-                            <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all ${session.status === "submitted" || session.status === "evaluated" ? "bg-green-500" : "bg-purple-500"}`}
-                                style={{ width: `${submittedCount > 0 ? Math.min(100, submittedCount * 15) : timePct}%` }}
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-gray-300 text-xs">Not started yet</span>
-                        )}
-                      </div>
-
-                      {/* Score */}
-                      <div className="col-span-2 text-center">
-                        {scorecard ? (
-                          <div>
-                            <div className={`text-lg font-bold ${scorecard.passed ? "text-green-400" : "text-red-400"}`}>{scorecard.overall_score}%</div>
-                            {hireConf && <div className={`text-[10px] font-semibold ${hireConf.color}`}>{hireConf.label}</div>}
-                          </div>
-                        ) : (
-                          <span className="text-gray-300 text-xs">Pending</span>
-                        )}
-                      </div>
-
-                      {/* Action */}
-                      <div className="col-span-1 flex justify-center items-center gap-1">
-                        {scorecard ? (
-                          <Link to={`/scorecard?scorecard_id=${scorecard.id}`} className="text-[10px] px-2 py-1 bg-green-900/30 border border-green-700/40 text-green-400 rounded-lg hover:bg-green-900/50 transition-colors whitespace-nowrap">
-                            Report
-                          </Link>
-                        ) : (
-                          <Link to={`/invite-candidate?assessment_id=${inv.assessment_id}&candidate_name=${encodeURIComponent(inv.candidate_name || "")}&candidate_email=${encodeURIComponent(inv.candidate_email || "")}`} className="text-[10px] px-2 py-1 bg-gray-800 border border-gray-700 text-gray-100 rounded-lg hover:text-white transition-colors whitespace-nowrap">
-                            Resend
-                          </Link>
-                        )}
-                        <button onClick={() => deleteInvitationMutation.mutate(inv.id)} className="p-1 text-gray-600 hover:text-red-400 transition-colors" title="Delete">
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      </div>
+                {trackerGroups.map(({ assessment, rows }) => (
+                  <div key={assessment?.id || "unassigned"}>
+                    <TrackerGroupHeader assessment={assessment} rows={rows} />
+                    <div className="ml-4 pl-2 border-l-2 border-gray-800/70">
+                      {rows.map(({ inv, session, scorecard }) => (
+                        <TrackerRow
+                          key={inv.id}
+                          inv={inv}
+                          session={session}
+                          scorecard={scorecard}
+                          onReset={(target) => setPendingReset({ inv: target })}
+                          onDelete={(target) => setPendingDelete({ kind: "invitation", id: target.id, label: target.candidate_name })}
+                        />
+                      ))}
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -413,9 +371,11 @@ export default function CandidateAssessments() {
               <div className="text-center py-20 border border-dashed border-gray-800 rounded-xl">
                 <ClipboardList className="h-12 w-12 text-gray-700 mx-auto mb-3" />
                 <p className="text-gray-200 mb-4">No assessments created yet</p>
-                <Link to="/create-assessment" className="px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded-lg text-sm transition-colors">
-                  Create your first assessment
-                </Link>
+                {canManage && (
+                  <Link to="/create-assessment" className="px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded-lg text-sm transition-colors">
+                    Create your first assessment
+                  </Link>
+                )}
               </div>
             )}
             {assessments.map(a => {
@@ -426,6 +386,9 @@ export default function CandidateAssessments() {
                   <div className="flex items-center gap-3 mb-1 flex-wrap">
                     <h3 className="text-gray-200 font-normal truncate">{a.position_title}</h3>
                     <AssessmentStatusPill assessment={a} invitations={invitations} />
+                    {a.assessment_kind === "application_test" && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-900/30 border border-blue-700/40 text-blue-400">Application Test</span>
+                    )}
                     {a.generated && <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-900/30 border border-purple-700/40 text-purple-400">Auto-Generated</span>}
                     {aInvites.length > 0 && (
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -455,11 +418,23 @@ export default function CandidateAssessments() {
                   <Link to={`/assessment-detail?id=${a.id}`} className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors" title="View">
                     <Eye className="h-4 w-4" />
                   </Link>
-                  <Link to={`/invite-candidate?assessment_id=${a.id}`} className="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-800 rounded-lg transition-colors" title="Invite Candidate">
-                    <Send className="h-4 w-4" />
-                  </Link>
-                  <button onClick={() => deleteAssessmentMutation.mutate(a.id)} className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-800 rounded-lg transition-colors" title="Delete">
+                  {canManage && (
+                    <>
+                      <Link to={`/invite-candidate?assessment_id=${a.id}`} className="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-800 rounded-lg transition-colors" title="Invite one candidate">
+                        <Send className="h-4 w-4" />
+                      </Link>
+                      <Link to={`/bulk-invite?assessment_id=${a.id}`} className="p-2 text-gray-400 hover:text-purple-400 hover:bg-gray-800 rounded-lg transition-colors" title="Invite multiple candidates">
+                        <Users className="h-4 w-4" />
+                      </Link>
+                    </>
+                  )}
+                  <button
+                    onClick={() => setPendingDelete({ kind: "assessment", id: a.id, label: a.position_title })}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-red-950/60 border border-red-700/70 text-red-300 hover:bg-red-800 hover:text-white rounded-lg text-xs font-semibold transition-colors card-3d"
+                    title="Delete assessment"
+                  >
                     <Trash2 className="h-4 w-4" />
+                    <span className="hidden sm:inline">Delete</span>
                   </button>
                 </div>
               </div>
@@ -516,7 +491,11 @@ export default function CandidateAssessments() {
                         Resend
                       </Link>
                     )}
-                    <button onClick={() => deleteInvitationMutation.mutate(inv.id)} className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-gray-800 rounded-lg transition-colors" title="Delete candidate">
+                    <button
+                      onClick={() => setPendingDelete({ kind: "invitation", id: inv.id, label: inv.candidate_name })}
+                      className="p-1.5 bg-red-950/60 border border-red-700/70 text-red-300 hover:bg-red-800 hover:text-white rounded-lg transition-colors"
+                      title="Delete invite"
+                    >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -558,6 +537,30 @@ export default function CandidateAssessments() {
           </div>
         )}
       </div>
+
+      <DeleteConfirmDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => { if (!open && !deleteMutation.isPending) setPendingDelete(null); }}
+        busy={deleteMutation.isPending}
+        title={pendingDelete?.kind === "assessment" ? "Delete this assessment?" : "Delete this invite?"}
+        description={
+          pendingDelete?.kind === "assessment"
+            ? `"${pendingDelete?.label}" and all of its questions, candidate invites, sessions and results will be permanently removed.`
+            : `${pendingDelete?.label || "This candidate"}'s invite, any session in progress and its results will be permanently removed.`
+        }
+        onConfirm={() => deleteMutation.mutate(pendingDelete)}
+      />
+
+      <DeleteConfirmDialog
+        open={!!pendingReset}
+        onOpenChange={(open) => { if (!open && !resetMutation.isPending) setPendingReset(null); }}
+        busy={resetMutation.isPending}
+        confirmLabel="Reset & resend"
+        busyLabel="Resetting..."
+        title="Reset this candidate's attempt?"
+        description={`${pendingReset?.inv?.candidate_name || "This candidate"}'s answers, progress and result will be cleared, and a fresh invitation email will be sent so they can take the assessment again.`}
+        onConfirm={() => resetMutation.mutate(pendingReset)}
+      />
     </div>
   );
 }

@@ -23,7 +23,8 @@ export default function OrgForm({ org, onSaved, onCancel }) {
     status: org?.status || "active",
     plan: org?.plan || "free",
     max_users: org?.max_users ?? 0,
-  });
+    vpentest_company_id: org?.vpentest_company_id || "",
+    });
 
   const set = (key, val) => setForm((prev) => ({ ...prev, [key]: val }));
 
@@ -221,6 +222,20 @@ export default function OrgForm({ org, onSaved, onCancel }) {
               value={form.max_users}
               onChange={(e) => set("max_users", e.target.value)}
             />
+          </div>
+
+          {/* vPenTest link */}
+          <div className="space-y-1.5">
+            <Label>vPenTest company ID</Label>
+            <Input
+              value={form.vpentest_company_id}
+              onChange={(e) => set("vpentest_company_id", e.target.value)}
+              placeholder="443fc9fc-c1c7-4c44-a49a-0e40add4012c"
+              className="font-mono text-xs"
+            />
+            <p className="text-xs text-muted-foreground">
+              Links this organization to its vPenTest results so organization admins see only their own assessments and exercises.
+            </p>
           </div>
 
           {/* Actions */}

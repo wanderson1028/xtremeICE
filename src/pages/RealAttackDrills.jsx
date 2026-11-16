@@ -24,8 +24,11 @@ import DrillReview from "@/components/soc/DrillReview";
 import CompleteScenarioDialog from "@/components/soc/CompleteScenarioDialog";
 import ScenarioBriefing from "@/components/soc/ScenarioBriefing";
 import TrainingNarrative from "@/components/soc/TrainingNarrative";
+import GuidedClickOverlay from "@/components/soc/GuidedClickOverlay";
+import { getGuidedClickSteps } from "@/components/soc/guidedClicks";
 import GeneratingIndicator from "@/components/soc/GeneratingIndicator";
 import { calculateSurrenderScore } from "@/components/soc/drillReview";
+import ProductRemediationDrill from "@/components/soc/productDrill/ProductRemediationDrill";
 
 const TABS = [
   { id: "dashboard", label: "Dashboard", icon: Monitor },
@@ -35,6 +38,20 @@ const TABS = [
   { id: "remediation", label: "Remediation", icon: Terminal },
   { id: "report", label: "Report", icon: FileText },
 ];
+
+const CONSOLE_TAB = { id: "console", label: "Console", icon: Terminal };
+
+function buildProductRemediation(result) {
+  if (!result) return undefined;
+  return {
+    score: result.score,
+    earned: result.earned,
+    total: result.total,
+    product: `${result.spec?.vendor || ""} ${result.spec?.product || ""}`.trim(),
+    interface_name: result.spec?.interface_name || "",
+    steps: result.tasks,
+  };
+}
 
 const SEVERITY_STYLES = {
   critical: { badge: "text-red-400 bg-red-500/10 border-red-500/30", dot: "bg-red-500" },
@@ -87,7 +104,7 @@ function AttackCard({ item, onSelect }) {
   );
 }
 
-function AttackDetailModal({ item, onGenerate, onClose, generating }) {
+function AttackDetailModal({ item, onGenerate, onClose, generating, error }) {
   if (!item) return null;
   const sev = SEVERITY_STYLES[item.severity_label] || SEVERITY_STYLES.medium;
   const src = SOURCE_STYLES[item.source] || SOURCE_STYLES["NVD-CVE"];
@@ -140,12 +157,20 @@ function AttackDetailModal({ item, onGenerate, onClose, generating }) {
           {generating ? (
             <GeneratingIndicator />
           ) : (
+            <>
+            {error && (
+              <div className="mb-3 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-400 flex items-start gap-2">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
             <button
               onClick={() => onGenerate(item)}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-all"
             >
               <Zap className="h-4 w-4" /> Generate Drill
             </button>
+            </>
           )}
         </div>
       </motion.div>
@@ -161,24 +186,45 @@ export default function RealAttackDrills() {
   const [genError, setGenError] = useState(null);
   const [selectedNetwork, setSelectedNetwork] = useState(null);
   const [selectedScenario, setSelectedScenario] = useState(null);
+  const [attemptMode, setAttemptMode] = useState("unguided");
+  const [productDrill, setProductDrill] = useState(null);
+  const [productResult, setProductResult] = useState(null);
   const [simData, setSimData] = useState(null);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [actionsLog, setActionsLog] = useState([]);
   const [score, setScore] = useState(0);
   const [tabsVisited, setTabsVisited] = useState(new Set(["dashboard"]));
+  const [guidedClicks, setGuidedClicks] = useState(new Set());
   const [reportGenerated, setReportGenerated] = useState(false);
   const [runSeed, setRunSeed] = useState(null);
   const [sessionStartedAt, setSessionStartedAt] = useState(null);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const sessionSavedRef = useRef(false);
+  const savedSessionIdRef = useRef(null);
 
   // Filter state
   const [search, setSearch] = useState("");
   const [sevFilter, setSevFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
 
-  const evolution = useThreatEvolution(selectedScenario, simData, runSeed);
+  const evolution = useThreatEvolution(selectedScenario, simData, runSeed, attemptMode);
   const queryClient = useQueryClient();
+
+  // Guided lessons: click targets derived from this run's seeded evidence
+  const guidedSteps = useMemo(
+    () => (attemptMode === "guided" && simData && runSeed
+      ? getGuidedClickSteps({ seed: runSeed, alerts: simData.alerts, logs: simData.logs })
+      : []),
+    [attemptMode, simData, runSeed]
+  );
+  const activeGuidedStep = guidedSteps.find(s => !guidedClicks.has(s.id) && s.tab === activeTab) || null;
+
+  const completeGuidedStep = (step) => {
+    if (!step) return;
+    setGuidedClicks(prev => new Set([...prev, step.id]));
+    // A tab only counts as reviewed in a guided run once its evidence was found
+    setTabsVisited(prev => new Set([...prev, step.tab]));
+  };
 
   const { data: currentUser } = useQuery({
     queryKey: ["me"],
@@ -213,16 +259,25 @@ export default function RealAttackDrills() {
       actions_taken: actionsLog,
       alerts_triaged: triagedAlerts,
       score: score,
-      score_breakdown: { finalThreatLevel: evolution.threatLevel, elapsedMinutes: evolution.elapsedMinutes, outcome: evolution.status },
+      score_breakdown: { finalThreatLevel: evolution.threatLevel, elapsedMinutes: evolution.elapsedMinutes, outcome: evolution.status, attemptMode, timeLimitMinutes: evolution.timeLimitMinutes },
       affected_assets: compromisedAssets,
       iocs: runSeed?.iocs || [],
-    }).then(() => {
+      product_remediation: buildProductRemediation(productResult),
+    }).then((saved) => {
+      savedSessionIdRef.current = saved?.id || null;
       queryClient.invalidateQueries({ queryKey: ["my-soc-sessions"] });
       queryClient.invalidateQueries({ queryKey: ["soc-sessions"] });
       queryClient.invalidateQueries({ queryKey: ["soc-sessions-detail"] });
       queryClient.invalidateQueries({ queryKey: ["soc-sessions-leaderboard"] });
     }).catch(() => {});
-  }, [evolution.status, selectedScenario, currentUser, selectedNetwork, sessionStartedAt, actionsLog, score, evolution.liveEndpoints, evolution.liveAlerts, evolution.threatLevel, evolution.elapsedMinutes, evolution.status, runSeed, queryClient]);
+  }, [evolution.status, selectedScenario, currentUser, selectedNetwork, sessionStartedAt, actionsLog, score, evolution.liveEndpoints, evolution.liveAlerts, evolution.threatLevel, evolution.elapsedMinutes, evolution.status, runSeed, productResult, queryClient]);
+
+  // Attach the console drill result if it finished after the session was saved
+  useEffect(() => {
+    const id = savedSessionIdRef.current;
+    if (!id || !productResult) return;
+    base44.entities.SOCSession.update(id, { product_remediation: buildProductRemediation(productResult) }).catch(() => {});
+  }, [productResult]);
 
   const { data: feedItems = [], isLoading: feedLoading } = useQuery({
     queryKey: ["threat-feed-items"],
@@ -254,13 +309,25 @@ export default function RealAttackDrills() {
   const generateDrill = async (item) => {
     setGenerating(true);
     setGenError(null);
+    setDetailItem(item);
     try {
-      const response = await base44.functions.invoke("generateDynamicScenario", { feed_item_id: item.id });
+      const [scenarioCall, productCall] = await Promise.allSettled([
+        base44.functions.invoke("generateDynamicScenario", { feed_item_id: item.id }),
+        base44.functions.invoke("generateProductRemediation", { feed_item_id: item.id }),
+      ]);
+      if (scenarioCall.status === "rejected") throw scenarioCall.reason;
+      const response = scenarioCall.value;
       const scenario = response.data?.scenario;
       if (!scenario) throw new Error("No scenario returned");
       registerDynamicScenario(scenario);
+
+      const productData = productCall.status === "fulfilled" ? productCall.value?.data : null;
+      setProductDrill(productData?.supported && productData.spec ? productData.spec : null);
+      setProductResult(null);
+
       setSelectedAttack(item);
       setSelectedScenario(scenario);
+      setAttemptMode("unguided");
       setPhase("select_network");
       setDetailItem(null);
     } catch (err) {
@@ -282,10 +349,13 @@ export default function RealAttackDrills() {
     setActionsLog([]);
     setScore(0);
     setTabsVisited(new Set(["dashboard"]));
+    setGuidedClicks(new Set());
     setReportGenerated(false);
     setRunSeed(seed);
     setSessionStartedAt(new Date().toISOString());
     sessionSavedRef.current = false;
+    savedSessionIdRef.current = null;
+    setProductResult(null);
     setActiveTab("dashboard");
     setPhase("active");
   };
@@ -322,8 +392,12 @@ export default function RealAttackDrills() {
     setSelectedScenario(null);
     setSelectedNetwork(null);
     setSimData(null);
+    setProductDrill(null);
+    setProductResult(null);
+    savedSessionIdRef.current = null;
     setActionsLog([]);
     setScore(0);
+    setGuidedClicks(new Set());
   };
 
   // ── SELECT ATTACK ───────────────────────────────────────────────────────────
@@ -404,6 +478,7 @@ export default function RealAttackDrills() {
               onGenerate={generateDrill}
               onClose={() => setDetailItem(null)}
               generating={generating}
+              error={genError}
             />
           )}
         </AnimatePresence>
@@ -433,6 +508,14 @@ export default function RealAttackDrills() {
                 <span key={m} className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 font-mono">{m}</span>
               ))}
             </div>
+            {productDrill && (
+              <div className="mt-3 flex items-center gap-2 text-xs text-cyan-300 border-t border-cyan-500/20 pt-2">
+                <Terminal className="h-3.5 w-3.5 shrink-0" />
+                <span>
+                  Product console drill ready: {productDrill.vendor} {productDrill.product} — {productDrill.tasks.length} point-and-click remediation steps in the Console tab.
+                </span>
+              </div>
+            )}
           </div>
 
           <h2 className="text-lg font-semibold text-white mb-1">Choose Network Environment <span className="text-sm text-gray-500 font-normal">(optional)</span></h2>
@@ -496,6 +579,9 @@ export default function RealAttackDrills() {
       <ScenarioBriefing
         scenario={selectedScenario}
         mode="training"
+        attemptMode={attemptMode}
+        onAttemptModeChange={setAttemptMode}
+        guidedTimeLimit={Math.max(5, Math.ceil((selectedScenario?.duration_min || 15) * 0.65))}
         onConfirm={() => launchScenario(selectedScenario)}
         onBack={() => setPhase("select_network")}
       />
@@ -531,7 +617,7 @@ export default function RealAttackDrills() {
         </div>
 
         <div className="flex items-center gap-0.5 bg-secondary/50 rounded-lg p-0.5 mx-auto overflow-x-auto">
-          {TABS.map(tab => {
+          {(productDrill ? [...TABS.slice(0, 4), CONSOLE_TAB, ...TABS.slice(4)] : TABS).map(tab => {
             const Icon = tab.icon;
             const hasAlert = tab.id === "siem" && openAlerts > 0;
             return (
@@ -566,23 +652,31 @@ export default function RealAttackDrills() {
 
       {/* Content + Sidebar */}
       <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden" data-soc-scope>
           <AnimatePresence mode="wait">
             <motion.div key={activeTab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="h-full">
               {activeTab === "dashboard" && <SOCDashboard alerts={evolution.liveAlerts} logs={evolution.liveLogs} edrDetections={evolution.liveEDR} endpoints={evolution.liveEndpoints} actionsLog={actionsLog} scenario={selectedScenario} elapsedMinutes={evolution.elapsedMinutes} score={score} threatLevel={evolution.threatLevel} threatTrend={evolution.threatTrend} eventFeed={evolution.eventFeed} status={evolution.status} />}
               {activeTab === "siem" && <SIEMViewer logs={evolution.liveLogs} />}
               {activeTab === "edr" && <EDRModule detections={evolution.liveEDR} endpoints={evolution.liveEndpoints} onAction={handleAction} />}
               {activeTab === "rmm" && <RMMModule endpoints={evolution.liveEndpoints} onAction={handleAction} />}
-              {activeTab === "remediation" && <RemediationPanel endpoints={evolution.liveEndpoints} alerts={evolution.liveAlerts} logs={evolution.liveLogs} actionsLog={actionsLog} onAction={handleAction} score={score} scenario={selectedScenario} seed={runSeed} />}
+              {activeTab === "console" && <ProductRemediationDrill spec={productDrill} onComplete={setProductResult} />}
+              {activeTab === "remediation" && <RemediationPanel endpoints={evolution.liveEndpoints} alerts={evolution.liveAlerts} logs={evolution.liveLogs} edr={evolution.liveEDR} actionsLog={actionsLog} onAction={handleAction} score={score} scenario={selectedScenario} seed={runSeed} />}
               {activeTab === "report" && <IncidentReport scenario={selectedScenario} alerts={evolution.liveAlerts} logs={evolution.liveLogs} actionsLog={actionsLog} endpoints={evolution.liveEndpoints} score={score} elapsedMinutes={evolution.elapsedMinutes} onReportGenerated={() => { setReportGenerated(true); evolution.markComplete(); }} />}
             </motion.div>
           </AnimatePresence>
         </div>
         <div className="w-px shrink-0 bg-gradient-to-b from-transparent via-primary/40 to-transparent" />
         <div className="w-80 shrink-0 flex flex-col overflow-hidden">
-          <TrainingNarrative scenario={selectedScenario} actionsLog={actionsLog} alerts={evolution.liveAlerts} reportGenerated={reportGenerated} activeTab={activeTab} onNavigate={handleTabChange} tabsVisited={tabsVisited} threatLevel={evolution.threatLevel} eventFeed={evolution.eventFeed} status={evolution.status} seed={runSeed} onHintUsed={evolution.addTimePenalty} />
+          <TrainingNarrative guided={attemptMode === "guided"} scenario={selectedScenario} actionsLog={actionsLog} alerts={evolution.liveAlerts} reportGenerated={reportGenerated} activeTab={activeTab} onNavigate={handleTabChange} tabsVisited={tabsVisited} threatLevel={evolution.threatLevel} eventFeed={evolution.eventFeed} status={evolution.status} seed={runSeed} onHintUsed={evolution.addTimePenalty} guidedSteps={guidedSteps} guidedClicks={guidedClicks} />
         </div>
       </div>
+
+      <GuidedClickOverlay
+        step={activeGuidedStep}
+        index={activeGuidedStep ? guidedSteps.indexOf(activeGuidedStep) + 1 : 0}
+        total={guidedSteps.length}
+        onComplete={completeGuidedStep}
+      />
 
       <CompleteScenarioDialog
         open={showCompleteDialog}
@@ -603,6 +697,7 @@ export default function RealAttackDrills() {
             score={score}
             elapsedMinutes={evolution.elapsedMinutes}
             status={evolution.status}
+            productRemediation={productResult}
             successMessage={evolution.successMessage}
             failureMessage={evolution.failureMessage}
             onExit={exitSimulation}

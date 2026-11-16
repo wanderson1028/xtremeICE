@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Clock, ChevronRight, Tag, Terminal, CheckCircle2, Search, X, ChevronDown, BookOpen, Filter, Cloud, Award } from "lucide-react";
-import { VIRTUAL_LABS, LINUX_LABS, POWERSHELL_LABS, LAB_COURSES, AWS_CLOUD_LABS, COMPTIA_LABS, AZURE_LABS } from "@/lib/labCatalog";
+import { Clock, ChevronRight, Tag, Terminal, CheckCircle2, Search, X, ChevronDown, BookOpen, Filter, Cloud, Award, MousePointerClick } from "lucide-react";
+import { VIRTUAL_LABS, LINUX_LABS, POWERSHELL_LABS, LAB_COURSES, AWS_CLOUD_LABS, COMPTIA_LABS, AZURE_LABS, M365_LABS } from "@/lib/labCatalog";
 import { useTranslation } from "react-i18next";
 
 function CategoryDropdown({ categories, onSelect }) {
@@ -65,6 +65,7 @@ export default function InteractiveVirtualLabs() {
     network: useRef(null),
     linux: useRef(null),
     powershell: useRef(null),
+    m365: useRef(null),
     courses: useRef(null),
     cloud: useRef(null),
     cert: useRef(null),
@@ -74,6 +75,7 @@ export default function InteractiveVirtualLabs() {
     { key: "network",    label: t("activeLabs.categories.network"),    color: "text-red-400" },
     { key: "linux",      label: t("activeLabs.categories.linux"),      color: "text-green-400" },
     { key: "powershell", label: t("activeLabs.categories.powershell"), color: "text-blue-400" },
+    { key: "m365",       label: "Microsoft 365",                       color: "text-sky-400" },
     { key: "courses",    label: t("activeLabs.categories.courses"),    color: "text-purple-400" },
     { key: "cloud",      label: t("activeLabs.categories.cloud"),      color: "text-amber-400" },
     { key: "cert",       label: t("activeLabs.categories.certification"), color: "text-emerald-400" },
@@ -81,7 +83,7 @@ export default function InteractiveVirtualLabs() {
 
   const handleCategorySelect = (key) => {
     // Collapse all others, expand the chosen one
-    setCollapsed({ network: true, linux: true, powershell: true, courses: true, cloud: true, cert: true, [key]: false });
+    setCollapsed({ network: true, linux: true, powershell: true, m365: true, courses: true, cloud: true, cert: true, [key]: false });
     // Scroll to section after state update
     setTimeout(() => {
       sectionRefs[key]?.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -124,6 +126,7 @@ export default function InteractiveVirtualLabs() {
   const visibleNetworkLabs = applyFilters(isAdmin || !hasAssignments ? VIRTUAL_LABS : VIRTUAL_LABS.filter(l => assignedIds.has(l.id)));
   const visibleLinuxLabs   = applyFilters(isAdmin || !hasAssignments ? LINUX_LABS   : LINUX_LABS.filter(l => assignedIds.has(l.id)));
   const visiblePSLabs      = applyFilters(isAdmin || !hasAssignments ? POWERSHELL_LABS : POWERSHELL_LABS.filter(l => assignedIds.has(l.id)));
+  const visibleM365Labs    = applyFilters(isAdmin || !hasAssignments ? M365_LABS : M365_LABS.filter(l => assignedIds.has(l.id)));
   const visibleCourseLabs  = applyFilters(isAdmin || !hasAssignments ? LAB_COURSES  : LAB_COURSES.filter(l => assignedIds.has(l.id)));
   const visibleAwsLabs     = applyFilters(isAdmin || !hasAssignments ? AWS_CLOUD_LABS : AWS_CLOUD_LABS.filter(l => assignedIds.has(l.id)));
   const clfLabs            = visibleAwsLabs.filter(l => l.tags?.includes("CLF-002"));
@@ -271,6 +274,25 @@ export default function InteractiveVirtualLabs() {
             {!collapsed.powershell && (
               <div className="grid gap-5 sm:grid-cols-2">
                 {visiblePSLabs.map(lab => <LabCard key={lab.id} lab={lab} />)}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Microsoft 365 */}
+        {visibleM365Labs.length > 0 && (
+          <div className="mb-10" ref={sectionRefs.m365}>
+            <button onClick={() => setCollapsed(c => ({ ...c, m365: !c.m365 }))} className="w-full flex items-center gap-2 mb-4 group">
+              <span className="h-1.5 w-1.5 rounded-full bg-sky-500 shrink-0" />
+              <h2 className="text-lg font-semibold text-white">Microsoft 365</h2>
+              <span className="text-xs text-gray-500 ml-1">({visibleM365Labs.length})</span>
+              <ChevronDown className={`h-4 w-4 text-gray-400 ml-auto transition-transform ${collapsed.m365 ? "-rotate-90" : ""}`} />
+            </button>
+            {!collapsed.m365 && (
+              <div className="grid gap-5 sm:grid-cols-2">
+                {visibleM365Labs.map(lab => (
+                  <LabCard key={lab.id} lab={lab} icon={<MousePointerClick className="h-5 w-5 text-sky-400" />} />
+                ))}
               </div>
             )}
           </div>
@@ -438,7 +460,7 @@ export default function InteractiveVirtualLabs() {
           </div>
         )}
 
-        {visibleNetworkLabs.length === 0 && visibleLinuxLabs.length === 0 && visiblePSLabs.length === 0 && visibleCourseLabs.length === 0 && visibleAwsLabs.length === 0 && visibleAzureLabs.length === 0 && visibleCompTIALabs.length === 0 && (
+        {visibleNetworkLabs.length === 0 && visibleLinuxLabs.length === 0 && visiblePSLabs.length === 0 && visibleM365Labs.length === 0 && visibleCourseLabs.length === 0 && visibleAwsLabs.length === 0 && visibleAzureLabs.length === 0 && visibleCompTIALabs.length === 0 && (
           <div className="text-center py-16 text-gray-500">
             {t("activeLabs.noLabs")}
           </div>

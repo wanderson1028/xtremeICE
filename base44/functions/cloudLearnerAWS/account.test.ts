@@ -30,4 +30,3 @@ Deno.test("bootstrap policy attachments fit IAM identity and managed-policy size
   check(policies.reduce((total,p)=>total+size(p.PolicyDocument),0)<=10240);
  }
 });
-

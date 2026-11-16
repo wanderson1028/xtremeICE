@@ -8,7 +8,7 @@ import { getExpectedActions, getTakenActionIds, calculateDrillCost, formatCurren
 
 export default function DrillReview({
   scenario, actionsLog, alerts, endpoints, score, elapsedMinutes,
-  status, successMessage, failureMessage, onExit,
+  status, successMessage, failureMessage, productRemediation, onExit,
 }) {
   const expected = useMemo(() => getExpectedActions(scenario, alerts), [scenario, alerts]);
   const takenIds = useMemo(() => getTakenActionIds(actionsLog), [actionsLog]);
@@ -181,6 +181,31 @@ export default function DrillReview({
               </div>
             </div>
           </div>
+
+          {/* Product-specific remediation drill */}
+          {productRemediation && (
+            <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-xl overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-cyan-500/20 flex items-center gap-2">
+                <Cpu className="h-4 w-4 text-cyan-400" />
+                <span className="text-xs font-semibold uppercase text-cyan-300">
+                  {productRemediation.product || "Product"} Console Drill
+                </span>
+                <span className="ml-auto text-xs font-mono text-cyan-300">{productRemediation.score}%</span>
+              </div>
+              <div className="p-3 space-y-1.5 max-h-64 overflow-y-auto overscroll-contain">
+                {(productRemediation.steps || []).map((step, i) => (
+                  <div key={step.id || i} className="flex items-start gap-2.5 px-2 py-1.5 rounded-lg bg-cyan-500/5">
+                    <span className="text-[10px] font-mono text-cyan-400 mt-0.5">{i + 1}.</span>
+                    <span className="text-xs text-foreground/90 flex-1 leading-snug">{step.instruction}</span>
+                    {step.wrongAttempts > 0 && (
+                      <span className="text-[10px] text-amber-400 shrink-0">{step.wrongAttempts} miss</span>
+                    )}
+                    <span className="text-[10px] font-mono text-muted-foreground shrink-0">{step.points}/{step.max}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Cost to the company */}
           <div className="bg-red-950/20 border border-red-500/30 rounded-xl overflow-hidden">

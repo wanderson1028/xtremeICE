@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { ArrowLeft, Send, Users, Clock, Target, CheckCircle2, Shield, FileText, BarChart2, ChevronRight } from "lucide-react";
+import { ArrowLeft, Send, Users, Clock, Target, CheckCircle2, Shield, FileText, BarChart2, ChevronRight, Pencil } from "lucide-react";
 
 const urlParams = () => new URLSearchParams(window.location.search);
 
@@ -39,6 +39,11 @@ export default function AssessmentDetail() {
 
   const totalPoints = tasks.reduce((s, t) => s + (t.points || 10), 0);
 
+  // scoring_weights is stored as { themes: [{ theme, weight }] }
+  const themeWeights = (Array.isArray(assessment.scoring_weights?.themes) ? assessment.scoring_weights.themes : [])
+    .map((entry) => ({ theme: String(entry?.theme || "Untitled theme"), weight: Number(entry?.weight) || 0 }));
+  const maxThemeWeight = Math.max(1, ...themeWeights.map((w) => w.weight));
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-red-950/10">
       <div className="border-b border-gray-800 bg-black/50 px-6 py-4">
@@ -53,9 +58,17 @@ export default function AssessmentDetail() {
               {assessment.company_name && <p className="text-gray-500 text-xs">{assessment.company_name}</p>}
             </div>
           </div>
-          <Link to={`/invite-candidate?assessment_id=${id}`} className="flex items-center gap-2 px-4 py-2.5 bg-red-700 hover:bg-red-600 text-white rounded-lg text-sm font-semibold transition-colors">
-            <Send className="h-4 w-4" /> Invite Candidate
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link to={`/application-test-builder?id=${id}`} className="flex items-center gap-2 px-4 py-2.5 border border-gray-700 text-gray-200 hover:text-white rounded-lg text-sm font-semibold transition-colors">
+              <Pencil className="h-4 w-4" /> Edit
+            </Link>
+            <Link to={`/invite-candidate?assessment_id=${id}`} className="flex items-center gap-2 px-4 py-2.5 border border-gray-700 text-gray-200 hover:text-white rounded-lg text-sm font-semibold transition-colors">
+              <Send className="h-4 w-4" /> Invite One
+            </Link>
+            <Link to={`/bulk-invite?assessment_id=${id}`} className="flex items-center gap-2 px-4 py-2.5 bg-red-700 hover:bg-red-600 text-white rounded-lg text-sm font-semibold transition-colors">
+              <Users className="h-4 w-4" /> Invite Multiple
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -145,12 +158,85 @@ export default function AssessmentDetail() {
                     <span className="h-7 w-7 rounded-full bg-red-900/50 border border-red-700/50 text-red-400 text-xs flex items-center justify-center font-bold shrink-0">{task.order}</span>
                     <div>
                       <h3 className="text-white font-semibold">{task.title}</h3>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-800 border border-gray-700 text-gray-400">{task.task_type}</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-800 border border-gray-700 text-gray-400">
+                        {task.question_type === "mcq" ? "Multiple Choice" : task.question_type === "matching" ? "Matching" : task.question_type === "hotspot" ? "Hotspot" : task.task_type}
+                      </span>
+                      {task.question_type && task.question_type !== "manual" && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-900/30 border border-green-700/40 text-green-400">Auto-scored</span>
+                      )}
                     </div>
                   </div>
                   <span className="text-yellow-400 font-mono font-bold text-sm shrink-0">{task.points} pts</span>
                 </div>
                 <p className="text-gray-300 text-sm leading-relaxed mb-4">{task.description}</p>
+
+                {task.question_type === "mcq" && task.options?.length > 0 && (
+                  <div className="mb-4 space-y-1.5">
+                    {task.options.map((option) => (
+                      <div
+                        key={option.id}
+                        className={`flex items-center gap-2 text-xs rounded-lg px-3 py-1.5 border ${
+                          task.correct_option_id === option.id
+                            ? "border-green-700/40 bg-green-950/20 text-green-300"
+                            : "border-gray-800 bg-gray-950/40 text-gray-400"
+                        }`}
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-current" />
+                        {option.text}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {task.question_type === "hotspot" && task.hotspot_image_url && (
+                  <div className="mb-4">
+                    <div className="relative w-full max-w-xl rounded-lg overflow-hidden border border-gray-800 bg-gray-950">
+                      <img src={task.hotspot_image_url} alt={task.title} className="w-full h-auto block" />
+                      {(task.hotspot_regions || []).map((region) => (
+                        <div
+                          key={region.id}
+                          className={`absolute border-2 rounded-sm pointer-events-none ${
+                            task.correct_region_id === region.id
+                              ? "border-green-400 bg-green-500/20"
+                              : "border-gray-500/60 bg-white/5"
+                          }`}
+                          style={{
+                            left: `${region.x}%`,
+                            top: `${region.y}%`,
+                            width: `${region.w}%`,
+                            height: `${region.h}%`,
+                          }}
+                        >
+                          <span className="absolute -top-5 left-0 text-[10px] font-semibold px-1 rounded bg-black/70 text-white whitespace-nowrap">
+                            {region.label || "Area"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500">
+                      Correct area:{" "}
+                      <span className="text-green-400">
+                        {(task.hotspot_regions || []).find((r) => r.id === task.correct_region_id)?.label || "—"}
+                      </span>
+                    </p>
+                  </div>
+                )}
+
+                {task.question_type === "matching" && task.matching_prompts?.length > 0 && (
+                  <div className="mb-4 space-y-1.5">
+                    {task.matching_prompts.map((prompt) => {
+                      const choiceId = (task.matching_answer || {})[prompt.id];
+                      const choice = (task.matching_choices || []).find((c) => c.id === choiceId);
+                      return (
+                        <div key={prompt.id} className="flex items-center gap-2 text-xs text-gray-400">
+                          <span className="text-gray-500 truncate max-w-[45%]">{prompt.text}</span>
+                          <span className="text-gray-600">→</span>
+                          <span className="text-green-400 truncate">{choice?.text || "—"}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
 
                 {task.expected_actions?.length > 0 && (
                   <div className="mb-3">
@@ -222,13 +308,19 @@ export default function AssessmentDetail() {
             <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-5">
               <h3 className="text-white font-semibold mb-4">Scoring Weights</h3>
               <div className="space-y-3">
-                {Object.entries(assessment.scoring_weights || {}).map(([key, val]) => (
-                  <div key={key} className="flex items-center gap-3">
-                    <span className="text-gray-400 text-xs capitalize w-48 shrink-0">{key.replace(/_/g, " ")}</span>
+                {themeWeights.length === 0 && (
+                  <p className="text-xs text-gray-500">No theme weights configured — all questions are weighted equally.</p>
+                )}
+                {themeWeights.map((entry, index) => (
+                  <div key={`${entry.theme}-${index}`} className="flex items-center gap-3">
+                    <span className="text-gray-400 text-xs capitalize w-48 shrink-0 truncate">{entry.theme}</span>
                     <div className="flex-1 h-2 bg-gray-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-red-600 rounded-full transition-all" style={{ width: `${val}%` }} />
+                      <div
+                        className="h-full bg-red-600 rounded-full transition-all"
+                        style={{ width: `${Math.round((entry.weight / maxThemeWeight) * 100)}%` }}
+                      />
                     </div>
-                    <span className="text-gray-300 text-xs font-mono w-8 text-right">{val}%</span>
+                    <span className="text-gray-300 text-xs font-mono w-8 text-right">{entry.weight}</span>
                   </div>
                 ))}
               </div>

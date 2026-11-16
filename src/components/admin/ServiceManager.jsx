@@ -7,25 +7,21 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Search, User, Settings2, X, ChevronLeft } from "lucide-react";
 import LabAssignmentManager from "./LabAssignmentManager";
-
-const ALL_SERVICES = [
-  { key: "network_design_wizard",  label: "Network Design Wizard",       short: "NDW",  granular: false },
-  { key: "visual_design_editor",   label: "Visual Design Editor",        short: "VDE",  granular: false },
-  { key: "cyber_range",            label: "Cyber Range (Red vs. Blue)",  short: "RvB",  granular: false },
-  { key: "soc_training",           label: "SOC Response Drills",         short: "SOCT", granular: true  },
-  { key: "soc_assessments",        label: "SOC Assessments",             short: "SOCA", granular: true  },
-  { key: "lab_scenarios",          label: "Active Labs",                 short: "ALabs", granular: true  },
-  { key: "course_lab_builder",     label: "Course Lab Builder",          short: "CLB",  granular: false },
-  { key: "cci",                    label: "Capital Intelligence — CFRS", short: "CFRS", granular: false },
-  { key: "demo_mode",              label: "Xtreme I.C.E. Demo",           short: "Demo", granular: false },
-  { key: "tabletop_exercises",     label: "Tabletop Exercises (TTX)",      short: "TTX",  granular: false },
-];
+import { buildServiceList } from "@/lib/featureConfig";
 
 export default function ServiceManager() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [pending, setPending] = useState({});
   const [managingUser, setManagingUser] = useState(null); // user whose labs we're managing
+
+  // Columns come from the feature-flag registry, so enabling a flag adds its toggle here.
+  const { data: flags = [] } = useQuery({
+    queryKey: ["feature-flags-access"],
+    queryFn: () => base44.entities.FeatureFlag.list(),
+  });
+
+  const services = buildServiceList(flags);
 
   const { data: users = [] } = useQuery({
     queryKey: ["all-users"],
@@ -132,7 +128,7 @@ export default function ServiceManager() {
           <thead>
             <tr className="bg-gray-100 border-b border-gray-200">
               <th className="text-left px-4 py-3 text-gray-600 font-medium w-52">User</th>
-              {ALL_SERVICES.map((s) => (
+              {services.map((s) => (
                 <th key={s.key} className="text-center px-2 py-3 text-gray-600 font-medium">
                   <span className="hidden lg:block text-xs leading-tight">{s.label}</span>
                   <span className="lg:hidden text-xs">{s.short}</span>
@@ -145,14 +141,14 @@ export default function ServiceManager() {
           <tbody>
             {filteredUsers.length === 0 ? (
               <tr>
-                <td colSpan={ALL_SERVICES.length + 3} className="text-center py-12 text-gray-400">
+                <td colSpan={services.length + 3} className="text-center py-12 text-gray-400">
                   No users found.
                 </td>
               </tr>
             ) : (
               filteredUsers.map((user, idx) => {
                 const enabledKeys = getEnabledKeys(user.email);
-                const hasGranular = ALL_SERVICES.some(s => s.granular && enabledKeys.includes(s.key));
+                const hasGranular = services.some(s => s.granular && enabledKeys.includes(s.key));
                 return (
                   <tr
                     key={user.id}
@@ -170,7 +166,7 @@ export default function ServiceManager() {
                       </div>
                     </td>
 
-                    {ALL_SERVICES.map((svc) => {
+                    {services.map((svc) => {
                       const assignment = getAssignment(user.email, svc.key);
                       const isOn = !!assignment;
                       const isPend = !!pending[`${user.email}__${svc.key}`];
@@ -194,7 +190,7 @@ export default function ServiceManager() {
                         variant={countAssigned(user.email) > 0 ? "default" : "secondary"}
                         className="text-xs"
                       >
-                        {countAssigned(user.email)}/{ALL_SERVICES.length}
+                        {countAssigned(user.email)}/{services.length}
                       </Badge>
                     </td>
 
