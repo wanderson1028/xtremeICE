@@ -31,3 +31,6 @@ No real learner/admin browser walkthrough, live AI-provider call, deployed row-l
 ## Reproduce
 node --test tests/access-management.test.mjs tests/dashboard-designer.test.mjs tests/training-designer-ui.test.mjs tests/training-assignments.test.mjs tests/training-generation.test.mjs tests/simulation-actions.test.mjs tests/ttx-command.test.mjs
 npm run build
+
+## Follow-up: SOC/candidate alpha, November 17, 2026
+The subsequent pass added visible SOC save-failure notification with retry, immutable result snapshots, and per-saver duplicate suppression. See `docs/soc-candidate-alpha.md` for 135 passing regression checks and remaining durability, product-remediation race, and live-validation limits. The earlier silent-create-failure findings are addressed at the notification/retry level; this is not durable or server-idempotent recovery.
