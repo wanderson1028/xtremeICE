@@ -1,4 +1,6 @@
 import { format, subDays, parseISO } from "date-fns";
+const validDate = value => typeof value === "string" && Number.isFinite(Date.parse(value));
+const numericScore = value => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
 export function dashboardStats({ attempts=[], labScores=[], socSessions=[], scenarios=[], activityLogs=[] }) {
     // Merge LabAttempt completions + LabScore completions (from linux labs)
     const completed = attempts.filter((a) => a.status === "completed");
@@ -9,8 +11,8 @@ export function dashboardStats({ attempts=[], labScores=[], socSessions=[], scen
 
     // Avg score across both sources
     const allScores = [
-      ...completed.map(a => a.score || 0),
-      ...labScores.map(s => s.points_possible > 0 ? Math.round((s.points_earned / s.points_possible) * 100) : 0),
+      ...completed.filter(a => numericScore(a.score)).map(a => Number(a.score)),
+      ...labScores.filter(s => s.points_possible > 0 && numericScore(s.points_earned)).map(s => Math.round((s.points_earned / s.points_possible) * 100)),
     ];
     const avgScore = allScores.length
       ? Math.round(allScores.reduce((s, v) => s + v, 0) / allScores.length)
@@ -27,7 +29,7 @@ export function dashboardStats({ attempts=[], labScores=[], socSessions=[], scen
     ];
     const actDays = new Set(
       allActivityDates
-        .filter(Boolean)
+        .filter(validDate)
         .map(d => format(parseISO(d), "yyyy-MM-dd"))
     );
     let streak = 0;
@@ -42,26 +44,19 @@ export function dashboardStats({ attempts=[], labScores=[], socSessions=[], scen
     // Activity chart — last 14 days (all lab + SOC activity)
     const actByDay = {};
     for (let i = 13; i >= 0; i--) {
-      actByDay[format(subDays(new Date(), i), "MMM d")] = 0;
+      actByDay[format(subDays(new Date(), i), "yyyy-MM-dd")] = 0;
     }
-    [...allActivityDates, ...socSessionDates].filter(Boolean).forEach(d => {
-      const key = format(parseISO(d), "MMM d");
+    [...allActivityDates, ...socSessionDates].filter(validDate).forEach(d => {
+      const key = format(parseISO(d), "yyyy-MM-dd");
       if (key in actByDay) actByDay[key]++;
     });
-    const activityChart = Object.entries(actByDay).map(([date, count]) => ({ date, count }));
+    const activityChart = Object.entries(actByDay).map(([date, count]) => ({ date: format(parseISO(date), "MMM d"), count }));
 
     // Score chart — last 10 from LabScores (linux labs), plus LabAttempts
-    const labScoreChart = labScores.slice(0, 10).map((s, i) => ({
-      attempt: `#${i + 1}`,
-      score: s.points_possible > 0 ? Math.round((s.points_earned / s.points_possible) * 100) : 0,
-      passed: true,
-    }));
-    const attemptChart = completed.slice(0, 10).map((a, i) => ({
-      attempt: `#${i + 1}`,
-      score: a.score || 0,
-      passed: a.passed,
-    }));
-    const scoresChart = [...labScoreChart, ...attemptChart].slice(0, 10);
+    const scoresChart = [
+      ...labScores.filter(s => s.points_possible > 0 && numericScore(s.points_earned)).map(s => ({ score: Math.round(s.points_earned / s.points_possible * 100), date: s.completed_at || s.created_date })),
+      ...completed.filter(a => numericScore(a.score)).map(a => ({ score: Number(a.score), date: a.completed_at || a.created_date })),
+    ].sort((a,b) => (Date.parse(b.date) || 0) - (Date.parse(a.date) || 0)).slice(0,10).reverse().map((row,i)=>({...row,attempt:`#${i+1}`}));
 
     // Recent activity feed — merge attempts + lab scores + SOC sessions
     const recentActivity = [
@@ -96,27 +91,28 @@ export function dashboardStats({ attempts=[], labScores=[], socSessions=[], scen
         type: "soc",
       })),
     ]
-      .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
+      .map(row => ({ ...row, date: validDate(row.date) ? row.date : null }))
+      .sort((a, b) => (Date.parse(b.date) || 0) - (Date.parse(a.date) || 0))
       .slice(0, 5);
 
     // Login & usage stats from UserActivity
-    const loginEvents = activityLogs.filter(a => a.event_type === "login");
+    const loginEvents = activityLogs.filter(a => a.event_type === "login" && validDate(a.created_date)).sort((a,b) => Date.parse(b.created_date)-Date.parse(a.created_date));
     const sessionEvents = activityLogs.filter(a => a.event_type === "session_end");
     const totalLogins = loginEvents.length;
-    const totalUsageMinutes = sessionEvents.reduce((s, a) => s + (a.session_duration_minutes || 0), 0);
+    const totalUsageMinutes = sessionEvents.reduce((s, a) => s + (Number.isFinite(Number(a.session_duration_minutes)) ? Math.max(0,Number(a.session_duration_minutes)) : 0), 0);
     const lastLogin = loginEvents[0]?.created_date || null;
 
     // Logins per day chart — last 14 days
     const loginByDay = {};
     for (let i = 13; i >= 0; i--) {
-      loginByDay[format(subDays(new Date(), i), "MMM d")] = 0;
+      loginByDay[format(subDays(new Date(), i), "yyyy-MM-dd")] = 0;
     }
     loginEvents.forEach(a => {
       if (!a.created_date) return;
-      const d = format(parseISO(a.created_date), "MMM d");
+      const d = format(parseISO(a.created_date), "yyyy-MM-dd");
       if (d in loginByDay) loginByDay[d]++;
     });
-    const loginChart = Object.entries(loginByDay).map(([date, count]) => ({ date, count }));
+    const loginChart = Object.entries(loginByDay).map(([date, count]) => ({ date: format(parseISO(date), "MMM d"), count }));
 
     return {
       totalAttempts: attempts.length + labScores.length,

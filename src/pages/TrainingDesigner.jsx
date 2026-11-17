@@ -69,14 +69,14 @@ export default function TrainingDesigner() {
     setSavedLoading(true);
     try {
       const [exercises, attemptPage, assignmentPage, currentUser] = await Promise.all([
-        base44.entities.TrainingExercise.filter({}, { sort: "-created_date", limit: 100 }),
-        base44.entities.TrainingExerciseAttempt.filter({}, { sort: "-created_date", limit: 200 }),
-        base44.entities.TrainingAssignment.filter({}, { sort: "-created_date", limit: 200 }),
+        base44.entities.TrainingExercise.filter({}, "-created_date", 100),
+        base44.entities.TrainingExerciseAttempt.filter({}, "-created_date", 200),
+        base44.entities.TrainingAssignment.filter({}, "-created_date", 200),
         base44.auth.me(),
       ]);
-      setSaved(exercises.items || []);
-      setAttempts(attemptPage.items || []);
-      setAssignments(assignmentPage.items || []);
+      setSaved(exercises || []);
+      setAttempts(attemptPage || []);
+      setAssignments(assignmentPage || []);
       setMe(currentUser);
     } finally {
       setSavedLoading(false);
