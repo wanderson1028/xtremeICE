@@ -164,7 +164,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    const submissions = sanitizeSubmissions(payload.task_submissions);
+    const submissions = sanitizeSubmissions(
+      ['submitted', 'evaluated'].includes(session.status) ? session.task_submissions : payload.task_submissions
+    );
 
     // --- UPDATE: persist in-progress answers (scores are never trusted from the browser) ---
     if (action === 'update') {
@@ -177,7 +179,9 @@ Deno.serve(async (req) => {
     }
 
     // --- SUBMIT: deterministic objective scoring, then scorecard ---
-    const time_elapsed_minutes = Number(payload.time_elapsed_minutes) || 0;
+    const started = Date.parse(session.started_at || '');
+    const ended = Date.parse(session.submitted_at || '') || Date.now();
+    const time_elapsed_minutes = Number.isFinite(started) ? Math.max(0, (ended - started) / 60000) : 0;
     const tasks = await base44.asServiceRole.entities.AssessmentTask.filter({ assessment_id: session.assessment_id });
     const assessment = await base44.asServiceRole.entities.Assessment.get(session.assessment_id);
 
