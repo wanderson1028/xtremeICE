@@ -22,6 +22,7 @@ export default function UserManager({ selectedOrgId, onOrgChange, isPlatformAdmi
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviting, setInviting] = useState(false);
+  const [actionError, setActionError] = useState("");
   const [movingUserId, setMovingUserId] = useState(null);
   const [resetSentFor, setResetSentFor] = useState(null);
   const [accessUser, setAccessUser] = useState(null);
@@ -63,7 +64,10 @@ export default function UserManager({ selectedOrgId, onOrgChange, isPlatformAdmi
         user_id: id,
         org_role: data.org_role,
       }),
+    onError: (error) => setActionError(error?.response?.data?.error || error.message || "Could not update role."),
     onSuccess: () => {
+      setActionError("");
+      queryClient.invalidateQueries({ queryKey: ["me"] });
       queryClient.invalidateQueries({ queryKey: ["all-users"] });
       setMovingUserId(null);
     },
@@ -93,6 +97,7 @@ export default function UserManager({ selectedOrgId, onOrgChange, isPlatformAdmi
   const orgColor = (orgId) => orgs.find((o) => o.id === orgId)?.primary_color || "#0ea5e9";
 
   const handleMoveOrg = async (userId, newOrgId) => {
+    setActionError("");
     setMovingUserId(userId);
     try {
       await base44.functions.invoke("assignUserOrganization", {
@@ -100,6 +105,8 @@ export default function UserManager({ selectedOrgId, onOrgChange, isPlatformAdmi
         organization_id: newOrgId === "__none__" ? "" : newOrgId,
       });
       queryClient.invalidateQueries({ queryKey: ["all-users"] });
+    } catch (error) {
+      setActionError(error?.response?.data?.error || error.message || "Could not move user.");
     } finally {
       setMovingUserId(null);
     }
@@ -118,11 +125,17 @@ export default function UserManager({ selectedOrgId, onOrgChange, isPlatformAdmi
   const handleInvite = async (e) => {
     e.preventDefault();
     setInviting(true);
-    await base44.users.inviteUser(inviteEmail, "user");
-    setInviteEmail("");
-    setShowInvite(false);
-    setInviting(false);
-    queryClient.invalidateQueries({ queryKey: ["all-users"] });
+    setActionError("");
+    try {
+      await base44.users.inviteUser(inviteEmail.trim(), "user");
+      setInviteEmail("");
+      setShowInvite(false);
+      queryClient.invalidateQueries({ queryKey: ["all-users"] });
+    } catch (error) {
+      setActionError(error?.response?.data?.error || error.message || "Could not send invitation.");
+    } finally {
+      setInviting(false);
+    }
   };
 
   // ── Grouped rendering helpers ────────────────────────────────────────────────
@@ -172,7 +185,7 @@ export default function UserManager({ selectedOrgId, onOrgChange, isPlatformAdmi
           <Select
             value={user.organization_id || "__none__"}
             onValueChange={(v) => handleMoveOrg(user.id, v)}
-            disabled={updateUserMutation.isPending && movingUserId === user.id}
+            disabled={movingUserId === user.id}
           >
             <SelectTrigger className="h-8 text-xs w-44"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -244,7 +257,7 @@ export default function UserManager({ selectedOrgId, onOrgChange, isPlatformAdmi
 
   const renderGroupedUsers = () => {
     // Owner = admin role with no org
-    const ownerUser = filteredUsers.find(u => u.role === "admin" && !u.organization_id);
+    const platformUsers = filteredUsers.filter(u => u.role === "admin" && !u.organization_id);
     const rest = filteredUsers.filter(u => !(u.role === "admin" && !u.organization_id));
 
     // Group rest by org
@@ -264,17 +277,17 @@ export default function UserManager({ selectedOrgId, onOrgChange, isPlatformAdmi
     return (
       <div className="space-y-5">
         {/* Owner */}
-        {ownerUser && (
+        {platformUsers.length > 0 && (
           <div className="border border-yellow-200 rounded-xl overflow-hidden shadow-sm">
             <table className="w-full text-sm">
               <TableHead />
               <tbody>
                 <GroupHeader
-                  label="Owner"
+                  label="Platform administrators"
                   icon={<Crown className="h-3.5 w-3.5 text-yellow-600" />}
                   colorClass="bg-yellow-50 text-yellow-700"
                 />
-                <UserRow user={ownerUser} idx={0} />
+                {platformUsers.map((u, i) => <UserRow key={u.id} user={u} idx={i} />)}
               </tbody>
             </table>
           </div>
@@ -331,6 +344,7 @@ export default function UserManager({ selectedOrgId, onOrgChange, isPlatformAdmi
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-cyan-700 bg-slate-950 p-4 text-slate-100"><b>Distributed Command TTX assignments</b><p className="mt-1 text-sm text-slate-300">Use these existing accounts for department workspaces. Grant Tabletop Exercises under Features, then assign departments and exercise responsibilities.</p><a className="mt-2 inline-block font-semibold text-cyan-300 underline" href={"/TabletopExercises?mode=distributed"+(selectedOrgId?"&organization="+encodeURIComponent(selectedOrgId):"")}>Manage TTX people & departments →</a></div>
+      {actionError && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">{actionError}</div>}
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
         {isPlatformAdmin && onOrgChange && (
