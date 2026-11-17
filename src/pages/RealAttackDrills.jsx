@@ -200,6 +200,7 @@ export default function RealAttackDrills() {
   const [sessionStartedAt, setSessionStartedAt] = useState(null);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const sessionSavedRef = useRef(false);
+  const scoredActionsRef = useRef(new Set());
   const savedSessionIdRef = useRef(null);
 
   // Filter state
@@ -346,6 +347,7 @@ export default function RealAttackDrills() {
     if (seed.patientZero) compromised.add(seed.patientZero);
     const updatedEps = [...ENDPOINTS].map(ep => ({ ...ep, status: compromised.has(ep.id) ? "compromised" : "healthy" }));
     setSimData({ alerts: scenarioAlerts, logs: scenarioLogs, endpoints: updatedEps, edr: scenarioEDR });
+    scoredActionsRef.current = new Set();
     setActionsLog([]);
     setScore(0);
     setTabsVisited(new Set(["dashboard"]));
@@ -361,8 +363,13 @@ export default function RealAttackDrills() {
   };
 
   const handleAction = (action) => {
+    if (["complete", "failed", "surrendered"].includes(evolution.status) || !action?.id) return;
+    if (!action.isPenalty) {
+      if (scoredActionsRef.current.has(action.id)) return;
+      scoredActionsRef.current.add(action.id);
+    }
     evolution.processAction(action);
-    if (action.isPenalty) { setScore(prev => Math.max(prev + (action.scoreOverride || -5), 0)); return; }
+    if (action.isPenalty) { setScore(prev => Math.max(prev + (action.scoreOverride ?? -5), 0)); return; }
     if (action.scoreOverride !== undefined) {
       setActionsLog(prev => prev.find(a => a.id === action.id) ? prev : [...prev, action]);
       setScore(prev => Math.min(Math.max(prev + action.scoreOverride, 0), 100));
@@ -395,6 +402,7 @@ export default function RealAttackDrills() {
     setProductDrill(null);
     setProductResult(null);
     savedSessionIdRef.current = null;
+    scoredActionsRef.current = new Set();
     setActionsLog([]);
     setScore(0);
     setGuidedClicks(new Set());

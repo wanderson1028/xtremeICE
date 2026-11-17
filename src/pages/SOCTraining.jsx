@@ -84,6 +84,7 @@ export default function SOCTraining() {
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const [guidedClicks, setGuidedClicks] = useState(new Set());
   const sessionSavedRef = useRef(false);
+  const scoredActionsRef = useRef(new Set());
 
   const evolution = useThreatEvolution(selectedScenario, simData, runSeed, attemptMode);
 
@@ -183,6 +184,7 @@ export default function SOCTraining() {
     if (seed.patientZero) compromised.add(seed.patientZero);
     const updatedEps = [...ENDPOINTS].map(ep => ({ ...ep, status: compromised.has(ep.id) ? "compromised" : "healthy" }));
     setSimData({ alerts: scenarioAlerts, logs: scenarioLogs, endpoints: updatedEps, edr: scenarioEDR });
+    scoredActionsRef.current = new Set();
     setActionsLog([]);
     setScore(0);
     setTabsVisited(new Set(attemptMode === "guided" ? [] : ["dashboard"]));
@@ -197,6 +199,11 @@ export default function SOCTraining() {
   };
 
   const handleAction = (action) => {
+    if (["complete", "failed", "surrendered"].includes(evolution.status) || !action?.id) return;
+    if (!action.isPenalty) {
+      if (scoredActionsRef.current.has(action.id)) return;
+      scoredActionsRef.current.add(action.id);
+    }
     const cleanId = action.id?.replace("rmm_", "").replace("edr_", "");
     const playbook = getScenarioPlaybook(selectedScenario?.id);
     const isProhibited = playbook.prohibited.includes(cleanId);
@@ -210,7 +217,7 @@ export default function SOCTraining() {
     // Apply simulation consequences (threat level, alert closure, endpoint isolation)
     evolution.processAction(action);
 
-    if (action.isPenalty) { setScore(prev => Math.max(prev + (action.scoreOverride || -5), 0)); return; }
+    if (action.isPenalty) { setScore(prev => Math.max(prev + (action.scoreOverride ?? -5), 0)); return; }
     if (action.scoreOverride !== undefined) {
       setActionsLog(prev => prev.find(a => a.id === action.id) ? prev : [...prev, action]);
       setScore(prev => Math.min(Math.max(prev + action.scoreOverride, 0), 100));
@@ -240,6 +247,7 @@ export default function SOCTraining() {
     setSelectedScenario(null);
     setSelectedNetwork(null);
     setSimData(null);
+    scoredActionsRef.current = new Set();
     setActionsLog([]);
     setScore(0);
     setSessionStartedAt(null);
