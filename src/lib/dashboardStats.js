@@ -84,7 +84,7 @@ export function dashboardStats({ attempts=[], labScores=[], socSessions=[], scen
       ...socSessions.slice(0, 5).map(s => ({
         id: s.id,
         scenarioName: s.scenario_name || "SOC Drill",
-        status: "completed",
+        status: s.status === "completed" ? "completed" : s.status === "paused" ? "paused" : "in_progress",
         score: s.score != null ? s.score : null,
         passed: (s.score_breakdown?.outcome === "complete") || (s.score || 0) >= 50,
         date: s.completed_at || s.started_at || s.created_date,

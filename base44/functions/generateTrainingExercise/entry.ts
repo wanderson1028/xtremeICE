@@ -1,3 +1,4 @@
+import { canEditFeature } from "../../shared/featureAccess.ts";
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.54";
 
 type Finding = {
@@ -100,6 +101,8 @@ export default async function (req: Request): Promise<Response> {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me().catch((e) => (e.status === 401 ? null : Promise.reject(e)));
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+    if (!(await canEditFeature(base44, user, "training_designer"))) return Response.json({ error: "Training Designer editor access is required." }, { status: 403 });
 
     const body = await req.json().catch(() => ({}));
 

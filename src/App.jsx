@@ -333,7 +333,7 @@ const AuthenticatedApp = () => {
         <Route path="/about" element={<LayoutWrapper currentPageName="About"><About /></LayoutWrapper>} />
         <Route path="/mssp-soc" element={<LayoutWrapper currentPageName="MSSPSOC"><MSSPSOC /></LayoutWrapper>} />
         <Route path="/mssp-soc/session" element={<LayoutWrapper currentPageName="MSSPSession"><MSSPSession /></LayoutWrapper>} />
-        <Route path="/training-designer" element={<LayoutWrapper currentPageName="TrainingDesigner"><TrainingDesigner /></LayoutWrapper>} />
+        <Route path="/training-designer" element={<LayoutWrapper currentPageName="TrainingDesigner"><FeatureGate flagKey="training_designer"><TrainingDesigner /></FeatureGate></LayoutWrapper>} />
         <Route path="/training-designer/:exerciseId" element={<LayoutWrapper currentPageName="TrainingDesigner"><TrainingExerciseRunner /></LayoutWrapper>} />
         <Route path="*" element={<PageNotFound />} />
       </Route>

@@ -1,3 +1,4 @@
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { BookOpenCheck, ClipboardCheck, Loader2, Sparkles, Wand2 } from "lucide-react";
@@ -12,6 +13,8 @@ import MyAssignments from "@/components/trainingdesigner/MyAssignments";
 const message = (error, fallback) => error?.response?.data?.error || error?.response?.data?.message || error?.message || fallback;
 
 export default function TrainingDesigner() {
+  const access = useFeatureAccess();
+  const canEdit = access.canEdit("training_designer");
   const assessmentRequest = useRef(0);
   const findingRequest = useRef(0);
   const [savedError, setSavedError] = useState("");
@@ -167,6 +170,7 @@ export default function TrainingDesigner() {
 
   const generate = async () => {
     setGenerateError("");
+    if (!canEdit) { setGenerateError("Editor access is required."); return; }
     if (!selectedFindings.length) { setGenerateError("Select at least one finding."); return; }
     if (!roles.length) { setGenerateError("Choose at least one NICE Framework work role."); return; }
     if (!Number.isFinite(Number(duration)) || Number(duration) < 15 || Number(duration) > 480) { setGenerateError("Duration must be between 15 and 480 minutes."); return; }
@@ -192,6 +196,7 @@ export default function TrainingDesigner() {
 
   const save = async () => {
     setSaveError("");
+    if (!canEdit) { setSaveError("Editor access is required."); return; }
     if (!draft?.title?.trim()) { setSaveError("The exercise needs a title."); return; }
     setSaving(true);
     try {
@@ -329,7 +334,7 @@ export default function TrainingDesigner() {
         ) : tab === "mine" ? (
           <MyAssignments assignments={myAssignments} exercises={saved} attempts={attempts} me={me} loading={savedLoading} />
         ) : (
-          <fieldset disabled={generating || saving} className="space-y-4">
+          <fieldset disabled={!canEdit || generating || saving} className="space-y-4">
             <div className="grid gap-4 xl:grid-cols-2">
               <OrganizationPicker
                 companies={companies}

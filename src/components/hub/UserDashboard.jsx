@@ -97,13 +97,13 @@ export default function UserDashboard({ userEmail, assignedKeys = [], isAdmin = 
     };
   }, [userEmail]);
 
-  const { data: attempts = [] } = useQuery({
+  const { data: attempts = [], isLoading: attemptsLoading, isError: attemptsError } = useQuery({
     queryKey: ["my-attempts", userEmail],
     queryFn: () => base44.entities.LabAttempt.filter({ user_email: userEmail }, "-created_date", 200),
     enabled: !!userEmail,
   });
 
-  const { data: labScores = [] } = useQuery({
+  const { data: labScores = [], isLoading: labScoresLoading, isError: labScoresError } = useQuery({
     queryKey: ["my-lab-scores", userEmail],
     queryFn: () => base44.entities.LabScore.filter({ user_email: userEmail }, "-created_date", 200),
     enabled: !!userEmail,
@@ -111,18 +111,18 @@ export default function UserDashboard({ userEmail, assignedKeys = [], isAdmin = 
     refetchOnMount: "always",
   });
 
-  const { data: socSessions = [] } = useQuery({
+  const { data: socSessions = [], isLoading: socSessionsLoading, isError: socSessionsError } = useQuery({
     queryKey: ["my-soc-sessions", userEmail],
     queryFn: () => base44.entities.SOCSession.filter({ user_email: userEmail }, "-created_date", 100),
     enabled: !!userEmail,
   });
 
-  const { data: scenarios = [] } = useQuery({
-    queryKey: ["lab-scenarios-names"],
+  const { data: scenarios = [], isLoading: scenariosLoading, isError: scenariosError } = useQuery({
+    queryKey: ["lab-scenarios-names", userEmail],
     queryFn: () => base44.entities.LabScenario.list("-created_date", 100),
   });
 
-  const { data: activityLogs = [] } = useQuery({
+  const { data: activityLogs = [], isLoading: activityLogsLoading, isError: activityLogsError } = useQuery({
     queryKey: ["my-activity", userEmail],
     queryFn: () => base44.entities.UserActivity.filter({ user_email: userEmail }, "-created_date", 200),
     enabled: !!userEmail,
@@ -137,16 +137,21 @@ export default function UserDashboard({ userEmail, assignedKeys = [], isAdmin = 
   const statusIcon = (status, passed) => {
     if (status === "completed" && passed) return <CheckCircle2 className="h-4 w-4 text-green-400 flex-shrink-0" />;
     if (status === "completed" && !passed) return <XCircle className="h-4 w-4 text-red-400 flex-shrink-0" />;
-    if (status === "in_progress") return <Clock className="h-4 w-4 text-yellow-400 flex-shrink-0" />;
+    if (status === "in_progress" || status === "paused") return <Clock className="h-4 w-4 text-yellow-400 flex-shrink-0" />;
     return <XCircle className="h-4 w-4 text-red-400 flex-shrink-0" />;
   };
 
   const statusLabel = (status, passed) => {
     if (status === "completed") return passed ? t("dashboard.passed") : t("dashboard.failed");
+    if (status === "paused") return "Paused";
     if (status === "in_progress") return t("dashboard.inProgress", { count: "" }).trim();
     return t("dashboard.failed");
   };
 
+  const loading = attemptsLoading || labScoresLoading || socSessionsLoading || activityLogsLoading;
+  const failed = attemptsError || labScoresError || socSessionsError || activityLogsError || scenariosError;
+  if (loading) return <div role="status" className="mb-8 p-4 text-gray-300">Loading dashboard…</div>;
+  if (failed) return <div role="alert" className="mb-8 rounded border border-red-500 p-4 text-red-200">Dashboard data could not be loaded. Refresh to retry; unavailable data is not counted as zero.</div>;
   return (
     <div className="mb-8 space-y-5">
       {/* Section header */}
