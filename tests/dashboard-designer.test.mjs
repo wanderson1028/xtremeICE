@@ -1,0 +1,8 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { dashboardStats } from '../src/lib/dashboardStats.js';
+test('dashboard empty state has no fabricated average',()=>{const s=dashboardStats({});assert.equal(s.avgScore,null);assert.equal(s.totalAttempts,0);assert.equal(s.hasActivity,false);});
+test('dashboard tolerates invalid dates',()=>{assert.doesNotThrow(()=>dashboardStats({attempts:[{id:'bad',created_date:'not-a-date'}],activityLogs:[{event_type:'login',created_date:'bad'}]}));});
+test('new lab attempt is not crowded out by ten older lab scores',()=>{const s=dashboardStats({attempts:[{id:'new',status:'completed',score:97,created_date:'2026-11-17T12:00:00Z'}],labScores:Array.from({length:10},(_,i)=>({id:String(i),points_possible:100,points_earned:20,created_date:'2026-11-01T12:00:00Z'}))});assert.ok(s.scoresChart.some(r=>r.score===97));});
+test('missing score excluded from numeric average',()=>{assert.equal(dashboardStats({attempts:[{status:'completed'},{status:'completed',score:80}]}).avgScore,80);});
+test('old same-month/day events do not enter current 14-day chart',()=>{const old=new Date();old.setFullYear(old.getFullYear()-1);const s=dashboardStats({activityLogs:[{event_type:'login',created_date:old.toISOString()}]});assert.equal(s.loginChart.reduce((n,r)=>n+r.count,0),0);});
