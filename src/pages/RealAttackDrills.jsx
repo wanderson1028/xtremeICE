@@ -1,3 +1,4 @@
+import { saveSOCSession } from "@/components/soc/saveSOCSession";
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -247,7 +248,7 @@ export default function RealAttackDrills() {
       .filter(a => a.status !== "open")
       .map(a => a.id);
 
-    base44.entities.SOCSession.create({
+    saveSOCSession({
       network_design_id: selectedNetwork?.id || "default",
       scenario_id: selectedScenario.id,
       scenario_name: selectedScenario.name,

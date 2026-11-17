@@ -1,3 +1,4 @@
+import { saveSOCSession } from "@/components/soc/saveSOCSession";
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -125,7 +126,7 @@ export default function SOCTraining() {
       .filter(a => a.status !== "open")
       .map(a => a.id);
 
-    base44.entities.SOCSession.create({
+    saveSOCSession({
       network_design_id: selectedNetwork?.id || "default",
       scenario_id: selectedScenario.id,
       scenario_name: selectedScenario.name,

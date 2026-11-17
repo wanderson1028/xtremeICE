@@ -1,3 +1,4 @@
+import { saveSOCSession } from "@/components/soc/saveSOCSession";
 import React, { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -243,7 +244,7 @@ export default function SOCSimulation() {
       const triagedAlerts = alerts.filter(a => a.status !== "open").map(a => a.id);
       const compromisedAssets = endpoints.filter(ep => ep.status === "compromised").map(ep => ep.id);
       try {
-        await base44.entities.SOCSession.create({
+        await saveSOCSession({
           network_design_id: selectedNetwork?.id || "default",
           scenario_id: selectedScenario.id,
           scenario_name: selectedScenario.name,

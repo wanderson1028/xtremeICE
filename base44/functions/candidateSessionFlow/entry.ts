@@ -108,10 +108,11 @@ Deno.serve(async (req) => {
       const open = existing.find((session) => session.status === 'in_progress' || session.status === 'not_started');
       if (open) {
         if (!open.started_at) {
-          await base44.asServiceRole.entities.CandidateSession.update(open.id, {
+          const resumed = await base44.asServiceRole.entities.CandidateSession.update(open.id, {
             status: 'in_progress',
             started_at: new Date().toISOString(),
           });
+          Object.assign(open, resumed);
         }
         await base44.asServiceRole.entities.CandidateInvitation.update(invitation.id, {
           status: 'in_progress',

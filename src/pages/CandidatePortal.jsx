@@ -71,7 +71,7 @@ export default function CandidatePortal() {
       const res = await base44.functions.invoke("candidateSessionFlow", { action: "start", token });
       if (res?.data?.session) {
         setSession(res.data.session);
-        setStartTime(Date.now());
+        setStartTime(res.data.session.started_at ? new Date(res.data.session.started_at).getTime() : Date.now());
         const resumable = {};
         (res.data.session.task_submissions || []).forEach((sub) => {
           resumable[sub.task_id] = { answer: sub.answer || "", matches: sub.matches || {} };
