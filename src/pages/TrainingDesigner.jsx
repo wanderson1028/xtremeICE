@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { BookOpenCheck, ClipboardCheck, Loader2, Sparkles, Wand2 } from "lucide-react";
 import OrganizationPicker from "@/components/trainingdesigner/OrganizationPicker";
@@ -12,6 +12,9 @@ import MyAssignments from "@/components/trainingdesigner/MyAssignments";
 const message = (error, fallback) => error?.response?.data?.error || error?.response?.data?.message || error?.message || fallback;
 
 export default function TrainingDesigner() {
+  const assessmentRequest = useRef(0);
+  const findingRequest = useRef(0);
+  const [savedError, setSavedError] = useState("");
   const [tab, setTab] = useState("build");
 
   const [companies, setCompanies] = useState([]);
@@ -67,6 +70,7 @@ export default function TrainingDesigner() {
 
   const loadSaved = useCallback(async () => {
     setSavedLoading(true);
+    setSavedError("");
     try {
       const [exercises, attemptPage, assignmentPage, currentUser] = await Promise.all([
         base44.entities.TrainingExercise.filter({}, "-created_date", 100),
@@ -78,6 +82,8 @@ export default function TrainingDesigner() {
       setAttempts(attemptPage || []);
       setAssignments(assignmentPage || []);
       setMe(currentUser);
+    } catch (error) {
+      setSavedError(message(error, "Saved exercises could not be loaded. Please retry."));
     } finally {
       setSavedLoading(false);
     }
@@ -86,9 +92,16 @@ export default function TrainingDesigner() {
   useEffect(() => {
     loadCompanies();
     loadSaved();
+    return () => { assessmentRequest.current++; findingRequest.current++; };
   }, [loadCompanies, loadSaved]);
 
   const loadAssessments = async (org) => {
+    const request = ++assessmentRequest.current;
+    findingRequest.current++;
+    setFindingsLoading(false);
+    setFindingsError("");
+    setGenerateError("");
+    setSaveError("");
     setAssessmentsLoading(true);
     setAssessmentsError("");
     setAssessments([]);
@@ -98,15 +111,16 @@ export default function TrainingDesigner() {
     setDraft(null);
     try {
       const response = await base44.functions.invoke("vpentestConnection", { action: "assessments", company_id: org.id });
-      setAssessments(response.data?.assessments || []);
+      if (request === assessmentRequest.current) setAssessments(response.data?.assessments || []);
     } catch (error) {
-      setAssessmentsError(message(error, "Assessments could not be loaded for this organization."));
+      if (request === assessmentRequest.current) setAssessmentsError(message(error, "Assessments could not be loaded for this organization."));
     } finally {
-      setAssessmentsLoading(false);
+      if (request === assessmentRequest.current) setAssessmentsLoading(false);
     }
   };
 
   const loadFindings = async (org, selectedAssessment) => {
+    const request = ++findingRequest.current;
     setFindingsLoading(true);
     setFindingsError("");
     setFindings([]);
@@ -118,11 +132,11 @@ export default function TrainingDesigner() {
         company_id: org.id,
         assessment_id: selectedAssessment.id,
       });
-      setFindings((response.data?.findings || []).filter((finding) => finding.id));
+      if (request === findingRequest.current) setFindings((response.data?.findings || []).filter((finding) => finding.id));
     } catch (error) {
-      setFindingsError(message(error, "Findings could not be imported for this assessment."));
+      if (request === findingRequest.current) setFindingsError(message(error, "Findings could not be imported for this assessment."));
     } finally {
-      setFindingsLoading(false);
+      if (request === findingRequest.current) setFindingsLoading(false);
     }
   };
 
@@ -138,12 +152,14 @@ export default function TrainingDesigner() {
   };
 
   const toggleFinding = (id) => {
+    setDraft(null);
     setSelectedFindingIds((current) => (current.includes(id) ? current.filter((value) => value !== id) : [...current, id]));
   };
 
   const selectedFindings = findings.filter((finding) => selectedFindingIds.includes(finding.id));
 
   const toggleRole = (role) => {
+    setDraft(null);
     setRoles((current) =>
       current.some((item) => item.id === role.id) ? current.filter((item) => item.id !== role.id) : [...current, role]
     );
@@ -153,6 +169,8 @@ export default function TrainingDesigner() {
     setGenerateError("");
     if (!selectedFindings.length) { setGenerateError("Select at least one finding."); return; }
     if (!roles.length) { setGenerateError("Choose at least one NICE Framework work role."); return; }
+    if (!Number.isFinite(Number(duration)) || Number(duration) < 15 || Number(duration) > 480) { setGenerateError("Duration must be between 15 and 480 minutes."); return; }
+    if (selectedFindings.length > 12 || roles.length > 5) { setGenerateError("Select at most 12 findings and 5 roles per exercise."); return; }
     setGenerating(true);
     try {
       const response = await base44.functions.invoke("generateTrainingExercise", {
@@ -163,7 +181,8 @@ export default function TrainingDesigner() {
         difficulty,
         duration_minutes: Number(duration) || 45,
       });
-      setDraft(response.data?.exercise || null);
+      if (!response.data?.exercise?.tasks?.length) throw new Error("Generation returned no activities. Please retry.");
+      setDraft(response.data.exercise);
     } catch (error) {
       setGenerateError(message(error, "The exercise could not be generated."));
     } finally {
@@ -227,8 +246,10 @@ export default function TrainingDesigner() {
 
   const remove = async (exercise) => {
     if (!window.confirm(`Delete “${exercise.title}”? This cannot be undone.`)) return;
-    await base44.entities.TrainingExercise.delete(exercise.id);
-    await loadSaved();
+    try {
+      await base44.entities.TrainingExercise.delete(exercise.id);
+      await loadSaved();
+    } catch (error) { setSavedError(message(error, "Exercise could not be deleted.")); }
   };
 
   const openExercise = (exercise) => {
@@ -287,6 +308,7 @@ export default function TrainingDesigner() {
           </div>
         </header>
 
+        {savedError && <div role="alert" className="mb-4 rounded border border-red-300 bg-red-50 p-3 text-red-800">{savedError} <button onClick={loadSaved}>Retry</button></div>}
         {savedFlash && (
           <p className="mb-4 flex items-center gap-2 rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-xs" style={{ color: "#166534" }}>
             <ClipboardCheck className="h-4 w-4" /> {savedFlash}
@@ -307,7 +329,7 @@ export default function TrainingDesigner() {
         ) : tab === "mine" ? (
           <MyAssignments assignments={myAssignments} exercises={saved} attempts={attempts} me={me} loading={savedLoading} />
         ) : (
-          <div className="space-y-4">
+          <fieldset disabled={generating || saving} className="space-y-4">
             <div className="grid gap-4 xl:grid-cols-2">
               <OrganizationPicker
                 companies={companies}
@@ -339,10 +361,10 @@ export default function TrainingDesigner() {
                   error={findingsError}
                   selectedIds={selectedFindingIds}
                   onToggle={toggleFinding}
-                  onSelectAll={(all) => setSelectedFindingIds(all.map((finding) => finding.id))}
-                  onClear={() => setSelectedFindingIds([])}
+                  onSelectAll={(all) => { setDraft(null); setSelectedFindingIds(all.map((finding) => finding.id)); }}
+                  onClear={() => { setDraft(null); setSelectedFindingIds([]); }}
                 />
-                <NiceRoleSelector values={roles} onToggle={toggleRole} onClear={() => setRoles([])} />
+                <NiceRoleSelector values={roles} onToggle={toggleRole} onClear={() => { setDraft(null); setRoles([]); }} />
               </div>
             )}
 
@@ -360,7 +382,7 @@ export default function TrainingDesigner() {
                 <div className="mt-3 flex flex-wrap items-end gap-3">
                   <label className="block">
                     <span className="sg-micro">Difficulty</span>
-                    <select value={difficulty} onChange={(event) => setDifficulty(event.target.value)} className="sg-input mt-1 h-10 px-3 text-sm">
+                    <select value={difficulty} onChange={(event) => { setDraft(null); setDifficulty(event.target.value); }} className="sg-input mt-1 h-10 px-3 text-sm">
                       {["Beginner", "Intermediate", "Advanced", "Expert"].map((level) => (
                         <option key={level} value={level}>{level}</option>
                       ))}
@@ -373,7 +395,7 @@ export default function TrainingDesigner() {
                       min={15}
                       max={480}
                       value={duration}
-                      onChange={(event) => setDuration(event.target.value)}
+                      onChange={(event) => { setDraft(null); setDuration(event.target.value); }}
                       className="sg-input mt-1 h-10 w-24 px-3 text-sm"
                     />
                   </label>
@@ -410,7 +432,7 @@ export default function TrainingDesigner() {
                 </ol>
               </section>
             )}
-          </div>
+          </fieldset>
         )}
       </div>
     </div>
