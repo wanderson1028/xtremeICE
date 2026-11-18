@@ -230,14 +230,21 @@ export default function CandidateAssessments() {
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-red-950/10">
       {/* Header */}
       <div className="border-b border-gray-800 bg-black/50 px-6 py-5">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold text-gray-100 tracking-tight">Candidate Assessments</h1>
             <p className="text-gray-400 text-sm mt-0.5">Smart hands-on technical evaluation platform</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {canManage ? (
               <>
+                <Link
+                  to="/assessment-help-desk-pilot"
+                  className="flex items-center gap-2 rounded-lg border border-red-700 px-4 py-2.5 text-sm font-semibold text-red-200 hover:bg-red-950/50 hover:text-white"
+                >
+                  <ClipboardList className="h-4 w-4" />
+                  Stage 2 Help Desk Pilot
+                </Link>
                 <Link
                   to="/create-assessment"
                   className="flex items-center gap-2 px-4 py-2.5 border border-gray-700 text-gray-200 hover:text-white hover:border-gray-600 rounded-lg text-sm font-semibold transition-colors"
