@@ -612,3 +612,25 @@ body.lab-readable textarea::placeholder {
     animation: none;
   }
 }
+
+/* The Help Desk sandbox uses a dark panel in every app theme. */
+#sandbox-title + [aria-label="Sandbox tools"] > button[aria-pressed] {
+  background-color: #111827;
+  border-color: #64748b;
+  color: #f9fafb;
+}
+
+#sandbox-title + [aria-label="Sandbox tools"] > button[aria-pressed]:hover {
+  background-color: #1f2937;
+  color: #fff;
+}
+
+#sandbox-title + [aria-label="Sandbox tools"] > button[aria-pressed="true"] {
+  background-color: #1e3a5f;
+  border-color: #93c5fd;
+}
+
+#sandbox-title + [aria-label="Sandbox tools"] > button[aria-pressed]:focus-visible {
+  outline: 2px solid #bfdbfe;
+  outline-offset: 2px;
+}
