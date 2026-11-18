@@ -80,6 +80,7 @@ import LabAz900Domain4 from './pages/labs/azure/LabAz900Domain4'
 import LabAz900Domain5 from './pages/labs/azure/LabAz900Domain5'
 import Az900Dashboard from './pages/labs/azure/Az900Dashboard'
 import CandidateAssessments from './pages/CandidateAssessments'
+import HelpDeskPilot from './pages/HelpDeskPilot'
 import CreateAssessment from './pages/CreateAssessment'
 import ApplicationTestBuilder from './pages/ApplicationTestBuilder'
 import BulkInvite from './pages/BulkInvite'
@@ -291,6 +292,7 @@ const AuthenticatedApp = () => {
         <Route path="/labs/az900-domain5" element={<LayoutWrapper currentPageName="LabAz900Domain5"><LabAz900Domain5 /></LayoutWrapper>} />
         <Route path="/labs/az900-dashboard" element={<Az900Dashboard />} />
         <Route path="/CandidateAssessments" element={<LayoutWrapper currentPageName="CandidateAssessments"><FeatureGate flagKey="soc_assessments"><CandidateAssessments /></FeatureGate></LayoutWrapper>} />
+        <Route path="/assessment-help-desk-pilot" element={<LayoutWrapper currentPageName="CandidateAssessments"><FeatureGate flagKey="soc_assessments"><HelpDeskPilot /></FeatureGate></LayoutWrapper>} />
         <Route path="/create-assessment" element={<LayoutWrapper currentPageName="CreateAssessment"><CreateAssessment /></LayoutWrapper>} />
         <Route path="/application-test-builder" element={<LayoutWrapper currentPageName="ApplicationTestBuilder"><ApplicationTestBuilder /></LayoutWrapper>} />
         <Route path="/assessment-detail" element={<LayoutWrapper currentPageName="AssessmentDetail"><AssessmentDetail /></LayoutWrapper>} />
