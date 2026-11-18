@@ -1,0 +1,92 @@
+{
+  "name": "HelpDeskPilotAttempt",
+  "type": "object",
+  "properties": {
+    "owner_id": {
+      "type": "string"
+    },
+    "slot": {
+      "type": "string",
+      "enum": [
+        "A",
+        "B",
+        "practice"
+      ]
+    },
+    "scenario_version": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "in_progress",
+        "submitted",
+        "finalized"
+      ]
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "submitted_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finalized_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "employee_reply": {
+      "type": "string"
+    },
+    "ticket_note": {
+      "type": "string"
+    },
+    "review": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "owner_id",
+    "slot",
+    "scenario_version",
+    "status",
+    "started_at"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
