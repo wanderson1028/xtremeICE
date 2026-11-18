@@ -4,6 +4,9 @@ import { ArrowLeft, BookOpen, ClipboardList, Clock3, FileText, Monitor, Radio } 
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
+import { browserPilot, hasBrowserPilot } from "@/lib/browserPilot";
+import PilotResumePrep from "@/components/assessments/PilotResumePrep";
 
 const slots = [
   { id: "A", label: "Candidate A" },
@@ -35,6 +38,10 @@ function displayTime(ms) {
 }
 
 export default function HelpDeskPilot() {
+  const { user, canEdit } = useFeatureAccess();
+  const mayRun = canEdit("soc_assessments");
+  const [focusIds, setFocusIds] = useState([]);
+  const [readingResume, setReadingResume] = useState(false);
   const [slot, setSlot] = useState(null);
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState("");
@@ -52,19 +59,33 @@ export default function HelpDeskPilot() {
   const attempt = data?.state;
   const inProgress = attempt?.status === "in_progress";
   const remaining = inProgress ? Math.max(0, Date.parse(attempt.deadlineAt) - now) : 0;
+  const hasTime = remaining > 0;
   const dirty = inProgress && (
     employeeReply !== attempt.employeeReply || ticketNote !== attempt.ticketNote
   );
 
   const request = useCallback(async (action, args = {}, selectedSlot = slot) => {
-    if (lock.current) return null;
+    if (!mayRun || !user?.id || lock.current) return null;
     lock.current = true;
     setBusy(action);
     setError("");
     try {
-      const response = await base44.functions.invoke("helpDeskPilot", { action, slot: selectedSlot, ...args });
-      const result = response.data;
-      if (!result?.scenario) throw new Error(result?.error || "No pilot response was returned.");
+      const payload = { action, slot: selectedSlot, ...args };
+      let result;
+      if ((data?.storage === "browser" && selectedSlot === slot) || hasBrowserPilot(user.id, selectedSlot)) {
+        result = browserPilot(user.id, payload);
+      } else {
+        try {
+          const response = await base44.functions.invoke("helpDeskPilot", payload);
+          result = response.data;
+          if (!result?.scenario) throw new Error(result?.error || "No pilot response was returned.");
+        } catch (failure) {
+          const status = Number(failure.response?.status ?? failure.status ?? failure.statusCode);
+          const unavailable = failure.response?.data?.code === "pilot_storage_unavailable" || status === 404 || status >= 500;
+          if (action !== "load" || data?.storage === "server" || !unavailable) throw failure;
+          result = browserPilot(user.id, payload);
+        }
+      }
       setSlot(selectedSlot);
       setData(result);
       setNow(Date.now());
@@ -80,7 +101,7 @@ export default function HelpDeskPilot() {
       lock.current = false;
       setBusy("");
     }
-  }, [slot]);
+  }, [slot, data?.storage, mayRun, user?.id]);
 
   useEffect(() => {
     if (!inProgress) return;
@@ -93,16 +114,17 @@ export default function HelpDeskPilot() {
   }, [inProgress, remaining, busy, error, request]);
 
   useEffect(() => {
-    if (!dirty || !remaining || busy || error) return;
+    if (!dirty || !hasTime || busy || error) return;
     const timer = setTimeout(() => request("save", { employeeReply, ticketNote }), 800);
     return () => clearTimeout(timer);
-  }, [dirty, remaining === 0, busy, error, employeeReply, ticketNote, request]);
+  }, [dirty, hasTime, busy, error, employeeReply, ticketNote, request]);
 
   const openSlot = (id) => {
     setSelectedTool("Device");
     setSelectedEvent(null);
     setEvidence("");
     setScores({});
+    setFocusIds([]);
     setCopied(false);
     request("load", {}, id);
   };
@@ -128,6 +150,7 @@ export default function HelpDeskPilot() {
       `Score: ${review.total}/10`,
       ...data.rubric.map((item) => `${item.label}: ${review.scores[item.id]}/2`),
       `Interviewer evidence: ${review.evidence}`,
+      `Résumé follow-ups: ${data.resumeTopics.filter(topic => attempt.focusIds.includes(topic.id)).map(topic => topic.title).join(", ") || "None selected"}`,
       `Sandbox actions: ${attempt.events.map((event) => event.label).join(", ") || "None recorded"}`,
       `Employee reply: ${attempt.employeeReply || "No reply submitted"}`,
       `Ticket note: ${attempt.ticketNote || "No note submitted"}`,
@@ -166,6 +189,12 @@ export default function HelpDeskPilot() {
           )}
         </header>
 
+        {data?.storage === "browser" && (
+          <p className="rounded-lg border border-amber-800/60 bg-amber-950/30 px-4 py-3 text-sm text-amber-100">
+            This attempt uses browser storage. Continue in the same browser and copy the scorecard to your approved interview notes afterward.
+          </p>
+        )}
+
         {error && <p role="alert" className="rounded-lg border border-red-900 bg-red-950/50 px-4 py-3 text-sm text-red-200">{error}</p>}
 
         {!slot && (
@@ -191,11 +220,12 @@ export default function HelpDeskPilot() {
               <p className="mb-4 text-sm text-gray-300">Use A and B for the interviews. Keep candidate names and contact details out of the pilot.</p>
               <div className="flex flex-wrap gap-3">
                 {slots.map(({ id, label }) => (
-                  <Button key={id} type="button" variant="outline" className={actionStyle} onClick={() => openSlot(id)} disabled={!!busy}>
+                  <Button key={id} type="button" variant="outline" className={actionStyle} onClick={() => openSlot(id)} disabled={!!busy || !mayRun}>
                     Open {label}
                   </Button>
                 ))}
                 {busyText && <span className="self-center text-sm text-gray-300">{busyText}</span>}
+                {!mayRun && user && <p className="text-sm text-gray-400">Editor access to Candidate Assessments is required.</p>}
               </div>
             </section>
           </>
@@ -205,7 +235,8 @@ export default function HelpDeskPilot() {
           <section className={panel}>
             <h2 className="text-lg font-semibold">{slotLabel}</h2>
             <p className="mb-4 mt-1 text-sm text-gray-300">Start the timer when the live roleplay begins. The sandbox closes at 30 minutes and keeps the last saved work.</p>
-            <Button type="button" className={primary} onClick={() => request("start")} disabled={!!busy}>{busyText || "Start 30-minute attempt"}</Button>
+            <PilotResumePrep topics={data.resumeTopics} selected={focusIds} onSelect={setFocusIds} onBusyChange={setReadingResume} />
+            <Button type="button" className={primary} onClick={() => request("start", { focusIds })} disabled={!!busy || readingResume}>{busyText || "Start 30-minute attempt"}</Button>
           </section>
         )}
 
@@ -271,6 +302,14 @@ export default function HelpDeskPilot() {
                   {attempt.events.map((event) => <li key={event.id}><strong>{event.label}</strong> · {displayTime(Date.parse(event.at) - Date.parse(attempt.startedAt))}<p>{event.result}</p></li>)}
                 </ol>
               </details>
+              {attempt.focusIds.length > 0 && (
+                <details className="mt-4 text-sm">
+                  <summary className="cursor-pointer">Selected résumé follow-ups</summary>
+                  <ul className="mt-2 list-disc space-y-2 pl-5 text-gray-200">
+                    {data.resumeTopics.filter(topic => attempt.focusIds.includes(topic.id)).map(topic => <li key={topic.id}><strong>{topic.title}</strong> · {topic.prompt}</li>)}
+                  </ul>
+                </details>
+              )}
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <div><h3 className="font-semibold">Employee reply</h3><p className="mt-1 whitespace-pre-wrap break-words text-sm text-gray-300">{attempt.employeeReply || "No reply submitted"}</p></div>
                 <div><h3 className="font-semibold">Ticket handoff note</h3><p className="mt-1 whitespace-pre-wrap break-words text-sm text-gray-300">{attempt.ticketNote || "No note submitted"}</p></div>
