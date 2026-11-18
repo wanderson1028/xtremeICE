@@ -5,14 +5,16 @@ import { base44 } from "@/api/base44Client";
 import { Badge } from "@/components/ui/badge";
 import { ChevronLeft } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import implementationAndOperation from "@/lib/niceImplementationAndOperation.json";
 
 const CATEGORIES = [
-  "Securely Provision", "Operate and Maintain", "Oversee and Govern",
+  implementationAndOperation.category.name, "Securely Provision", "Operate and Maintain", "Oversee and Govern",
   "Protect and Defend", "Analyze", "Collect and Operate", "Investigate"
 ];
 
 const CATEGORY_COLORS = {
   "Securely Provision":  "border-blue-700/50 bg-blue-950/20",
+  [implementationAndOperation.category.name]: "border-green-700/50 bg-green-950/20",
   "Operate and Maintain":"border-green-700/50 bg-green-950/20",
   "Oversee and Govern":  "border-purple-700/50 bg-purple-950/20",
   "Protect and Defend":  "border-red-700/50 bg-red-950/20",
@@ -72,7 +74,14 @@ export default function NiceMapping() {
             return (
               <div key={cat} className={`rounded-xl border ${colorClass} p-5`}>
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="font-semibold text-white">{cat}</h2>
+                  <div>
+                    <h2 className="font-semibold text-white">{cat}</h2>
+                    {cat === implementationAndOperation.category.name && (
+                      <p className="text-xs text-gray-400">
+                        NICE Components v{implementationAndOperation.version} · {implementationAndOperation.work_roles.length} work roles
+                      </p>
+                    )}
+                  </div>
                   <div className="flex gap-2 text-xs text-gray-400">
                     <span>{catTemplates.length} published</span>
                     <span>•</span>
