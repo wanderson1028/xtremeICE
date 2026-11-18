@@ -613,24 +613,10 @@ body.lab-readable textarea::placeholder {
   }
 }
 
-/* The Help Desk sandbox uses a dark panel in every app theme. */
-#sandbox-title + [aria-label="Sandbox tools"] > button[aria-pressed] {
-  background-color: #111827;
-  border-color: #64748b;
-  color: #f9fafb;
-}
-
-#sandbox-title + [aria-label="Sandbox tools"] > button[aria-pressed]:hover {
-  background-color: #1f2937;
-  color: #fff;
-}
-
+/* Help Desk sandbox tools share the attempt-button style; the active tool simply
+   keeps that same hover tint so it stays marked. */
 #sandbox-title + [aria-label="Sandbox tools"] > button[aria-pressed="true"] {
-  background-color: #1e3a5f;
-  border-color: #93c5fd;
-}
-
-#sandbox-title + [aria-label="Sandbox tools"] > button[aria-pressed]:focus-visible {
-  outline: 2px solid #bfdbfe;
-  outline-offset: 2px;
+  background-color: #1f2937;
+  border-color: #374151;
+  color: #ffffff;
 }
