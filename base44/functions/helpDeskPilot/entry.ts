@@ -28,6 +28,7 @@ function responseFor(attempt: any) {
     slot: attempt.slot,
     status: attempt.status,
     startedAt: attempt.started_at,
+    deadlineAt: new Date(Date.parse(attempt.started_at) + scenario.durationMinutes * 60_000).toISOString(),
     submittedAt: attempt.submitted_at,
     finalizedAt: attempt.finalized_at,
     employeeReply: attempt.employee_reply || '',
@@ -61,7 +62,15 @@ Deno.serve(async (req) => {
     const records = base44.asServiceRole.entities.HelpDeskPilotAttempt;
     const scope = { owner_id: user.id, slot: body.slot, scenario_version: scenarioVersion };
     const rows = await records.filter(scope, 'created_date', 1);
-    const current = rows[0];
+    let current = rows[0];
+    if (current?.status === 'in_progress') {
+      const deadline = Date.parse(current.started_at) + scenario.durationMinutes * 60_000;
+      if (Date.now() >= deadline) {
+        const timedOut = { status: 'submitted', submitted_at: new Date(deadline).toISOString() };
+        await records.update(current.id, timedOut);
+        current = { ...current, ...timedOut };
+      }
+    }
 
     if (body.action === 'load') return responseFor(current);
     if (body.action === 'start') {
