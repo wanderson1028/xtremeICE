@@ -4,7 +4,7 @@ export const scenario = {
   version: scenarioVersion,
   title: "Scheduling app closes at launch",
   ticket: "The desktop scheduling app closes as soon as I open it. It worked yesterday. I need to update the afternoon schedule in 20 minutes.",
-  durationMinutes: 25,
+  durationMinutes: 30,
   roleId: "IO-WRL-007",
   roleName: "Technical Support",
   niceComponentsVersion: "2.2.0",
@@ -53,8 +53,8 @@ export type ActionKey = keyof typeof actions;
 
 export const rubric = [
   { id: "triage", label: "Triage", anchor: "Recognizes the scheduling deadline and prioritizes restoring the employee’s ability to work." },
-  { id: "evidence", label: "Use of evidence", anchor: "Connects observed symptoms and relevant records to the likely issue. Describes the update as a possible cause pending confirmation." },
+  { id: "evidence", label: "Troubleshooting logic", anchor: "Explains why each check matters, uses the evidence to narrow the issue, and treats the overnight update as a possible cause pending confirmation." },
   { id: "resolution", label: "Safe resolution", anchor: "Uses an approved workaround and verifies that the employee can save and reopen the update." },
   { id: "handoff", label: "Ticket handoff", anchor: "Records symptom, version or change, checks and results, workaround status, and a clear next owner or action." },
-  { id: "communication", label: "Customer communication", anchor: "Gives the employee a plain-language action they can follow and sets expectations for the desktop fix." },
+  { id: "communication", label: "Handling a frustrated employee", anchor: "Acknowledges frustration, uses plain language, and gives a realistic next action and follow-up expectation in the roleplay and written reply." },
 ] as const;
