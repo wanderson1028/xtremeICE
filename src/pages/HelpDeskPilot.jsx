@@ -27,7 +27,7 @@ const observedLabels = {
 };
 const statusLabels = { in_progress: "In progress", submitted: "Submitted", finalized: "Scored" };
 const panel = "rounded-xl border border-gray-800 bg-gray-900 p-4 sm:p-5";
-const actionStyle = "rounded-lg border border-gray-700 text-gray-100 hover:bg-gray-800";
+const actionStyle = "rounded-lg border border-gray-700 bg-transparent text-gray-100 hover:bg-gray-800 hover:text-white";
 const primary = "bg-red-700 text-white hover:bg-red-600";
 const textField = "mt-2 min-h-28 border-gray-700 bg-black/30 text-gray-100";
 const characterLimit = 4000;
