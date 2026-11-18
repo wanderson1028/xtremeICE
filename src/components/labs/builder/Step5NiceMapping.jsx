@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CheckCircle2, Circle, Target, Layers, ClipboardList, BookOpen, Wrench } from "lucide-react";
 import { NICE_TASKS, NICE_KNOWLEDGE, NICE_SKILLS } from "@/lib/niceDataset";
 import NiceIdPicker from "@/components/labs/builder/NiceIdPicker";
+import implementationAndOperation from "@/lib/niceImplementationAndOperation.json";
 
 const NICE_WORK_ROLES = {
   "Securely Provision": ["Software Developer", "Enterprise Architect", "Systems Security Architect", "Security Control Assessor", "R&D Specialist", "Cyber Policy and Strategy Planner"],
@@ -16,7 +17,7 @@ const NICE_WORK_ROLES = {
   "Collect and Operate": ["All-Source Collection Manager", "SIGINT Collector", "Cyber Operator", "Cyber Intel Planner"],
   "Investigate": ["Cyber Crime Investigator", "Law Enforcement Counterintelligence Forensics Analyst", "Multi-Disciplined Language Analyst"],
 };
-const CATEGORIES = Object.keys(NICE_WORK_ROLES);
+const CATEGORIES = [implementationAndOperation.category.name, ...Object.keys(NICE_WORK_ROLES)];
 
 function mergeDatasets(localArr, dbArr) {
   const map = new Map();
@@ -45,7 +46,13 @@ export default function Step5NiceMapping({ form, updateForm }) {
   const taskIds = form.nice_task_ids || [];
   const knowledgeIds = form.nice_knowledge_ids || [];
   const skillIds = form.nice_skill_ids || [];
-  const roles = NICE_WORK_ROLES[category] || [];
+  const usesOfficialCategory = category === implementationAndOperation.category.name;
+  const officialRole = usesOfficialCategory
+    ? implementationAndOperation.work_roles.find(role => role.name === workRole)
+    : undefined;
+  const roles = usesOfficialCategory
+    ? implementationAndOperation.work_roles.map(role => ({ value: role.name, label: `${role.name} (${role.id})` }))
+    : (NICE_WORK_ROLES[category] || []).map(role => ({ value: role, label: role }));
 
   // Load the active NICE framework version from the database
   const { data: settings } = useQuery({
@@ -65,6 +72,17 @@ export default function Step5NiceMapping({ form, updateForm }) {
   const allTasks = mergeDatasets(NICE_TASKS, activeVersion?.tasks);
   const allKnowledge = mergeDatasets(NICE_KNOWLEDGE, activeVersion?.knowledge);
   const allSkills = mergeDatasets(NICE_SKILLS, activeVersion?.skills);
+  const statementGroups = [
+    { kind: "tasks", field: "nice_task_ids", label: "Task IDs", selected: taskIds, fallback: allTasks },
+    { kind: "knowledge", field: "nice_knowledge_ids", label: "Knowledge IDs", selected: knowledgeIds, fallback: allKnowledge },
+    { kind: "skills", field: "nice_skill_ids", label: "Skill IDs", selected: skillIds, fallback: allSkills },
+  ];
+  const outsideRoleCount = officialRole
+    ? statementGroups.reduce(
+        (count, { kind, selected }) => count + selected.filter(id => !officialRole[kind].includes(id)).length,
+        0
+      )
+    : 0;
 
   const completedFields = [category, workRole, taskIds.length > 0, knowledgeIds.length > 0, skillIds.length > 0];
   const completedCount = completedFields.filter(Boolean).length;
@@ -123,7 +141,7 @@ export default function Step5NiceMapping({ form, updateForm }) {
                 <SelectValue placeholder={category ? "Select a work role..." : "Select category first"} />
               </SelectTrigger>
               <SelectContent>
-                {roles.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                {roles.map(({ value, label }) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -136,29 +154,36 @@ export default function Step5NiceMapping({ form, updateForm }) {
           <ClipboardList className="h-4 w-4 text-amber-400" />
           <h3 className="text-sm font-semibold text-white">Tasks, Knowledge & Skills</h3>
         </div>
-        <NiceIdPicker
-          label="Task IDs"
-          dataset={allTasks}
-          items={taskIds}
-          onChange={v => updateForm({ nice_task_ids: v })}
-          placeholder="Search tasks... (e.g., T0163)"
-        />
-        <div className="border-t border-gray-700/50" />
-        <NiceIdPicker
-          label="Knowledge IDs"
-          dataset={allKnowledge}
-          items={knowledgeIds}
-          onChange={v => updateForm({ nice_knowledge_ids: v })}
-          placeholder="Search knowledge... (e.g., K0001)"
-        />
-        <div className="border-t border-gray-700/50" />
-        <NiceIdPicker
-          label="Skill IDs"
-          dataset={allSkills}
-          items={skillIds}
-          onChange={v => updateForm({ nice_skill_ids: v })}
-          placeholder="Search skills... (e.g., S0001)"
-        />
+        {usesOfficialCategory && (
+          <div className="text-sm text-gray-300">
+            <a href={implementationAndOperation.source} target="_blank" rel="noreferrer" className="text-cyan-300 underline">
+              NIST NICE Components v{implementationAndOperation.version}
+            </a>
+            {officialRole
+              ? <p>{officialRole.tasks.length} tasks, {officialRole.knowledge.length} knowledge statements, and {officialRole.skills.length} skills available for this role.</p>
+              : <p>Select a work role to see its official statements.</p>}
+            {outsideRoleCount > 0 && (
+              <p className="text-amber-300">Review {outsideRoleCount} selected IDs outside this work role.</p>
+            )}
+          </div>
+        )}
+        {statementGroups.map(({ kind, field, label, selected, fallback }) => {
+          const reference = usesOfficialCategory ? implementationAndOperation[kind] : fallback;
+          const roleIds = new Set(officialRole?.[kind]);
+          const choices = usesOfficialCategory ? reference.filter(item => roleIds.has(item.id)) : reference;
+          return (
+            <NiceIdPicker
+              key={kind}
+              label={label}
+              dataset={choices}
+              referenceDataset={reference}
+              items={selected}
+              onChange={ids => updateForm({ [field]: ids })}
+              placeholder={`Search ${label.toLowerCase()}...`}
+              allowCustom={!usesOfficialCategory}
+            />
+          );
+        })}
       </div>
     </div>
   );
