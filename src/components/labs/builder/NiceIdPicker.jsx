@@ -9,7 +9,7 @@ function getItemDescription(item) {
   return item.description || item.name || "";
 }
 
-export default function NiceIdPicker({ label, dataset = [], items = [], onChange, placeholder }) {
+export default function NiceIdPicker({ label, dataset = [], referenceDataset = dataset, items = [], onChange, placeholder, allowCustom = true }) {
   const [input, setInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [resolved, setResolved] = useState({});
@@ -25,7 +25,8 @@ export default function NiceIdPicker({ label, dataset = [], items = [], onChange
 
   // Look up descriptions for IDs not in the reference dataset via LLM with web search
   useEffect(() => {
-    const unknownIds = items.filter((id) => !dataset.find((d) => d.id === id) && !resolved[id]);
+    if (!allowCustom) return;
+    const unknownIds = items.filter((id) => !referenceDataset.find((d) => d.id === id) && !resolved[id]);
     if (unknownIds.length === 0) return;
 
     // Mark as pending immediately
@@ -60,11 +61,12 @@ ${unknownIds.join("\n")}`,
           return next;
         });
       });
-  }, [items.join(",")]);
+  }, [items.join(","), allowCustom]);
 
   const lookup = (id) => {
-    const local = dataset.find((d) => d.id === id);
+    const local = referenceDataset.find((d) => d.id === id);
     if (local) return getItemDescription(local);
+    if (!allowCustom) return "Outside the official category reference";
     const llmVal = resolved[id];
     if (llmVal && llmVal !== "__pending__") return llmVal;
     if (llmVal === "__pending__") return "Looking up description...";
@@ -82,6 +84,8 @@ ${unknownIds.join("\n")}`,
         .slice(0, 8)
     : [];
 
+  const suggestedId = suggestions[0]?.id || (allowCustom ? input.trim() : "");
+
   const add = (id) => {
     if (id && !items.includes(id)) {
       onChange([...items, id]);
@@ -98,6 +102,7 @@ ${unknownIds.join("\n")}`,
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500" />
             <Input
+              aria-label={label}
               value={input}
               onChange={(e) => {
                 setInput(e.target.value);
@@ -106,11 +111,7 @@ ${unknownIds.join("\n")}`,
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  if (suggestions.length > 0) {
-                    add(suggestions[0].id);
-                  } else if (input.trim()) {
-                    add(input.trim());
-                  }
+                  if (suggestedId) add(suggestedId);
                 }
               }}
               onFocus={() => setShowSuggestions(true)}
@@ -119,13 +120,9 @@ ${unknownIds.join("\n")}`,
             />
           </div>
           <Button
-            onClick={() => {
-              if (suggestions.length > 0) {
-                add(suggestions[0].id);
-              } else if (input.trim()) {
-                add(input.trim());
-              }
-            }}
+            onClick={() => add(suggestedId)}
+            disabled={!suggestedId}
+            aria-label={`Add ${label}`}
             size="sm"
             className="bg-gray-700 hover:bg-gray-600 text-white border-0 px-3"
           >
