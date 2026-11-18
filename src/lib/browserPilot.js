@@ -1,4 +1,4 @@
-import { applyPilotAction, pilotView, scenarioVersion } from "../../base44/shared/helpDeskPilotState";
+import { applyPilotAction, pilotView, scenarioVersion } from "../../base44/functions/helpDeskPilot/state";
 
 export function browserPilot(userId, body) {
   const key = `help-desk-pilot:${scenarioVersion}:${userId}:${body.slot}`;

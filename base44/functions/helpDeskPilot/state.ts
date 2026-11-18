@@ -1,4 +1,4 @@
-import { actions, rubric, scenario, scenarioVersion, type ActionKey } from "./helpDeskPilot.ts";
+import { actions, rubric, scenario, scenarioVersion, type ActionKey } from "./scenario.ts";
 
 export const resumeTopics = [
   { id: "active-directory", title: "Active Directory and access", matches: ["active directory", "aduc", "entra id", "group membership", "domain accounts"], statementIds: ["S0844", "S0661"], prompt: "Walk me through an access ticket you handled. How did you verify identity and current access, identify the approved group or route, and document the outcome?" },

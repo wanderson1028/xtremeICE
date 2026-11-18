@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.31';
 import { canEditFeature } from '../../shared/featureAccess.ts';
-import { applyPilotAction, pilotView, scenarioVersion, validPilotRequest } from '../../shared/helpDeskPilotState.ts';
+import { applyPilotAction, pilotView, scenarioVersion, validPilotRequest } from './state.ts';
 
 Deno.serve(async (req) => {
   try {
