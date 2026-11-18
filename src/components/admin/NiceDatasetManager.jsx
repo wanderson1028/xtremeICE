@@ -29,6 +29,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { NICE_DATASET } from "@/lib/niceDataset";
+import implementationAndOperation from "@/lib/niceImplementationAndOperation.json";
 
 function StatCard({ icon: Icon, label, value, accent }) {
   return (
@@ -253,6 +254,18 @@ export default function NiceDatasetManager() {
           </CardContent>
         </Card>
       )}
+
+      <Card className="bg-gray-900 border-gray-800">
+        <CardHeader>
+          <CardTitle className="text-white text-base">Lab Builder reference: {implementationAndOperation.category.name}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm text-gray-300">
+          <p>{implementationAndOperation.work_roles.length} work roles, {implementationAndOperation.tasks.length} tasks, {implementationAndOperation.knowledge.length} knowledge statements, and {implementationAndOperation.skills.length} skills.</p>
+          <a href={implementationAndOperation.source} target="_blank" rel="noreferrer" className="text-cyan-300 underline">
+            NIST NICE Components v{implementationAndOperation.version}
+          </a>
+        </CardContent>
+      </Card>
 
       {/* Active Version Dashboard */}
       {activeVersion ? (
