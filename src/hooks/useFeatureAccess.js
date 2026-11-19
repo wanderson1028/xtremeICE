@@ -9,20 +9,22 @@ import { base44 } from "@/api/base44Client";
  * feature assignment — an assignment without a level keeps full use (editor).
  */
 export function useFeatureAccess() {
-  const { data: user } = useQuery({
+  const { data: user, isLoading: userLoading, isError: userError } = useQuery({
     queryKey: ["me"],
     queryFn: () => base44.auth.me(),
+    refetchInterval: 30_000,
   });
 
   const isPlatformAdmin = user?.role === "admin";
   const isTenantAdmin = !isPlatformAdmin && user?.org_role === "org_admin" && Boolean(user?.organization_id);
   const managesScope = isPlatformAdmin || isTenantAdmin;
 
-  const { data: assignments = [] } = useQuery({
+  const { data: assignments = [], isLoading: assignmentsLoading, isError: assignmentsError } = useQuery({
     queryKey: ["my-services", user?.email],
     queryFn: () => base44.entities.UserService.filter({ user_email: user.email }),
     enabled: !!user?.email && !managesScope,
-    staleTime: 60_000,
+    staleTime: 0,
+    refetchInterval: 30_000,
   });
 
   const levels = {};
@@ -39,6 +41,8 @@ export function useFeatureAccess() {
 
   return {
     user,
+    isLoading: userLoading || (!!user?.email && !managesScope && assignmentsLoading),
+    isError: userError || (!managesScope && assignmentsError),
     isPlatformAdmin,
     isTenantAdmin,
     levelFor,

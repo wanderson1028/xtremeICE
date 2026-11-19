@@ -107,7 +107,7 @@ function IntegratedReadiness() {
     if(tab==="results"||tab==="exercise")setTab("dashboard");
   };
   const avg=completed.length?Math.round(completed.reduce((s,a)=>s+(a.overall_score||0),0)/completed.length):0;
-  const categoryAverages=useMemo(()=>Object.keys(CATEGORIES).map(k=>{const vals=completed.map(a=>a.category_scores?.[k]).filter(v=>Number.isFinite(v));return [k,vals.length?Math.round(vals.reduce((s,v)=>s+v,0)/vals.length):0]}),[completed]);
+  const categoryAverages=useMemo(()=>Object.keys(CATEGORIES).map(k=>{const vals=completed.map(a=>a.category_scores?.[k]).filter(v=>Number.isFinite(v));return [k,vals.length?Math.round(vals.reduce((s,v)=>s+v,0)/vals.length):null]}),[completed]);
 
   const saveProfile=async()=>{
     if(!profile.company_name||!profile.industry||!profile.primary_geography){setMessage("Company name, industry, and primary geography are required.");return;}
@@ -142,14 +142,19 @@ function IntegratedReadiness() {
       const payload={...setup,geography:profileRegion(profile),profile_id:profileId,profile:{...profile,operating_locations:toArray(profile.operating_locations),critical_services:toArray(profile.critical_services),technology_stack:toArray(profile.technology_stack),regulated_data:toArray(profile.regulated_data),response_team:toArray(profile.response_team),third_parties:toArray(profile.third_parties)}};
       const data=await generateInStages((name,args)=>base44.functions.invoke(name,args),payload,(step,status)=>{setGenerationStep(step);setGenerationStatus(status);},generationCache.current);
       generationCache.current={key:null,batches:[]};
+      chosenInjects.current = new Set(); finishLock.current = false;
       setGenerationStatus("Scenario validated. Opening your workspace…");setRun({...data,request_snapshot:{...setup,geography:profileRegion(profile)}}); setSimulation(initialState(data.exercise.network_model,data.exercise.entry_node));setAuthority(""); setIndex(0); setDecisions([]); setFeedback(null); setTab("exercise");
     }catch(e){const detail=e.response?.data;setMessage((detail?.error||e.message||"The exercise could not be generated.")+(detail?.request_id?" Reference: "+detail.request_id:""));if(e.response?.status===409)generationCache.current={key:null,batches:[]};}
     setGenerating(false);
   };
 
+  const chosenInjects = useRef(new Set());
+  const finishLock = useRef(false);
   const choose=(choice)=>{
     if(feedback||!authority)return;
     const inject=run.exercise.injects[index];
+    if (!inject || chosenInjects.current.has(inject.id)) return;
+    chosenInjects.current.add(inject.id);
     const authorized=authority==="yes";
     const updated=advance(run.exercise.network_model,simulation,{...inject,sequence:decisions.length+1},{...choice,authorized});
     const d={decision_owner:inject.decision_owner,supporting_roles:inject.supporting_roles,execution_owner:inject.execution_owner,authorized,base_points:choice.points,simulation_event:updated.timeline.at(-1),inject_id:inject.id,sequence:decisions.length+1,phase:inject.phase,choice_id:choice.id,choice_label:choice.label,points:Math.max(0,(Number(choice.points)||0)-(authorized?0:20)),rationale:choice.rationale,consequence:choice.consequence,selected_at:new Date().toISOString()};
@@ -164,7 +169,8 @@ function IntegratedReadiness() {
     setSimulation(updated);setDecisions(x=>[...x,d]);setFeedback(d);
   };
   const finish=async()=>{
-    if(saving)return;setSaving(true);try{
+    if(saving || finishLock.current || run?.result)return;finishLock.current=true;setSaving(true);try{
+    const completedSetup = run.request_snapshot || setup;
     const by={};
     decisions.forEach(d=>{(by[d.phase]??=[]).push(d.points)});
     const category_scores={}; Object.keys(CATEGORIES).forEach(k=>category_scores[k]=by[k]?.length?Math.round(by[k].reduce((a,b)=>a+b,0)/by[k].length):null);
@@ -174,9 +180,9 @@ function IntegratedReadiness() {
     const ranked=covered.map(k=>[k,category_scores[k]]).sort((a,b)=>b[1]-a[1]);
     const category_narratives=Object.fromEntries(covered.map(k=>[k,decisions.filter(d=>d.phase===k).map(d=>`Decision ${d.sequence}: ${d.choice_label} — ${d.points}/100. ${d.rationale}${d.authorized?"":" Decision authority was not engaged (20-point deduction)."}`).join(" ")]));
     const end_state_overview=endStateOverview(run.exercise.network_model,simulation,decisions,run.profile_snapshot?.company_name||profile.company_name);
-    const payload={ir_plan_result:planResult(decisions,run.exercise.ir_plan_snapshot),organization_id:run.profile_snapshot?.organization_id||profile.organization_id||undefined,end_state_overview,role_scores:roleResults(decisions),category_narratives,simulation_state:simulation,profile_snapshot:run.profile_snapshot,owner_email:user.email,profile_id:run.profile_snapshot?.id||profileId,profile_version:Number(run.profile_snapshot?.profile_version||profile.profile_version)||1,company_name:run.profile_snapshot?.company_name||profile.company_name,exercise_title:run.exercise.title,mode:setup.mode,attack_category:setup.attack_category,attack_scenario:setup.attack_scenario,disaster_type:setup.disaster_type,geography:setup.geography||profile.primary_geography,difficulty:setup.difficulty,scenario_seed:run.scenario_seed,threat_sources:run.threat_sources||[],scoring_version:run.scoring_version,status:"completed",started_at:decisions[0]?.selected_at||new Date().toISOString(),completed_at:new Date().toISOString(),overall_score,category_scores,decisions,exercise_snapshot:run.exercise,strengths:ranked.filter(([,s])=>s>=75).slice(0,2).map(([k])=>CATEGORIES[k][0]),gaps:ranked.filter(([,s])=>s<75).slice(-2).map(([k])=>CATEGORIES[k][0]),corrective_actions:ranked.filter(([,s])=>s<75).slice(-2).map(([k])=>`Review and exercise the company's ${CATEGORIES[k][0].toLowerCase()} process.`)};
+    const payload={ir_plan_result:planResult(decisions,run.exercise.ir_plan_snapshot),organization_id:run.profile_snapshot?.organization_id||profile.organization_id||undefined,end_state_overview,role_scores:roleResults(decisions),category_narratives,simulation_state:simulation,profile_snapshot:run.profile_snapshot,owner_email:user.email,profile_id:run.profile_snapshot?.id||profileId,profile_version:Number(run.profile_snapshot?.profile_version||profile.profile_version)||1,company_name:run.profile_snapshot?.company_name||profile.company_name,exercise_title:run.exercise.title,mode:completedSetup.mode,attack_category:completedSetup.attack_category,attack_scenario:completedSetup.attack_scenario,disaster_type:completedSetup.disaster_type,geography:completedSetup.geography||profile.primary_geography,difficulty:completedSetup.difficulty,scenario_seed:run.scenario_seed,threat_sources:run.threat_sources||[],scoring_version:run.scoring_version,status:"completed",started_at:decisions[0]?.selected_at||new Date().toISOString(),completed_at:new Date().toISOString(),overall_score,category_scores,decisions,exercise_snapshot:run.exercise,strengths:ranked.filter(([,s])=>s>=75).slice(0,2).map(([k])=>CATEGORIES[k][0]),gaps:ranked.filter(([,s])=>s<75).slice(-2).map(([k])=>CATEGORIES[k][0]),corrective_actions:ranked.filter(([,s])=>s<75).slice(-2).map(([k])=>`Review and exercise the company's ${CATEGORIES[k][0].toLowerCase()} process.`)};
     const savedAttempt=await base44.entities.TTXAttempt.create(payload); const completedAttempt={...payload,id:savedAttempt.id}; setAttempts(x=>[completedAttempt,...x]); setRun({...run,result:completedAttempt}); setTab("results");
-    }catch(e){setMessage(e.message||"Unable to save result. Please retry.");}finally{setSaving(false);}
+    }catch(e){finishLock.current=false;setMessage(e.message||"Unable to save result. Please retry.");}finally{setSaving(false);}
   };
   const openResult=async(attempt)=>{
     if(!selectedScope||attemptScope(attempt,profiles)!==selectedScope){setMessage("Select this assessment’s organization before opening its results.");return;}
@@ -215,7 +221,7 @@ function IntegratedReadiness() {
           {[["Completed exercises",completed.length,History],["Average readiness",completed.length?`${avg}/100`:"—",BarChart3],["Latest result",completed.length?`${completed[0].overall_score}/100`:"—",TrendingUp],["Company profile",profileId?"Ready":"Required",Building2]].map(([l,v,I])=><Card key={l} className="p-5"><I className="h-5 w-5 text-cyan-300"/><p className="mt-5 text-sm text-slate-400">{l}</p><p className="mt-1 text-2xl font-bold">{v}</p></Card>)}
         </div>
         <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="p-6"><h2 className="text-lg font-bold">Readiness by response area</h2><p className="text-sm text-slate-400">Historical average for the selected organization.</p><div className="mt-5 space-y-4">{categoryAverages.map(([k,v])=><div key={k}><div className="mb-1 flex justify-between text-sm"><span>{CATEGORIES[k][0]}</span><span>{completed.length?v:"—"}</span></div><div className="h-2 rounded bg-slate-800"><div className="h-2 rounded bg-gradient-to-r from-rose-500 via-amber-400 to-emerald-400" style={{width:`${completed.length?v:0}%`}}/></div></div>)}</div></Card>
+          <Card className="p-6"><h2 className="text-lg font-bold">Readiness by response area</h2><p className="text-sm text-slate-400">Historical average for the selected organization.</p><div className="mt-5 space-y-4">{categoryAverages.map(([k,v])=><div key={k}><div className="mb-1 flex justify-between text-sm"><span>{CATEGORIES[k][0]}</span><span>{v == null ? "Not assessed" : v}</span></div><div className="h-2 rounded bg-slate-800"><div className="h-2 rounded bg-gradient-to-r from-rose-500 via-amber-400 to-emerald-400" style={{width:`${v ?? 0}%`}}/></div></div>)}</div></Card>
           <Card className="p-6"><h2 className="text-lg font-bold">Recent performance</h2><div className="mt-4 space-y-3">{completed.slice(0,5).map(a=><button key={a.id||a.completed_at} onClick={()=>openResult(a)} className="flex w-full items-center justify-between rounded-xl border border-slate-800 bg-slate-950 p-4 text-left hover:border-cyan-500"><div><p className="font-semibold">{a.exercise_title}</p><p className="text-xs text-slate-500">{new Date(a.completed_at).toLocaleDateString()} · {a.attack_category || "Cyber incident"}</p></div><span className={`text-xl font-bold ${tone(a.overall_score)}`}>{a.overall_score}</span></button>)}{!completed.length&&<p className="rounded-xl border border-dashed border-slate-700 p-8 text-center text-slate-500">Select an organization with completed exercises to view its trends.</p>}</div></Card>
         </div>
       </div>}

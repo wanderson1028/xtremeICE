@@ -21,10 +21,10 @@ export default function AssignmentDialog({ exercise, onClose, onAssigned }) {
     try {
       const [options, assignments] = await Promise.all([
         base44.functions.invoke("trainingAssignments", { action: "options" }),
-        base44.entities.TrainingAssignment.filter({ exercise_id: exercise.id }, { sort: "-created_date", limit: 200 }),
+        base44.entities.TrainingAssignment.filter({ exercise_id: exercise.id }, "-created_date", 200),
       ]);
       setLearners(options.data?.learners || []);
-      setAssigned(assignments.items || []);
+      setAssigned(assignments || []);
     } catch (error) {
       setLoadError(message(error, "Learners could not be loaded."));
     } finally {
@@ -36,7 +36,7 @@ export default function AssignmentDialog({ exercise, onClose, onAssigned }) {
 
   const orgLearners = useMemo(() => {
     const scoped = learners.filter((learner) => learner.organization_id && learner.organization_id === exercise.app_organization_id);
-    return scoped.length ? scoped : learners;
+    return exercise.app_organization_id ? scoped : [];
   }, [learners, exercise.app_organization_id]);
 
   const assignedEmails = useMemo(

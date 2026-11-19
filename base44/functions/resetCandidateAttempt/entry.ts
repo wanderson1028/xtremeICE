@@ -44,8 +44,8 @@ export default async function (req) {
 
     for (const session of attemptSessions) {
       const scorecards = asList(await sr.entities.Scorecard.filter({ session_id: session.id }));
-      await Promise.allSettled(scorecards.map((card) => sr.entities.Scorecard.delete(card.id)));
-      await sr.entities.CandidateSession.delete(session.id).catch(() => null);
+      await Promise.all(scorecards.map((card) => sr.entities.Scorecard.delete(card.id)));
+      await sr.entities.CandidateSession.delete(session.id);
     }
 
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();

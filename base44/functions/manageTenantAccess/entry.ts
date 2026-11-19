@@ -24,7 +24,7 @@ export default async function (req: Request): Promise<Response> {
     const body = await req.json().catch(() => ({}));
     const action = String(body?.action || '');
 
-    const users = await base44.asServiceRole.entities.User.list().catch(() => []);
+    const users = await base44.asServiceRole.entities.User.list();
 
     // Which users may this caller touch?
     const inScope = (target: any) => {
@@ -43,7 +43,7 @@ export default async function (req: Request): Promise<Response> {
           .map((candidate) => String(candidate.email || '').toLowerCase())
           .filter(Boolean)
       );
-      const rows = await base44.asServiceRole.entities.UserService.list().catch(() => []);
+      const rows = await base44.asServiceRole.entities.UserService.list();
       const assignments = rows
         .filter((row) => emails.has(String(row.user_email || '').toLowerCase()))
         .map((row) => ({
@@ -73,14 +73,14 @@ export default async function (req: Request): Promise<Response> {
 
       const existing = await base44.asServiceRole.entities.UserService
         .filter({ user_email: target.email, service_key: serviceKey })
-        .then((rows) => rows?.[0] || null);
+        .then((rows) => rows || []);
 
       if (level === null) {
-        if (existing) await base44.asServiceRole.entities.UserService.delete(existing.id);
+        for (const assignment of existing) await base44.asServiceRole.entities.UserService.delete(assignment.id);
         return Response.json({ success: true, user_email: target.email, service_key: serviceKey, access_level: null });
       }
-      if (existing) {
-        await base44.asServiceRole.entities.UserService.update(existing.id, { access_level: level });
+      if (existing.length) {
+        for (const assignment of existing) await base44.asServiceRole.entities.UserService.update(assignment.id, { access_level: level });
       } else {
         await base44.asServiceRole.entities.UserService.create({
           user_email: target.email,

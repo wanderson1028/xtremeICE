@@ -10,7 +10,9 @@
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
     "test": "node --test tests/m365-scoring.test.mjs tests/m365-ui-payloads.test.mjs tests/m365-clicks.test.mjs tests/m365-event-order.test.mjs tests/m365-feedback.test.mjs tests/m365-app-switching.test.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:access": "node --test tests/access-management.test.mjs",
+    "test:dashboard-designer": "node --test tests/dashboard-designer.test.mjs tests/training-designer-ui.test.mjs tests/training-assignments.test.mjs tests/training-generation.test.mjs"
   },
   "dependencies": {
     "@base44/sdk": "^0.8.63",

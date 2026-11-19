@@ -25,6 +25,9 @@ export default async function (req: Request): Promise<Response> {
       const callerOrg = String(user.organization_id || '');
       const isOrgAdmin = user.org_role === 'org_admin' && Boolean(callerOrg);
       if (!isOrgAdmin) return Response.json({ error: 'Admin role required.' }, { status: 403 });
+      if (target.role === 'admin' || String(target.organization_id || '') !== callerOrg) {
+        return Response.json({ error: 'Only platform admins can transfer users between organizations or manage platform admins.' }, { status: 403 });
+      }
       if (organizationId && organizationId !== callerOrg) {
         return Response.json({ error: 'You can only assign users to your own organization.' }, { status: 403 });
       }
@@ -43,7 +46,7 @@ export default async function (req: Request): Promise<Response> {
     const updated = await base44.asServiceRole.entities.User.update(targetUserId, {
       organization_id: organizationId || null,
       is_individual: !organizationId,
-      org_role: organizationId ? (target.org_role || 'member') : null,
+      org_role: organizationId ? (organizationId === String(target.organization_id || '') ? (target.org_role || 'member') : 'member') : null,
     });
 
     return Response.json({

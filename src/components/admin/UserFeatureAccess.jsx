@@ -35,6 +35,7 @@ export default function UserFeatureAccess({ user, services, assignments, onBack 
       setError("");
       queryClient.invalidateQueries({ queryKey: ["tenant-access"] });
       queryClient.invalidateQueries({ queryKey: ["user-services"] });
+      queryClient.invalidateQueries({ queryKey: ["my-services"] });
     },
     onError: (err) => setError(err?.response?.data?.error || err?.message || "Could not save that change."),
   });

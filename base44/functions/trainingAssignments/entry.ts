@@ -15,7 +15,7 @@ export default async function (req: Request): Promise<Response> {
 
     const body = await req.json().catch(() => ({}));
     const action = String(body?.action || "options");
-    const users = await base44.asServiceRole.entities.User.list().catch(() => []);
+    const users = await base44.asServiceRole.entities.User.list();
 
     const inScope = (candidate: any) => {
       if (platformAdmin) return true;
@@ -51,7 +51,7 @@ export default async function (req: Request): Promise<Response> {
       const exerciseOrg = String(exercise.app_organization_id || "");
       const canAssign =
         platformAdmin ||
-        exercise.created_by_id === user.id ||
+        (Boolean(callerOrg) && exerciseOrg === callerOrg && exercise.created_by_id === user.id) ||
         (tenantAdmin && exerciseOrg === callerOrg);
       if (!canAssign) {
         return Response.json(
@@ -60,12 +60,13 @@ export default async function (req: Request): Promise<Response> {
         );
       }
 
+      if (!exerciseOrg) return Response.json({ error: "Map the exercise to an app organization before assigning learners." }, { status: 400 });
       const wholeOrganization = Boolean(body?.whole_organization);
       const requested = Array.isArray(body?.emails)
         ? body.emails.map((email: any) => String(email || "").trim().toLowerCase()).filter(Boolean)
         : [];
 
-      let pool = users.filter((candidate: any) => inScope(candidate));
+      let pool = users.filter((candidate: any) => inScope(candidate) && String(candidate.organization_id || "") === exerciseOrg);
       if (wholeOrganization) {
         pool = pool.filter((candidate: any) => String(candidate?.organization_id || "") === exerciseOrg);
       } else {
@@ -89,8 +90,7 @@ export default async function (req: Request): Promise<Response> {
       }
 
       const existing = await base44.asServiceRole.entities.TrainingAssignment
-        .filter({ exercise_id: exerciseId })
-        .catch(() => []);
+        .filter({ exercise_id: exerciseId });
       const alreadyAssigned = new Set(existing.map((row: any) => String(row.assignee_email || "").toLowerCase()));
 
       const rows = Array.from(targets.entries())

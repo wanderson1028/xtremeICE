@@ -1,0 +1,22 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import ts from 'typescript';
+const tick=()=>new Promise(r=>setImmediate(r));
+function harness(client){
+ const slots=[];let cursor=0;const effects=[];
+ const same=(a,b)=>a&&b&&a.length===b.length&&a.every((v,i)=>v===b[i]);
+ const React={createElement:(type,props,...children)=>({type,props:{...props,children}}),useState:(value)=>{const i=cursor++;if(!(i in slots))slots[i]=value;return [slots[i],v=>{slots[i]=typeof v==='function'?v(slots[i]):v;}];},useRef:(value)=>{const i=cursor++;return slots[i]??=( {current:value});},useCallback:(fn,deps)=>{const i=cursor++;if(!same(slots[i]?.deps,deps))slots[i]={fn,deps};return slots[i].fn;},useEffect:(fn,deps)=>{const i=cursor++;if(!same(slots[i]?.deps,deps)){slots[i]={deps};effects.push(fn);}}};
+ const exports={};const source=fs.readFileSync('src/pages/TrainingDesigner.jsx','utf8');
+ const code=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText;
+ vm.runInNewContext(code,{exports,require:(name)=>name.includes('useFeatureAccess')?{useFeatureAccess:()=>({canEdit:()=>true})}:name==='react'?React:name.includes('base44Client')?{base44:client}:name==='lucide-react'?new Proxy({},{get:(_,k)=>String(k)}):{__esModule:true,default:name.split('/').at(-1)},window:{confirm:()=>true,location:{}},console});
+ return {render:()=>{cursor=0;const tree=exports.default();while(effects.length)effects.shift()();return tree;}};
+}
+function find(node,type){if(!node||typeof node!=='object')return null;if(node.type===type)return node;for(const child of node.props?.children?.flat(Infinity)||[]){const found=find(child,type);if(found)return found;}return null;}
+function client(invoke){const calls=[];const entities={};for(const name of ['TrainingExercise','TrainingExerciseAttempt','TrainingAssignment'])entities[name]={filter:async(...args)=>{calls.push([name,...args]);return [{id:name,title:'Saved exercise'}];}};return {calls,entities,auth:{me:async()=>({email:'learner@example.test'})},functions:{invoke:invoke|| (async()=>({data:{status:'connected',companies:[]}}))}};}
+test('Designer consumes SDK arrays and uses positional sort and limit',async()=>{const c=client();const h=harness(c);h.render();await tick();const tree=h.render();assert.match(JSON.stringify(tree),/Saved exercises \(/);const savedButton=findAll(tree,'button').find(n=>JSON.stringify(n.props.children).includes('Saved exercises'));assert.ok(savedButton.props.children.includes(1));assert.equal(c.calls[0][2],'-created_date');assert.equal(c.calls[0][3],100);});
+function findAll(node,type){if(!node||typeof node!=='object')return [];return [...(node.type===type?[node]:[]),...(node.props?.children?.flat(Infinity)||[]).flatMap(c=>findAll(c,type))];}
+test('Designer surfaces saved-list failures',async()=>{const c=client();c.entities.TrainingExercise.filter=async()=>{throw new Error('Storage unavailable');};const h=harness(c);h.render();await tick();assert.match(JSON.stringify(h.render()),/Storage unavailable/);});
+test('late assessment response cannot overwrite new organization',async()=>{const pending={};const c=client(async(_name,body)=>body.action==='assessments'?new Promise(resolve=>pending[body.company_id]=resolve):{data:{status:'connected',companies:[]}});const h=harness(c);h.render();await tick();find(h.render(),'OrganizationPicker').props.onSelect({id:'A',name:'A'});find(h.render(),'OrganizationPicker').props.onSelect({id:'B',name:'B'});pending.B({data:{assessments:[{id:'B1'}]}});await tick();pending.A({data:{assessments:[{id:'A1'}]}});await tick();assert.equal(find(h.render(),'AssessmentPicker').props.assessments[0].id,'B1');});
+test('late findings from prior organization are discarded',async()=>{let finish;const c=client(async(_name,body)=>body.action==='assessment_package'?new Promise(resolve=>finish=resolve):{data:{status:'connected',companies:[],assessments:[]}});const h=harness(c);h.render();await tick();find(h.render(),'OrganizationPicker').props.onSelect({id:'A',name:'A'});await tick();find(h.render(),'AssessmentPicker').props.onSelect({id:'A1'});find(h.render(),'OrganizationPicker').props.onSelect({id:'B',name:'B'});await tick();const finishA=finish;find(h.render(),'AssessmentPicker').props.onSelect({id:'B1'});finishA({data:{findings:[{id:'secret-A'}]}});await tick();assert.equal(find(h.render(),'FindingSelector').props.findings.length,0);});

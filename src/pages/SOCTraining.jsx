@@ -1,3 +1,4 @@
+import { saveSOCSession } from "@/components/soc/saveSOCSession";
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -17,7 +18,7 @@ import EDRModule from "@/components/soc/EDRModule";
 import RMMModule from "@/components/soc/RMMModule";
 import RemediationPanel from "@/components/soc/RemediationPanel";
 import IncidentReport from "@/components/soc/IncidentReport";
-import DrillReview from "@/components/soc/DrillReview";
+import DrillReview from "@/components/soc/DrillReview.jsx";
 import CompleteScenarioDialog from "@/components/soc/CompleteScenarioDialog";
 import ScenarioBriefing from "@/components/soc/ScenarioBriefing";
 import TrainingNarrative from "@/components/soc/TrainingNarrative";
@@ -84,6 +85,7 @@ export default function SOCTraining() {
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const [guidedClicks, setGuidedClicks] = useState(new Set());
   const sessionSavedRef = useRef(false);
+  const scoredActionsRef = useRef(new Set());
 
   const evolution = useThreatEvolution(selectedScenario, simData, runSeed, attemptMode);
 
@@ -124,7 +126,7 @@ export default function SOCTraining() {
       .filter(a => a.status !== "open")
       .map(a => a.id);
 
-    base44.entities.SOCSession.create({
+    saveSOCSession({
       network_design_id: selectedNetwork?.id || "default",
       scenario_id: selectedScenario.id,
       scenario_name: selectedScenario.name,
@@ -183,6 +185,7 @@ export default function SOCTraining() {
     if (seed.patientZero) compromised.add(seed.patientZero);
     const updatedEps = [...ENDPOINTS].map(ep => ({ ...ep, status: compromised.has(ep.id) ? "compromised" : "healthy" }));
     setSimData({ alerts: scenarioAlerts, logs: scenarioLogs, endpoints: updatedEps, edr: scenarioEDR });
+    scoredActionsRef.current = new Set();
     setActionsLog([]);
     setScore(0);
     setTabsVisited(new Set(attemptMode === "guided" ? [] : ["dashboard"]));
@@ -197,6 +200,11 @@ export default function SOCTraining() {
   };
 
   const handleAction = (action) => {
+    if (["complete", "failed", "surrendered"].includes(evolution.status) || !action?.id) return;
+    if (!action.isPenalty) {
+      if (scoredActionsRef.current.has(action.id)) return;
+      scoredActionsRef.current.add(action.id);
+    }
     const cleanId = action.id?.replace("rmm_", "").replace("edr_", "");
     const playbook = getScenarioPlaybook(selectedScenario?.id);
     const isProhibited = playbook.prohibited.includes(cleanId);
@@ -210,7 +218,7 @@ export default function SOCTraining() {
     // Apply simulation consequences (threat level, alert closure, endpoint isolation)
     evolution.processAction(action);
 
-    if (action.isPenalty) { setScore(prev => Math.max(prev + (action.scoreOverride || -5), 0)); return; }
+    if (action.isPenalty) { setScore(prev => Math.max(prev + (action.scoreOverride ?? -5), 0)); return; }
     if (action.scoreOverride !== undefined) {
       setActionsLog(prev => prev.find(a => a.id === action.id) ? prev : [...prev, action]);
       setScore(prev => Math.min(Math.max(prev + action.scoreOverride, 0), 100));
@@ -240,6 +248,7 @@ export default function SOCTraining() {
     setSelectedScenario(null);
     setSelectedNetwork(null);
     setSimData(null);
+    scoredActionsRef.current = new Set();
     setActionsLog([]);
     setScore(0);
     setSessionStartedAt(null);

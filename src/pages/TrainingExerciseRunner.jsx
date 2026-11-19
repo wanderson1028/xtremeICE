@@ -24,8 +24,8 @@ export default function TrainingExerciseRunner() {
   const [attempts, setAttempts] = useState([]);
 
   const loadAttempts = useCallback(async () => {
-    const page = await base44.entities.TrainingExerciseAttempt.filter({ exercise_id: exerciseId }, { sort: "-created_date", limit: 20 });
-    setAttempts(page.items || []);
+    const page = await base44.entities.TrainingExerciseAttempt.filter({ exercise_id: exerciseId }, "-created_date", 20);
+    setAttempts(page || []);
   }, [exerciseId]);
 
   useEffect(() => {

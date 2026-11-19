@@ -1,3 +1,4 @@
+import { saveSOCSession } from "@/components/soc/saveSOCSession";
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -20,7 +21,7 @@ import EDRModule from "@/components/soc/EDRModule";
 import RMMModule from "@/components/soc/RMMModule";
 import RemediationPanel from "@/components/soc/RemediationPanel";
 import IncidentReport from "@/components/soc/IncidentReport";
-import DrillReview from "@/components/soc/DrillReview";
+import DrillReview from "@/components/soc/DrillReview.jsx";
 import CompleteScenarioDialog from "@/components/soc/CompleteScenarioDialog";
 import ScenarioBriefing from "@/components/soc/ScenarioBriefing";
 import TrainingNarrative from "@/components/soc/TrainingNarrative";
@@ -200,6 +201,7 @@ export default function RealAttackDrills() {
   const [sessionStartedAt, setSessionStartedAt] = useState(null);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const sessionSavedRef = useRef(false);
+  const scoredActionsRef = useRef(new Set());
   const savedSessionIdRef = useRef(null);
 
   // Filter state
@@ -246,7 +248,7 @@ export default function RealAttackDrills() {
       .filter(a => a.status !== "open")
       .map(a => a.id);
 
-    base44.entities.SOCSession.create({
+    saveSOCSession({
       network_design_id: selectedNetwork?.id || "default",
       scenario_id: selectedScenario.id,
       scenario_name: selectedScenario.name,
@@ -346,6 +348,7 @@ export default function RealAttackDrills() {
     if (seed.patientZero) compromised.add(seed.patientZero);
     const updatedEps = [...ENDPOINTS].map(ep => ({ ...ep, status: compromised.has(ep.id) ? "compromised" : "healthy" }));
     setSimData({ alerts: scenarioAlerts, logs: scenarioLogs, endpoints: updatedEps, edr: scenarioEDR });
+    scoredActionsRef.current = new Set();
     setActionsLog([]);
     setScore(0);
     setTabsVisited(new Set(["dashboard"]));
@@ -361,8 +364,13 @@ export default function RealAttackDrills() {
   };
 
   const handleAction = (action) => {
+    if (["complete", "failed", "surrendered"].includes(evolution.status) || !action?.id) return;
+    if (!action.isPenalty) {
+      if (scoredActionsRef.current.has(action.id)) return;
+      scoredActionsRef.current.add(action.id);
+    }
     evolution.processAction(action);
-    if (action.isPenalty) { setScore(prev => Math.max(prev + (action.scoreOverride || -5), 0)); return; }
+    if (action.isPenalty) { setScore(prev => Math.max(prev + (action.scoreOverride ?? -5), 0)); return; }
     if (action.scoreOverride !== undefined) {
       setActionsLog(prev => prev.find(a => a.id === action.id) ? prev : [...prev, action]);
       setScore(prev => Math.min(Math.max(prev + action.scoreOverride, 0), 100));
@@ -395,6 +403,7 @@ export default function RealAttackDrills() {
     setProductDrill(null);
     setProductResult(null);
     savedSessionIdRef.current = null;
+    scoredActionsRef.current = new Set();
     setActionsLog([]);
     setScore(0);
     setGuidedClicks(new Set());

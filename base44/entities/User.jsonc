@@ -9,13 +9,20 @@
         "user"
       ],
       "default": "user",
-      "description": "Platform-level role. 'admin' = full platform access."
+      "description": "Platform-level role. 'admin' = full platform access.",
+      "rls": {
+        "write": {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      }
     },
     "organization_id": {
       "type": "string",
       "description": "Reference to the Organization this user belongs to (null = individual user). Locked: only app admins can change it; everyone else is assigned by admin action.",
       "rls": {
-        "update": {
+        "write": {
           "user_condition": {
             "role": "admin"
           }
@@ -29,12 +36,26 @@
         "member"
       ],
       "default": "member",
-      "description": "Role within the organization. 'org_admin' can manage their org's users and settings."
+      "description": "Role within the organization. 'org_admin' can manage their org's users and settings.",
+      "rls": {
+        "write": {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      }
     },
     "is_individual": {
       "type": "boolean",
       "default": true,
-      "description": "True if the user is not under any organization"
+      "description": "True if the user is not under any organization",
+      "rls": {
+        "write": {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      }
     },
     "avatar_url": {
       "type": "string",
