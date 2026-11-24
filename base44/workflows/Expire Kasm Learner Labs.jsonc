@@ -1,0 +1,44 @@
+{
+  "name": "Expire Kasm Learner Labs",
+  "description": "Reconciles expired learner workspaces and preserves their results.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "*/5 * * * *",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "expire_kasm_learner_runs",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "expire_learner_runs": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "expireKasmLearnerRuns"
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Release expired Kasm learner labs",
+            "description": "Checks tracked session identity and confirms Kasm workspace removal."
+          }
+        }
+      }
+    ]
+  }
+}
