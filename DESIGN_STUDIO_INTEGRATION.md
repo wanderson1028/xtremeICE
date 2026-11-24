@@ -1,5 +1,25 @@
 # Design Studio integration into Extreme ICE
 
+## November 24, 2026 — Kasm and Proxmox service access
+
+The development-provider management path is ready for the next setup pass. Key-only backend SSH worked from the approved operator Dell on both providers. The service accounts ran their health and status commands and rejected arbitrary shell commands. The Kasm check also confirmed Docker was running. A logged Dell-only SonicWall rule and matching source NAT restored Kasm TCP 22. The commit audit identified those two objects and the existing Kasm and Proxmox management ports still responded.
+
+| Provider | Verified access | Work before live learner acceptance |
+| --- | --- | --- |
+| Kasm | Restricted backend SSH, certificate-verified HTTPS, and an enabled Developer API key with the five requested permissions. | Save the key through the masked local setup and verify authenticated API access. Then verify the branch callback, provider configuration, and actual scheduled expiry workflow. |
+| Proxmox | Restricted backend SSH and a privilege-separated, read-only API token scoped to the learner template and two reserved slots. The token could read the template and received HTTP 403 for an out-of-scope VM. | Install and verify the two-slot learner worker bound to the exact integration-branch function version. The checked learner worker service was absent. VM100's administrative relay provides separate historical evidence. |
+
+The November 24 Base44 check returned neither `KasmLearnerRun` nor `ProxmoxLearnerRun` in the app schema list, neither provider launch flag had a record, and `Expire Kasm Learner Labs` was absent from the shared workflow inventory. The last branch preview also offered no published labs for either provider. This access setup produced no new learner attempts, saved grades, or workload cleanup receipts.
+
+### Next work
+
+1. Finish the masked Kasm API credential setup and run the authenticated image-list check. Keep credentials in approved storage.
+2. Review and explicitly authorize the shared Base44 changes needed for the two run schemas, provider enablement, and the Kasm expiry workflow and matching backend. Keep both provider launch flags gated until configuration and cleanup are ready. [Base44 branch behavior](https://base44.com/blog/news/introducing-branches)
+3. Configure Kasm's reviewed image binding and branch callback. Bind the Proxmox learner worker to the verified branch function version and confirm its template, reserved slots, and isolated network. Prepare one disposable published lab and two approved non-admin test learners per provider.
+4. On `design-studio-integration`, verify launch, learner isolation, grading, and saved results. Use separate attempts for manual Finish and for scheduler or worker expiry. Record the trigger, retained scores, and provider-side resource removal for both attempts.
+
+Carry forward the AWS single-seat Finish and expiry evidence below. The integrated AWS classroom regression belongs to classroom rollout.
+
 ## November 23–24, 2026 — Session lifecycle handoff
 
 Acceptance baseline: Xtreme I.C.E. `design-studio-integration`, Ready in Base44 at `7bb9b8b909f2266a9a7adfa3520789f585bfeb68` and matched to its GitHub branch. Base44 checkpoint `6b051872b973f505e1dab4df` captures that baseline. Main was Ready at `4a3c5f572b02dc61cd102c5f8d4fcd9729f27f68`. Development advanced from `5421e54` in a pre-existing package-only commit. Both branches report the same Base44 SDK and Vite plugin versions.
