@@ -1,6 +1,6 @@
 # Design Studio integration into Extreme ICE
 
-## November 23, 2026 — Session lifecycle handoff
+## November 23–24, 2026 — Session lifecycle handoff
 
 Acceptance baseline: Xtreme I.C.E. `design-studio-integration`, Ready in Base44 at `7bb9b8b909f2266a9a7adfa3520789f585bfeb68` and matched to its GitHub branch. Base44 checkpoint `6b051872b973f505e1dab4df` captures that baseline. Main was Ready at `4a3c5f572b02dc61cd102c5f8d4fcd9729f27f68`. Development advanced from `5421e54` in a pre-existing package-only commit. Both branches report the same Base44 SDK and Vite plugin versions.
 
@@ -12,7 +12,7 @@ Acceptance baseline: Xtreme I.C.E. `design-studio-integration`, Ready in Base44 
 
 ### AWS evidence carried forward
 
-- The November 4 Eastern rehearsal used two sequential non-admin learner runs on this Xtreme I.C.E. branch. One learner used Finish. A separate disposable attempt used a shortened recorded deadline, and the real scheduled workflow initiated deletion and verified absence. Both validations passed after the guest file reached mode 600. The saved run records were re-read on November 23. Both are `terminated` with `DELETE_COMPLETE` and both linked `LabInstance` records retain 100% progress and score. The contemporaneous AWS inventory checks returned an empty remaining-resource list for each run. See `Design_Studio_Live_Verification_2026-11-04.json` and checkpoint `6aec058281e6e86ddb54ae82`.
+- The November 4 Eastern rehearsal used two sequential non-admin learner runs on this Xtreme I.C.E. branch. One learner used Finish. A separate disposable attempt used a shortened recorded deadline, and the real scheduled workflow initiated deletion and verified absence. Both validations passed after the guest file reached mode 600. The saved run records and the scheduled workflow receipt were re-read on November 24. Both are `terminated` with `DELETE_COMPLETE` and both linked `LabInstance` records retain 100% progress and score. The contemporaneous AWS inventory checks returned an empty remaining-resource list for each run. See `Design_Studio_Live_Verification_2026-11-04.json` and checkpoint `6aec058281e6e86ddb54ae82`.
 - The later November 5 recovery rehearsal separately blocked browser-driven cleanup for its disposable run and observed the scheduler delete and verify AWS resources. See `Design_Studio_AWS_Recovery_Rehearsal_2026-11-05.json`. The November 9 run repeated owner Finish. The November 14 twenty-seat proof exercised classroom expiry in a separate app. See `Design_Studio_AWS_Guest_Live_Check_2026-11-09.json` and `Design_Studio_AWS_Classroom_Proof_2026-11-14.json`.
 - The November 23 pass provisioned no new learner resources and produced no new score or cleanup receipts. AWS assignment automation was blocked at the access grant, and the in-app browser lost control of the operator launch confirmation. Base44 had no new run record. The verified saved scores and provider cleanup receipts above are from the earlier attempts.
 
