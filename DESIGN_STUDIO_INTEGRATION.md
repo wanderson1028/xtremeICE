@@ -1,5 +1,28 @@
 # Design Studio integration into Extreme ICE
 
+## November 23, 2026 — Session lifecycle handoff
+
+Acceptance baseline: Xtreme I.C.E. `design-studio-integration`, Ready in Base44 at `7bb9b8b909f2266a9a7adfa3520789f585bfeb68` and matched to its GitHub branch. Base44 checkpoint `6b051872b973f505e1dab4df` captures that baseline. Main was Ready at `4a3c5f572b02dc61cd102c5f8d4fcd9729f27f68`. Development advanced from `5421e54` in a pre-existing package-only commit. Both branches report the same Base44 SDK and Vite plugin versions.
+
+| Provider | Current integration-branch check | Manual Finish and scheduled expiry evidence |
+| --- | --- | --- |
+| AWS | The branch preview passed the reviewed Amazon Linux 2023 pilot preflight. Shared AWS learner schemas were ready and the lab was eligible. The app had zero nonterminated AWS learner run records. A real five-minute workflow run completed at 11:50 p.m. Eastern with zero scanned and zero cleaned runs. | Carry forward the November 4 Xtreme I.C.E. single-seat proof below. Both paths were exercised on separate runs. Skip duplicate single-seat provisioning. A live classroom regression on this integrated build remains separate work for classroom rollout. |
+| Kasm | The assignment panel offered no published provider lab. The app returned 404 for `KasmLearnerRun`, and the `kasm_learner_labs` flag was absent. `Expire Kasm Learner Labs` exists in branch source and was absent from the shared live workflow list. | Both paths remain blocked on Xtreme I.C.E. The November 14 two-learner proof used the separate Kasm proof environment. |
+| Proxmox | The assignment panel offered no published provider lab. The app returned 404 for `ProxmoxLearnerRun`, and the `proxmox_learner_labs` flag was absent. The branch worker source handles deadlines. A branch-bound learner worker and live cleanup were unverified. | Both paths remain blocked on Xtreme I.C.E. The November 14 proof used the separate source-matched learner environment. VM100 administrative relay evidence covers a different worker. |
+
+### AWS evidence carried forward
+
+- The November 4 Eastern rehearsal used two sequential non-admin learner runs on this Xtreme I.C.E. branch. One learner used Finish. A separate disposable attempt used a shortened recorded deadline, and the real scheduled workflow initiated deletion and verified absence. Both validations passed after the guest file reached mode 600. The saved run records were re-read on November 23. Both are `terminated` with `DELETE_COMPLETE` and both linked `LabInstance` records retain 100% progress and score. The contemporaneous AWS inventory checks returned an empty remaining-resource list for each run. See `Design_Studio_Live_Verification_2026-11-04.json` and checkpoint `6aec058281e6e86ddb54ae82`.
+- The later November 5 recovery rehearsal separately blocked browser-driven cleanup for its disposable run and observed the scheduler delete and verify AWS resources. See `Design_Studio_AWS_Recovery_Rehearsal_2026-11-05.json`. The November 9 run repeated owner Finish. The November 14 twenty-seat proof exercised classroom expiry in a separate app. See `Design_Studio_AWS_Guest_Live_Check_2026-11-09.json` and `Design_Studio_AWS_Classroom_Proof_2026-11-14.json`.
+- The November 23 pass provisioned no new learner resources and produced no new score or cleanup receipts. AWS assignment automation was blocked at the access grant, and the in-app browser lost control of the operator launch confirmation. Base44 had no new run record. The verified saved scores and provider cleanup receipts above are from the earlier attempts.
+
+### Remaining acceptance work
+
+Review the shared schema and workflow prerequisites before applying changes. Base44 shares data and workflows across branches and routes schema and workflow edits through main. Confirm authorization for any shared changes. For Kasm, verify the exact branch callback and scheduled workflow. For Proxmox, verify the branch-bound learner worker, allowed template and isolated slots. Prepare approved disposable labs and learners. For each provider, prove launch, peer denial, validation, and saved results after cleanup. Use separate attempts for manual Finish and scheduler or worker expiry. Capture the trigger, timestamps, retained score, and provider-side inventory that shows released resources. [Base44 branch behavior](https://base44.com/blog/news/introducing-branches)
+
+Preserve `LabTemplate` as the approved design, `LabInstance` as the frozen learner attempt, and provider adapters as the owners of provisioning and cleanup. Keep grading and evidence independent of environment state. This pass changed the handoff only.
+
+
 ## November 15, 2026 — Design Studio consolidation status
 
 `design-studio-integration` is the working branch for the Xtreme I.C.E. Design Studio integration. The November 15 branch comparison used integration source at `12a1eab` and main source at `eefab23`. Promotion to main is deferred.
@@ -88,7 +111,7 @@ All 14 classroom code and test paths passed a read-only, whitespace-aware patch 
 
 Status: November 9 workflow-health fix verified. The scheduled expiry wrapper on main now writes a sanitized heartbeat, and the integration-branch instructor alert page reads it. No AWS launch, frontend publication, branch merge, or broader notification activation occurred.
 
-## November 9 workflow health and branch/main reconciliation (current handoff)
+## November 9 workflow health and branch/main reconciliation (historical handoff)
 
 The previous app-user GET of Base44 builder workflow metadata was denied in the branch preview. The admin-only operatorAlerts action now reads one CloudLearnerExpiryHealth record using the existing service-role entity boundary. The scheduled main expireCloudLearnerRuns wrapper updates that record after each sweep with the completion time, success/failure and bounded counts/code. It never stores run IDs, owners, bindings, commands or provider handles. A missing, unreadable, invalid, future-dated or stale heartbeat cannot be treated as healthy. This is evidence of a completed sweep, not proof that workflow configuration is enabled or AWS resources are absent. The alert page labels that distinction. A monitoring write failure is logged and leaves the sweep's original HTTP outcome unchanged, so it cannot disable expiry cleanup by itself.
 
