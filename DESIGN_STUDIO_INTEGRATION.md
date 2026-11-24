@@ -1,5 +1,18 @@
 # Design Studio integration into Extreme ICE
 
+## November 24, 2026 — Scheduled Kasm cleanup verified on main
+
+Deployed the two approved backend functions on Xtreme I.C.E. `main`. `kasmProvider` and `expireKasmLearnerRuns` passed Deno type checks and responded with their expected sign-in and administrator requirements. All 15 cleanup source files matched the integration branch byte-for-byte. The main commit `c88f2f4a4016522c84542a3686ad14a33f55adce` adds those two function directories and the workflow definition.
+
+`Expire Kasm Learner Labs` is active and runs every five minutes in UTC. The first scheduled run started at 4:50 p.m. Eastern and completed the `expire_learner_runs` step. Workflow `6b06061afb2b3b4dbbbfb053` recorded run `bb16f5be-05d5-406d-aad6-ef06beeb4a31` as `completed` with `trigger_type=scheduled` and `is_test_run=false`. The Kasm learner run table was empty before and after the tick. The workflow receipt verifies the scheduler path and contains no provider cleanup counts.
+
+### Integration branch checks
+
+- **Kasm.** The branch request to `kasmProvider` reached the sign-in check. The guest callback endpoint `runtimeValidation` still returned HTTP 404. A local HTTP rehearsal using the exact branch handler and a simulated Base44 store recorded a passing file-mode result, denied peer access, and rejected replay and expired tokens. The app still has no Kasm provider credentials.
+- **Proxmox.** The branch gateway `proxmoxLearner` still returned HTTP 404 after saving the unchanged entry point. Base44 rejected the alternate editor path for deployment on this branch. The service account confirmed the learner worker is absent. Five simulated handler tests passed. Separate manual Finish and worker expiry attempts each retained a 100% score after simulated VM, disk and network absence checks. The provider did not provision those simulated runs.
+
+Both launch flags are disabled. The published lab inventory contained no matching provider lab or environment profile, and neither provider had a learner assignment. Resolve branch deployment for the callback and gateway first. Then configure the Kasm provider connection, install and verify the branch-bound Proxmox worker, and prepare disposable labs and non-admin learners. Run manual Finish and natural expiry independently for each provider and record the saved score and provider-side removal.
+
 ## November 24, 2026 — Session lifecycle acceptance checkpoint
 
 The Base44 app now has both shared run schemas, `KasmLearnerRun` and `ProxmoxLearnerRun`. Both run tables were empty on read-back. The `kasm_learner_labs` and `proxmox_learner_labs` launch flags exist with both values disabled. The app data read-back found no configured environment profiles, matching provider assignments, or published Kasm or Proxmox pilot labs.
