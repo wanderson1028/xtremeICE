@@ -1,5 +1,21 @@
 # Design Studio integration into Extreme ICE
 
+## November 24, 2026 — Session lifecycle acceptance checkpoint
+
+The Base44 app now has both shared run schemas, `KasmLearnerRun` and `ProxmoxLearnerRun`. Both run tables were empty on read-back. The `kasm_learner_labs` and `proxmox_learner_labs` launch flags exist with both values disabled. The app data read-back found no configured environment profiles, matching provider assignments, or published Kasm or Proxmox pilot labs.
+
+| Provider | Verified in this pass | Remaining live work |
+| --- | --- | --- |
+| Kasm | The stored Developer API key authenticated from the Dell and returned ten images. Seven lifecycle tests passed on the development source, including scoring through Finish and expiry reconciliation. The Kasm adapter, callback and expiry function passed Deno type checks. | Branch calls to `kasmProvider` and `runtimeValidation` returned HTTP 404, including the callback after a branch-scoped source save. The Base44 app has no Kasm provider credentials configured. Complete the reviewed provider binding and verify guest callback permissions and delivery. |
+| Proxmox | Four learner and relay tests passed. The two worker files parsed and the gateway passed its Deno type check. The host confirmed the template was stopped with its network link down. Both reserved slots were clear of VM configs, volumes, bridges and namespaces. | The host reports the learner worker service as absent. The branch gateway still returned HTTP 404 after a branch-scoped source save. Verify the deployed gateway before installing and authenticating the branch-bound worker. |
+| AWS | All 77 AWS learner tests passed, including the simulated 20-seat classroom, capacity enforcement, owner authorization and expiry reconciliation. Earlier Xtreme I.C.E. single-seat Finish and scheduled expiry evidence remains below. | Configure the approved classroom window, roster, verified template and seat mapping before live rollout regression. The app had no classroom setting and zero nonterminated AWS learner run records. This pass launched no AWS resources. |
+
+The regression baseline was Base44 development commit `0e41c9f333e4be467b1d8405af89491cfd277917`. Both saved function entry files were restored byte-for-byte after the deployment probes. The existing AWS endpoint returned a sign-in response on the same branch route, while the Kasm and Proxmox functions returned missing or undeployed. The listed Proxmox absence checks are preflight inventory. This pass did not produce new live learner scores or provider cleanup receipts.
+
+The Kasm cleanup workflow has owner approval. The shared workflow remains absent, and the cleanup entry point and adapter were absent from `main` source. Confirm the separate scoped deployment to `main`; then verify the scheduled worker can reach the cleanup entry point and complete an idle tick before preparing learner attempts.
+
+Once the gateways, provider configuration and disposable lab assignments are ready, run manual Finish and natural scheduled or worker expiry as independent non-admin attempts. Record the trigger, saved score after termination and provider-side removal for each. Preserve the approved `LabTemplate`, frozen `LabInstance` and provider-owned cleanup contracts.
+
 ## November 24, 2026 — Kasm and Proxmox service access
 
 The development-provider management path is ready for the next setup pass. Key-only backend SSH worked from the approved operator Dell on both providers. The service accounts ran their health and status commands and rejected arbitrary shell commands. The Kasm check also confirmed Docker was running. A logged Dell-only SonicWall rule and matching source NAT restored Kasm TCP 22. The commit audit identified those two objects and the existing Kasm and Proxmox management ports still responded.
