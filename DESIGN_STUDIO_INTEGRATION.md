@@ -1,5 +1,18 @@
 # Design Studio integration into Extreme ICE
 
+## November 24, 2026 — Provider setup and branch route verification
+
+The signed-in Base44 editor on `design-studio-integration` returned HTTP 200 for `runtimeValidation` with `action=ping` and for `proxmoxLearner` with `action=health`. Both branch entry points passed Deno type checks. The editor calls used `Base44-Functions-Version: branch:6adc042dc1759e6183863750` and the matching active branch ID.
+
+| Area | Verified | Remaining |
+| --- | --- | --- |
+| Kasm | The existing Developer API credential authenticated over the recorded HTTPS tunnel. Base44 stored the app’s Kasm settings and its authenticated `kasmProvider` catalog call returned ten images. The Kasm session inventory was readable. | External requests to the branch callback still return HTTP 404. Verify that a real guest can reach the callback and complete the approved file-mode validation before counting a live score. |
+| Proxmox | The reviewed worker and guest helper matched the branch file hashes and passed syntax checks. The branch-bound worker service and dedicated credential are installed. Base44 lists the matching worker setting. | A read-only request from the Proxmox host with the scoped worker credential received HTTP 404 before reaching the handler. The service is disabled and inactive until it can poll the gateway. |
+
+The signed-in editor reaches the branch functions, while the external provider requests do not. Both the normal function API path and the documented HTTP function path on the preview host returned 404 for external requests. The remaining deployment option under review is to register only these two provider-facing functions on the `main` backend preview, then verify external routing before using the development learner UI. That deployment requires separate approval. `main` remains at the approved Kasm expiry release, and the Kasm schedule continues to report success.
+
+Both launch flags are disabled and both learner run tables are empty. There are no new live scores or provider cleanup receipts. Once the gateways accept external requests, verify worker authentication and the guest callback, prepare the published pilot assignments, and run manual Finish and natural expiry as separate non-admin attempts.
+
 ## November 24, 2026 — Scheduled Kasm cleanup verified on main
 
 Deployed the two approved backend functions on Xtreme I.C.E. `main`. `kasmProvider` and `expireKasmLearnerRuns` passed Deno type checks and responded with their expected sign-in and administrator requirements. All 15 cleanup source files matched the integration branch byte-for-byte. The main commit `c88f2f4a4016522c84542a3686ad14a33f55adce` adds those two function directories and the workflow definition.
