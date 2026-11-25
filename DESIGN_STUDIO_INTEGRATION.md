@@ -1,5 +1,18 @@
 # Design Studio integration into Extreme ICE
 
+## November 25, 2026 — Scored Proxmox Finish and natural expiry
+
+Added only the integration branch’s optional `UserLabAssignment.proxmox_launch` field to the shared schema on Xtreme I.C.E. `main` at `f78aad8e527ef97375176a44d89e455d9e0179e7`. The live schema matches the source and preserves every existing field and permission. Both non-admin learner requests on `design-studio-integration` persisted their own launch and queued normally. Each learner’s attempt to access the peer assignment returned HTTP 404.
+
+| Live attempt | Saved result | Provider evidence |
+| --- | --- | --- |
+| Manual Finish, VM 9530, run `6b0721e8f75bd15fdb5cea17` | File mode changed from 644 to 600. The learner earned 100/100. The app recorded `finished`, reason `finish`, with final score 100. | Learner Finish arrived at 1:00:49 p.m. Eastern. The worker saved the result before deletion at 1:00:51 p.m. and committed cleanup at 1:01:14 p.m. |
+| Natural worker expiry, VM 9531, run `6b0721ec07fd6e0a672a682a` | File mode changed from 644 to 600. The learner earned 100/100. The app recorded `expired`, reason `expiry`, with final score 100. | The original 900-second deadline arrived at 1:15:05 p.m. Eastern. The worker recorded expiry at 1:15:07, saved the grade before deletion at 1:15:10 and committed cleanup at 1:15:31 p.m. The learner made no call to end this attempt. |
+
+Both run records persisted all three cleanup checks, covering VM, volumes and network. The independent host inventory after worker shutdown at 1:16:26 p.m. Eastern found neither test VM or configuration, no matching volumes, bridges, namespaces or guest-key directories, and both leases confirmed. The Proxmox launch flag is disabled, the pilot lab is a draft, and its installed worker is inactive and disabled at boot. The two scored result records remain saved.
+
+The `Sessions Modify` grant for the dedicated development Kasm key is approved. The Kasm in-app browser tab is at admin sign-in and was handed to the operator for authentication. The permission change and the two scored Kasm attempts remain pending this session. The earlier ungraded Kasm natural expiry evidence is preserved below.
+
 ## November 25, 2026 — External gateways restored and live acceptance findings
 
 The approved backend preview deployment on Xtreme I.C.E. `main` at `ff5a4f4b0565c03ab8a952f5757c459ffcc2b513` added only `runtimeValidation` and `proxmoxLearner`. All five files matched `design-studio-integration` at `f0ed7cca3fb8e5c8d98c1b301f45418822145c88` byte-for-byte and passed Deno type checking. The frontend publish operation was skipped. Direct probes using both the integration branch header and the `prod` header reached the handlers.
