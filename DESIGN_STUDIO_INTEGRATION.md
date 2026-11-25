@@ -1,5 +1,20 @@
 # Design Studio integration into Extreme ICE
 
+## November 25, 2026 — Scored Kasm Finish and scheduled expiry
+
+The dedicated development Kasm key now has `Sessions Modify` alongside its existing five permissions. Kasm displayed the grant after reload, and the key’s scoped command calls returned HTTP 200 inside the two assigned disposable workspaces. Both learners authenticated with the normal app role `user` and used the `design-studio-integration` function version. Each live callback recorded file mode `600`, awarded 10 of 10 task points, and saved 100% score and progress before termination.
+
+| Live attempt | Saved result | Provider and trigger evidence |
+| --- | --- | --- |
+| Manual Finish, run `6b0731d080b77b423c42efb1` | Attempt `6b0731fbf04f3e891ebefa60` recorded a received callback. The learner finished at 2:07:43 p.m. Eastern (19:07:43.381Z), before the original 2:11:56 p.m. deadline. The saved record is `terminated`, `cleanup_state=verified`, `cleanup_reason=finished`, `learning_outcome=passed`, score 100. | Kasm initially listed one matching workspace and owner. At 2:07:58 p.m. Eastern (19:07:58.783Z) its exact status lookup returned a typed missing response and inventory returned zero matches. |
+| Scheduled expiry, run `6b0731e403bcbc5a1f9ddbce` | Attempt `6b07320b548e91adef640ae2` recorded a received callback. The learner saved 100% at 2:07:58 p.m. Eastern and left the workspace running until the original 2:12:16 p.m. deadline. The saved record is `terminated`, `cleanup_state=verified`, `cleanup_reason=expired`, `learning_outcome=expired`, score 100. | The production workflow `Expire Kasm Learner Labs` recorded non-test scheduled run `816dc7ac-b52b-4e93-88de-d9bade5b71dd`. The expiry step ran at 2:15:45–2:15:50 p.m. Eastern (19:15:45.544Z–19:15:50.113Z), and the run record was updated at 19:15:49.818Z. Kasm’s exact lookup reported the workspace missing at 2:16:05 p.m. Eastern (19:16:05.554Z), and inventory returned zero matches. |
+
+Kasm provider checks used both the exact session lookup and independent inventory. Each successful inventory check returned HTTP 200 with zero matching workspaces or workspace/owner pairs after cleanup. The timed run received no learner Finish, stop, or status call after scoring. The Kasm launch flag is disabled and the corrected test lab is a draft. The scored run and validation records were retained.
+
+The first two runs exposed a scoring error in the test fixture. A 100-point criterion was paired with the default 10-point task, and the application saved 1000% on both diagnostic records (`6b072f1ee22a9552b3f2c68f` and `6b072f217809583ef6678459`). Both diagnostic workspaces were independently confirmed removed. The fixture criterion was changed to 10 points for the two fresh acceptance attempts above. The recorded diagnostics and scoring implementation were preserved. The builder currently warns on mismatched weights and still permits a save, and the runtime can persist a score above 100. Enforce consistent points in the authoring and server validation paths before rollout.
+
+The separate Proxmox scored receipts and earlier AWS single-seat proof remain the baseline for those providers. The integrated AWS classroom regression remains part of rollout preparation. No new AWS resources were launched in this pass.
+
 ## November 25, 2026 — Scored Proxmox Finish and natural expiry
 
 Added only the integration branch’s optional `UserLabAssignment.proxmox_launch` field to the shared schema on Xtreme I.C.E. `main` at `f78aad8e527ef97375176a44d89e455d9e0179e7`. The live schema matches the source and preserves every existing field and permission. Both non-admin learner requests on `design-studio-integration` persisted their own launch and queued normally. Each learner’s attempt to access the peer assignment returned HTTP 404.
@@ -11,7 +26,7 @@ Added only the integration branch’s optional `UserLabAssignment.proxmox_launch
 
 Both run records persisted all three cleanup checks, covering VM, volumes and network. The independent host inventory after worker shutdown at 1:16:26 p.m. Eastern found neither test VM or configuration, no matching volumes, bridges, namespaces or guest-key directories, and both leases confirmed. The Proxmox launch flag is disabled, the pilot lab is a draft, and its installed worker is inactive and disabled at boot. The two scored result records remain saved.
 
-The `Sessions Modify` grant for the dedicated development Kasm key is approved. The Kasm in-app browser tab is at admin sign-in and was handed to the operator for authentication. The permission change and the two scored Kasm attempts remain pending this session. The earlier ungraded Kasm natural expiry evidence is preserved below.
+At the Proxmox checkpoint, the approved Kasm permission and the two scored runs still awaited Kasm admin sign-in. The completed Kasm acceptance is recorded above. The earlier ungraded expiry evidence is preserved below.
 
 ## November 25, 2026 — External gateways restored and live acceptance findings
 
