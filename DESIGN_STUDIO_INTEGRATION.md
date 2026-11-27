@@ -1,5 +1,19 @@
 # Design Studio integration into Extreme ICE
 
+## November 26, 2026 — Scoring validation and bounded saved results
+
+Lab Builder now rejects a save when a task’s structured criterion points differ from its task weight or either weight is negative or nonfinite. The task schema declares the weight explicitly. Tasks without criteria are still valid. A legacy text-only criterion uses its task’s existing weight. The server checks new Kasm launches before contacting the provider. An active learner can resume using the run’s frozen snapshot.
+
+The scorer limits each task’s credit to its own point budget and bounds the saved percentage to 0–100. This covers learner progress and manual Finish, saved previews, and previously out-of-range scores when active Kasm runs reach verified cleanup through this branch. The two terminated 1000% diagnostic records from November 25 remain historical evidence.
+
+| Verification on `design-studio-integration` | Result |
+| --- | --- |
+| Lab Builder and runtime helpers | All 161 assertions passed, including the original 100 criterion points against a 10-point task, underweight criteria, equivalent fractional totals, and existing branching and partial-credit cases. |
+| Kasm launch, score persistence and cleanup | All 10 integration tests passed with in-memory records and a simulated Kasm API. The original fixture with an omitted task weight returned HTTP 409 before any provider call or run creation. A legacy run with one overweight task and one missed 10-point task saved 50% through Finish. Preview and expiry tests bounded 1000% to 100%. |
+| Build and backend type check | The Vite build and Deno check of the Kasm handler passed. |
+
+The code change is on the integration branch. Production rollout and the integrated AWS classroom regression remain separate work. The November 25 live Kasm and Proxmox acceptance receipts remain below.
+
 ## November 25, 2026 — Scored Kasm Finish and scheduled expiry
 
 The dedicated development Kasm key now has `Sessions Modify` alongside its existing five permissions. Kasm displayed the grant after reload, and the key’s scoped command calls returned HTTP 200 inside the two assigned disposable workspaces. Both learners authenticated with the normal app role `user` and used the `design-studio-integration` function version. Each live callback recorded file mode `600`, awarded 10 of 10 task points, and saved 100% score and progress before termination.
@@ -11,7 +25,7 @@ The dedicated development Kasm key now has `Sessions Modify` alongside its exist
 
 Kasm provider checks used both the exact session lookup and independent inventory. Each successful inventory check returned HTTP 200 with zero matching workspaces or workspace/owner pairs after cleanup. The timed run received no learner Finish, stop, or status call after scoring. The Kasm launch flag is disabled and the corrected test lab is a draft. The scored run and validation records were retained.
 
-The first two runs exposed a scoring error in the test fixture. A 100-point criterion was paired with the default 10-point task, and the application saved 1000% on both diagnostic records (`6b072f1ee22a9552b3f2c68f` and `6b072f217809583ef6678459`). Both diagnostic workspaces were independently confirmed removed. The fixture criterion was changed to 10 points for the two fresh acceptance attempts above. The recorded diagnostics and scoring implementation were preserved. The builder currently warns on mismatched weights and still permits a save, and the runtime can persist a score above 100. Enforce consistent points in the authoring and server validation paths before rollout.
+The first two runs exposed a scoring error in the test fixture. A 100-point criterion was paired with the default 10-point task, and the application saved 1000% on both diagnostic records (`6b072f1ee22a9552b3f2c68f` and `6b072f217809583ef6678459`). Both diagnostic workspaces were independently confirmed removed. The fixture criterion was changed to 10 points for the two fresh acceptance attempts above. The recorded diagnostics and scoring implementation were preserved. At that checkpoint the builder warned on mismatched weights and still permitted a save, and the runtime could persist a score above 100. The branch fix and verification are recorded above.
 
 The separate Proxmox scored receipts and earlier AWS single-seat proof remain the baseline for those providers. The integrated AWS classroom regression remains part of rollout preparation. No new AWS resources were launched in this pass.
 
