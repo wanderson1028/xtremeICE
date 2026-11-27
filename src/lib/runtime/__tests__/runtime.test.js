@@ -1032,6 +1032,30 @@ function testManualPreviewValidationFlow() {
   assert(list.length === 1 && list[0].task_id === "t_preview", "native runner: task result upserts by stable task id");
 }
 
+function testTaskWeightValidation() {
+  const task = { id: "t", title: "File mode", points: 10, validation_criteria: [{ check: "mode", points: 100 }] };
+  const errors = (t) => validateLabContent({ tasks: [t] }).errors;
+  assert(errors(task).some((message) => /100 criterion points.*worth 10/.test(message)), "validate: reject overweight criterion");
+  assert(errors({ ...task, validation_criteria: [{ points: 1 }] }).length === 1, "validate: reject unallocated task points");
+  assert(errors({ ...task, points: -10 }).length === 1, "validate: reject negative task weight");
+  assert(errors({ ...task, validation_criteria: [{ points: Infinity }] }).length === 1, "validate: reject non-finite criterion");
+  assert(errors({ ...task, points: 0.3, validation_criteria: [{ points: 0.1 }, { points: 0.2 }] }).length === 0,
+    "validate: equivalent fractional totals");
+  const legacy = normalizeTask({ ...task, validation_criteria: "Check file mode" }, 0);
+  assert(legacy.validation_criteria[0].points === 10 && errors(legacy).length === 0, "validate: legacy text uses its task weight");
+}
+
+function testOversizedTaskScores() {
+  const task = { id: "t", points: 10, validation_criteria: [{ check: "mode", points: 100 }] };
+  const result = { task_id: "t", validation_results: [{ check: "mode", passed: true, points_awarded: 100 }] };
+  const score = (tasks) => calculateInstanceScore({ lab_content: { tasks } }, [result]).score;
+  assert(score([task]) === 100, "score: legacy 100-on-10 cannot save above 100%");
+  assert(score([task, { id: "missing", points: 10 }]) === 50, "score: excess credit cannot offset missed work");
+  assert(computeTaskPoints(task, { ...result, instructor_override_score: 1000 }).points_earned === 10,
+    "score: instructor override respects task weight");
+  assert(computeTaskPoints({ ...task, points: 0 }, result).points_earned === 0, "score: explicit zero weight cannot earn points");
+}
+
 // ── Run all tests ──────────────────────────────────────────────────────
 
 export function runAllTests() {
@@ -1050,6 +1074,7 @@ export function runAllTests() {
   testIsTaskPassed();
 
   // instanceScoring
+  testOversizedTaskScores();
   testEmptyInstance();
   testPerfectInstance();
   testPartialInstance();
@@ -1086,6 +1111,7 @@ export function runAllTests() {
   testValidateLabContentThresholdRangeWarning();
   testValidateLabContentIncompleteBranchWarning();
   testValidateLabContentCleanLinear();
+  testTaskWeightValidation();
 
   // Phase 2 — deletion handling
   testResetBranchTasksOnDeletion();

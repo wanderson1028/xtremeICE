@@ -93,6 +93,11 @@
                 "type": "string",
                 "description": "Stable task identity (survives reordering); used by runtime results, dependencies, branching, analytics, and validation"
               },
+              "points": {
+                "type": "number",
+                "minimum": 0,
+                "description": "The task point weight. Structured criterion weights must add up to this value."
+              },
               "validation_criteria": {
                 "type": "array",
                 "description": "Structured success criteria for scoring, rubrics, and lab QA",
@@ -109,6 +114,7 @@
                     },
                     "points": {
                       "type": "number",
+                      "minimum": 0,
                       "default": 1,
                       "description": "Point value awarded when this criterion passes. Defaults to 1 to match the task editor's non-zero criterion default."
                     },

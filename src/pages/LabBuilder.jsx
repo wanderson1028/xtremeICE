@@ -75,7 +75,7 @@ export default function LabBuilder() {
       };
       const validation = validateLabContent(labContent);
       if (validation.errors.length) {
-        toast({ title: "Fix task dependencies before saving", description: validation.errors.join(" "), variant: "destructive" });
+        toast({ title: "Fix task validation errors before saving", description: validation.errors.join(" "), variant: "destructive" });
         return;
       }
       if (options.openLearner === true) {

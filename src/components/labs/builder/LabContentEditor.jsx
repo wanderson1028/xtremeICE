@@ -36,6 +36,7 @@ import {
   UNLOCK_TRIGGERS,
   getInvalidPrerequisiteIds,
   validateLabContent,
+  validateTaskWeights,
   resetBranchTasksForDeletedTask,
   buildBranchSummary,
 } from "@/lib/taskModel";
@@ -623,9 +624,9 @@ export default function LabContentEditor({ form, updateForm }) {
                                     (acc, c) => acc + (c.points || 0), 0
                                   );
                                   const taskPoints = task.points ?? 0;
-                                  const match = sum === taskPoints;
+                                  const match = validateTaskWeights([task]).length === 0;
                                   return (
-                                    <div className={`flex items-center gap-1.5 text-xs pt-1 ${match ? "text-green-600" : "text-orange-600"}`}>
+                                    <div className={`flex items-center gap-1.5 text-xs pt-1 ${match ? "text-green-600" : "text-destructive"}`}>
                                       {match ? (
                                         <><CheckCircle2 className="h-3 w-3" /> Criteria points ({sum}) match task points ({taskPoints})</>
                                       ) : (

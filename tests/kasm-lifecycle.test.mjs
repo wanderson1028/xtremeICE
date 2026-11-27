@@ -132,6 +132,60 @@ Deno.test("scoring consumes completed owned evidence and survives verified finis
   assert.equal(finished.score, 100);
 });
 
+Deno.test("a mismatched rubric cannot create a new Kasm workspace", async () => {
+  const { db, row, template, instances } = fixture();
+  template.lab_content = { tasks: [{ id: "t", points: 10, validation_criteria: [{ check: "mode", points: 100 }] }] };
+  const api = () => assert.fail("An invalid rubric must not call Kasm");
+  await assert.rejects(launch(db, owner, "lab", api), { status: 409, message: /100 criterion points.*worth 10/ });
+  assert.equal(instances.size, 0);
+
+  instances.set(row.id, { ...row, template_id: "lab" });
+  assert.equal((await launch(db, owner, "lab", api)).id, row.id);
+});
+
+Deno.test("a frozen legacy rubric cannot overcredit a task or the score saved at Finish", async () => {
+  const { db, row, instances, attempts } = fixture();
+  const task = content.tasks[0];
+  row.template_snapshot.lab_content = { tasks: [
+    { ...task, points: 10, validation_criteria: [{ ...task.validation_criteria[0], points: 100 }] },
+    { id: "optional", points: 10, is_required: false, validation_criteria: [{ check: "other", points: 10 }] },
+  ] };
+  instances.set(row.id, row);
+  attempts.set("pass", { id: "pass", instance_id: row.id, task_id: task.id, check_id: "mode",
+    status: "completed", user_email: owner.email, passed: true, observed: "600", updated_date: new Date().toISOString() });
+
+  const graded = await taskAction(db, row, { task_id: task.id, attempt_id: "pass" }, "applyValidation");
+  assert.equal(instances.get(row.id).score, 50);
+  assert.equal(graded.task_results[0].points_earned, 10);
+
+  const submitted = await taskAction(db, graded, { task_id: task.id }, "submitTask");
+  const finished = await finish(db, submitted, async (endpoint) => {
+    assert.equal(endpoint, "get_kasm_status");
+    throw new KasmApiError(400, "Invalid kasm_id (aabb)");
+  });
+  assert.equal(finished.status, "terminated");
+  assert.equal(instances.get(row.id).score, 50);
+});
+
+Deno.test("preview writes and legacy expiry cleanup keep saved scores bounded", async () => {
+  const { db, row, instances } = fixture();
+  instances.set(row.id, { ...row, provider: "preview" });
+  const res = await handleKasm({ auth: { me: async () => owner }, asServiceRole: { entities: db } },
+    new Request("https://app.example.test", { method: "POST", body: JSON.stringify({
+      action: "savePreview", instance_id: row.id, patch: { score: 1000 },
+    }) }));
+  assert.equal(res.status, 200);
+  assert.equal(instances.get(row.id).score, 100);
+
+  instances.set(row.id, { ...row, score: 1000, expires_at: new Date(Date.now() - 1000).toISOString() });
+  await sweep(db, async (endpoint) => {
+    assert.equal(endpoint, "get_kasm_status");
+    throw new KasmApiError(400, "Invalid kasm_id (aabb)");
+  });
+  assert.equal(instances.get(row.id).score, 100);
+  assert.equal(instances.get(row.id).cleanup_state, "verified");
+});
+
 Deno.test("expiry durably queues a destroy; readiness and token refresh do not run during cleanup", async () => {
   const { db, row, instances } = fixture();
   const expired = { ...row, expires_at: new Date(Date.now()-1000).toISOString() };

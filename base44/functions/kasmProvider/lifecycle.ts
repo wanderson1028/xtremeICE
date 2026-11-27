@@ -1,6 +1,7 @@
 import { assessKasmBinding } from "./shared/providers/kasmBinding.js";
 import { buildTemplateSnapshot, applyCriterionValidationOutcome, buildUpdatedTaskResult, getTaskResult, revealNextHint, upsertTaskResult } from "./shared/runtime/instanceModel.js";
-import { calculateInstanceScore } from "./shared/runtime/instanceScoring.js";
+import { boundScore, calculateInstanceScore } from "./shared/runtime/instanceScoring.js";
+import { validateTaskWeights } from "./shared/taskModel.js";
 import { resolveUnlockedTasks } from "./shared/runtime/branchingResolver.js";
 import { isMissingWorkspace, kasmRequest, workspaceUrl } from "./api.ts";
 
@@ -86,6 +87,9 @@ export async function launch(db: any, user: RecordData, templateId: unknown, req
     throw new RequestError(409, "Finish your earlier Kasm session or wait for its cleanup.");
   }
 
+  const weightErrors = validateTaskWeights(template.lab_content?.tasks);
+  if (weightErrors.length) throw new RequestError(409, weightErrors.join(" "));
+
   const profile = await first(db.EnvironmentProfile, { id: template.environment_profile_id });
   const binding = assessKasmBinding(template.environment_definition, profile);
   if (!binding.launch_ready || !binding.binding || binding.warnings.length) {
@@ -156,9 +160,11 @@ export async function cleanup(db: any, row: RecordData, request = kasmRequest) {
     absent = await gone();
   }
   if (!absent) return row;
+  const score = boundScore(row.score);
   return update(db.KasmLearnerRun, row, {
     status: "terminated",
     cleanup_state: "verified",
+    ...(typeof row.score === "number" && row.score !== score ? { score } : {}),
     provider_session_url: "",
     kasm_session_url: "",
     learning_outcome: row.learning_outcome || (row.cleanup_reason === "expired" ? "expired" : "abandoned"),
@@ -291,6 +297,10 @@ export async function preview(db: any, user: RecordData, action: string, body: R
   const patch = body.patch || {};
   const allowed = Object.fromEntries(["task_results", "score", "progress", "status", "completed_at"]
     .filter((key) => Object.hasOwn(patch, key)).map((key) => [key, patch[key]]));
+  if (Object.hasOwn(allowed, "score")) {
+    if (!Number.isFinite(allowed.score)) throw new RequestError(400, "Preview score must be a finite number.");
+    allowed.score = boundScore(allowed.score);
+  }
   if (allowed.status && !["completed", "failed"].includes(allowed.status)) {
     throw new RequestError(400, "Invalid preview status.");
   }

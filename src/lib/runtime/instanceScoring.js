@@ -23,9 +23,13 @@
 import {
   computeTaskPoints,
   isTaskPassed,
-  sumCriteriaPoints,
 } from "./taskValidator";
 import { resolveUnlockedTasks } from "./branchingResolver";
+
+/** Keep persisted percentage scores within the runtime's 0–100 range. */
+export function boundScore(score) {
+  return Number.isFinite(score) ? Math.min(100, Math.max(0, score)) : 0;
+}
 
 /**
  * Calculate the raw instance score, pass/fail, and progress.
@@ -78,27 +82,21 @@ export function calculateInstanceScore(snapshot, taskResults) {
       requiredTasksTotal++;
     }
 
+    const { points_earned, points_possible } = computeTaskPoints(task, result);
+    pointsEarned += points_earned;
+    pointsPossible += points_possible;
+
     if (result) {
-      // Task has been interacted with — compute its contribution
-      const { points_earned, points_possible } = computeTaskPoints(task, result);
-      pointsEarned += points_earned;
-      pointsPossible += points_possible;
       tasksAttempted++;
 
       if (isTaskPassed(task, result)) {
         tasksPassed++;
         if (isRequired) requiredTasksPassed++;
       }
-    } else {
-      // Unattempted task — contributes possible points to denominator, 0 to numerator
-      const taskWeight =
-        typeof task.points === "number" ? task.points : 0;
-      const criteriaSum = sumCriteriaPoints(task?.validation_criteria);
-      pointsPossible += taskWeight || criteriaSum;
     }
   }
 
-  const score = pointsPossible > 0 ? (pointsEarned / pointsPossible) * 100 : 0;
+  const score = boundScore((pointsEarned / pointsPossible) * 100);
   const passingScore =
     typeof snapshot?.passing_score === "number" ? snapshot.passing_score : 70;
   const passed = score >= passingScore;

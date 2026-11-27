@@ -172,10 +172,11 @@ function normalizeUnlockCondition(cond) {
 export function normalizeTask(task, index) {
   const t = task && typeof task === "object" ? task : {};
 
-  // validation_criteria: legacy string → single criterion; array → normalize; else []
+  const points = typeof t.points === "number" ? t.points : DEFAULT_POINTS;
+  // Legacy text describes the sole criterion, with no separate authored weight.
   let vc = t.validation_criteria;
   if (typeof vc === "string") {
-    vc = vc.trim() ? [{ check: "criteria", description: vc, points: DEFAULT_CRITERION_POINTS }] : [];
+    vc = vc.trim() ? [{ check: "criteria", description: vc, points }] : [];
   } else if (!Array.isArray(vc)) {
     vc = [];
   }
@@ -190,7 +191,7 @@ export function normalizeTask(task, index) {
     instructions: typeof t.instructions === "string" ? t.instructions : "",
     order: typeof t.order === "number" ? t.order : index + 1,
     task_type: TASK_TYPES.includes(t.task_type) ? t.task_type : DEFAULT_TASK_TYPE,
-    points: typeof t.points === "number" ? t.points : DEFAULT_POINTS,
+    points,
     is_required: typeof t.is_required === "boolean" ? t.is_required : true,
     hints: Array.isArray(t.hints) ? t.hints : [],
     validation_criteria: vc,
@@ -280,6 +281,40 @@ export function getInvalidPrerequisiteIds(tasks, currentTaskId) {
   return invalid;
 }
 
+/** Validate the point budget for tasks with structured criteria. */
+export function validateTaskWeights(tasks) {
+  const errors = [];
+  if (!Array.isArray(tasks)) return errors;
+
+  for (const [index, task] of tasks.entries()) {
+    const name = task?.title || task?.id || `#${index + 1}`;
+    const points = task?.points ?? DEFAULT_POINTS;
+    if (!Number.isFinite(points) || points < 0) {
+      errors.push(`Task "${name}" must have a finite, nonnegative point weight.`);
+      continue;
+    }
+
+    const criteria = task?.validation_criteria;
+    if (!Array.isArray(criteria) || criteria.length === 0) continue;
+
+    const weights = criteria.map((criterion) =>
+      criterion && typeof criterion === "object" ? criterion.points ?? DEFAULT_CRITERION_POINTS : NaN
+    );
+    if (weights.some((weight) => !Number.isFinite(weight) || weight < 0)) {
+      errors.push(`Task "${name}" must have finite, nonnegative criterion weights.`);
+      continue;
+    }
+
+    const total = weights.reduce((sum, weight) => sum + weight, 0);
+    const tolerance = Math.max(total, points) * Number.EPSILON * weights.length;
+    if (!Number.isFinite(total) || Math.abs(total - points) > tolerance) {
+      errors.push(`Task "${name}" has ${total} criterion points but is worth ${points}. The totals must match.`);
+    }
+  }
+
+  return errors;
+}
+
 /**
  * Validate authored lab_content. Returns { warnings: [], errors: [] }.
  *
@@ -295,8 +330,8 @@ export function getInvalidPrerequisiteIds(tasks, currentTaskId) {
  */
 export function validateLabContent(labContent) {
   const warnings = [];
-  const errors = [];
-  const tasks = labContent?.tasks || [];
+  const tasks = Array.isArray(labContent?.tasks) ? labContent.tasks : [];
+  const errors = validateTaskWeights(tasks);
   const byId = {};
   tasks.forEach((t) => { if (t && t.id) byId[t.id] = t; });
 

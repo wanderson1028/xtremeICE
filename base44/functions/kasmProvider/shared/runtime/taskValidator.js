@@ -115,7 +115,7 @@ export function allCriteriaPassedOrEmpty(validationResults) {
  *   Falls back to taskResult.points_possible (denormalized at first interaction)
  *   then to sum of criteria points.
  * points_earned = instructor_override_score if set, else sum of points_awarded
- *   across reconciled validation_results.
+ *   across reconciled validation_results, bounded by the task's point budget.
  *
  * @param {Object} task       - Authored task from template_snapshot.lab_content.tasks[]
  * @param {Object} taskResult - Runtime result from LabInstance.task_results[]
@@ -125,24 +125,13 @@ export function computeTaskPoints(task, taskResult) {
   const criteria = task?.validation_criteria || [];
   const results = reconcileResults(criteria, taskResult?.validation_results);
 
-  // points_possible: prefer authored task.points, then denormalized, then criteria sum
-  const taskWeight =
-    typeof task?.points === "number" ? task.points : 0;
-  const denormalized =
-    typeof taskResult?.points_possible === "number" ? taskResult.points_possible : 0;
-  const criteriaSum = sumCriteriaPoints(criteria);
-  const pointsPossible = taskWeight || denormalized || criteriaSum;
-
-  // points_earned: instructor override supersedes calculated
-  if (typeof taskResult?.instructor_override_score === "number") {
-    return {
-      points_earned: taskResult.instructor_override_score,
-      points_possible: pointsPossible,
-    };
-  }
+  const pointsPossible = [task?.points, taskResult?.points_possible, sumCriteriaPoints(criteria)]
+    .find((value) => Number.isFinite(value) && value >= 0) ?? 0;
+  const override = taskResult?.instructor_override_score;
+  const earned = Number.isFinite(override) ? override : sumPointsAwarded(results);
 
   return {
-    points_earned: sumPointsAwarded(results),
+    points_earned: Number.isFinite(earned) ? Math.min(pointsPossible, Math.max(0, earned)) : 0,
     points_possible: pointsPossible,
   };
 }
