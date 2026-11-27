@@ -134,7 +134,7 @@ Deno.test("scoring consumes completed owned evidence and survives verified finis
 
 Deno.test("a mismatched rubric cannot create a new Kasm workspace", async () => {
   const { db, row, template, instances } = fixture();
-  template.lab_content = { tasks: [{ id: "t", points: 10, validation_criteria: [{ check: "mode", points: 100 }] }] };
+  template.lab_content = { tasks: [{ id: "t", validation_criteria: [{ check: "mode", points: 100 }] }] };
   const api = () => assert.fail("An invalid rubric must not call Kasm");
   await assert.rejects(launch(db, owner, "lab", api), { status: 409, message: /100 criterion points.*worth 10/ });
   assert.equal(instances.size, 0);
