@@ -1,5 +1,15 @@
 # Design Studio integration into Extreme ICE
 
+## November 26, 2026 — AWS classroom acceptance preflight
+
+Live acceptance on `design-studio-integration` is pending approval of the roster, the class opening and closing times, the ordered learner-to-assignment seat mapping, and the published lab revision with its catalog fingerprint. Base44 had no `AWS_LEARNER_CLASSROOM` setting, and the app query returned zero active AWS learner or proof runs. Both AWS guided-file lab candidates were drafts. The read-only preflight launched no AWS resources.
+
+The shared five-minute `Expire AWS Learner Labs` workflow, ID `6aebf2f5f80221b22d139e5d`, is active. Its deployed handler on `main` calls the pilot `cloudLearnerAWS` sweeper. The pilot binds runs to its single stack and returns `RUN_BINDING_MISMATCH` for classroom stacks named `ExtremeICE-DSCap-01` through `ExtremeICE-DSCap-20`. An idle workflow tick establishes scheduler cadence. Integrated classroom expiry remains blocked until a classroom-aware scheduled cleanup path is verified on the rehearsal target. [Current cleanup binding](https://github.com/wanderson1028/xtremeICE/blob/f78aad8e527ef97375176a44d89e455d9e0179e7/base44/functions/cloudLearnerAWS/lifecycle.ts)
+
+The exact integration source at `26330f1ecf797fa6d0225ee663e31fc1ebfebecf` passed the mocked 20-seat regression with networking and AWS credentials unavailable to the test. Carry forward the earlier Xtreme I.C.E. single-seat Finish and scheduled expiry receipts and the November 14 live 20-seat provider proof from the temporary app. [Classroom runbook](docs/aws-learner-demo-runbook.md)
+
+Before provisioning, verify the approved classroom configuration, scoped AWS access for the assigned stack names, regional headroom, independent provider inventory, and the run cost including the cleanup window against the existing $10/day limit. Start acceptance with separate disposable learner attempts for manual Finish and scheduled expiry. Record isolation, saved scores, and provider-side removal before proceeding to a larger cohort.
+
 ## November 26, 2026 — Scoring validation and bounded saved results
 
 Lab Builder now rejects a save when a task’s structured criterion points differ from its task weight or either weight is negative or nonfinite. The task schema declares the weight explicitly. Tasks without criteria are still valid. A legacy text-only criterion uses its task’s existing weight. The server checks new Kasm launches before contacting the provider. An active learner can resume using the run’s frozen snapshot.
